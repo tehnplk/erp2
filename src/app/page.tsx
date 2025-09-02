@@ -102,30 +102,7 @@ export default function Home() {
         ))}
         </div>
 
-        {/* Stats Section */}
-        <div className="mt-12 bg-white/80 backdrop-blur-sm rounded-lg shadow-md p-6 border border-white/20">
-        <h2 className="text-2xl font-bold text-gray-800 mb-6 text-center">
-          ภาพรวมระบบ
-        </h2>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <div className="text-center">
-            <div className="text-3xl font-bold text-blue-600">{modules.length}</div>
-            <div className="text-sm text-gray-600">โมดูล</div>
-          </div>
-          <div className="text-center">
-            <div className="text-3xl font-bold text-green-600">✓</div>
-            <div className="text-sm text-gray-600">พร้อมใช้งาน</div>
-          </div>
-          <div className="text-center">
-            <div className="text-3xl font-bold text-purple-600">🔒</div>
-            <div className="text-sm text-gray-600">ปลอดภัย</div>
-          </div>
-          <div className="text-center">
-            <div className="text-3xl font-bold text-orange-600">🤖</div>
-            <div className="text-sm text-gray-600">AI</div>
-          </div>
-          </div>
-        </div>
+       
       </div>
     </div>
   );
