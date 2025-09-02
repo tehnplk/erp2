@@ -1,0 +1,31 @@
+-- CreateTable
+CREATE TABLE "public"."Warehouse" (
+    "id" SERIAL NOT NULL,
+    "stockId" TEXT NOT NULL,
+    "transactionType" TEXT NOT NULL,
+    "transactionDate" TEXT NOT NULL,
+    "category" TEXT NOT NULL,
+    "productType" TEXT NOT NULL,
+    "productSubtype" TEXT NOT NULL,
+    "productCode" TEXT NOT NULL,
+    "productName" TEXT NOT NULL,
+    "productImage" TEXT,
+    "unit" TEXT NOT NULL,
+    "productLot" TEXT,
+    "productPrice" DECIMAL(65,30),
+    "receivedFromCompany" TEXT,
+    "receiptBillNumber" TEXT,
+    "requestingDepartment" TEXT,
+    "requisitionNumber" TEXT,
+    "quotaAmount" DECIMAL(65,30) NOT NULL DEFAULT 0,
+    "carriedForwardQty" DECIMAL(65,30) NOT NULL DEFAULT 0,
+    "carriedForwardValue" DECIMAL(65,30) NOT NULL DEFAULT 0,
+    "transactionPrice" DECIMAL(65,30) NOT NULL DEFAULT 0,
+    "transactionQuantity" DECIMAL(65,30) NOT NULL DEFAULT 0,
+    "transactionValue" DECIMAL(65,30) NOT NULL DEFAULT 0,
+    "remainingQuantity" DECIMAL(65,30) NOT NULL DEFAULT 0,
+    "remainingValue" DECIMAL(65,30) NOT NULL DEFAULT 0,
+    "inventoryStatus" TEXT,
+
+    CONSTRAINT "Warehouse_pkey" PRIMARY KEY ("id")
+);

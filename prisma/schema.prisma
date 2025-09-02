@@ -1,0 +1,144 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        Int      @id @default(autoincrement())
+  email     String   @unique
+  name      String?
+  password  String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Department {
+  id   Int    @id @default(autoincrement())
+  name String
+}
+
+model Seller {
+  id          Int     @id @default(autoincrement())
+  code        String  @unique
+  prefix      String?
+  name        String
+  business    String?
+  address     String?
+  phone       String?
+  fax         String?
+  mobile      String?
+}
+
+model Product {
+  id            Int      @id @default(autoincrement())
+  code          String   @unique
+  category      String
+  name          String
+  type          String
+  subtype       String
+  unit          String
+  costPrice     Decimal?
+  sellPrice     Decimal?
+  stockBalance  Int?
+  stockValue    Decimal?
+  sellerCode    String?
+  image         String?
+  flagActivate  Boolean  @default(true)
+  adminNote     String?
+}
+
+model Survey {
+  id              Int      @id @default(autoincrement())
+  productId       String
+  category        String
+  type            String
+  subtype         String
+  productName     String
+  requestedAmount Int
+  unit            String
+  pricePerUnit    Decimal?
+  requestingDept  String
+  approvedQuota   Int
+}
+
+model Category {
+  id       Int    @id @default(autoincrement())
+  category String
+  type     String
+  subtype  String
+}
+
+model PurchasePlan {
+  id                      Int      @id @default(autoincrement())
+  productCode             String
+  category                String
+  productName             String
+  productType             String
+  productSubtype          String
+  unit                    String
+  pricePerUnit            Decimal
+  budgetYear              Int
+  planId                  Int
+  inPlan                  String
+  carriedForwardQuantity  Decimal  @default(0)
+  carriedForwardValue     Decimal  @default(0)
+  requiredQuantityForYear Decimal  @default(0)
+  totalRequiredValue      Decimal  @default(0)
+  additionalPurchaseQty   Decimal  @default(0)
+  additionalPurchaseValue Decimal  @default(0)
+  purchasingDepartment    String
+}
+
+model PurchaseApproval {
+  id                Int      @id @default(autoincrement())
+  approvalId        String
+  department        String
+  recordNumber      String
+  requestDate       String
+  productName       String
+  productCode       String
+  category          String
+  productType       String
+  productSubtype    String
+  requestedQuantity Decimal
+  unit              String
+  pricePerUnit      Decimal
+  totalValue        Decimal
+  overPlanCase      String?
+  requester         String?
+  approver          String?
+}
+
+model Warehouse {
+  id                    Int      @id @default(autoincrement())
+  stockId               String
+  transactionType       String
+  transactionDate       String
+  category              String
+  productType           String
+  productSubtype        String
+  productCode           String
+  productName           String
+  productImage          String?
+  unit                  String
+  productLot            String?
+  productPrice          Decimal?
+  receivedFromCompany   String?
+  receiptBillNumber     String?
+  requestingDepartment  String?
+  requisitionNumber     String?
+  quotaAmount           Decimal  @default(0)
+  carriedForwardQty     Decimal  @default(0)
+  carriedForwardValue   Decimal  @default(0)
+  transactionPrice      Decimal  @default(0)
+  transactionQuantity   Decimal  @default(0)
+  transactionValue      Decimal  @default(0)
+  remainingQuantity     Decimal  @default(0)
+  remainingValue        Decimal  @default(0)
+  inventoryStatus       String?
+}
+
