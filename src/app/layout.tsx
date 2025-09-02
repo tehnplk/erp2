@@ -25,13 +25,17 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-      >
+      <body className="antialiased" style={{
+        backgroundImage: 'url(/images/background.png)',
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        backgroundRepeat: 'no-repeat',
+        minHeight: '100vh'
+      }}>
         <Navbar />
-        <main className="min-h-screen bg-cover bg-center bg-no-repeat" style={{backgroundImage: 'url(/images/background.png)'}}>
+        <div style={{ paddingTop: '52px' }}>
           {children}
-        </main>
+        </div>
       </body>
     </html>
   );

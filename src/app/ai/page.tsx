@@ -53,7 +53,10 @@ export default function AIPage() {
   };
 
   useEffect(() => {
-    scrollToBottom();
+    // Only scroll to bottom when new messages are added, not on initial load
+    if (messages.length > 6) { // Initial messages count is 6
+      scrollToBottom();
+    }
   }, [messages]);
 
   const handleSendMessage = () => {
@@ -97,19 +100,20 @@ export default function AIPage() {
   };
 
   return (
-    <div className="container mx-auto px-4 py-8 max-h-screen flex flex-col">
+    <div className="h-screen flex flex-col overflow-hidden pt-[52px]">
+      <div className="container mx-auto px-4 py-2 flex flex-col h-full">
 
       {/* Chat Container */}
-      <div className="flex-1 bg-white/90 backdrop-blur-sm rounded-lg shadow-lg border border-white/20 flex flex-col min-h-0">
+      <div className="flex-1 bg-white/90 backdrop-blur-sm rounded-lg shadow-lg border border-white/20 flex flex-col overflow-hidden mb-2">
         {/* Messages Area */}
-        <div className="flex-1 p-6 overflow-y-auto space-y-4 min-h-0">
+        <div className="flex-1 p-4 overflow-y-auto space-y-4 min-h-0">
           {messages.map((message) => (
             <div
               key={message.id}
               className={`flex ${message.isUser ? 'justify-end' : 'justify-start'}`}
             >
               <div
-                className={`max-w-xs lg:max-w-md px-4 py-3 rounded-lg ${
+                className={`max-w-xs lg:max-w-2xl px-4 py-3 rounded-lg ${
                   message.isUser
                     ? 'bg-blue-600 text-white'
                     : 'bg-gray-100 text-gray-800'
@@ -190,7 +194,7 @@ export default function AIPage() {
         </div>
 
         {/* Input Area */}
-        <div className="border-t border-gray-200 p-4">
+        <div className="border-t border-gray-200 p-3 flex-shrink-0">
           <div className="flex space-x-4">
             <input
               type="text"
@@ -212,7 +216,7 @@ export default function AIPage() {
       </div>
 
       {/* Quick Actions */}
-      <div className="mt-4 grid grid-cols-2 md:grid-cols-5 gap-3 flex-shrink-0">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-2 flex-shrink-0 pb-2">
         <button
           onClick={() => setInputText('แสดงข้อมูลสต็อกที่เหลือน้อย')}
           className="bg-white/80 backdrop-blur-sm border border-white/20 rounded-lg p-3 text-sm hover:bg-white/90 transition-colors"
@@ -243,6 +247,7 @@ export default function AIPage() {
         >
           📊 สร้างกราฟ
         </button>
+        </div>
       </div>
     </div>
   );
