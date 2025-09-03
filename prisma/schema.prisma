@@ -41,10 +41,10 @@ model Product {
   type          String
   subtype       String
   unit          String
-  costPrice     Decimal?
-  sellPrice     Decimal?
+  costPrice     Decimal? @db.Decimal(10, 2)
+  sellPrice     Decimal? @db.Decimal(10, 2)
   stockBalance  Int?
-  stockValue    Decimal?
+  stockValue    Decimal? @db.Decimal(10, 2)
   sellerCode    String?
   image         String?
   flagActivate  Boolean  @default(true)
@@ -53,14 +53,14 @@ model Product {
 
 model Survey {
   id              Int      @id @default(autoincrement())
-  productId       String
+  productCode       String
   category        String
   type            String
   subtype         String
   productName     String
   requestedAmount Int
   unit            String
-  pricePerUnit    Decimal?
+  pricePerUnit    Decimal? @db.Decimal(10, 2)
   requestingDept  String
   approvedQuota   Int
 }
@@ -80,16 +80,16 @@ model PurchasePlan {
   productType             String
   productSubtype          String
   unit                    String
-  pricePerUnit            Decimal
+  pricePerUnit            Decimal @db.Decimal(10, 2)
   budgetYear              Int
   planId                  Int
   inPlan                  String
-  carriedForwardQuantity  Decimal  @default(0)
-  carriedForwardValue     Decimal  @default(0)
-  requiredQuantityForYear Decimal  @default(0)
-  totalRequiredValue      Decimal  @default(0)
-  additionalPurchaseQty   Decimal  @default(0)
-  additionalPurchaseValue Decimal  @default(0)
+  carriedForwardQuantity  Decimal  @default(0) @db.Decimal(10, 2)
+  carriedForwardValue     Decimal  @default(0) @db.Decimal(10, 2)
+  requiredQuantityForYear Decimal  @default(0) @db.Decimal(10, 2)
+  totalRequiredValue      Decimal  @default(0) @db.Decimal(10, 2)
+  additionalPurchaseQty   Decimal  @default(0) @db.Decimal(10, 2)
+  additionalPurchaseValue Decimal  @default(0) @db.Decimal(10, 2)
   purchasingDepartment    String
 }
 
@@ -104,10 +104,10 @@ model PurchaseApproval {
   category          String
   productType       String
   productSubtype    String
-  requestedQuantity Decimal
+  requestedQuantity Decimal @db.Decimal(10, 2)
   unit              String
-  pricePerUnit      Decimal
-  totalValue        Decimal
+  pricePerUnit      Decimal @db.Decimal(10, 2)
+  totalValue        Decimal @db.Decimal(10, 2)
   overPlanCase      String?
   requester         String?
   approver          String?
@@ -126,19 +126,19 @@ model Warehouse {
   productImage          String?
   unit                  String
   productLot            String?
-  productPrice          Decimal?
+  productPrice          Decimal? @db.Decimal(10, 2)
   receivedFromCompany   String?
   receiptBillNumber     String?
   requestingDepartment  String?
   requisitionNumber     String?
-  quotaAmount           Decimal  @default(0)
-  carriedForwardQty     Decimal  @default(0)
-  carriedForwardValue   Decimal  @default(0)
-  transactionPrice      Decimal  @default(0)
-  transactionQuantity   Decimal  @default(0)
-  transactionValue      Decimal  @default(0)
-  remainingQuantity     Decimal  @default(0)
-  remainingValue        Decimal  @default(0)
+  quotaAmount           Decimal  @default(0) @db.Decimal(10, 2)
+  carriedForwardQty     Decimal  @default(0) @db.Decimal(10, 2)
+  carriedForwardValue   Decimal  @default(0) @db.Decimal(10, 2)
+  transactionPrice      Decimal  @default(0) @db.Decimal(10, 2)
+  transactionQuantity   Decimal  @default(0) @db.Decimal(10, 2)
+  transactionValue      Decimal  @default(0) @db.Decimal(10, 2)
+  remainingQuantity     Decimal  @default(0) @db.Decimal(10, 2)
+  remainingValue        Decimal  @default(0) @db.Decimal(10, 2)
   inventoryStatus       String?
 }
 
