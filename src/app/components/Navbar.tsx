@@ -12,7 +12,7 @@ export default function Navbar() {
     { href: '/', label: 'หน้าหลัก', icon: '🏠' },
     { href: '/categories', label: 'หมวดหมู่สินค้า', icon: '💊' },
     { href: '/departments', label: 'แผนก', icon: '🏥' },
-    { href: '/products', label: 'เวชภัณฑ์', icon: '🩺' },
+    { href: '/products', label: 'รายการสินค้า', icon: '📦' },
     { href: '/sellers', label: 'ผู้จำหน่าย', icon: '🏪' },
     { href: '/surveys', label: 'แบบสำรวจ', icon: '📋' },
     { href: '/purchase-plans', label: 'แผนจัดซื้อ', icon: '📊' },
