@@ -39,15 +39,81 @@ export default function ProductsPage() {
     image: '',
     adminNote: ''
   });
+  
+  // Filter states
+  const [nameFilter, setNameFilter] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState('');
+  const [typeFilter, setTypeFilter] = useState('');
+  const [subtypeFilter, setSubtypeFilter] = useState('');
+  
+  // Unique values for select dropdowns
+  const categories = ['วัสดุใช้ไป'];
+  const types = [
+    '000 ชุด/กล่อง)"',
+    '000 ชุด/กล่อง) ขนาด 9*11 นิ้ว"',
+    '000 ซีซี"',
+    '000 ใบ"',
+    'II',
+    'L',
+    'M',
+    'XL',
+    'XL สีขาว"',
+    'XL สีชมพู"',
+    'XL สีน้ำเงิน"',
+    'วัสดุการเกษตร',
+    'วัสดุคอมพิวเตอร์',
+    'วัสดุโฆษณาและเผยแพร่',
+    'วัสดุงานบ้านงานครัว',
+    'วัสดุช่างและก่อสร้าง',
+    'วัสดุเชื้อเพลิง',
+    'วัสดุบริโภค',
+    'วัสดุไฟฟ้า',
+    'วัสดุยานพาหนะและขนส่ง',
+    'วัสดุสำนักงาน',
+    'วัสดุสิ่งทอและเครื่องแต่งกาย'
+  ];
+  
+  const subtypes = [
+    'III',
+    'L',
+    'XL',
+    'XL สีฟ้า"',
+    'XXL สีขา"',
+    'วัสดุการเกษตร',
+    'วัสดุคอมพิวเตอร์',
+    'วัสดุโฆษณาและเผยแพร่',
+    'วัสดุงานบ้านงานครัว',
+    'วัสดุงานบ้านงานครัว-งบหน่วยงาน',
+    'วัสดุช่างและก่อสร้าง',
+    'วัสดุช่างและก่อสร้าง-งบหน่วยงาน',
+    'วัสดุเชื้อเพลิง',
+    'วัสดุบริโภค',
+    'วัสดุไฟฟ้า',
+    'วัสดุไฟฟ้า-งบหน่วยงาน',
+    'วัสดุยานพาหนะและขนส่ง',
+    'วัสดุสำนักงาน',
+    'วัสดุสำนักงาน-งบหน่วยงาน',
+    'วัสดุสิ่งทอและเครื่องแต่งกาย'
+  ];
 
   useEffect(() => {
     fetchProducts();
-  }, []);
+  }, [nameFilter, categoryFilter, typeFilter, subtypeFilter]);
 
   const fetchProducts = async () => {
     try {
       setLoading(true);
-      const response = await fetch('/api/products?orderBy=code');
+      
+      // Build query string with filters
+      const params = new URLSearchParams();
+      params.append('orderBy', 'code');
+      
+      if (nameFilter) params.append('name', nameFilter);
+      if (categoryFilter) params.append('category', categoryFilter);
+      if (typeFilter) params.append('type', typeFilter);
+      if (subtypeFilter) params.append('subtype', subtypeFilter);
+      
+      const response = await fetch(`/api/products?${params.toString()}`);
       if (!response.ok) throw new Error('Failed to fetch products');
       const data = await response.json();
       setProducts(data);
@@ -351,6 +417,75 @@ export default function ProductsPage() {
       )}
 
       <div className="bg-white shadow-md rounded-lg overflow-hidden mb-4">
+        {/* Filter Section */}
+        <div className="px-4 py-3 bg-gray-50 border-b border-gray-200">
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">ชื่อสินค้า</label>
+              <input
+                type="text"
+                value={nameFilter}
+                onChange={(e) => setNameFilter(e.target.value)}
+                placeholder="ค้นหาชื่อสินค้า..."
+                className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">หมวดสินค้า</label>
+              <select
+                value={categoryFilter}
+                onChange={(e) => setCategoryFilter(e.target.value)}
+                className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm"
+              >
+                <option value="">ทั้งหมด</option>
+                {categories.map((category) => (
+                  <option key={category} value={category}>{category}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">ประเภทสินค้า</label>
+              <select
+                value={typeFilter}
+                onChange={(e) => setTypeFilter(e.target.value)}
+                className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm"
+              >
+                <option value="">ทั้งหมด</option>
+                {types.map((type) => (
+                  <option key={type} value={type}>{type}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">ประเภทย่อย</label>
+              <select
+                value={subtypeFilter}
+                onChange={(e) => setSubtypeFilter(e.target.value)}
+                className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm"
+              >
+                <option value="">ทั้งหมด</option>
+                {subtypes.map((subtype) => (
+                  <option key={subtype} value={subtype}>{subtype}</option>
+                ))}
+              </select>
+            </div>
+            <div className="flex items-end">
+              <button
+                onClick={() => {
+                  setNameFilter('');
+                  setCategoryFilter('');
+                  setTypeFilter('');
+                  setSubtypeFilter('');
+                }}
+                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md shadow-sm text-gray-700 hover:bg-gray-50"
+              >
+                ล้าง
+              </button>
+            </div>
+          </div>
+        </div>
+        
+        {/* Summary Section */}
         <div className="px-4 py-3 bg-gray-50 border-b border-gray-200">
           <div className="flex justify-between items-center">
             <h3 className="text-lg font-medium text-gray-900">สรุปข้อมูล</h3>
