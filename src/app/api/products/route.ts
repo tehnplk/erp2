@@ -46,12 +46,19 @@ export async function GET(request: NextRequest) {
       orderByClause = { [orderBy]: sortOrder };
     }
     
+    // Get total count of all products (without filters)
+    const totalCount = await prisma.product.count();
+    
+    // Get filtered products
     const products = await prisma.product.findMany({
       where,
       orderBy: orderByClause
     });
     
-    return NextResponse.json(products);
+    return NextResponse.json({
+      products,
+      totalCount
+    });
   } catch (error) {
     console.error('Error fetching products:', error);
     return NextResponse.json({ error: 'Failed to fetch products' }, { status: 500 });

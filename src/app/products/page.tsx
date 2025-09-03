@@ -22,6 +22,7 @@ interface ProductFormData {
 
 export default function ProductsPage() {
   const [products, setProducts] = useState<Product[]>([]);
+  const [totalCount, setTotalCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
@@ -127,7 +128,8 @@ export default function ProductsPage() {
       const response = await fetch(`/api/products?${params.toString()}`);
       if (!response.ok) throw new Error('Failed to fetch products');
       const data = await response.json();
-      setProducts(data);
+      setProducts(data.products);
+      setTotalCount(data.totalCount);
     } catch (err) {
       console.error('Error fetching products:', err);
     } finally {
@@ -637,6 +639,10 @@ export default function ProductsPage() {
             </div>
           </div>
         </div>
+      </div>
+
+      <div className="mt-4 text-sm text-gray-600">
+        แสดง {products.length} จาก {totalCount} รายการ
       </div>
 
       <div className="bg-white shadow-md rounded-lg overflow-hidden">
