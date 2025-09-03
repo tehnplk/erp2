@@ -625,11 +625,8 @@ export default function SurveysPage() {
                     <th onClick={() => handleSort('type')} className={getHeaderClass('type') + ' w-24'}>
                       ประเภท {getSortIcon('type')}
                     </th>
-                    <th onClick={() => handleSort('requestedAmount')} className={getHeaderClass('requestedAmount') + ' w-24'}>
+                    <th onClick={() => handleSort('requestedAmount')} className={getHeaderClass('requestedAmount') + ' w-32'}>
                       จำนวน {getSortIcon('requestedAmount')}
-                    </th>
-                    <th onClick={() => handleSort('unit')} className={getHeaderClass('unit') + ' w-20'}>
-                      หน่วยนับ {getSortIcon('unit')}
                     </th>
                     <th onClick={() => handleSort('pricePerUnit')} className={getHeaderClass('pricePerUnit') + ' w-28'}>
                       ราคา/หน่วย {getSortIcon('pricePerUnit')}
@@ -664,10 +661,7 @@ export default function SurveysPage() {
                         {survey.type}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {survey.requestedAmount.toLocaleString()}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {survey.unit}
+                        {survey.requestedAmount.toLocaleString()} {survey.unit}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                         {survey.pricePerUnit?.toLocaleString()}
