@@ -6,15 +6,13 @@ const prisma = new PrismaClient();
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
-    const orderBy = searchParams.get('orderBy');
-    const sortOrder = searchParams.get('sortOrder') || 'asc';
-    
-    // Get filter parameters
     const productName = searchParams.get('productName');
     const category = searchParams.get('category');
     const type = searchParams.get('type');
     const requestingDept = searchParams.get('requestingDept');
-    
+    const orderBy = searchParams.get('orderBy') || 'id';
+    const sortOrder = searchParams.get('sortOrder') || 'desc';
+
     // Build where clause
     const where: any = {};
     
@@ -70,7 +68,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     
     const {
-      productId,
+      productCode,
       category,
       type,
       subtype,
@@ -82,27 +80,18 @@ export async function POST(request: NextRequest) {
       approvedQuota
     } = body;
     
-    // Validate required fields
-    if (!productId || !category || !type || !subtype || !productName || 
-        !requestedAmount || !unit || !requestingDept) {
-      return NextResponse.json(
-        { error: 'Missing required fields' },
-        { status: 400 }
-      );
-    }
-    
     const survey = await prisma.survey.create({
       data: {
-        productId,
-        category,
-        type,
-        subtype,
-        productName,
-        requestedAmount: parseInt(requestedAmount),
-        unit,
-        pricePerUnit: pricePerUnit ? parseFloat(pricePerUnit) : null,
-        requestingDept,
-        approvedQuota: approvedQuota ? parseInt(approvedQuota) : 0
+        productCode: productCode || null,
+        category: category || null,
+        type: type || null,
+        subtype: subtype || null,
+        productName: productName || null,
+        requestedAmount: requestedAmount ? parseInt(requestedAmount) : null,
+        unit: unit || null,
+        pricePerUnit: pricePerUnit ? parseFloat(pricePerUnit) : 0,
+        requestingDept: requestingDept || null,
+        approvedQuota: approvedQuota ? parseInt(approvedQuota) : null
       }
     });
     

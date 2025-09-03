@@ -12,7 +12,7 @@ export async function PUT(
     const body = await request.json();
     
     const {
-      productId,
+      productCode,
       category,
       type,
       subtype,
@@ -24,28 +24,19 @@ export async function PUT(
       approvedQuota
     } = body;
     
-    // Validate required fields
-    if (!productId || !category || !type || !subtype || !productName || 
-        !requestedAmount || !unit || !requestingDept) {
-      return NextResponse.json(
-        { error: 'Missing required fields' },
-        { status: 400 }
-      );
-    }
-    
     const survey = await prisma.survey.update({
       where: { id },
       data: {
-        productId,
-        category,
-        type,
-        subtype,
-        productName,
-        requestedAmount: parseInt(requestedAmount),
-        unit,
-        pricePerUnit: pricePerUnit ? parseFloat(pricePerUnit) : null,
-        requestingDept,
-        approvedQuota: approvedQuota ? parseInt(approvedQuota) : 0
+        productCode: productCode || null,
+        category: category || null,
+        type: type || null,
+        subtype: subtype || null,
+        productName: productName || null,
+        requestedAmount: requestedAmount ? parseInt(requestedAmount) : null,
+        unit: unit || null,
+        pricePerUnit: pricePerUnit ? parseFloat(pricePerUnit) : 0,
+        requestingDept: requestingDept || null,
+        approvedQuota: approvedQuota ? parseInt(approvedQuota) : null
       }
     });
     

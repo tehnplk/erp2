@@ -1,39 +1,43 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
-    // Get distinct values for each filter field
-    const [categories, types, subtypes, departments] = await Promise.all([
-      prisma.survey.findMany({
-        select: { category: true },
-        distinct: ['category'],
-        orderBy: { category: 'asc' }
-      }),
-      prisma.survey.findMany({
-        select: { type: true },
-        distinct: ['type'],
-        orderBy: { type: 'asc' }
-      }),
-      prisma.survey.findMany({
-        select: { subtype: true },
-        distinct: ['subtype'],
-        orderBy: { subtype: 'asc' }
-      }),
-      prisma.survey.findMany({
-        select: { requestingDept: true },
-        distinct: ['requestingDept'],
-        orderBy: { requestingDept: 'asc' }
-      })
-    ]);
+    // Get unique categories
+    const categories = await prisma.survey.findMany({
+      select: { category: true },
+      distinct: ['category'],
+      where: { category: { not: null } }
+    });
+
+    // Get unique types
+    const types = await prisma.survey.findMany({
+      select: { type: true },
+      distinct: ['type'],
+      where: { type: { not: null } }
+    });
+
+    // Get unique subtypes
+    const subtypes = await prisma.survey.findMany({
+      select: { subtype: true },
+      distinct: ['subtype'],
+      where: { subtype: { not: null } }
+    });
+
+    // Get unique requesting departments
+    const departments = await prisma.survey.findMany({
+      select: { requestingDept: true },
+      distinct: ['requestingDept'],
+      where: { requestingDept: { not: null } }
+    });
 
     return NextResponse.json({
-      categories: categories.map(item => item.category).filter(Boolean),
-      types: types.map(item => item.type).filter(Boolean),
-      subtypes: subtypes.map(item => item.subtype).filter(Boolean),
-      departments: departments.map(item => item.requestingDept).filter(Boolean)
+      categories: categories.map(c => c.category).filter(Boolean),
+      types: types.map(t => t.type).filter(Boolean),
+      subtypes: subtypes.map(s => s.subtype).filter(Boolean),
+      departments: departments.map(d => d.requestingDept).filter(Boolean)
     });
   } catch (error) {
     console.error('Error fetching filter options:', error);
