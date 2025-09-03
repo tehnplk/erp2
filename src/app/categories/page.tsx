@@ -349,10 +349,11 @@ export default function CategoriesPage() {
           </div>
         </div>
 
-        {/* Results Counter */}
-        <div className="mt-4 text-sm text-gray-600">
-          แสดง {filteredCategories.length} จาก {categories.length} รายการ
-        </div>
+      </div>
+
+      {/* Results Counter */}
+      <div className="mt-4 text-sm text-gray-600">
+        แสดง {filteredCategories.length} จาก {categories.length} รายการ
       </div>
 
       {/* Categories Table */}

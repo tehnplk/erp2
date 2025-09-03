@@ -247,10 +247,11 @@ export default function DepartmentsPage() {
           </div>
         </div>
 
-        {/* Results Counter */}
-        <div className="mt-4 text-sm text-gray-600">
-          แสดง {filteredDepartments.length} จาก {departments.length} รายการ
-        </div>
+      </div>
+
+      {/* Results Counter */}
+      <div className="mt-4 text-sm text-gray-600">
+        แสดง {filteredDepartments.length} จาก {departments.length} รายการ
       </div>
 
       {/* Departments Table */}
