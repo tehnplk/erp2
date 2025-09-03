@@ -3,20 +3,29 @@ import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
+// Ensure proper database connection
+prisma.$connect();
+
 // GET /api/departments - Get all departments
 export async function GET() {
   try {
+    console.log('Attempting to fetch departments...');
     const departments = await prisma.department.findMany({
       orderBy: {
         id: 'asc'
       }
     });
     
+    console.log('Departments fetched successfully:', departments.length);
     return NextResponse.json(departments);
   } catch (error) {
     console.error('Error fetching departments:', error);
+    console.error('Error details:', {
+      message: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : undefined
+    });
     return NextResponse.json(
-      { error: 'Failed to fetch departments' },
+      { error: 'Failed to fetch departments', details: error instanceof Error ? error.message : 'Unknown error' },
       { status: 500 }
     );
   }

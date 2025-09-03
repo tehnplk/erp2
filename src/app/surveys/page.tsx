@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Swal from 'sweetalert2';
 
 interface Survey {
   id: number;
@@ -221,17 +222,47 @@ export default function SurveysPage() {
   };
 
   const handleDelete = async (id: number) => {
-    if (confirm('คุณแน่ใจหรือไม่ที่จะลบข้อมูลนี้?')) {
+    const result = await Swal.fire({
+      title: 'คุณแน่ใจหรือไม่?',
+      text: 'คุณจะไม่สามารถกู้คืนข้อมูลนี้ได้!',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#d33',
+      cancelButtonColor: '#3085d6',
+      confirmButtonText: 'ใช่, ลบเลย!',
+      cancelButtonText: 'ยกเลิก'
+    });
+
+    if (result.isConfirmed) {
       try {
         const response = await fetch(`/api/surveys/${id}`, {
           method: 'DELETE',
         });
         
         if (response.ok) {
+          await Swal.fire({
+            title: 'ลบแล้ว!',
+            text: 'ข้อมูลของคุณถูกลบแล้ว',
+            icon: 'success',
+            confirmButtonColor: '#3085d6'
+          });
           await fetchSurveys();
+        } else {
+          await Swal.fire({
+            title: 'เกิดข้อผิดพลาด!',
+            text: 'เกิดข้อผิดพลาดในการลบข้อมูล',
+            icon: 'error',
+            confirmButtonColor: '#3085d6'
+          });
         }
       } catch (error) {
         console.error('Error deleting survey:', error);
+        await Swal.fire({
+          title: 'เกิดข้อผิดพลาด!',
+          text: 'เกิดข้อผิดพลาดในการลบข้อมูล',
+          icon: 'error',
+          confirmButtonColor: '#3085d6'
+        });
       }
     }
   };
@@ -276,8 +307,7 @@ export default function SurveysPage() {
         {/* Header */}
         <div className="flex justify-between items-center mb-8">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">ข้อมูลความต้องการ (Survey)</h1>
-            <p className="mt-2 text-gray-600">จัดการข้อมูลความต้องการสินค้าและบริการ</p>
+            <h1 className="text-3xl font-bold text-gray-900">ข้อมูลความต้องการ</h1>
           </div>
           <button
             onClick={() => setShowForm(true)}
@@ -498,7 +528,7 @@ export default function SurveysPage() {
         
         {/* Filter Section */}
         <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">ชื่อสินค้า</label>
               <input
@@ -551,15 +581,15 @@ export default function SurveysPage() {
                 ))}
               </select>
             </div>
-          </div>
-          
-          <div className="mt-4 flex justify-end">
-            <button
-              onClick={clearFilters}
-              className="px-4 py-2 bg-gray-500 text-white rounded-md hover:bg-gray-600 transition-colors"
-            >
-              ล้างตัวกรอง
-            </button>
+            
+            <div className="flex items-end">
+              <button
+                onClick={clearFilters}
+                className="w-full px-4 py-2 bg-gray-500 text-white rounded-md hover:bg-gray-600 transition-colors"
+              >
+                ล้างตัวกรอง
+              </button>
+            </div>
           </div>
         </div>
         
@@ -607,8 +637,8 @@ export default function SurveysPage() {
                     <th onClick={() => handleSort('approvedQuota')} className={getHeaderClass('approvedQuota')}>
                       ได้รับอนุมัติ {getSortIcon('approvedQuota')}
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      การดำเนินการ
+                    <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-24">
+                      Action
                     </th>
                   </tr>
                 </thead>
@@ -618,7 +648,7 @@ export default function SurveysPage() {
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                         {survey.productId}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      <td className="px-6 py-4 text-sm text-gray-900 break-words max-w-xs">
                         {survey.productName}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
@@ -639,20 +669,24 @@ export default function SurveysPage() {
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                         {survey.approvedQuota.toLocaleString()}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                      <td className="px-3 py-4 whitespace-nowrap text-sm font-medium w-24">
                         <button
                           onClick={() => handleEdit(survey)}
-                          className="text-indigo-600 hover:text-indigo-900 mr-3"
+                          className="text-indigo-600 hover:text-indigo-900 mr-2 cursor-pointer"
                           title="แก้ไข"
                         >
-                          ✏️
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                            <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
+                          </svg>
                         </button>
                         <button
                           onClick={() => handleDelete(survey.id)}
-                          className="text-red-600 hover:text-red-900"
+                          className="text-red-600 hover:text-red-900 cursor-pointer"
                           title="ลบ"
                         >
-                          🗑️
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                            <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
+                          </svg>
                         </button>
                       </td>
                     </tr>

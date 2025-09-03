@@ -28,7 +28,12 @@ export default function DepartmentsPage() {
         const data = await response.json();
         setDepartments(data);
       } else {
-        console.error('Failed to fetch departments');
+        const errorData = await response.json().catch(() => ({}));
+        console.error('Failed to fetch departments:', {
+          status: response.status,
+          statusText: response.statusText,
+          error: errorData
+        });
       }
     } catch (error) {
       console.error('Error fetching departments:', error);

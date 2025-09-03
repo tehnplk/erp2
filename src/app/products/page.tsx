@@ -55,59 +55,34 @@ export default function ProductsPage() {
   const [sortBy, setSortBy] = useState('code');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
   
-  // Unique values for select dropdowns
-  const categories = ['วัสดุใช้ไป'];
-  const types = [
-    '000 ชุด/กล่อง)"',
-    '000 ชุด/กล่อง) ขนาด 9*11 นิ้ว"',
-    '000 ซีซี"',
-    '000 ใบ"',
-    'II',
-    'L',
-    'M',
-    'XL',
-    'XL สีขาว"',
-    'XL สีชมพู"',
-    'XL สีน้ำเงิน"',
-    'วัสดุการเกษตร',
-    'วัสดุคอมพิวเตอร์',
-    'วัสดุโฆษณาและเผยแพร่',
-    'วัสดุงานบ้านงานครัว',
-    'วัสดุช่างและก่อสร้าง',
-    'วัสดุเชื้อเพลิง',
-    'วัสดุบริโภค',
-    'วัสดุไฟฟ้า',
-    'วัสดุยานพาหนะและขนส่ง',
-    'วัสดุสำนักงาน',
-    'วัสดุสิ่งทอและเครื่องแต่งกาย'
-  ];
+  // Dynamic filter options (fetched from API)
+  const [categories, setCategories] = useState<string[]>([]);
+  const [types, setTypes] = useState<string[]>([]);
+  const [subtypes, setSubtypes] = useState<string[]>([]);
+  const [sellerCodes, setSellerCodes] = useState<string[]>([]);
   
-  const subtypes = [
-    'III',
-    'L',
-    'XL',
-    'XL สีฟ้า"',
-    'XXL สีขา"',
-    'วัสดุการเกษตร',
-    'วัสดุคอมพิวเตอร์',
-    'วัสดุโฆษณาและเผยแพร่',
-    'วัสดุงานบ้านงานครัว',
-    'วัสดุงานบ้านงานครัว-งบหน่วยงาน',
-    'วัสดุช่างและก่อสร้าง',
-    'วัสดุช่างและก่อสร้าง-งบหน่วยงาน',
-    'วัสดุเชื้อเพลิง',
-    'วัสดุบริโภค',
-    'วัสดุไฟฟ้า',
-    'วัสดุไฟฟ้า-งบหน่วยงาน',
-    'วัสดุยานพาหนะและขนส่ง',
-    'วัสดุสำนักงาน',
-    'วัสดุสำนักงาน-งบหน่วยงาน',
-    'วัสดุสิ่งทอและเครื่องแต่งกาย'
-  ];
-
   useEffect(() => {
     fetchProducts();
   }, [nameFilter, categoryFilter, typeFilter, subtypeFilter, sortBy, sortOrder]);
+
+  useEffect(() => {
+    fetchFilterOptions();
+  }, []);
+
+  const fetchFilterOptions = async () => {
+    try {
+      const response = await fetch('/api/products/filters');
+      if (response.ok) {
+        const data = await response.json();
+        setCategories(data.categories);
+        setTypes(data.types);
+        setSubtypes(data.subtypes);
+        setSellerCodes(data.sellerCodes);
+      }
+    } catch (error) {
+      console.error('Error fetching filter options:', error);
+    }
+  };
 
   const fetchProducts = async () => {
     try {
