@@ -1,0 +1,23 @@
+.markdown-content img {
+    max-width: 100%;
+    height: auto;
+    border-radius: 0.5rem;
+    margin: 0.5rem 0;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.markdown-content p {
+    margin-bottom: 0.5rem;
+}
+
+/* Add a subtle zoom effect on image hover */
+.markdown-content img:hover {
+    transform: scale(1.01);
+    transition: transform 0.2s ease-in-out;
+}
+
+/* Ensure images don't overflow their container */
+.markdown-content {
+    max-width: 100%;
+    overflow: hidden;
+}
