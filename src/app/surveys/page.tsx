@@ -294,7 +294,7 @@ export default function SurveysPage() {
         <div className="flex justify-between items-center mb-8">
           <div>
             <h1 className="text-3xl font-bold text-gray-900">ข้อมูลความต้องการ</h1>
-            <p className="text-gray-600 mt-2">จำนวนทั้งหมด: {totalCount.toLocaleString()} รายการ</p>
+            
           </div>
           <button
             onClick={() => setShowForm(true)}
@@ -304,7 +304,6 @@ export default function SurveysPage() {
             <span>เพิ่มความต้องการ</span>
           </button>
         </div>
-
         {/* Filter Section */}
         <div className="bg-white rounded-lg shadow-md p-6 mb-6">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
@@ -372,6 +371,33 @@ export default function SurveysPage() {
           </div>
         </div>
 
+        {/* Summary Section */}
+        <div className="bg-white shadow-md rounded-lg overflow-hidden mb-4">
+          <div className="px-4 py-3 bg-gray-50 border-b border-gray-200">
+            <div className="flex justify-between items-center">
+              <h3 className="text-lg font-medium text-gray-900">สรุปข้อมูล</h3>
+              <div className="flex flex-wrap items-center gap-6">
+                <div className="text-sm">
+                  <span className="text-gray-500">มูลค่ารวมที่ขอ: </span>
+                  <span className="font-semibold text-gray-900">
+                    ฿{surveys.reduce((sum, s) => sum + ((s.requestedAmount || 0) * (s.pricePerUnit || 0)), 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </span>
+                </div>
+                <div className="text-sm">
+                  <span className="text-gray-500">มูลค่ารวมที่อนุมัติ: </span>
+                  <span className="font-semibold text-gray-900">
+                    ฿{surveys.reduce((sum, s) => sum + ((s.approvedQuota || 0) * (s.pricePerUnit || 0)), 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="mb-4 text-sm text-gray-600">
+          แสดง {surveys.length} จาก {totalCount} รายการ
+        </div>
+
         {/* Table */}
         <div className="bg-white rounded-lg shadow-md overflow-hidden">
           {loading ? (
@@ -412,7 +438,7 @@ export default function SurveysPage() {
                       จำนวนที่อนุมัติ {getSortIcon('approvedQuota')}
                     </th>
                     <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-24">
-                      การดำเนินการ
+                      Action
                     </th>
                   </tr>
                 </thead>
@@ -443,21 +469,25 @@ export default function SurveysPage() {
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                         {survey.approvedQuota?.toLocaleString() || '-'}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                        <div className="flex space-x-2">
-                          <button
-                            onClick={() => handleEdit(survey)}
-                            className="text-indigo-600 hover:text-indigo-900"
-                          >
-                            แก้ไข
-                          </button>
-                          <button
-                            onClick={() => handleDelete(survey)}
-                            className="text-red-600 hover:text-red-900"
-                          >
-                            ลบ
-                          </button>
-                        </div>
+                      <td className="px-3 py-4 whitespace-nowrap text-sm font-medium w-24">
+                        <button
+                          onClick={() => handleEdit(survey)}
+                          className="text-indigo-600 hover:text-indigo-900 mr-2 cursor-pointer"
+                          title="แก้ไข"
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                            <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
+                          </svg>
+                        </button>
+                        <button
+                          onClick={() => handleDelete(survey)}
+                          className="text-red-600 hover:text-red-900 cursor-pointer"
+                          title="ลบ"
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                            <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
+                          </svg>
+                        </button>
                       </td>
                     </tr>
                   ))}
