@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { Product } from '@prisma/client';
+import Swal from 'sweetalert2';
 
 interface ProductFormData {
   code: string;
@@ -173,20 +174,47 @@ export default function ProductsPage() {
   };
 
   const handleDelete = async (id: number) => {
-    if (confirm('คุณแน่ใจหรือไม่ที่จะลบสินค้านี้?')) {
+    const result = await Swal.fire({
+      title: 'คุณแน่ใจหรือไม่?',
+      text: 'คุณจะไม่สามารถกู้คืนสินค้านี้ได้!',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#d33',
+      cancelButtonColor: '#3085d6',
+      confirmButtonText: 'ใช่, ลบเลย!',
+      cancelButtonText: 'ยกเลิก'
+    });
+
+    if (result.isConfirmed) {
       try {
         const response = await fetch(`/api/products/${id}`, {
           method: 'DELETE',
         });
 
         if (response.ok) {
+          await Swal.fire({
+            title: 'ลบแล้ว!',
+            text: 'สินค้าของคุณถูกลบแล้ว',
+            icon: 'success',
+            confirmButtonColor: '#3085d6'
+          });
           fetchProducts();
         } else {
-          alert('เกิดข้อผิดพลาดในการลบสินค้า');
+          await Swal.fire({
+            title: 'เกิดข้อผิดพลาด!',
+            text: 'เกิดข้อผิดพลาดในการลบสินค้า',
+            icon: 'error',
+            confirmButtonColor: '#3085d6'
+          });
         }
       } catch (error) {
         console.error('Error deleting product:', error);
-        alert('เกิดข้อผิดพลาดในการลบสินค้า');
+        await Swal.fire({
+          title: 'เกิดข้อผิดพลาด!',
+          text: 'เกิดข้อผิดพลาดในการลบสินค้า',
+          icon: 'error',
+          confirmButtonColor: '#3085d6'
+        });
       }
     }
   };
