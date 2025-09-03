@@ -174,6 +174,11 @@ export default function SellersPage() {
           </button>
         </div>
 
+        {/* Results Counter */}
+        <div className="mt-4 text-sm text-gray-600">
+          แสดง {sellers.length} จาก {sellers.length} รายการ
+        </div>
+
         {/* Sellers Table */}
         <div className="bg-white/80 backdrop-blur-sm rounded-lg shadow-md border border-white/20 overflow-hidden">
           <div className="overflow-x-auto">

@@ -350,10 +350,8 @@ export default function CategoriesPage() {
         </div>
 
         {/* Results Counter */}
-        <div className="flex justify-end mt-4">
-          <div className="text-sm text-gray-600">
-            แสดง {filteredCategories.length} จาก {categories.length} หมวดหมู่
-          </div>
+        <div className="mt-4 text-sm text-gray-600">
+          แสดง {filteredCategories.length} จาก {categories.length} รายการ
         </div>
       </div>
 

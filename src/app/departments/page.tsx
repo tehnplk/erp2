@@ -248,10 +248,8 @@ export default function DepartmentsPage() {
         </div>
 
         {/* Results Counter */}
-        <div className="flex justify-end mt-4">
-          <div className="text-sm text-gray-600">
-            แสดง {filteredDepartments.length} จาก {departments.length} แผนก
-          </div>
+        <div className="mt-4 text-sm text-gray-600">
+          แสดง {filteredDepartments.length} จาก {departments.length} รายการ
         </div>
       </div>
 
