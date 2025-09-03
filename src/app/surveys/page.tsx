@@ -593,6 +593,27 @@ export default function SurveysPage() {
           </div>
         </div>
         
+        {/* Summary Section */}
+        <div className="bg-white rounded-lg shadow-md mb-6">
+          <div className="px-4 py-3 bg-gray-50 border-b border-gray-200">
+            <div className="flex justify-between items-center">
+              <h3 className="text-lg font-medium text-gray-900">สรุปข้อมูล</h3>
+              <div className="flex items-center space-x-6">
+                <div className="text-sm">
+                  <span className="text-gray-500">จำนวนทั้งสิ้น: </span>
+                  <span className="font-semibold text-gray-900">{surveys.length.toLocaleString()} รายการ</span>
+                </div>
+                <div className="text-sm">
+                  <span className="text-gray-500">ราคารวมทั้งหมด: </span>
+                  <span className="font-semibold text-gray-900">
+                    ฿{surveys.reduce((total, survey) => total + (survey.requestedAmount && survey.pricePerUnit ? survey.requestedAmount * survey.pricePerUnit : 0), 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        
         <div className="mt-4 text-sm text-gray-600">
           แสดง {surveys.length} จาก {totalCount} รายการ
         </div>
