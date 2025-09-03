@@ -7,6 +7,7 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const orderBy = searchParams.get('orderBy');
+    const sortOrder = searchParams.get('sortOrder') || 'asc';
     
     // Get filter parameters
     const name = searchParams.get('name');
@@ -36,11 +37,18 @@ export async function GET(request: NextRequest) {
       where.subtype = subtype;
     }
     
+    // Build orderBy clause
+    let orderByClause: any = { id: 'desc' };
+    
+    if (orderBy) {
+      orderByClause = { [orderBy]: sortOrder };
+    } else if (orderBy === 'code') {
+      orderByClause = { code: 'asc' };
+    }
+    
     const products = await prisma.product.findMany({
       where,
-      orderBy: orderBy === 'code' ? 
-        { code: 'asc' } : 
-        { id: 'desc' }
+      orderBy: orderByClause
     });
     
     return NextResponse.json(products);

@@ -47,6 +47,10 @@ export default function ProductsPage() {
   const [typeFilter, setTypeFilter] = useState('');
   const [subtypeFilter, setSubtypeFilter] = useState('');
   
+  // Sorting states
+  const [sortBy, setSortBy] = useState('id');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
+  
   // Unique values for select dropdowns
   const categories = ['วัสดุใช้ไป'];
   const types = [
@@ -99,20 +103,23 @@ export default function ProductsPage() {
 
   useEffect(() => {
     fetchProducts();
-  }, [nameFilter, categoryFilter, typeFilter, subtypeFilter]);
+  }, [nameFilter, categoryFilter, typeFilter, subtypeFilter, sortBy, sortOrder]);
 
   const fetchProducts = async () => {
     try {
       setLoading(true);
       
-      // Build query string with filters
+      // Build query string with filters and sorting
       const params = new URLSearchParams();
-      params.append('orderBy', 'code');
       
       if (nameFilter) params.append('name', nameFilter);
       if (categoryFilter) params.append('category', categoryFilter);
       if (typeFilter) params.append('type', typeFilter);
       if (subtypeFilter) params.append('subtype', subtypeFilter);
+      
+      // Add sorting parameters
+      params.append('orderBy', sortBy);
+      params.append('sortOrder', sortOrder);
       
       const response = await fetch(`/api/products?${params.toString()}`);
       if (!response.ok) throw new Error('Failed to fetch products');
@@ -123,6 +130,51 @@ export default function ProductsPage() {
     } finally {
       setLoading(false);
     }
+  };
+  
+  // Sorting function
+  const handleSort = (column: string) => {
+    if (sortBy === column) {
+      // Toggle sort order if clicking the same column
+      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+    } else {
+      // Set new column and default to ascending order
+      setSortBy(column);
+      setSortOrder('asc');
+    }
+  };
+  
+  // Function to get sort indicator
+  const getSortIndicator = (column: string) => {
+    if (sortBy === column) {
+      return sortOrder === 'asc' ? ' ↑' : ' ↓';
+    }
+    return '';
+  };
+  
+  // Function to get sort icon
+  const getSortIcon = (column: string) => {
+    if (sortBy === column) {
+      return sortOrder === 'asc' ? (
+        <svg className="w-4 h-4 inline-block ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+        </svg>
+      ) : (
+        <svg className="w-4 h-4 inline-block ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+        </svg>
+      );
+    }
+    return (
+      <svg className="w-4 h-4 inline-block ml-1 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" />
+      </svg>
+    );
+  };
+  
+  // Function to get header class
+  const getHeaderClass = (column: string) => {
+    return `px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 ${column === sortBy ? 'bg-gray-100' : ''}`;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -537,35 +589,35 @@ export default function ProductsPage() {
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">
             <tr>
-              <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-24">
-                รหัสสินค้า
+              <th onClick={() => handleSort('code')} className={getHeaderClass('code')}>
+                รหัสสินค้า {getSortIcon('code')}
               </th>
-              <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-28">
-                หมวดสินค้า
+              <th onClick={() => handleSort('category')} className={getHeaderClass('category')}>
+                หมวดสินค้า {getSortIcon('category')}
               </th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                ชื่อสินค้า
+              <th onClick={() => handleSort('name')} className={getHeaderClass('name')}>
+                ชื่อสินค้า {getSortIcon('name')}
               </th>
-              <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-28">
-                ประเภทสินค้า
+              <th onClick={() => handleSort('type')} className={getHeaderClass('type')}>
+                ประเภทสินค้า {getSortIcon('type')}
               </th>
-              <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-28">
-                ประเภทสินค้าย่อย
+              <th onClick={() => handleSort('subtype')} className={getHeaderClass('subtype')}>
+                ประเภทสินค้าย่อย {getSortIcon('subtype')}
               </th>
-              <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-20">
-                หน่วยนับ
+              <th onClick={() => handleSort('unit')} className={getHeaderClass('unit')}>
+                หน่วยนับ {getSortIcon('unit')}
               </th>
-              <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-24">
-                ราคาทุนต่อหน่วย
+              <th onClick={() => handleSort('costPrice')} className={getHeaderClass('costPrice')}>
+                ราคาทุนต่อหน่วย {getSortIcon('costPrice')}
               </th>
-              <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-24">
-                ราคาขายต่อหน่วย
+              <th onClick={() => handleSort('sellPrice')} className={getHeaderClass('sellPrice')}>
+                ราคาขายต่อหน่วย {getSortIcon('sellPrice')}
               </th>
-              <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-20">
-                ยอดยกมา
+              <th onClick={() => handleSort('stockBalance')} className={getHeaderClass('stockBalance')}>
+                ยอดยกมา {getSortIcon('stockBalance')}
               </th>
-              <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-24">
-                มูลค่ายกมา
+              <th onClick={() => handleSort('stockValue')} className={getHeaderClass('stockValue')}>
+                มูลค่ายกมา {getSortIcon('stockValue')}
               </th>
               <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-20">
                 สถานะ
