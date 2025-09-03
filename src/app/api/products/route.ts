@@ -40,10 +40,10 @@ export async function GET(request: NextRequest) {
     // Build orderBy clause
     let orderByClause: any = { id: 'desc' };
     
-    if (orderBy) {
-      orderByClause = { [orderBy]: sortOrder };
-    } else if (orderBy === 'code') {
+    if (orderBy === 'code') {
       orderByClause = { code: 'asc' };
+    } else if (orderBy) {
+      orderByClause = { [orderBy]: sortOrder };
     }
     
     const products = await prisma.product.findMany({

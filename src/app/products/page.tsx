@@ -41,6 +41,9 @@ export default function ProductsPage() {
     adminNote: ''
   });
   
+  // Validation state
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  
   // Filter states
   const [nameFilter, setNameFilter] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
@@ -48,8 +51,8 @@ export default function ProductsPage() {
   const [subtypeFilter, setSubtypeFilter] = useState('');
   
   // Sorting states
-  const [sortBy, setSortBy] = useState('id');
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
+  const [sortBy, setSortBy] = useState('code');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
   
   // Unique values for select dropdowns
   const categories = ['วัสดุใช้ไป'];
@@ -180,6 +183,38 @@ export default function ProductsPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    // Validate required fields
+    const newErrors: Record<string, string> = {};
+    
+    if (!formData.code.trim()) {
+      newErrors.code = 'กรุณาระบุรหัสสินค้า';
+    }
+    
+    if (!formData.category.trim()) {
+      newErrors.category = 'กรุณาระบุหมวดหมู่';
+    }
+    
+    if (!formData.name.trim()) {
+      newErrors.name = 'กรุณาระบุชื่อสินค้า';
+    }
+    
+    if (!formData.type.trim()) {
+      newErrors.type = 'กรุณาระบุประเภท';
+    }
+    
+    if (!formData.subtype.trim()) {
+      newErrors.subtype = 'กรุณาระบุชนิดย่อย';
+    }
+    
+    if (!formData.unit.trim()) {
+      newErrors.unit = 'กรุณาระบุหน่วย';
+    }
+    
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors);
+      return;
+    }
+    
     try {
       const url = editingProduct ? `/api/products/${editingProduct.id}` : '/api/products';
       const method = editingProduct ? 'PUT' : 'POST';
@@ -288,6 +323,7 @@ export default function ProductsPage() {
       image: '',
       adminNote: ''
     });
+    setErrors({});
     setShowForm(false);
   };
 
@@ -298,6 +334,15 @@ export default function ProductsPage() {
       [name]: name.includes('Price') || name.includes('Value') ? (value ? parseFloat(value) : undefined) :
                name === 'stockBalance' ? (value ? parseInt(value) : undefined) : value
     }));
+    
+    // Clear error when user starts typing
+    if (errors[name]) {
+      setErrors(prev => {
+        const newErrors = { ...prev };
+        delete newErrors[name];
+        return newErrors;
+      });
+    }
   };
 
   if (loading) {
@@ -347,8 +392,9 @@ export default function ProductsPage() {
                     value={formData.code}
                     onChange={handleInputChange}
                     required
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                    className={`mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 ${errors.code ? 'border-red-500' : ''}`}
                   />
+                  {errors.code && <p className="mt-1 text-sm text-red-600">{errors.code}</p>}
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700">ชื่อสินค้า *</label>
@@ -358,8 +404,9 @@ export default function ProductsPage() {
                     value={formData.name}
                     onChange={handleInputChange}
                     required
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                    className={`mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 ${errors.name ? 'border-red-500' : ''}`}
                   />
+                  {errors.name && <p className="mt-1 text-sm text-red-600">{errors.name}</p>}
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700">หมวดหมู่ *</label>
@@ -369,38 +416,45 @@ export default function ProductsPage() {
                     value={formData.category}
                     onChange={handleInputChange}
                     required
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                    className={`mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 ${errors.category ? 'border-red-500' : ''}`}
                   />
+                  {errors.category && <p className="mt-1 text-sm text-red-600">{errors.category}</p>}
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">ประเภท</label>
+                  <label className="block text-sm font-medium text-gray-700">ประเภท *</label>
                   <input
                     type="text"
                     name="type"
                     value={formData.type}
                     onChange={handleInputChange}
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                    required
+                    className={`mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 ${errors.type ? 'border-red-500' : ''}`}
                   />
+                  {errors.type && <p className="mt-1 text-sm text-red-600">{errors.type}</p>}
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">ชนิดย่อย</label>
+                  <label className="block text-sm font-medium text-gray-700">ชนิดย่อย *</label>
                   <input
                     type="text"
                     name="subtype"
                     value={formData.subtype}
                     onChange={handleInputChange}
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                    required
+                    className={`mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 ${errors.subtype ? 'border-red-500' : ''}`}
                   />
+                  {errors.subtype && <p className="mt-1 text-sm text-red-600">{errors.subtype}</p>}
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">หน่วย</label>
+                  <label className="block text-sm font-medium text-gray-700">หน่วย *</label>
                   <input
                     type="text"
                     name="unit"
                     value={formData.unit}
                     onChange={handleInputChange}
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                    required
+                    className={`mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 ${errors.unit ? 'border-red-500' : ''}`}
                   />
+                  {errors.unit && <p className="mt-1 text-sm text-red-600">{errors.unit}</p>}
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700">ราคาทุน</label>
