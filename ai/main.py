@@ -1,0 +1,65 @@
+from fastapi import FastAPI, Request, HTTPException
+from pydantic import BaseModel
+from dotenv import load_dotenv
+from pydantic_ai import Agent
+from pydantic_core import to_jsonable_python
+from pydantic_ai.messages import ModelMessagesTypeAdapter
+from pydantic_ai.mcp import MCPServerStdio
+from pydantic_ai.models.openai import OpenAIModel
+from pydantic_ai.providers.openrouter import OpenRouterProvider
+import os
+import logfire
+# Load environment variables
+load_dotenv()
+logfire.configure()
+logfire.instrument_pydantic_ai()
+
+# Initialize FastAPI app
+app = FastAPI()
+#model = "openai:gpt-4o-mini"
+model = OpenAIModel(
+    "deepseek/deepseek-chat-v3-0324",
+    provider=OpenRouterProvider(api_key=os.getenv("OPENROUTER_API_KEY")),
+)
+system_prompt = "คุณเป็นผู้เชี่ยวชาญฐานข้อมูล Postgres"
+
+
+mcp_chart = MCPServerStdio(
+    "npx", ["-y", "@antv/mcp-server-chart"]
+)  # ok
+
+
+mcp_postgres = MCPServerStdio(
+    "npx",
+      [
+        "-y",
+        "@modelcontextprotocol/server-postgres",
+        "postgresql://admin:112233@localhost:5433/erp2"
+      ],
+      {}
+)
+
+agent = Agent(
+    model=model,
+    instructions=system_prompt,
+    toolsets=[ mcp_chart, mcp_postgres],
+)
+
+
+@app.post("/chat")
+async def chat(request: Request):
+    data = await request.json()
+    user_prompt = data.get("user_prompt", "")
+    message_history = data.get("message_history", [])
+    message_history = ModelMessagesTypeAdapter.validate_python(message_history)
+    async with agent:
+        result = await agent.run(user_prompt, message_history=message_history)
+    new_message_history = to_jsonable_python(result.all_messages())
+
+    return {"message": result.output, "message_history": new_message_history}
+
+
+if __name__ == "__main__":
+    import uvicorn
+
+    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
