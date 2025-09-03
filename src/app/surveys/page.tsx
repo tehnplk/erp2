@@ -303,7 +303,7 @@ export default function SurveysPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="container mx-auto px-4 py-8">
         {/* Header */}
         <div className="flex justify-between items-center mb-8">
           <div>
@@ -613,29 +613,35 @@ export default function SurveysPage() {
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th onClick={() => handleSort('productId')} className={getHeaderClass('productId')}>
+                    <th onClick={() => handleSort('productId')} className={getHeaderClass('productId') + ' w-24'}>
                       รหัสสินค้า {getSortIcon('productId')}
                     </th>
-                    <th onClick={() => handleSort('productName')} className={getHeaderClass('productName')}>
+                    <th onClick={() => handleSort('productName')} className={getHeaderClass('productName') + ' w-48'}>
                       ชื่อสินค้า {getSortIcon('productName')}
                     </th>
-                    <th onClick={() => handleSort('category')} className={getHeaderClass('category')}>
+                    <th onClick={() => handleSort('category')} className={getHeaderClass('category') + ' w-32'}>
                       หมวดสินค้า {getSortIcon('category')}
                     </th>
-                    <th onClick={() => handleSort('type')} className={getHeaderClass('type')}>
+                    <th onClick={() => handleSort('type')} className={getHeaderClass('type') + ' w-24'}>
                       ประเภท {getSortIcon('type')}
                     </th>
-                    <th onClick={() => handleSort('requestedAmount')} className={getHeaderClass('requestedAmount')}>
-                      จำนวนที่ขอ {getSortIcon('requestedAmount')}
+                    <th onClick={() => handleSort('requestedAmount')} className={getHeaderClass('requestedAmount') + ' w-24'}>
+                      จำนวน {getSortIcon('requestedAmount')}
                     </th>
-                    <th onClick={() => handleSort('unit')} className={getHeaderClass('unit')}>
+                    <th onClick={() => handleSort('unit')} className={getHeaderClass('unit') + ' w-20'}>
                       หน่วยนับ {getSortIcon('unit')}
                     </th>
-                    <th onClick={() => handleSort('requestingDept')} className={getHeaderClass('requestingDept')}>
+                    <th onClick={() => handleSort('pricePerUnit')} className={getHeaderClass('pricePerUnit') + ' w-28'}>
+                      ราคา/หน่วย {getSortIcon('pricePerUnit')}
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-32">
+                      ราคารวม
+                    </th>
+                    <th onClick={() => handleSort('requestingDept')} className={getHeaderClass('requestingDept') + ' w-32'}>
                       หน่วยงานที่ขอ {getSortIcon('requestingDept')}
                     </th>
-                    <th onClick={() => handleSort('approvedQuota')} className={getHeaderClass('approvedQuota')}>
-                      ได้รับอนุมัติ {getSortIcon('approvedQuota')}
+                    <th onClick={() => handleSort('approvedQuota')} className={getHeaderClass('approvedQuota') + ' w-24'}>
+                      โควต้า {getSortIcon('approvedQuota')}
                     </th>
                     <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-24">
                       Action
@@ -662,6 +668,12 @@ export default function SurveysPage() {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                         {survey.unit}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {survey.pricePerUnit?.toLocaleString()}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {survey.requestedAmount && survey.pricePerUnit ? (survey.requestedAmount * survey.pricePerUnit).toLocaleString() : ''}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                         {survey.requestingDept}
