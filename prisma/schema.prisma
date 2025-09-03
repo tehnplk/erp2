@@ -81,14 +81,14 @@ model PurchasePlan {
   productSubtype          String?
   unit                    String?
   pricePerUnit            Decimal @default(0) @db.Decimal(10, 2)
-  budgetYear              Int?
+  budgetYear              String?
   planId                  Int?
   inPlan                  String?
-  carriedForwardQuantity  Decimal  @default(0) @db.Decimal(10, 2)
+  carriedForwardQuantity  Int?
   carriedForwardValue     Decimal  @default(0) @db.Decimal(10, 2)
-  requiredQuantityForYear Decimal  @default(0) @db.Decimal(10, 2)
+  requiredQuantityForYear Int?
   totalRequiredValue      Decimal  @default(0) @db.Decimal(10, 2)
-  additionalPurchaseQty   Decimal  @default(0) @db.Decimal(10, 2)
+  additionalPurchaseQty   Int?
   additionalPurchaseValue Decimal  @default(0) @db.Decimal(10, 2)
   purchasingDepartment    String?
 }
@@ -104,7 +104,7 @@ model PurchaseApproval {
   category          String?
   productType       String?
   productSubtype    String?
-  requestedQuantity Decimal @default(0) @db.Decimal(10, 2)
+  requestedQuantity Int?
   unit              String?
   pricePerUnit      Decimal @default(0) @db.Decimal(10, 2)
   totalValue        Decimal @default(0) @db.Decimal(10, 2)
@@ -131,13 +131,13 @@ model Warehouse {
   receiptBillNumber     String?
   requestingDepartment  String?
   requisitionNumber     String?
-  quotaAmount           Decimal  @default(0) @db.Decimal(10, 2)
-  carriedForwardQty     Decimal  @default(0) @db.Decimal(10, 2)
+  quotaAmount           Int?
+  carriedForwardQty     Int?
   carriedForwardValue   Decimal  @default(0) @db.Decimal(10, 2)
   transactionPrice      Decimal  @default(0) @db.Decimal(10, 2)
-  transactionQuantity   Decimal  @default(0) @db.Decimal(10, 2)
+  transactionQuantity   Int?
   transactionValue      Decimal  @default(0) @db.Decimal(10, 2)
-  remainingQuantity     Decimal  @default(0) @db.Decimal(10, 2)
+  remainingQuantity     Int?
   remainingValue        Decimal  @default(0) @db.Decimal(10, 2)
   inventoryStatus       String?
 }
