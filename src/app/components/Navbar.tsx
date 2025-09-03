@@ -118,9 +118,9 @@ export default function Navbar() {
               คลัง
             </Link>
             <Link
-              href="/ai"
+              href="/chat"
               className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                pathname === '/ai'
+                pathname === '/chat'
                   ? 'bg-blue-700 text-white'
                   : 'text-blue-100 hover:bg-blue-500 hover:text-white'
               }`}
@@ -235,10 +235,10 @@ export default function Navbar() {
                 คลัง
               </Link>
               <Link
-                href="/ai"
+                href="/chat"
                 onClick={() => setIsMenuOpen(false)}
                 className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                  pathname === '/ai'
+                  pathname === '/chat'
                     ? 'bg-blue-700 text-white'
                     : 'text-blue-100 hover:bg-blue-500 hover:text-white'
                 }`}

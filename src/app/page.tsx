@@ -61,7 +61,7 @@ export default function Home() {
     {
       title: 'AI Assistant',
       description: 'ผู้ช่วย AI สำหรับการวิเคราะห์และแนะนำ',
-      href: '/ai',
+      href: '/chat',
       icon: '🤖',
       color: 'bg-gradient-to-r from-purple-500 to-pink-500'
     }
