@@ -672,7 +672,7 @@ export default function ProductsPage() {
                   {product.category}
                 </td>
                 <td className="px-4 py-4 text-sm text-gray-900">
-                  <div className="break-words" title={product.name}>
+                  <div className="whitespace-normal break-words" title={product.name}>
                     {product.name}
                   </div>
                 </td>

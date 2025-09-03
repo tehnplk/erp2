@@ -253,7 +253,11 @@ export default function PurchasePlansPage() {
             {items.map((row) => (
               <tr key={row.id}>
                 <td className="px-3 py-2 text-sm">{row.productCode}</td>
-                <td className="px-3 py-2 text-sm">{row.productName}</td>
+                <td className="px-3 py-2 text-sm">
+                  <div className="whitespace-normal break-words" title={row.productName}>
+                    {row.productName}
+                  </div>
+                </td>
                 <td className="px-3 py-2 text-sm">{row.category}</td>
                 <td className="px-3 py-2 text-sm">{row.productType}</td>
                 <td className="px-3 py-2 text-sm">{row.unit}</td>

@@ -248,7 +248,11 @@ export default function WarehousePage() {
               <tr key={row.id}>
                 <td className="px-3 py-2 text-sm">{row.transactionDate}</td>
                 <td className="px-3 py-2 text-sm">{row.productCode}</td>
-                <td className="px-3 py-2 text-sm">{row.productName}</td>
+                <td className="px-3 py-2 text-sm">
+                  <div className="whitespace-normal break-words" title={row.productName}>
+                    {row.productName}
+                  </div>
+                </td>
                 <td className="px-3 py-2 text-sm">{row.transactionQuantity ?? '-'}</td>
                 <td className="px-3 py-2 text-sm">{row.remainingQuantity ?? '-'}</td>
                 <td className="px-3 py-2 text-sm font-medium w-24">

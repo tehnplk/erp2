@@ -236,7 +236,11 @@ export default function PurchaseApprovalsPage() {
               <tr key={row.id}>
                 <td className="px-3 py-2 text-sm">{row.approvalId}</td>
                 <td className="px-3 py-2 text-sm">{row.department}</td>
-                <td className="px-3 py-2 text-sm">{row.productName}</td>
+                <td className="px-3 py-2 text-sm">
+                  <div className="whitespace-normal break-words" title={row.productName}>
+                    {row.productName}
+                  </div>
+                </td>
                 <td className="px-3 py-2 text-sm">{row.requestedQuantity ?? '-'}</td>
                 <td className="px-3 py-2 text-sm">{row.pricePerUnit ? Number(row.pricePerUnit).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '-'}</td>
                 <td className="px-3 py-2 text-sm">{row.totalValue ? Number(row.totalValue).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '-'}</td>
