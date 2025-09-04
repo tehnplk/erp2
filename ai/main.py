@@ -18,15 +18,17 @@ logfire.instrument_pydantic_ai()
 app = FastAPI()
 #model = "openai:gpt-4o-mini"
 model = OpenAIModel(
-    "deepseek/deepseek-chat-v3-0324",
+    "openai/gpt-5-nano",
     provider=OpenRouterProvider(api_key=os.getenv("OPENROUTER_API_KEY")),
 )
-system_prompt = "คุณเป็นผู้เชี่ยวชาญฐานข้อมูล Postgres"
+model = "google-gla:gemini-2.5-flash"
+system_prompt =   open("system_prompt.md", "r", encoding="utf-8").read()
+print(system_prompt)
 
 
 mcp_chart = MCPServerStdio(
     "npx", ["-y", "@antv/mcp-server-chart"]
-)  # ok
+)
 
 
 mcp_postgres = MCPServerStdio(
@@ -41,8 +43,9 @@ mcp_postgres = MCPServerStdio(
 
 agent = Agent(
     model=model,
-    instructions=system_prompt,
-    toolsets=[ mcp_chart, mcp_postgres],
+    system_prompt=system_prompt,
+    toolsets=[ mcp_postgres],
+    retries=3,
 )
 
 
