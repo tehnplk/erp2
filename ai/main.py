@@ -16,12 +16,12 @@ logfire.instrument_pydantic_ai()
 
 # Initialize FastAPI app
 app = FastAPI()
-#model = "openai:gpt-4o-mini"
+
 model = OpenAIModel(
-    "openai/gpt-5-nano",
+    "openai/gpt-5-mini",
     provider=OpenRouterProvider(api_key=os.getenv("OPENROUTER_API_KEY")),
 )
-model = "google-gla:gemini-2.5-flash"
+#model = "google-gla:gemini-2.5-flash"
 system_prompt =   open("system_prompt.md", "r", encoding="utf-8").read()
 print(system_prompt)
 
@@ -44,7 +44,7 @@ mcp_postgres = MCPServerStdio(
 agent = Agent(
     model=model,
     system_prompt=system_prompt,
-    toolsets=[ mcp_postgres],
+    toolsets=[ mcp_postgres ,mcp_chart],
     retries=3,
 )
 
