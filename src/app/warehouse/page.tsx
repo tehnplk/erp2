@@ -50,6 +50,20 @@ export default function WarehousePage() {
   const [sortBy, setSortBy] = useState('id');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
 
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [editData, setEditData] = useState<WarehouseFormData>({});
+  const [showBulkForm, setShowBulkForm] = useState(false);
+  const [bulkRecords, setBulkRecords] = useState<any[]>([]);
+  const [toast, setToast] = useState<{
+    message: string;
+    type: 'success' | 'error';
+    visible: boolean;
+  }>({
+    message: '',
+    type: 'success',
+    visible: false
+  });
+
   // dynamic options
   const [categories, setCategories] = useState<string[]>([]);
   const [types, setTypes] = useState<string[]>([]);
@@ -162,13 +176,247 @@ export default function WarehousePage() {
     else { await Swal.fire('เกิดข้อผิดพลาด', 'ไม่สามารถลบได้', 'error'); }
   };
 
-  if (loading) return <div className="flex justify-center items-center h-screen">Loading...</div>;
+  // Start inline editing
+  const startInlineEdit = (item: any) => {
+    setEditingId(item.id);
+    setEditData({
+      stockId: item.stockId || '',
+      transactionType: item.transactionType || '',
+      transactionDate: item.transactionDate || '',
+      category: item.category || '',
+      productType: item.productType || '',
+      productSubtype: item.productSubtype || '',
+      productCode: item.productCode || '',
+      productName: item.productName || '',
+      productImage: item.productImage || '',
+      unit: item.unit || '',
+      productLot: item.productLot || '',
+      productPrice: item.productPrice ? Number(item.productPrice) : undefined,
+      receivedFromCompany: item.receivedFromCompany || '',
+      receiptBillNumber: item.receiptBillNumber || '',
+      requestingDepartment: item.requestingDepartment || '',
+      requisitionNumber: item.requisitionNumber || '',
+      quotaAmount: item.quotaAmount ?? null,
+      carriedForwardQty: item.carriedForwardQty ?? null,
+      carriedForwardValue: item.carriedForwardValue ? Number(item.carriedForwardValue) : undefined,
+      transactionPrice: item.transactionPrice ? Number(item.transactionPrice) : undefined,
+      transactionQuantity: item.transactionQuantity ?? null,
+      transactionValue: item.transactionValue ? Number(item.transactionValue) : undefined,
+      remainingQuantity: item.remainingQuantity ?? null,
+      remainingValue: item.remainingValue ? Number(item.remainingValue) : undefined,
+      inventoryStatus: item.inventoryStatus || '',
+    });
+  };
+
+  // Save inline edit
+  const saveInlineEdit = async (id: number) => {
+    try {
+      const response = await fetch(`/api/warehouse/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(editData)
+      });
+
+      if (response.ok) {
+        setEditingId(null);
+        setEditData({});
+        fetchData();
+
+        setToast({
+          message: 'บันทึกข้อมูลสำเร็จ!',
+          type: 'success',
+          visible: true
+        });
+
+        setTimeout(() => {
+          setToast({ ...toast, visible: false });
+        }, 3000);
+      } else {
+        setToast({
+          message: 'เกิดข้อผิดพลาดในการบันทึกข้อมูล',
+          type: 'error',
+          visible: true
+        });
+
+        setTimeout(() => {
+          setToast({ ...toast, visible: false });
+        }, 3000);
+      }
+    } catch (error) {
+      console.error('Error updating warehouse item:', error);
+
+      setToast({
+        message: 'เกิดข้อผิดพลาดในการบันทึกข้อมูล',
+        type: 'error',
+        visible: true
+      });
+
+      setTimeout(() => {
+        setToast({ ...toast, visible: false });
+      }, 3000);
+    }
+  };
+
+  // Cancel inline edit
+  const cancelInlineEdit = () => {
+    setEditingId(null);
+    setEditData({});
+  };
+
+  // Save bulk warehouse items
+  const saveBulkWarehouse = async () => {
+    try {
+      const validRecords = bulkRecords.filter(record =>
+        record.productCode.trim() !== '' && record.productName.trim() !== ''
+      );
+
+      if (validRecords.length === 0) {
+        setToast({
+          message: 'กรุณากรอกข้อมูลให้ครบถ้วนอย่างน้อย 1 รายการ',
+          type: 'error',
+          visible: true
+        });
+        setTimeout(() => {
+          setToast({ ...toast, visible: false });
+        }, 3000);
+        return;
+      }
+
+      const promises = validRecords.map(record =>
+        fetch('/api/warehouse', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            stockId: record.stockId || '',
+            transactionType: record.transactionType || '',
+            transactionDate: record.transactionDate || '',
+            category: record.category || '',
+            productType: record.productType || '',
+            productSubtype: record.productSubtype || '',
+            productCode: record.productCode.trim(),
+            productName: record.productName.trim(),
+            productImage: record.productImage || '',
+            unit: record.unit || '',
+            productLot: record.productLot || '',
+            productPrice: record.productPrice ? parseFloat(record.productPrice) : undefined,
+            receivedFromCompany: record.receivedFromCompany || '',
+            receiptBillNumber: record.receiptBillNumber || '',
+            requestingDepartment: record.requestingDepartment || '',
+            requisitionNumber: record.requisitionNumber || '',
+            quotaAmount: record.quotaAmount ? parseInt(record.quotaAmount) : null,
+            carriedForwardQty: record.carriedForwardQty ? parseInt(record.carriedForwardQty) : null,
+            carriedForwardValue: record.carriedForwardValue ? parseFloat(record.carriedForwardValue) : undefined,
+            transactionPrice: record.transactionPrice ? parseFloat(record.transactionPrice) : undefined,
+            transactionQuantity: record.transactionQuantity ? parseInt(record.transactionQuantity) : null,
+            transactionValue: record.transactionValue ? parseFloat(record.transactionValue) : undefined,
+            remainingQuantity: record.remainingQuantity ? parseInt(record.remainingQuantity) : null,
+            remainingValue: record.remainingValue ? parseFloat(record.remainingValue) : undefined,
+            inventoryStatus: record.inventoryStatus || '',
+          })
+        })
+      );
+
+      const results = await Promise.allSettled(promises);
+      const successful = results.filter(result => result.status === 'fulfilled' && result.value.ok).length;
+      const failed = results.length - successful;
+
+      if (successful > 0) {
+        setShowBulkForm(false);
+        setBulkRecords([]);
+        fetchData();
+
+        setToast({
+          message: `บันทึกสำเร็จ ${successful} รายการ${failed > 0 ? `, ไม่สำเร็จ ${failed} รายการ` : ''}`,
+          type: 'success',
+          visible: true
+        });
+
+        setTimeout(() => {
+          setToast({ ...toast, visible: false });
+        }, 3000);
+      }
+
+      if (failed > 0 && successful === 0) {
+        setToast({
+          message: 'เกิดข้อผิดพลาดในการบันทึกข้อมูลทั้งหมด',
+          type: 'error',
+          visible: true
+        });
+
+        setTimeout(() => {
+          setToast({ ...toast, visible: false });
+        }, 3000);
+      }
+    } catch (error) {
+      console.error('Error saving bulk warehouse items:', error);
+
+      setToast({
+        message: 'เกิดข้อผิดพลาดในการบันทึกข้อมูล',
+        type: 'error',
+        visible: true
+      });
+
+      setTimeout(() => {
+        setToast({ ...toast, visible: false });
+      }, 3000);
+    }
+  };
 
   return (
     <div className="container mx-auto px-4 py-8">
+      {/* Toast Notification */}
+      {toast.visible && (
+        <div className={`fixed top-4 right-4 z-50 p-4 rounded-lg shadow-lg transition-all duration-300 ${
+          toast.type === 'success'
+            ? 'bg-green-500 text-white'
+            : 'bg-red-500 text-white'
+        }`}>
+          <div className="flex items-center gap-2">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              className="h-5 w-5"
+              viewBox="0 0 20 20"
+              fill="currentColor"
+            >
+              {toast.type === 'success' ? (
+                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+              ) : (
+                <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+              )}
+            </svg>
+            <span>{toast.message}</span>
+            <button
+              onClick={() => setToast({ ...toast, visible: false })}
+              className="ml-2 hover:opacity-75"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+              </svg>
+            </button>
+          </div>
+        </div>
+      )}
+
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold text-gray-800">คลังสินค้า</h1>
-        <button onClick={() => setShowForm(true)} className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">เพิ่มรายการ</button>
+        <button
+          onClick={() => {
+            setShowBulkForm(true);
+            setBulkRecords([
+              { id: 1, transactionType: '', transactionDate: '', productName: '', productCode: '', category: '', productType: '', productSubtype: '', unit: '', productLot: '', productPrice: '', transactionQuantity: '', transactionValue: '', remainingQuantity: '', remainingValue: '', inventoryStatus: '' },
+              { id: 2, transactionType: '', transactionDate: '', productName: '', productCode: '', category: '', productType: '', productSubtype: '', unit: '', productLot: '', productPrice: '', transactionQuantity: '', transactionValue: '', remainingQuantity: '', remainingValue: '', inventoryStatus: '' },
+              { id: 3, transactionType: '', transactionDate: '', productName: '', productCode: '', category: '', productType: '', productSubtype: '', unit: '', productLot: '', productPrice: '', transactionQuantity: '', transactionValue: '', remainingQuantity: '', remainingValue: '', inventoryStatus: '' },
+              { id: 4, transactionType: '', transactionDate: '', productName: '', productCode: '', category: '', productType: '', productSubtype: '', unit: '', productLot: '', productPrice: '', transactionQuantity: '', transactionValue: '', remainingQuantity: '', remainingValue: '', inventoryStatus: '' },
+              { id: 5, transactionType: '', transactionDate: '', productName: '', productCode: '', category: '', productType: '', productSubtype: '', unit: '', productLot: '', productPrice: '', transactionQuantity: '', transactionValue: '', remainingQuantity: '', remainingValue: '', inventoryStatus: '' }
+            ]);
+          }}
+          className="bg-blue-600 text-white p-3 rounded-full hover:bg-blue-700 transition-colors shadow-lg"
+          title="เพิ่มรายการใหม่"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" viewBox="0 0 20 20" fill="currentColor">
+            <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
+          </svg>
+        </button>
       </div>
 
       {showForm && (
@@ -205,25 +453,236 @@ export default function WarehousePage() {
         </div>
       )}
 
+      {/* Bulk Add Warehouse Modal */}
+      {showBulkForm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-full max-w-7xl max-h-[90vh] overflow-y-auto">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-bold">เพิ่มรายการคลังใหม่ (5 รายการพร้อมแก้ไข)</h2>
+              <button
+                onClick={() => {
+                  setShowBulkForm(false);
+                  setBulkRecords([]);
+                }}
+                className="text-gray-500 hover:text-gray-700"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                </svg>
+              </button>
+            </div>
+
+            <div className="mb-4">
+              <div className="bg-gray-50 rounded-lg overflow-hidden">
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead className="bg-gray-100">
+                      <tr>
+                        <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase">ลำดับ</th>
+                        <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase">รหัสสินค้า</th>
+                        <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase">ชื่อสินค้า</th>
+                        <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase">ประเภทเอกสาร</th>
+                        <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase">วันที่</th>
+                        <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase">หมวด</th>
+                        <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase">จำนวนเคลื่อนไหว</th>
+                        <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase">คงเหลือ</th>
+                        <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase">สถานะ</th>
+                        <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase">จัดการ</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {bulkRecords.map((record: any, index: number) => (
+                        <tr key={record.id} className="border-b border-gray-200">
+                          <td className="px-2 py-3 text-sm text-gray-900">{index + 1}</td>
+                          <td className="px-2 py-3">
+                            <input
+                              type="text"
+                              value={record.productCode || ''}
+                              onChange={(e) => {
+                                const updated = [...bulkRecords];
+                                updated[index].productCode = e.target.value;
+                                setBulkRecords(updated);
+                              }}
+                              placeholder="รหัสสินค้า"
+                              className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                            />
+                          </td>
+                          <td className="px-2 py-3">
+                            <input
+                              type="text"
+                              value={record.productName || ''}
+                              onChange={(e) => {
+                                const updated = [...bulkRecords];
+                                updated[index].productName = e.target.value;
+                                setBulkRecords(updated);
+                              }}
+                              placeholder="ชื่อสินค้า"
+                              className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                            />
+                          </td>
+                          <td className="px-2 py-3">
+                            <input
+                              type="text"
+                              value={record.transactionType || ''}
+                              onChange={(e) => {
+                                const updated = [...bulkRecords];
+                                updated[index].transactionType = e.target.value;
+                                setBulkRecords(updated);
+                              }}
+                              placeholder="ประเภทเอกสาร"
+                              className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                            />
+                          </td>
+                          <td className="px-2 py-3">
+                            <input
+                              type="date"
+                              value={record.transactionDate || ''}
+                              onChange={(e) => {
+                                const updated = [...bulkRecords];
+                                updated[index].transactionDate = e.target.value;
+                                setBulkRecords(updated);
+                              }}
+                              className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                            />
+                          </td>
+                          <td className="px-2 py-3">
+                            <select
+                              value={record.category || ''}
+                              onChange={(e) => {
+                                const updated = [...bulkRecords];
+                                updated[index].category = e.target.value;
+                                setBulkRecords(updated);
+                              }}
+                              className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                            >
+                              <option value="">เลือกหมวด</option>
+                              {categories.map((cat) => (
+                                <option key={cat} value={cat}>{cat}</option>
+                              ))}
+                            </select>
+                          </td>
+                          <td className="px-2 py-3">
+                            <input
+                              type="number"
+                              value={record.transactionQuantity || ''}
+                              onChange={(e) => {
+                                const updated = [...bulkRecords];
+                                updated[index].transactionQuantity = e.target.value;
+                                setBulkRecords(updated);
+                              }}
+                              placeholder="จำนวนเคลื่อนไหว"
+                              className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                            />
+                          </td>
+                          <td className="px-2 py-3">
+                            <input
+                              type="number"
+                              value={record.remainingQuantity || ''}
+                              onChange={(e) => {
+                                const updated = [...bulkRecords];
+                                updated[index].remainingQuantity = e.target.value;
+                                setBulkRecords(updated);
+                              }}
+                              placeholder="คงเหลือ"
+                              className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                            />
+                          </td>
+                          <td className="px-2 py-3">
+                            <input
+                              type="text"
+                              value={record.inventoryStatus || ''}
+                              onChange={(e) => {
+                                const updated = [...bulkRecords];
+                                updated[index].inventoryStatus = e.target.value;
+                                setBulkRecords(updated);
+                              }}
+                              placeholder="สถานะ"
+                              className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                            />
+                          </td>
+                          <td className="px-2 py-3">
+                            <div className="flex gap-1">
+                              {bulkRecords.length < 5 && (
+                                <button
+                                  onClick={() => {
+                                    const newRecord = {
+                                      id: Math.max(...bulkRecords.map((r: any) => r.id)) + 1,
+                                      transactionType: '', transactionDate: '', productName: '', productCode: '', category: '', productType: '', productSubtype: '', unit: '', productLot: '', productPrice: '', transactionQuantity: '', transactionValue: '', remainingQuantity: '', remainingValue: '', inventoryStatus: ''
+                                    };
+                                    setBulkRecords([...bulkRecords, newRecord]);
+                                  }}
+                                  className="text-green-600 hover:text-green-900 p-1"
+                                  title="เพิ่มแถวใหม่"
+                                >
+                                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                                    <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
+                                  </svg>
+                                </button>
+                              )}
+                              {bulkRecords.length > 1 && (
+                                <button
+                                  onClick={() => {
+                                    setBulkRecords(bulkRecords.filter((r: any) => r.id !== record.id));
+                                  }}
+                                  className="text-red-600 hover:text-red-900 p-1"
+                                  title="ลบแถวนี้"
+                                >
+                                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                                    <path fillRule="evenodd" d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z" clipRule="evenodd" />
+                                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                                  </svg>
+                                </button>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                onClick={saveBulkWarehouse}
+                className="flex-1 bg-blue-600 text-white py-2 rounded-md hover:bg-blue-700 transition-colors"
+              >
+                บันทึกทั้งหมด ({bulkRecords.length} รายการ)
+              </button>
+              <button
+                onClick={() => {
+                  setShowBulkForm(false);
+                  setBulkRecords([]);
+                }}
+                className="flex-1 bg-gray-500 text-white py-2 rounded-md hover:bg-gray-600 transition-colors"
+              >
+                ยกเลิก
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="bg-white shadow-md rounded-lg overflow-hidden mb-4">
         <div className="px-4 py-3 bg-gray-50 border-b border-gray-200">
           <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-4">
             <input placeholder="ชื่อสินค้า" value={nameFilter} onChange={(e)=>setNameFilter(e.target.value)} className="w-full rounded-md border-gray-300 shadow-sm text-sm px-3 py-2" />
             <select value={categoryFilter} onChange={(e)=>setCategoryFilter(e.target.value)} className="w-full rounded-md border-gray-300 shadow-sm text-sm px-3 py-2">
               <option value="">หมวด</option>
-              {categories.map(x => <option key={x} value={x}>{x}</option>)}
+              {categories.map((x: string) => <option key={x} value={x}>{x}</option>)}
             </select>
             <select value={typeFilter} onChange={(e)=>setTypeFilter(e.target.value)} className="w-full rounded-md border-gray-300 shadow-sm text-sm px-3 py-2">
               <option value="">ประเภท</option>
-              {types.map(x => <option key={x} value={x}>{x}</option>)}
+              {types.map((x: string) => <option key={x} value={x}>{x}</option>)}
             </select>
             <select value={subtypeFilter} onChange={(e)=>setSubtypeFilter(e.target.value)} className="w-full rounded-md border-gray-300 shadow-sm text-sm px-3 py-2">
               <option value="">ประเภทย่อย</option>
-              {subtypes.map(x => <option key={x} value={x}>{x}</option>)}
+              {subtypes.map((x: string) => <option key={x} value={x}>{x}</option>)}
             </select>
             <select value={departmentFilter} onChange={(e)=>setDepartmentFilter(e.target.value)} className="w-full rounded-md border-gray-300 shadow-sm text-sm px-3 py-2">
               <option value="">หน่วยงานขอ</option>
-              {departments.map(x => <option key={x} value={x}>{x}</option>)}
+              {departments.map((x: string) => <option key={x} value={x}>{x}</option>)}
             </select>
           </div>
         </div>
@@ -253,27 +712,74 @@ export default function WarehousePage() {
                     {row.productName}
                   </div>
                 </td>
-                <td className="px-3 py-2 text-sm">{row.transactionQuantity ?? '-'}</td>
-                <td className="px-3 py-2 text-sm">{row.remainingQuantity ?? '-'}</td>
+                <td className="px-3 py-2 text-sm">
+                  {editingId === row.id ? (
+                    <input
+                      type="number"
+                      value={editData.transactionQuantity || ''}
+                      onChange={(e) => setEditData({ ...editData, transactionQuantity: e.target.value ? parseInt(e.target.value) : null })}
+                      className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  ) : (
+                    row.transactionQuantity ?? '-'
+                  )}
+                </td>
+                <td className="px-3 py-2 text-sm">
+                  {editingId === row.id ? (
+                    <input
+                      type="number"
+                      value={editData.remainingQuantity || ''}
+                      onChange={(e) => setEditData({ ...editData, remainingQuantity: e.target.value ? parseInt(e.target.value) : null })}
+                      className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  ) : (
+                    row.remainingQuantity ?? '-'
+                  )}
+                </td>
                 <td className="px-3 py-2 text-sm font-medium w-24">
-                  <button
-                    onClick={() => handleEdit(row)}
-                    className="text-indigo-600 hover:text-indigo-900 mr-2 cursor-pointer"
-                    title="แก้ไข"
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                      <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
-                    </svg>
-                  </button>
-                  <button
-                    onClick={() => handleDelete(row.id)}
-                    className="text-red-600 hover:text-red-900 cursor-pointer"
-                    title="ลบ"
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                      <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
-                    </svg>
-                  </button>
+                  {editingId === row.id ? (
+                    <div className="flex gap-1">
+                      <button
+                        onClick={() => saveInlineEdit(row.id)}
+                        className="text-green-600 hover:text-green-900 cursor-pointer"
+                        title="บันทึก"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                          <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                        </svg>
+                      </button>
+                      <button
+                        onClick={() => cancelInlineEdit()}
+                        className="text-red-600 hover:text-red-900 cursor-pointer"
+                        title="ยกเลิก"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                          <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                        </svg>
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => startInlineEdit(row)}
+                        className="text-indigo-600 hover:text-indigo-900 cursor-pointer"
+                        title="แก้ไข"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                          <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
+                        </svg>
+                      </button>
+                      <button
+                        onClick={() => handleDelete(row.id)}
+                        className="text-red-600 hover:text-red-900 cursor-pointer"
+                        title="ลบ"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                          <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
+                        </svg>
+                      </button>
+                    </div>
+                  )}
                 </td>
               </tr>
             ))}

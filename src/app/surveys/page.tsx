@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Swal from 'sweetalert2';
 
 interface Survey {
@@ -36,6 +36,7 @@ export default function SurveysPage() {
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingSurvey, setEditingSurvey] = useState<Survey | null>(null);
+  const [importing, setImporting] = useState(false);
   const [formData, setFormData] = useState<SurveyFormData>({
     productCode: '',
     category: '',
@@ -48,11 +49,34 @@ export default function SurveysPage() {
     requestingDept: '',
     approvedQuota: ''
   });
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [editData, setEditData] = useState({
+    productCode: '',
+    category: '',
+    type: '',
+    subtype: '',
+    productName: '',
+    requestedAmount: '',
+    unit: '',
+    pricePerUnit: '',
+    requestingDept: '',
+    approvedQuota: ''
+  });
+  const [showBulkForm, setShowBulkForm] = useState(false);
+  const [bulkRecords, setBulkRecords] = useState<any[]>([]);
+  const [toast, setToast] = useState<{
+    message: string;
+    type: 'success' | 'error';
+    visible: boolean;
+  }>({
+    message: '',
+    type: 'success',
+    visible: false
+  });
+  const fileInputRef = useRef<HTMLInputElement>(null);
   
   // Validation state
   const [errors, setErrors] = useState<Record<string, string>>({});
-  
-  // Filter states
   const [productNameFilter, setProductNameFilter] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
   const [typeFilter, setTypeFilter] = useState('');
@@ -68,13 +92,19 @@ export default function SurveysPage() {
   const [subtypes, setSubtypes] = useState<string[]>([]);
   const [departments, setDepartments] = useState<string[]>([]);
 
+  // Initialize data on component mount
   useEffect(() => {
     fetchSurveys();
-  }, [productNameFilter, categoryFilter, typeFilter, requestingDeptFilter, sortField, sortOrder]);
+  }, []);
 
   useEffect(() => {
     fetchFilterOptions();
   }, []);
+
+  // Fetch surveys when filters or sorting change
+  useEffect(() => {
+    fetchSurveys();
+  }, [productNameFilter, categoryFilter, typeFilter, requestingDeptFilter, sortField, sortOrder]);
 
   const fetchFilterOptions = async () => {
     try {
@@ -269,6 +299,227 @@ export default function SurveysPage() {
     }
   };
 
+  const handleImportClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // reset input to allow re-selecting the same file later
+    e.currentTarget.value = '';
+
+    const validExt = [
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'application/vnd.ms-excel',
+    ];
+    if (!validExt.includes(file.type) && !file.name.match(/\.(xlsx|xls)$/i)) {
+      await Swal.fire({
+        title: 'ไฟล์ไม่ถูกต้อง',
+        text: 'กรุณาเลือกไฟล์ Excel (.xlsx หรือ .xls)',
+        icon: 'warning',
+        confirmButtonText: 'ตกลง'
+      });
+      return;
+    }
+
+    try {
+      setImporting(true);
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const res = await fetch('/api/surveys/import', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(text || 'Import failed');
+      }
+
+      const data = await res.json().catch(() => ({}));
+
+      await Swal.fire({
+        title: 'นำเข้าเรียบร้อย',
+        text: data?.importedCount != null ? `นำเข้าข้อมูล ${data.importedCount} รายการ` : 'นำเข้าข้อมูลสำเร็จ',
+        icon: 'success',
+        confirmButtonText: 'ตกลง'
+      });
+      fetchSurveys();
+    } catch (err) {
+      console.error('Error importing excel:', err);
+      await Swal.fire({
+        title: 'เกิดข้อผิดพลาด',
+        text: 'ไม่สามารถนำเข้าไฟล์ได้',
+        icon: 'error',
+        confirmButtonText: 'ตกลง'
+      });
+    } finally {
+      setImporting(false);
+    }
+  };
+
+  // Start inline editing
+  const startInlineEdit = (survey: Survey) => {
+    setEditingId(survey.id);
+    setEditData({
+      productCode: survey.productCode || '',
+      category: survey.category || '',
+      type: survey.type || '',
+      subtype: survey.subtype || '',
+      productName: survey.productName || '',
+      requestedAmount: survey.requestedAmount?.toString() || '',
+      unit: survey.unit || '',
+      pricePerUnit: survey.pricePerUnit?.toString() || '',
+      requestingDept: survey.requestingDept || '',
+      approvedQuota: survey.approvedQuota?.toString() || ''
+    });
+  };
+
+  // Save inline edit
+  const saveInlineEdit = async (id: number) => {
+    try {
+      const response = await fetch(`/api/surveys/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(editData)
+      });
+
+      if (response.ok) {
+        setEditingId(null);
+        setEditData({
+          productCode: '', category: '', type: '', subtype: '', productName: '', requestedAmount: '', unit: '', pricePerUnit: '', requestingDept: '', approvedQuota: ''
+        });
+        fetchSurveys();
+
+        setToast({
+          message: 'บันทึกข้อมูลสำเร็จ!',
+          type: 'success',
+          visible: true
+        });
+
+        setTimeout(() => {
+          setToast({ ...toast, visible: false });
+        }, 3000);
+      } else {
+        setToast({
+          message: 'เกิดข้อผิดพลาดในการบันทึกข้อมูล',
+          type: 'error',
+          visible: true
+        });
+
+        setTimeout(() => {
+          setToast({ ...toast, visible: false });
+        }, 3000);
+      }
+    } catch (error) {
+      console.error('Error updating survey:', error);
+
+      setToast({
+        message: 'เกิดข้อผิดพลาดในการบันทึกข้อมูล',
+        type: 'error',
+        visible: true
+      });
+
+      setTimeout(() => {
+        setToast({ ...toast, visible: false });
+      }, 3000);
+    }
+  };
+
+  // Cancel inline edit
+  const cancelInlineEdit = () => {
+    setEditingId(null);
+    setEditData({
+      productCode: '', category: '', type: '', subtype: '', productName: '', requestedAmount: '', unit: '', pricePerUnit: '', requestingDept: '', approvedQuota: ''
+    });
+  };
+
+  // Save bulk surveys
+  const saveBulkSurveys = async () => {
+    try {
+      const validRecords = bulkRecords.filter(record =>
+        record.productCode.trim() !== '' && record.productName.trim() !== ''
+      );
+
+      if (validRecords.length === 0) {
+        setToast({
+          message: 'กรุณากรอกข้อมูลให้ครบถ้วนอย่างน้อย 1 รายการ',
+          type: 'error',
+          visible: true
+        });
+        setTimeout(() => {
+          setToast({ ...toast, visible: false });
+        }, 3000);
+        return;
+      }
+
+      const promises = validRecords.map(record =>
+        fetch('/api/surveys', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            productCode: record.productCode.trim(),
+            category: record.category || '',
+            type: record.type || '',
+            subtype: record.subtype || '',
+            productName: record.productName.trim(),
+            requestedAmount: record.requestedAmount ? parseFloat(record.requestedAmount) : 0,
+            unit: record.unit || '',
+            pricePerUnit: record.pricePerUnit ? parseFloat(record.pricePerUnit) : 0,
+            requestingDept: record.requestingDept || '',
+            approvedQuota: record.approvedQuota ? parseFloat(record.approvedQuota) : 0
+          })
+        })
+      );
+
+      const results = await Promise.allSettled(promises);
+      const successful = results.filter(result => result.status === 'fulfilled' && result.value.ok).length;
+      const failed = results.length - successful;
+
+      if (successful > 0) {
+        setShowBulkForm(false);
+        setBulkRecords([]);
+        fetchSurveys();
+
+        setToast({
+          message: `บันทึกสำเร็จ ${successful} รายการ${failed > 0 ? `, ไม่สำเร็จ ${failed} รายการ` : ''}`,
+          type: 'success',
+          visible: true
+        });
+
+        setTimeout(() => {
+          setToast({ ...toast, visible: false });
+        }, 3000);
+      }
+
+      if (failed > 0 && successful === 0) {
+        setToast({
+          message: 'เกิดข้อผิดพลาดในการบันทึกข้อมูลทั้งหมด',
+          type: 'error',
+          visible: true
+        });
+
+        setTimeout(() => {
+          setToast({ ...toast, visible: false });
+        }, 3000);
+      }
+    } catch (error) {
+      console.error('Error saving bulk surveys:', error);
+
+      setToast({
+        message: 'เกิดข้อผิดพลาดในการบันทึกข้อมูล',
+        type: 'error',
+        visible: true
+      });
+
+      setTimeout(() => {
+        setToast({ ...toast, visible: false });
+      }, 3000);
+    }
+  };
   const getSortIcon = (field: string) => {
     if (sortField !== field) return '↕️';
     return sortOrder === 'asc' ? '↑' : '↓';
@@ -290,19 +541,80 @@ export default function SurveysPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="container mx-auto px-4 py-8">
+        {/* Toast Notification */}
+        {toast.visible && (
+          <div className={`fixed top-4 right-4 z-50 p-4 rounded-lg shadow-lg transition-all duration-300 ${
+            toast.type === 'success'
+              ? 'bg-green-500 text-white'
+              : 'bg-red-500 text-white'
+          }`}>
+            <div className="flex items-center gap-2">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                className="h-5 w-5"
+                viewBox="0 0 20 20"
+                fill="currentColor"
+              >
+                {toast.type === 'success' ? (
+                  <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                ) : (
+                  <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                )}
+              </svg>
+              <span>{toast.message}</span>
+              <button
+                onClick={() => setToast({ ...toast, visible: false })}
+                className="ml-2 hover:opacity-75"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                </svg>
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Header */}
         <div className="flex justify-between items-center mb-8">
           <div>
             <h1 className="text-3xl font-bold text-gray-900">ข้อมูลความต้องการ</h1>
-            
+
           </div>
-          <button
-            onClick={() => setShowForm(true)}
-            className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors flex items-center space-x-2"
-          >
-            <span>➕</span>
-            <span>เพิ่มความต้องการ</span>
-          </button>
+          <div className="flex items-center gap-3">
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
+              onChange={handleFileChange}
+              className="hidden"
+            />
+            <button
+              onClick={handleImportClick}
+              disabled={importing}
+              className={`bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 transition-colors flex items-center space-x-2 ${importing ? 'opacity-70 cursor-not-allowed' : ''}`}
+            >
+              <span>📥</span>
+              <span>{importing ? 'กำลังนำเข้า...' : 'นำเข้า Excel'}</span>
+            </button>
+            <button
+              onClick={() => {
+                setShowBulkForm(true);
+                setBulkRecords([
+                  { id: 1, productCode: '', category: '', type: '', subtype: '', productName: '', requestedAmount: '', unit: '', pricePerUnit: '', requestingDept: '', approvedQuota: '' },
+                  { id: 2, productCode: '', category: '', type: '', subtype: '', productName: '', requestedAmount: '', unit: '', pricePerUnit: '', requestingDept: '', approvedQuota: '' },
+                  { id: 3, productCode: '', category: '', type: '', subtype: '', productName: '', requestedAmount: '', unit: '', pricePerUnit: '', requestingDept: '', approvedQuota: '' },
+                  { id: 4, productCode: '', category: '', type: '', subtype: '', productName: '', requestedAmount: '', unit: '', pricePerUnit: '', requestingDept: '', approvedQuota: '' },
+                  { id: 5, productCode: '', category: '', type: '', subtype: '', productName: '', requestedAmount: '', unit: '', pricePerUnit: '', requestingDept: '', approvedQuota: '' }
+                ]);
+              }}
+              className="bg-blue-600 text-white p-3 rounded-full hover:bg-blue-700 transition-colors shadow-lg"
+              title="เพิ่มความต้องการใหม่"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
+              </svg>
+            </button>
+          </div>
         </div>
         {/* Filter Section */}
         <div className="bg-white rounded-lg shadow-md p-6 mb-6">
@@ -682,6 +994,594 @@ export default function SurveysPage() {
                   </div>
                 </div>
                 
+                <div className="mt-6 flex justify-end space-x-3">
+                  <button
+                    type="button"
+                    onClick={closeForm}
+                    className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 transition-colors"
+                  >
+                    ยกเลิก
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+                  >
+                    {editingSurvey ? 'บันทึกการแก้ไข' : 'บันทึกข้อมูล'}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {/* Bulk Add Surveys Modal */}
+        {showBulkForm && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg p-6 w-full max-w-7xl max-h-[90vh] overflow-y-auto">
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-xl font-bold">เพิ่มความต้องการใหม่ (5 รายการพร้อมแก้ไข)</h2>
+                <button
+                  onClick={() => {
+                    setShowBulkForm(false);
+                    setBulkRecords([]);
+                  }}
+                  className="text-gray-500 hover:text-gray-700"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                  </svg>
+                </button>
+              </div>
+
+              <div className="mb-4">
+                <div className="bg-gray-50 rounded-lg overflow-hidden">
+                  <div className="overflow-x-auto">
+                    <table className="w-full">
+                      <thead className="bg-gray-100">
+                        <tr>
+                          <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase">ลำดับ</th>
+                          <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase">รหัสสินค้า</th>
+                          <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase">ชื่อสินค้า</th>
+                          <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase">หมวดสินค้า</th>
+                          <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase">ประเภท</th>
+                          <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase">จำนวนที่ขอ</th>
+                          <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase">หน่วย</th>
+                          <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase">ราคาต่อหน่วย</th>
+                          <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase">หน่วยงานที่ขอ</th>
+                          <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase">จำนวนที่อนุมัติ</th>
+                          <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase">จัดการ</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {bulkRecords.map((record: any, index: number) => (
+                          <tr key={record.id} className="border-b border-gray-200">
+                            <td className="px-2 py-3 text-sm text-gray-900">{index + 1}</td>
+                            <td className="px-2 py-3">
+                              <input
+                                type="text"
+                                value={record.productCode || ''}
+                                onChange={(e) => {
+                                  const updated = [...bulkRecords];
+                                  updated[index].productCode = e.target.value;
+                                  setBulkRecords(updated);
+                                }}
+                                placeholder="รหัสสินค้า"
+                                className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                              />
+                            </td>
+                            <td className="px-2 py-3">
+                              <input
+                                type="text"
+                                value={record.productName || ''}
+                                onChange={(e) => {
+                                  const updated = [...bulkRecords];
+                                  updated[index].productName = e.target.value;
+                                  setBulkRecords(updated);
+                                }}
+                                placeholder="ชื่อสินค้า"
+                                className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                              />
+                            </td>
+                            <td className="px-2 py-3">
+                              <select
+                                value={record.category || ''}
+                                onChange={(e) => {
+                                  const updated = [...bulkRecords];
+                                  updated[index].category = e.target.value;
+                                  setBulkRecords(updated);
+                                }}
+                                className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                              >
+                                <option value="">เลือกหมวด</option>
+                                {categories.map((cat) => (
+                                  <option key={cat} value={cat}>{cat}</option>
+                                ))}
+                              </select>
+                            </td>
+                            <td className="px-2 py-3">
+                              <select
+                                value={record.type || ''}
+                                onChange={(e) => {
+                                  const updated = [...bulkRecords];
+                                  updated[index].type = e.target.value;
+                                  setBulkRecords(updated);
+                                }}
+                                className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                              >
+                                <option value="">เลือกประเภท</option>
+                                {types.map((type) => (
+                                  <option key={type} value={type}>{type}</option>
+                                ))}
+                              </select>
+                            </td>
+                            <td className="px-2 py-3">
+                              <input
+                                type="number"
+                                value={record.requestedAmount || ''}
+                                onChange={(e) => {
+                                  const updated = [...bulkRecords];
+                                  updated[index].requestedAmount = e.target.value;
+                                  setBulkRecords(updated);
+                                }}
+                                placeholder="จำนวนที่ขอ"
+                                className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                              />
+                            </td>
+                            <td className="px-2 py-3">
+                              <input
+                                type="text"
+                                value={record.unit || ''}
+                                onChange={(e) => {
+                                  const updated = [...bulkRecords];
+                                  updated[index].unit = e.target.value;
+                                  setBulkRecords(updated);
+                                }}
+                                placeholder="หน่วย"
+                                className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                              />
+                            </td>
+                            <td className="px-2 py-3">
+                              <input
+                                type="number"
+                                value={record.pricePerUnit || ''}
+                                onChange={(e) => {
+                                  const updated = [...bulkRecords];
+                                  updated[index].pricePerUnit = e.target.value;
+                                  setBulkRecords(updated);
+                                }}
+                                placeholder="ราคา"
+                                className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                              />
+                            </td>
+                            <td className="px-2 py-3">
+                              <select
+                                value={record.requestingDept || ''}
+                                onChange={(e) => {
+                                  const updated = [...bulkRecords];
+                                  updated[index].requestingDept = e.target.value;
+                                  setBulkRecords(updated);
+                                }}
+                                className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                              >
+                                <option value="">เลือกหน่วยงาน</option>
+                                {departments.map((dept) => (
+                                  <option key={dept} value={dept}>{dept}</option>
+                                ))}
+                              </select>
+                            </td>
+                            <td className="px-2 py-3">
+                              <input
+                                type="number"
+                                value={record.approvedQuota || ''}
+                                onChange={(e) => {
+                                  const updated = [...bulkRecords];
+                                  updated[index].approvedQuota = e.target.value;
+                                  setBulkRecords(updated);
+                                }}
+                                placeholder="จำนวนอนุมัติ"
+                                className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                              />
+                            </td>
+                            <td className="px-2 py-3">
+                              <div className="flex gap-1">
+                                {bulkRecords.length < 5 && (
+                                  <button
+                                    onClick={() => {
+                                      const newRecord = {
+                                        id: Math.max(...bulkRecords.map((r: any) => r.id)) + 1,
+                                        productCode: '', category: '', type: '', subtype: '', productName: '', requestedAmount: '', unit: '', pricePerUnit: '', requestingDept: '', approvedQuota: ''
+                                      };
+                                      setBulkRecords([...bulkRecords, newRecord]);
+                                    }}
+                                    className="text-green-600 hover:text-green-900 p-1"
+                                    title="เพิ่มแถวใหม่"
+                                  >
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                                      <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
+                                    </svg>
+                                  </button>
+                                )}
+                                {bulkRecords.length > 1 && (
+                                  <button
+                                    onClick={() => {
+                                      setBulkRecords(bulkRecords.filter((r: any) => r.id !== record.id));
+                                    }}
+                                    className="text-red-600 hover:text-red-900 p-1"
+                                    title="ลบแถวนี้"
+                                  >
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                                      <path fillRule="evenodd" d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z" clipRule="evenodd" />
+                                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                                    </svg>
+                                  </button>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex gap-3">
+                <button
+                  onClick={saveBulkSurveys}
+                  className="flex-1 bg-blue-600 text-white py-2 rounded-md hover:bg-blue-700 transition-colors"
+                >
+                  บันทึกทั้งหมด ({bulkRecords.length} รายการ)
+                </button>
+                <button
+                  onClick={() => {
+                    setShowBulkForm(false);
+                    setBulkRecords([]);
+                  }}
+                  className="flex-1 bg-gray-500 text-white py-2 rounded-md hover:bg-gray-600 transition-colors"
+                >
+                  ยกเลิก
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Table */}
+        <div className="bg-white rounded-lg shadow-md overflow-hidden">
+          {loading ? (
+            <div className="flex justify-center items-center py-12">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+            </div>
+          ) : surveys.length === 0 ? (
+            <div className="text-center py-12">
+              <p className="text-gray-500">ไม่พบข้อมูล</p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th onClick={() => handleSort('productCode')} className={getHeaderClass('productCode') + ' w-24'}>
+                      รหัสสินค้า {getSortIcon('productCode')}
+                    </th>
+                    <th onClick={() => handleSort('productName')} className={getHeaderClass('productName')}>
+                      ชื่อสินค้า {getSortIcon('productName')}
+                    </th>
+                    <th onClick={() => handleSort('category')} className={getHeaderClass('category')}>
+                      หมวดสินค้า {getSortIcon('category')}
+                    </th>
+                    <th onClick={() => handleSort('type')} className={getHeaderClass('type')}>
+                      ประเภท {getSortIcon('type')}
+                    </th>
+                    <th onClick={() => handleSort('requestedAmount')} className={getHeaderClass('requestedAmount')}>
+                      จำนวนที่ขอ {getSortIcon('requestedAmount')}
+                    </th>
+                    <th onClick={() => handleSort('pricePerUnit')} className={getHeaderClass('pricePerUnit')}>
+                      ราคาต่อหน่วย {getSortIcon('pricePerUnit')}
+                    </th>
+                    <th onClick={() => handleSort('requestingDept')} className={getHeaderClass('requestingDept')}>
+                      หน่วยงานที่ขอ {getSortIcon('requestingDept')}
+                    </th>
+                    <th onClick={() => handleSort('approvedQuota')} className={getHeaderClass('approvedQuota')}>
+                      จำนวนที่อนุมัติ {getSortIcon('approvedQuota')}
+                    </th>
+                    <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-24">
+                      Action
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {surveys.map((survey) => (
+                    <tr key={survey.id} className="hover:bg-gray-50">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {survey.productCode}
+                      </td>
+                      <td className="px-6 py-4 text-sm text-gray-900 break-words max-w-xs">
+                        {survey.productName}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {survey.category}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {survey.type}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {editingId === survey.id ? (
+                          <input
+                            type="number"
+                            value={editData.requestedAmount}
+                            onChange={(e) => setEditData({ ...editData, requestedAmount: e.target.value })}
+                            className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          />
+                        ) : (
+                          `${survey.requestedAmount?.toLocaleString() || ''} ${survey.unit || ''}`
+                        )}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {editingId === survey.id ? (
+                          <input
+                            type="number"
+                            value={editData.pricePerUnit}
+                            onChange={(e) => setEditData({ ...editData, pricePerUnit: e.target.value })}
+                            className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          />
+                        ) : (
+                          `฿${survey.pricePerUnit?.toLocaleString() || '0'}`
+                        )}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {survey.requestingDept}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {editingId === survey.id ? (
+                          <input
+                            type="number"
+                            value={editData.approvedQuota}
+                            onChange={(e) => setEditData({ ...editData, approvedQuota: e.target.value })}
+                            className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          />
+                        ) : (
+                          survey.approvedQuota?.toLocaleString() || '-'
+                        )}
+                      </td>
+                      <td className="px-3 py-4 whitespace-nowrap text-sm font-medium w-24">
+                        {editingId === survey.id ? (
+                          <div className="flex gap-1">
+                            <button
+                              onClick={() => saveInlineEdit(survey.id)}
+                              className="text-green-600 hover:text-green-900 cursor-pointer"
+                              title="บันทึก"
+                            >
+                              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                              </svg>
+                            </button>
+                            <button
+                              onClick={() => cancelInlineEdit()}
+                              className="text-red-600 hover:text-red-900 cursor-pointer"
+                              title="ยกเลิก"
+                            >
+                              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                                <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                              </svg>
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => startInlineEdit(survey)}
+                              className="text-indigo-600 hover:text-indigo-900 cursor-pointer"
+                              title="แก้ไข"
+                            >
+                              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
+                              </svg>
+                            </button>
+                            <button
+                              onClick={() => handleDelete(survey)}
+                              className="text-red-600 hover:text-red-900 cursor-pointer"
+                              title="ลบ"
+                            >
+                              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
+                              </svg>
+                            </button>
+                          </div>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+
+        {/* Form Modal */}
+        {showForm && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+              <div className="px-6 py-4 border-b border-gray-200">
+                <h2 className="text-xl font-semibold text-gray-800">
+                  {editingSurvey ? 'แก้ไขข้อมูลความต้องการ' : 'เพิ่มข้อมูลความต้องการ'}
+                </h2>
+              </div>
+
+              <form onSubmit={handleSubmit} className="px-6 py-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* Product Code */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      รหัสสินค้า *
+                    </label>
+                    <input
+                      type="text"
+                      name="productCode"
+                      value={formData.productCode}
+                      onChange={handleInputChange}
+                      className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                        errors.productCode ? 'border-red-500' : 'border-gray-300'
+                      }`}
+                      placeholder="ระบุรหัสสินค้า"
+                    />
+                    {errors.productCode && <p className="mt-1 text-sm text-red-600">{errors.productCode}</p>}
+                  </div>
+
+                  {/* Product Name */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      ชื่อสินค้า *
+                    </label>
+                    <input
+                      type="text"
+                      name="productName"
+                      value={formData.productName}
+                      onChange={handleInputChange}
+                      className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                        errors.productName ? 'border-red-500' : 'border-gray-300'
+                      }`}
+                      placeholder="ระบุชื่อสินค้า"
+                    />
+                    {errors.productName && <p className="mt-1 text-sm text-red-600">{errors.productName}</p>}
+                  </div>
+
+                  {/* Category */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      หมวดสินค้า
+                    </label>
+                    <select
+                      name="category"
+                      value={formData.category}
+                      onChange={handleInputChange}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="">เลือกหมวดสินค้า</option>
+                      {categories.map((cat) => (
+                        <option key={cat} value={cat}>{cat}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Type */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      ประเภท
+                    </label>
+                    <select
+                      name="type"
+                      value={formData.type}
+                      onChange={handleInputChange}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="">เลือกประเภท</option>
+                      {types.map((type) => (
+                        <option key={type} value={type}>{type}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Subtype */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      ประเภทย่อย
+                    </label>
+                    <select
+                      name="subtype"
+                      value={formData.subtype}
+                      onChange={handleInputChange}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="">เลือกประเภทย่อย</option>
+                      {subtypes.map((subtype) => (
+                        <option key={subtype} value={subtype}>{subtype}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Unit */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      หน่วยนับ
+                    </label>
+                    <input
+                      type="text"
+                      name="unit"
+                      value={formData.unit}
+                      onChange={handleInputChange}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="ระบุหน่วยนับ"
+                    />
+                  </div>
+
+                  {/* Requested Amount */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      จำนวนที่ขอ
+                    </label>
+                    <input
+                      type="number"
+                      name="requestedAmount"
+                      value={formData.requestedAmount}
+                      onChange={handleInputChange}
+                      min="0"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="ระบุจำนวนที่ขอ"
+                    />
+                  </div>
+
+                  {/* Price Per Unit */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      ราคาต่อหน่วย (บาท)
+                    </label>
+                    <input
+                      type="number"
+                      name="pricePerUnit"
+                      value={formData.pricePerUnit}
+                      onChange={handleInputChange}
+                      min="0"
+                      step="0.01"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="ระบุราคาต่อหน่วย"
+                    />
+                  </div>
+
+                  {/* Requesting Department */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      หน่วยงานที่ขอ
+                    </label>
+                    <select
+                      name="requestingDept"
+                      value={formData.requestingDept}
+                      onChange={handleInputChange}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="">เลือกหน่วยงานที่ขอ</option>
+                      {departments.map((dept) => (
+                        <option key={dept} value={dept}>{dept}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Approved Quota */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      จำนวนที่ได้รับอนุมัติ
+                    </label>
+                    <input
+                      type="number"
+                      name="approvedQuota"
+                      value={formData.approvedQuota}
+                      onChange={handleInputChange}
+                      min="0"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="ระบุจำนวนที่ได้รับอนุมัติ"
+                    />
+                  </div>
+                </div>
+
                 <div className="mt-6 flex justify-end space-x-3">
                   <button
                     type="button"
