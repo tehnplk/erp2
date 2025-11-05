@@ -2,12 +2,13 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 
 export default function Navbar() {
   const pathname = usePathname();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const settingsRef = useRef<HTMLDivElement>(null);
 
   const settingsItems = [
     { href: '/sellers', label: 'ผู้จำหน่าย', icon: '🏪' },
@@ -15,6 +16,19 @@ export default function Navbar() {
     { href: '/products', label: 'รายการสินค้า', icon: '📦' },
     { href: '/departments', label: 'แผนก', icon: '🏥' },
   ];
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (settingsRef.current && !settingsRef.current.contains(event.target as Node)) {
+        setIsSettingsOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
 
   return (
     <nav className="bg-blue-600 text-white shadow-lg fixed top-0 left-0 right-0 z-50">
@@ -42,7 +56,7 @@ export default function Navbar() {
             </Link>
 
             {/* ตั้งค่า Dropdown */}
-            <div className="relative">
+            <div className="relative" ref={settingsRef}>
               <button
                 type="button"
                 onClick={() => setIsSettingsOpen((v) => !v)}
@@ -60,6 +74,7 @@ export default function Navbar() {
                     <Link
                       key={item.href}
                       href={item.href}
+                      onClick={() => setIsSettingsOpen(false)}
                       className={`flex items-center px-4 py-2 text-sm hover:bg-gray-100 ${
                         pathname === item.href ? 'bg-gray-100 font-medium' : ''
                       }`}

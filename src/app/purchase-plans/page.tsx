@@ -27,6 +27,7 @@ export default function PurchasePlansPage() {
   const [items, setItems] = useState<any[]>([]);
   const [totalCount, setTotalCount] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [filtersLoading, setFiltersLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<any | null>(null);
   const [formData, setFormData] = useState<PurchasePlanFormData>({});
@@ -51,15 +52,17 @@ export default function PurchasePlansPage() {
   const [years, setYears] = useState<string[]>([]);
 
   useEffect(() => {
+    fetchFilters();
+    fetchData();
+  }, []);
+
+  useEffect(() => {
     fetchData();
   }, [nameFilter, categoryFilter, typeFilter, subtypeFilter, departmentFilter, yearFilter, sortBy, sortOrder]);
 
-  useEffect(() => {
-    fetchFilters();
-  }, []);
-
   const fetchFilters = async () => {
     try {
+      setFiltersLoading(true);
       const res = await fetch('/api/purchase-plans/filters');
       if (res.ok) {
         const data = await res.json();
@@ -71,6 +74,8 @@ export default function PurchasePlansPage() {
       }
     } catch (e) {
       console.error(e);
+    } finally {
+      setFiltersLoading(false);
     }
   };
 
@@ -165,8 +170,6 @@ export default function PurchasePlansPage() {
     else { await Swal.fire('เกิดข้อผิดพลาด', 'ไม่สามารถลบได้', 'error'); }
   };
 
-  if (loading) return <div className="flex justify-center items-center h-screen">Loading...</div>;
-
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="flex justify-between items-center mb-6">
@@ -205,90 +208,106 @@ export default function PurchasePlansPage() {
 
       <div className="bg-white shadow-md rounded-lg overflow-hidden mb-4">
         <div className="px-4 py-3 bg-gray-50 border-b border-gray-200">
-          <div className="grid grid-cols-1 md:grid-cols-6 gap-4 mb-4">
-            <input placeholder="ชื่อสินค้า" value={nameFilter} onChange={(e)=>setNameFilter(e.target.value)} className="w-full rounded-md border-gray-300 shadow-sm text-sm px-3 py-2" />
-            <select value={categoryFilter} onChange={(e)=>setCategoryFilter(e.target.value)} className="w-full rounded-md border-gray-300 shadow-sm text-sm px-3 py-2">
-              <option value="">หมวด</option>
-              {categories.map(x => <option key={x} value={x}>{x}</option>)}
-            </select>
-            <select value={typeFilter} onChange={(e)=>setTypeFilter(e.target.value)} className="w-full rounded-md border-gray-300 shadow-sm text-sm px-3 py-2">
-              <option value="">ประเภท</option>
-              {types.map(x => <option key={x} value={x}>{x}</option>)}
-            </select>
-            <select value={subtypeFilter} onChange={(e)=>setSubtypeFilter(e.target.value)} className="w-full rounded-md border-gray-300 shadow-sm text-sm px-3 py-2">
-              <option value="">ประเภทย่อย</option>
-              {subtypes.map(x => <option key={x} value={x}>{x}</option>)}
-            </select>
-            <select value={departmentFilter} onChange={(e)=>setDepartmentFilter(e.target.value)} className="w-full rounded-md border-gray-300 shadow-sm text-sm px-3 py-2">
-              <option value="">หน่วยงาน</option>
-              {departments.map(x => <option key={x} value={x}>{x}</option>)}
-            </select>
-            <select value={yearFilter} onChange={(e)=>setYearFilter(e.target.value)} className="w-full rounded-md border-gray-300 shadow-sm text-sm px-3 py-2">
-              <option value="">ปีงบ</option>
-              {years.map(x => <option key={x} value={x}>{x}</option>)}
-            </select>
-          </div>
+          {filtersLoading ? (
+            <div className="flex justify-center items-center py-8">
+              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-6 gap-4 mb-4">
+              <input placeholder="ชื่อสินค้า" value={nameFilter} onChange={(e)=>setNameFilter(e.target.value)} className="w-full rounded-md border-gray-300 shadow-sm text-sm px-3 py-2" />
+              <select value={categoryFilter} onChange={(e)=>setCategoryFilter(e.target.value)} className="w-full rounded-md border-gray-300 shadow-sm text-sm px-3 py-2">
+                <option value="">หมวด</option>
+                {categories.map(x => <option key={x} value={x}>{x}</option>)}
+              </select>
+              <select value={typeFilter} onChange={(e)=>setTypeFilter(e.target.value)} className="w-full rounded-md border-gray-300 shadow-sm text-sm px-3 py-2">
+                <option value="">ประเภท</option>
+                {types.map(x => <option key={x} value={x}>{x}</option>)}
+              </select>
+              <select value={subtypeFilter} onChange={(e)=>setSubtypeFilter(e.target.value)} className="w-full rounded-md border-gray-300 shadow-sm text-sm px-3 py-2">
+                <option value="">ประเภทย่อย</option>
+                {subtypes.map(x => <option key={x} value={x}>{x}</option>)}
+              </select>
+              <select value={departmentFilter} onChange={(e)=>setDepartmentFilter(e.target.value)} className="w-full rounded-md border-gray-300 shadow-sm text-sm px-3 py-2">
+                <option value="">หน่วยงาน</option>
+                {departments.map(x => <option key={x} value={x}>{x}</option>)}
+              </select>
+              <select value={yearFilter} onChange={(e)=>setYearFilter(e.target.value)} className="w-full rounded-md border-gray-300 shadow-sm text-sm px-3 py-2">
+                <option value="">ปีงบ</option>
+                {years.map(x => <option key={x} value={x}>{x}</option>)}
+              </select>
+            </div>
+          )}
         </div>
       </div>
 
       <div className="mt-4 text-sm text-gray-600">แสดง {items.length} จาก {totalCount} รายการ</div>
 
       <div className="bg-white shadow-md rounded-lg overflow-hidden">
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
-            <tr>
-              <th onClick={()=>handleSort('productCode')} className={getHeaderClass('productCode')}>รหัส</th>
-              <th onClick={()=>handleSort('productName')} className={getHeaderClass('productName')}>ชื่อสินค้า</th>
-              <th onClick={()=>handleSort('category')} className={getHeaderClass('category')}>หมวด</th>
-              <th onClick={()=>handleSort('productType')} className={getHeaderClass('productType')}>ประเภท</th>
-              <th onClick={()=>handleSort('unit')} className={getHeaderClass('unit')}>หน่วย</th>
-              <th onClick={()=>handleSort('pricePerUnit')} className={getHeaderClass('pricePerUnit')}>ราคา/หน่วย</th>
-              <th onClick={()=>handleSort('requiredQuantityForYear')} className={getHeaderClass('requiredQuantityForYear')}>ต้องการ/ปี</th>
-              <th onClick={()=>handleSort('totalRequiredValue')} className={getHeaderClass('totalRequiredValue')}>มูลค่ารวม</th>
-              <th onClick={()=>handleSort('budgetYear')} className={getHeaderClass('budgetYear')}>ปีงบ</th>
-              <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-24">Action</th>
-            </tr>
-          </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
-            {items.map((row) => (
-              <tr key={row.id}>
-                <td className="px-3 py-2 text-sm">{row.productCode}</td>
-                <td className="px-3 py-2 text-sm">
-                  <div className="whitespace-normal break-words" title={row.productName}>
-                    {row.productName}
-                  </div>
-                </td>
-                <td className="px-3 py-2 text-sm">{row.category}</td>
-                <td className="px-3 py-2 text-sm">{row.productType}</td>
-                <td className="px-3 py-2 text-sm">{row.unit}</td>
-                <td className="px-3 py-2 text-sm">{row.pricePerUnit ? Number(row.pricePerUnit).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '-'}</td>
-                <td className="px-3 py-2 text-sm">{row.requiredQuantityForYear ?? '-'}</td>
-                <td className="px-3 py-2 text-sm">{row.totalRequiredValue ? Number(row.totalRequiredValue).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '-'}</td>
-                <td className="px-3 py-2 text-sm">{row.budgetYear}</td>
-                <td className="px-3 py-2 text-sm font-medium w-24">
-                  <button
-                    onClick={() => handleEdit(row)}
-                    className="text-indigo-600 hover:text-indigo-900 mr-2 cursor-pointer"
-                    title="แก้ไข"
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                      <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
-                    </svg>
-                  </button>
-                  <button
-                    onClick={() => handleDelete(row.id)}
-                    className="text-red-600 hover:text-red-900 cursor-pointer"
-                    title="ลบ"
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                      <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
-                    </svg>
-                  </button>
-                </td>
+        {loading ? (
+          <div className="flex justify-center items-center py-12">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+          </div>
+        ) : items.length === 0 ? (
+          <div className="text-center py-12">
+            <p className="text-gray-500">ไม่พบข้อมูล</p>
+          </div>
+        ) : (
+          <table className="min-w-full divide-y divide-gray-200">
+            <thead className="bg-gray-50">
+              <tr>
+                <th onClick={()=>handleSort('productCode')} className={getHeaderClass('productCode')}>รหัส</th>
+                <th onClick={()=>handleSort('productName')} className={getHeaderClass('productName')}>ชื่อสินค้า</th>
+                <th onClick={()=>handleSort('category')} className={getHeaderClass('category')}>หมวด</th>
+                <th onClick={()=>handleSort('productType')} className={getHeaderClass('productType')}>ประเภท</th>
+                <th onClick={()=>handleSort('unit')} className={getHeaderClass('unit')}>หน่วย</th>
+                <th onClick={()=>handleSort('pricePerUnit')} className={getHeaderClass('pricePerUnit')}>ราคา/หน่วย</th>
+                <th onClick={()=>handleSort('requiredQuantityForYear')} className={getHeaderClass('requiredQuantityForYear')}>ต้องการ/ปี</th>
+                <th onClick={()=>handleSort('totalRequiredValue')} className={getHeaderClass('totalRequiredValue')}>มูลค่ารวม</th>
+                <th onClick={()=>handleSort('budgetYear')} className={getHeaderClass('budgetYear')}>ปีงบ</th>
+                <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-24">Action</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200">
+              {items.map((row) => (
+                <tr key={row.id}>
+                  <td className="px-3 py-2 text-sm">{row.productCode}</td>
+                  <td className="px-3 py-2 text-sm">
+                    <div className="whitespace-normal break-words" title={row.productName}>
+                      {row.productName}
+                    </div>
+                  </td>
+                  <td className="px-3 py-2 text-sm">{row.category}</td>
+                  <td className="px-3 py-2 text-sm">{row.productType}</td>
+                  <td className="px-3 py-2 text-sm">{row.unit}</td>
+                  <td className="px-3 py-2 text-sm">{row.pricePerUnit ? Number(row.pricePerUnit).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '-'}</td>
+                  <td className="px-3 py-2 text-sm">{row.requiredQuantityForYear ?? '-'}</td>
+                  <td className="px-3 py-2 text-sm">{row.totalRequiredValue ? Number(row.totalRequiredValue).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '-'}</td>
+                  <td className="px-3 py-2 text-sm">{row.budgetYear}</td>
+                  <td className="px-3 py-2 text-sm font-medium w-24">
+                    <button
+                      onClick={() => handleEdit(row)}
+                      className="text-indigo-600 hover:text-indigo-900 mr-2 cursor-pointer"
+                      title="แก้ไข"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                        <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
+                      </svg>
+                    </button>
+                    <button
+                      onClick={() => handleDelete(row.id)}
+                      className="text-red-600 hover:text-red-900 cursor-pointer"
+                      title="ลบ"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
+                      </svg>
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
       </div>
     </div>
   );
