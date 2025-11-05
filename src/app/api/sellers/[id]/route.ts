@@ -1,7 +1,8 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import { NextRequest } from 'next/server';
+import { prisma } from '@/lib/prisma';
+import { apiSuccess, apiError, apiNotFound } from '@/lib/api-response';
+import { validateRequest } from '@/lib/validation/validate';
+import { idParamSchema, updateSellerSchema } from '@/lib/validation/schemas';
 
 // GET /api/sellers/[id] - Get seller by ID
 export async function GET(
@@ -9,36 +10,26 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
-    const id = parseInt(params.id);
-    
-    if (isNaN(id)) {
-      return NextResponse.json(
-        { success: false, error: 'Invalid seller ID' },
-        { status: 400 }
-      );
+    // Validate ID parameter
+    const idValidation = await validateRequest(idParamSchema, params);
+    if (!idValidation.success) {
+      return idValidation.error;
     }
+    
+    const { id } = idValidation.data;
 
     const seller = await prisma.seller.findUnique({
       where: { id }
     });
 
     if (!seller) {
-      return NextResponse.json(
-        { success: false, error: 'Seller not found' },
-        { status: 404 }
-      );
+      return apiNotFound('Seller');
     }
 
-    return NextResponse.json({
-      success: true,
-      data: seller
-    });
+    return apiSuccess(seller);
   } catch (error) {
     console.error('Error fetching seller:', error);
-    return NextResponse.json(
-      { success: false, error: 'Failed to fetch seller' },
-      { status: 500 }
-    );
+    return apiError('Failed to fetch seller');
   }
 }
 
@@ -48,56 +39,34 @@ export async function PUT(
   { params }: { params: { id: string } }
 ) {
   try {
-    const id = parseInt(params.id);
-    const body = await request.json();
-    const { code, prefix, name, business, address, phone, fax, mobile } = body;
-
-    if (isNaN(id)) {
-      return NextResponse.json(
-        { success: false, error: 'Invalid seller ID' },
-        { status: 400 }
-      );
+    // Validate ID parameter
+    const idValidation = await validateRequest(idParamSchema, params);
+    if (!idValidation.success) {
+      return idValidation.error;
     }
-
-    // Validate required fields
-    if (!code || !name) {
-      return NextResponse.json(
-        { success: false, error: 'Code and name are required' },
-        { status: 400 }
-      );
+    
+    const { id } = idValidation.data;
+    
+    const body = await request.json();
+    
+    // Validate request body
+    const validation = await validateRequest(updateSellerSchema, body);
+    if (!validation.success) {
+      return validation.error;
     }
 
     const updatedSeller = await prisma.seller.update({
       where: { id },
-      data: {
-        code,
-        prefix: prefix || null,
-        name,
-        business: business || null,
-        address: address || null,
-        phone: phone || null,
-        fax: fax || null,
-        mobile: mobile || null
-      }
+      data: validation.data as any
     });
 
-    return NextResponse.json({
-      success: true,
-      data: updatedSeller,
-      message: 'Seller updated successfully'
-    });
+    return apiSuccess(updatedSeller, 'Seller updated successfully');
   } catch (error: any) {
     console.error('Error updating seller:', error);
     if (error.code === 'P2025') {
-      return NextResponse.json(
-        { success: false, error: 'Seller not found' },
-        { status: 404 }
-      );
+      return apiNotFound('Seller');
     }
-    return NextResponse.json(
-      { success: false, error: 'Failed to update seller' },
-      { status: 500 }
-    );
+    return apiError('Failed to update seller');
   }
 }
 
@@ -107,34 +76,24 @@ export async function DELETE(
   { params }: { params: { id: string } }
 ) {
   try {
-    const id = parseInt(params.id);
-
-    if (isNaN(id)) {
-      return NextResponse.json(
-        { success: false, error: 'Invalid seller ID' },
-        { status: 400 }
-      );
+    // Validate ID parameter
+    const idValidation = await validateRequest(idParamSchema, params);
+    if (!idValidation.success) {
+      return idValidation.error;
     }
+    
+    const { id } = idValidation.data;
 
     await prisma.seller.delete({
       where: { id }
     });
 
-    return NextResponse.json({
-      success: true,
-      message: 'Seller deleted successfully'
-    });
+    return apiSuccess(null, 'Seller deleted successfully');
   } catch (error: any) {
     console.error('Error deleting seller:', error);
     if (error.code === 'P2025') {
-      return NextResponse.json(
-        { success: false, error: 'Seller not found' },
-        { status: 404 }
-      );
+      return apiNotFound('Seller');
     }
-    return NextResponse.json(
-      { success: false, error: 'Failed to delete seller' },
-      { status: 500 }
-    );
+    return apiError('Failed to delete seller');
   }
 }

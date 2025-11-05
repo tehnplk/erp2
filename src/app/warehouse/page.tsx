@@ -101,7 +101,7 @@ export default function WarehousePage() {
       const res = await fetch(`/api/warehouse?${params.toString()}`);
       if (!res.ok) throw new Error('fetch failed');
       const data = await res.json();
-      setItems(data.items || []);
+      setItems(data.data || []);
       setTotalCount(data.totalCount || 0);
     } catch (e) { console.error(e); } finally { setLoading(false); }
   };

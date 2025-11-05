@@ -95,7 +95,7 @@ export default function PurchasePlansPage() {
       const res = await fetch(`/api/purchase-plans?${params.toString()}`);
       if (!res.ok) throw new Error('fetch failed');
       const data = await res.json();
-      setItems(data.items || []);
+      setItems(data.data || []);
       setTotalCount(data.totalCount || 0);
     } catch (e) {
       console.error(e);

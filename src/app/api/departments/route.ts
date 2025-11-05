@@ -1,33 +1,22 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
-
-// Ensure proper database connection
-prisma.$connect();
+import { NextRequest } from 'next/server';
+import { prisma } from '@/lib/prisma';
+import { apiSuccess, apiError } from '@/lib/api-response';
+import { validateRequest } from '@/lib/validation/validate';
+import { createDepartmentSchema } from '@/lib/validation/schemas';
 
 // GET /api/departments - Get all departments
 export async function GET() {
   try {
-    console.log('Attempting to fetch departments...');
     const departments = await prisma.department.findMany({
       orderBy: {
         id: 'asc'
       }
     });
     
-    console.log('Departments fetched successfully:', departments.length);
-    return NextResponse.json(departments);
+    return apiSuccess(departments);
   } catch (error) {
     console.error('Error fetching departments:', error);
-    console.error('Error details:', {
-      message: error instanceof Error ? error.message : 'Unknown error',
-      stack: error instanceof Error ? error.stack : undefined
-    });
-    return NextResponse.json(
-      { error: 'Failed to fetch departments', details: error instanceof Error ? error.message : 'Unknown error' },
-      { status: 500 }
-    );
+    return apiError('Failed to fetch departments');
   }
 }
 
@@ -35,27 +24,20 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { name } = body;
-
-    if (!name) {
-      return NextResponse.json(
-        { error: 'Name is required' },
-        { status: 400 }
-      );
+    
+    // Validate request body
+    const validation = await validateRequest(createDepartmentSchema, body);
+    if (!validation.success) {
+      return validation.error;
     }
 
     const department = await prisma.department.create({
-      data: {
-        name
-      }
+      data: validation.data as any
     });
 
-    return NextResponse.json(department, { status: 201 });
+    return apiSuccess(department, 'Department created successfully', undefined, 201);
   } catch (error) {
     console.error('Error creating department:', error);
-    return NextResponse.json(
-      { error: 'Failed to create department' },
-      { status: 500 }
-    );
+    return apiError('Failed to create department');
   }
 }

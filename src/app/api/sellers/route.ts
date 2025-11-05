@@ -1,7 +1,8 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import { NextRequest } from 'next/server';
+import { prisma } from '@/lib/prisma';
+import { apiSuccess, apiError, apiConflict } from '@/lib/api-response';
+import { validateRequest } from '@/lib/validation/validate';
+import { createSellerSchema } from '@/lib/validation/schemas';
 
 // GET /api/sellers - Get all sellers
 export async function GET() {
@@ -12,17 +13,10 @@ export async function GET() {
       }
     });
     
-    return NextResponse.json({
-      success: true,
-      data: sellers,
-      count: sellers.length
-    });
+    return apiSuccess(sellers, undefined, sellers.length);
   } catch (error) {
     console.error('Error fetching sellers:', error);
-    return NextResponse.json(
-      { success: false, error: 'Failed to fetch sellers' },
-      { status: 500 }
-    );
+    return apiError('Failed to fetch sellers');
   }
 }
 
@@ -30,15 +24,14 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { code, prefix, name, business, address, phone, fax, mobile } = body;
-
-    // Validate required fields
-    if (!code || !name) {
-      return NextResponse.json(
-        { success: false, error: 'Code and name are required' },
-        { status: 400 }
-      );
+    
+    // Validate request body
+    const validation = await validateRequest(createSellerSchema, body);
+    if (!validation.success) {
+      return validation.error;
     }
+    
+    const { code } = validation.data as any;
 
     // Check if seller with this code already exists
     const existingSeller = await prisma.seller.findUnique({
@@ -46,36 +39,17 @@ export async function POST(request: NextRequest) {
     });
 
     if (existingSeller) {
-      return NextResponse.json(
-        { success: false, error: 'Seller with this code already exists' },
-        { status: 400 }
-      );
+      return apiConflict('Seller with this code already exists');
     }
 
     const newSeller = await prisma.seller.create({
-      data: {
-        code,
-        prefix: prefix || null,
-        name,
-        business: business || null,
-        address: address || null,
-        phone: phone || null,
-        fax: fax || null,
-        mobile: mobile || null
-      }
+      data: validation.data as any
     });
 
-    return NextResponse.json({
-      success: true,
-      data: newSeller,
-      message: 'Seller created successfully'
-    }, { status: 201 });
+    return apiSuccess(newSeller, 'Seller created successfully', undefined, 201);
   } catch (error) {
     console.error('Error creating seller:', error);
-    return NextResponse.json(
-      { success: false, error: 'Failed to create seller' },
-      { status: 500 }
-    );
+    return apiError('Failed to create seller');
   }
 }
 

@@ -1,7 +1,8 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import { NextRequest } from 'next/server';
+import { prisma } from '@/lib/prisma';
+import { apiSuccess, apiError } from '@/lib/api-response';
+import { validateRequest } from '@/lib/validation/validate';
+import { createCategorySchema } from '@/lib/validation/schemas';
 
 // GET /api/categories - Get all categories
 export async function GET() {
@@ -10,17 +11,10 @@ export async function GET() {
       orderBy: { id: 'asc' }
     });
     
-    return NextResponse.json({
-      success: true,
-      data: categories,
-      count: categories.length
-    });
+    return apiSuccess(categories, undefined, categories.length);
   } catch (error) {
     console.error('Error fetching categories:', error);
-    return NextResponse.json(
-      { success: false, error: 'Failed to fetch categories' },
-      { status: 500 }
-    );
+    return apiError('Failed to fetch categories');
   }
 }
 
@@ -28,34 +22,20 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { category, type, subtype } = body;
-
-    // Validate required fields
-    if (!category || !type || !subtype) {
-      return NextResponse.json(
-        { success: false, error: 'Category, type, and subtype are required' },
-        { status: 400 }
-      );
+    
+    // Validate request body
+    const validation = await validateRequest(createCategorySchema, body);
+    if (!validation.success) {
+      return validation.error;
     }
 
     const newCategory = await prisma.category.create({
-      data: {
-        category,
-        type,
-        subtype
-      }
+      data: validation.data as any
     });
 
-    return NextResponse.json({
-      success: true,
-      data: newCategory,
-      message: 'Category created successfully'
-    }, { status: 201 });
+    return apiSuccess(newCategory, 'Category created successfully', undefined, 201);
   } catch (error) {
     console.error('Error creating category:', error);
-    return NextResponse.json(
-      { success: false, error: 'Failed to create category' },
-      { status: 500 }
-    );
+    return apiError('Failed to create category');
   }
 }

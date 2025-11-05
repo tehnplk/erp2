@@ -1,30 +1,34 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import { NextRequest } from 'next/server';
+import { prisma } from '@/lib/prisma';
+import { apiSuccess, apiError, apiNotFound, apiConflict } from '@/lib/api-response';
+import { validateRequest } from '@/lib/validation/validate';
+import { idParamSchema, updateProductSchema } from '@/lib/validation/schemas';
 
 export async function GET(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
+    // Validate ID parameter
+    const idValidation = await validateRequest(idParamSchema, params);
+    if (!idValidation.success) {
+      return idValidation.error;
+    }
+    
+    const { id } = idValidation.data;
+    
     const product = await prisma.product.findUnique({
-      where: { id: parseInt(params.id) }
+      where: { id }
     });
 
     if (!product) {
-      return NextResponse.json(
-        { error: 'Product not found' },
-        { status: 404 }
-      );
+      return apiNotFound('Product');
     }
 
-    return NextResponse.json(product);
+    return apiSuccess(product);
   } catch (error) {
-    return NextResponse.json(
-      { error: 'Failed to fetch product' },
-      { status: 500 }
-    );
+    console.error('Error fetching product:', error);
+    return apiError('Failed to fetch product');
   }
 }
 
@@ -33,33 +37,30 @@ export async function PUT(
   { params }: { params: { id: string } }
 ) {
   try {
+    // Validate ID parameter
+    const idValidation = await validateRequest(idParamSchema, params);
+    if (!idValidation.success) {
+      return idValidation.error;
+    }
+    
+    const { id } = idValidation.data;
+    
     const body = await request.json();
-    const {
-      code,
-      category,
-      name,
-      type,
-      subtype,
-      unit,
-      costPrice,
-      sellPrice,
-      stockBalance,
-      stockValue,
-      sellerCode,
-      image,
-      flagActivate,
-      adminNote
-    } = body;
+    
+    // Validate request body
+    const validation = await validateRequest(updateProductSchema, body);
+    if (!validation.success) {
+      return validation.error;
+    }
+    
+    const { code } = validation.data as any;
 
     const existingProduct = await prisma.product.findUnique({
-      where: { id: parseInt(params.id) }
+      where: { id }
     });
 
     if (!existingProduct) {
-      return NextResponse.json(
-        { error: 'Product not found' },
-        { status: 404 }
-      );
+      return apiNotFound('Product');
     }
 
     if (code && code !== existingProduct.code) {
@@ -67,40 +68,19 @@ export async function PUT(
         where: { code }
       });
       if (duplicateCode) {
-        return NextResponse.json(
-          { error: 'Product with this code already exists' },
-          { status: 409 }
-        );
+        return apiConflict('Product with this code already exists');
       }
     }
 
     const product = await prisma.product.update({
-      where: { id: parseInt(params.id) },
-      data: {
-        code,
-        category,
-        name,
-        type,
-        subtype,
-        unit,
-        costPrice: costPrice !== undefined ? parseFloat(costPrice) : undefined,
-        sellPrice: sellPrice !== undefined ? parseFloat(sellPrice) : undefined,
-        stockBalance: stockBalance !== undefined ? parseInt(stockBalance) : undefined,
-        stockValue: stockValue !== undefined ? parseFloat(stockValue) : undefined,
-        sellerCode,
-        image,
-        flagActivate,
-        adminNote
-      }
+      where: { id },
+      data: validation.data as any
     });
 
-    return NextResponse.json(product);
+    return apiSuccess(product, 'Product updated successfully');
   } catch (error) {
     console.error('Error updating product:', error);
-    return NextResponse.json(
-      { error: 'Failed to update product' },
-      { status: 500 }
-    );
+    return apiError('Failed to update product');
   }
 }
 
@@ -109,27 +89,29 @@ export async function DELETE(
   { params }: { params: { id: string } }
 ) {
   try {
+    // Validate ID parameter
+    const idValidation = await validateRequest(idParamSchema, params);
+    if (!idValidation.success) {
+      return idValidation.error;
+    }
+    
+    const { id } = idValidation.data;
+    
     const product = await prisma.product.findUnique({
-      where: { id: parseInt(params.id) }
+      where: { id }
     });
 
     if (!product) {
-      return NextResponse.json(
-        { error: 'Product not found' },
-        { status: 404 }
-      );
+      return apiNotFound('Product');
     }
 
     await prisma.product.delete({
-      where: { id: parseInt(params.id) }
+      where: { id }
     });
 
-    return NextResponse.json({ message: 'Product deleted successfully' });
+    return apiSuccess(null, 'Product deleted successfully');
   } catch (error) {
     console.error('Error deleting product:', error);
-    return NextResponse.json(
-      { error: 'Failed to delete product' },
-      { status: 500 }
-    );
+    return apiError('Failed to delete product');
   }
 }

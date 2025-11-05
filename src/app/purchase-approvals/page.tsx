@@ -82,7 +82,7 @@ export default function PurchaseApprovalsPage() {
       const res = await fetch(`/api/purchase-approvals?${params.toString()}`);
       if (!res.ok) throw new Error('fetch failed');
       const data = await res.json();
-      setItems(data.items || []);
+      setItems(data.data || []);
       setTotalCount(data.totalCount || 0);
     } catch (e) { console.error(e); } finally { setLoading(false); }
   };
