@@ -160,7 +160,7 @@ export default function ProductsPage() {
       const response = await fetch(`/api/products?${params.toString()}`);
       if (!response.ok) throw new Error('Failed to fetch products');
       const data = await response.json();
-      setProducts(data.products);
+      setProducts(data.data || []);
       setTotalCount(data.totalCount);
     } catch (err) {
       console.error('Error fetching products:', err);
@@ -1092,12 +1092,12 @@ export default function ProductsPage() {
             <div className="flex items-center space-x-6">
               <div className="text-sm">
                 <span className="text-gray-500">จำนวนทั้งสิ้น: </span>
-                <span className="font-semibold text-gray-900">{products.length.toLocaleString()} รายการ</span>
+                <span className="font-semibold text-gray-900">{(products || []).length.toLocaleString()} รายการ</span>
               </div>
               <div className="text-sm">
                 <span className="text-gray-500">มูลค่ายกมาทั้งหมด: </span>
                 <span className="font-semibold text-gray-900">
-                  ฿{products.reduce((total, product) => total + (product.stockValue ? Number(product.stockValue) : 0), 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  ฿{(products || []).reduce((total, product) => total + (product.stockValue ? Number(product.stockValue) : 0), 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </span>
               </div>
             </div>
@@ -1106,7 +1106,7 @@ export default function ProductsPage() {
       </div>
 
       <div className="mt-4 text-sm text-gray-600">
-        แสดง {products.length} จาก {totalCount} รายการ
+        แสดง {(products || []).length} จาก {totalCount} รายการ
       </div>
 
       <div className="bg-white shadow-md rounded-lg overflow-hidden">
@@ -1152,7 +1152,7 @@ export default function ProductsPage() {
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
-            {products.map((product) => (
+            {(products || []).map((product) => (
               <tr key={product.id}>
                 <td className="px-3 py-4 whitespace-nowrap text-sm font-medium text-gray-900 w-24">
                   {product.code}
@@ -1227,7 +1227,7 @@ export default function ProductsPage() {
         </table>
       </div>
 
-      {products.length === 0 && (
+      {(products || []).length === 0 && (
         <div className="text-center py-8">
           <p className="text-gray-500 text-lg">ไม่มีข้อมูลสินค้า</p>
           <button
