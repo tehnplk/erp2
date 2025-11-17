@@ -49,6 +49,9 @@ export default function CategoriesPage() {
     type: '',
     subtype: ''
   });
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
+  const PAGE_SIZE_OPTIONS = [10, 20, 50];
 
   // Fetch categories
   const fetchCategories = async () => {
@@ -101,6 +104,7 @@ export default function CategoriesPage() {
     }
 
     setFilteredCategories(filtered);
+    setPage(1);
   };
 
   // Clear filters
@@ -395,6 +399,26 @@ export default function CategoriesPage() {
   useEffect(() => {
     applyFilters();
   }, [filters, categories]);
+
+  const totalCount = filteredCategories.length;
+  const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
+  const pageStart = totalCount === 0 ? 0 : (page - 1) * pageSize + 1;
+  const pageEnd = totalCount === 0 ? 0 : Math.min(totalCount, pageStart + pageSize - 1);
+
+  const paginatedCategories = filteredCategories.slice(
+    (page - 1) * pageSize,
+    (page - 1) * pageSize + pageSize
+  );
+
+  const goToPage = (newPage: number) => {
+    if (newPage < 1 || newPage > totalPages) return;
+    setPage(newPage);
+  };
+
+  const handlePageSizeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    setPageSize(parseInt(e.target.value, 10));
+    setPage(1);
+  };
 
   if (loading) {
     return (
@@ -735,13 +759,8 @@ export default function CategoriesPage() {
 
       </div>
 
-      {/* Results Counter */}
-      <div className="mt-4 text-sm text-gray-600">
-        แสดง {filteredCategories.length} จาก {categories.length} รายการ
-      </div>
-
       {/* Add New Record Button */}
-      <div className="flex justify-end mb-4">
+      <div className="flex justify-end mt-4 mb-4">
         <button
           onClick={() => {
             setShowBulkForm(true);
@@ -760,6 +779,46 @@ export default function CategoriesPage() {
             <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
           </svg>
         </button>
+      </div>
+
+      {/* Pagination Controls (survey-style) */}
+      <div className="mt-4 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+        <div className="text-sm text-gray-600">
+          แสดง {pageStart}-{pageEnd} จาก {totalCount} รายการ
+        </div>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-gray-600">แสดงต่อหน้า</span>
+            <select
+              value={pageSize}
+              onChange={handlePageSizeChange}
+              className="rounded border border-gray-300 px-2 py-1 text-sm"
+            >
+              {PAGE_SIZE_OPTIONS.map((size) => (
+                <option key={size} value={size}>{size}</option>
+              ))}
+            </select>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => goToPage(page - 1)}
+              disabled={page === 1}
+              className={`px-3 py-1 rounded border text-sm ${page === 1 ? 'text-gray-400 border-gray-200 cursor-not-allowed' : 'text-gray-700 border-gray-300 hover:bg-gray-50'}`}
+            >
+              ก่อนหน้า
+            </button>
+            <span className="text-sm text-gray-700">
+              หน้า {page} / {totalPages}
+            </span>
+            <button
+              onClick={() => goToPage(page + 1)}
+              disabled={page === totalPages || totalCount === 0}
+              className={`px-3 py-1 rounded border text-sm ${page === totalPages || totalCount === 0 ? 'text-gray-400 border-gray-200 cursor-not-allowed' : 'text-gray-700 border-gray-300 hover:bg-gray-50'}`}
+            >
+              ถัดไป
+            </button>
+          </div>
+        </div>
       </div>
 
       {/* Categories Table */}
@@ -787,7 +846,7 @@ export default function CategoriesPage() {
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
               {/* Existing Categories Rows */}
-              {filteredCategories.map((cat) => (
+              {paginatedCategories.map((cat) => (
                 <tr key={cat.id} className="hover:bg-gray-50">
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                     {cat.id}

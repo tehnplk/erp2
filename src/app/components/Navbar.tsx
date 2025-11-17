@@ -55,38 +55,6 @@ export default function Navbar() {
               หน้าหลัก
             </Link>
 
-            {/* ตั้งค่า Dropdown */}
-            <div className="relative" ref={settingsRef}>
-              <button
-                type="button"
-                onClick={() => setIsSettingsOpen((v) => !v)}
-                className="px-3 py-2 rounded-md text-sm font-medium transition-colors text-blue-100 hover:bg-blue-500 hover:text-white flex items-center"
-                aria-haspopup="true"
-                aria-expanded={isSettingsOpen}
-              >
-                <span className="mr-2">⚙️</span>
-                ตั้งค่า
-                <span className="ml-1">▾</span>
-              </button>
-              {isSettingsOpen && (
-                <div className="absolute mt-2 w-56 bg-white text-gray-800 rounded-md shadow-lg py-1 z-50">
-                  {settingsItems.map((item) => (
-                    <Link
-                      key={item.href}
-                      href={item.href}
-                      onClick={() => setIsSettingsOpen(false)}
-                      className={`flex items-center px-4 py-2 text-sm hover:bg-gray-100 ${
-                        pathname === item.href ? 'bg-gray-100 font-medium' : ''
-                      }`}
-                    >
-                      <span className="mr-2">{item.icon}</span>
-                      {item.label}
-                    </Link>
-                  ))}
-                </div>
-              )}
-            </div>
-
             {/* Other top-level links */}
             <Link
               href="/surveys"
@@ -143,6 +111,38 @@ export default function Navbar() {
               <span className="mr-2">🤖</span>
               AI Assistant
             </Link>
+
+            {/* ตั้งค่า Dropdown - rightmost */}
+            <div className="relative" ref={settingsRef}>
+              <button
+                type="button"
+                onClick={() => setIsSettingsOpen((v) => !v)}
+                className="px-3 py-2 rounded-md text-sm font-medium transition-colors text-blue-100 hover:bg-blue-500 hover:text-white flex items-center"
+                aria-haspopup="true"
+                aria-expanded={isSettingsOpen}
+              >
+                <span className="mr-2">⚙️</span>
+                ตั้งค่า
+                <span className="ml-1">▾</span>
+              </button>
+              {isSettingsOpen && (
+                <div className="absolute right-0 mt-2 min-w-max bg-white text-gray-800 rounded-md shadow-lg py-1 z-50 whitespace-nowrap">
+                  {settingsItems.map((item) => (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      onClick={() => setIsSettingsOpen(false)}
+                      className={`flex items-center px-4 py-2 text-sm hover:bg-gray-100 ${
+                        pathname === item.href ? 'bg-gray-100 font-medium' : ''
+                      }`}
+                    >
+                      <span className="mr-2">{item.icon}</span>
+                      {item.label}
+                    </Link>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Mobile Menu Button */}
@@ -171,34 +171,6 @@ export default function Navbar() {
                 <span className="mr-2">🏠</span>
                 หน้าหลัก
               </Link>
-
-              {/* ตั้งค่า collapsible */}
-              <button
-                onClick={() => setIsSettingsOpen(!isSettingsOpen)}
-                className="px-3 py-2 rounded-md text-sm font-medium transition-colors text-blue-100 hover:bg-blue-500 hover:text-white text-left"
-              >
-                <span className="mr-2">⚙️</span>
-                ตั้งค่า {isSettingsOpen ? '▴' : '▾'}
-              </button>
-              {isSettingsOpen && (
-                <div className="ml-4 flex flex-col space-y-2">
-                  {settingsItems.map((item) => (
-                    <Link
-                      key={item.href}
-                      href={item.href}
-                      onClick={() => { setIsMenuOpen(false); setIsSettingsOpen(false); }}
-                      className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                        pathname === item.href
-                          ? 'bg-blue-700 text-white'
-                          : 'text-blue-100 hover:bg-blue-500 hover:text-white'
-                      }`}
-                    >
-                      <span className="mr-2">{item.icon}</span>
-                      {item.label}
-                    </Link>
-                  ))}
-                </div>
-              )}
 
               {/* Other links */}
               <Link
@@ -261,6 +233,34 @@ export default function Navbar() {
                 <span className="mr-2">🤖</span>
                 AI Assistant
               </Link>
+
+              {/* ตั้งค่า collapsible - last in mobile menu */}
+              <button
+                onClick={() => setIsSettingsOpen(!isSettingsOpen)}
+                className="px-3 py-2 rounded-md text-sm font-medium transition-colors text-blue-100 hover:bg-blue-500 hover:text-white text-left"
+              >
+                <span className="mr-2">⚙️</span>
+                ตั้งค่า {isSettingsOpen ? '▴' : '▾'}
+              </button>
+              {isSettingsOpen && (
+                <div className="ml-4 flex flex-col space-y-2">
+                  {settingsItems.map((item) => (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      onClick={() => { setIsMenuOpen(false); setIsSettingsOpen(false); }}
+                      className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                        pathname === item.href
+                          ? 'bg-blue-700 text-white'
+                          : 'text-blue-100 hover:bg-blue-500 hover:text-white'
+                      }`}
+                    >
+                      <span className="mr-2">{item.icon}</span>
+                      {item.label}
+                    </Link>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         )}

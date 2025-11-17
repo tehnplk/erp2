@@ -20,6 +20,8 @@ interface ProductFormData {
   adminNote?: string;
 }
 
+const PAGE_SIZE_OPTIONS = [10, 20, 50];
+
 export default function ProductsPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [totalCount, setTotalCount] = useState(0);
@@ -54,6 +56,8 @@ export default function ProductsPage() {
   // Sorting states
   const [sortBy, setSortBy] = useState('code');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
 
   // Toast state for notifications
   const [toast, setToast] = useState<{
@@ -106,6 +110,10 @@ export default function ProductsPage() {
   // Fetch products when filters or sorting change
   useEffect(() => {
     fetchProducts();
+  }, [nameFilter, categoryFilter, typeFilter, subtypeFilter, sortBy, sortOrder, page, pageSize]);
+
+  useEffect(() => {
+    setPage(1);
   }, [nameFilter, categoryFilter, typeFilter, subtypeFilter, sortBy, sortOrder]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
@@ -156,17 +164,39 @@ export default function ProductsPage() {
       // Add sorting parameters
       params.append('orderBy', sortBy);
       params.append('sortOrder', sortOrder);
+      params.append('page', page.toString());
+      params.append('pageSize', pageSize.toString());
       
       const response = await fetch(`/api/products?${params.toString()}`);
       if (!response.ok) throw new Error('Failed to fetch products');
       const data = await response.json();
       setProducts(data.data || []);
       setTotalCount(data.totalCount);
+      if (data.page && data.page !== page) {
+        setPage(data.page);
+      }
+      if (data.pageSize && data.pageSize !== pageSize) {
+        setPageSize(data.pageSize);
+      }
     } catch (err) {
       console.error('Error fetching products:', err);
     } finally {
       setLoading(false);
     }
+  };
+
+  const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
+  const pageStart = totalCount === 0 ? 0 : (page - 1) * pageSize + 1;
+  const pageEnd = totalCount === 0 ? 0 : Math.min(totalCount, pageStart + (products.length || 0) - 1);
+
+  const goToPage = (newPage: number) => {
+    if (newPage < 1 || newPage > totalPages) return;
+    setPage(newPage);
+  };
+
+  const handlePageSizeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    setPageSize(parseInt(e.target.value, 10));
+    setPage(1);
   };
   
   // Sorting function
@@ -1021,21 +1051,21 @@ export default function ProductsPage() {
         <div className="px-4 py-3 bg-gray-50 border-b border-gray-200">
           <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">ชื่อสินค้า</label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">ชื่อสินค้า</label>
               <input
                 type="text"
                 value={nameFilter}
                 onChange={(e) => setNameFilter(e.target.value)}
                 placeholder="ค้นหาชื่อสินค้า..."
-                className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">หมวดสินค้า</label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">หมวดสินค้า</label>
               <select
                 value={categoryFilter}
                 onChange={(e) => setCategoryFilter(e.target.value)}
-                className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
               >
                 <option value="">ทั้งหมด</option>
                 {categories.map((category) => (
@@ -1044,11 +1074,11 @@ export default function ProductsPage() {
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">ประเภทสินค้า</label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">ประเภทสินค้า</label>
               <select
                 value={typeFilter}
                 onChange={(e) => setTypeFilter(e.target.value)}
-                className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
               >
                 <option value="">ทั้งหมด</option>
                 {types.map((type) => (
@@ -1057,11 +1087,11 @@ export default function ProductsPage() {
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">ประเภทย่อย</label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">ประเภทย่อย</label>
               <select
                 value={subtypeFilter}
                 onChange={(e) => setSubtypeFilter(e.target.value)}
-                className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
               >
                 <option value="">ทั้งหมด</option>
                 {subtypes.map((subtype) => (
@@ -1077,7 +1107,7 @@ export default function ProductsPage() {
                   setTypeFilter('');
                   setSubtypeFilter('');
                 }}
-                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md shadow-sm text-gray-700 hover:bg-gray-50"
+                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
               >
                 ล้าง
               </button>
@@ -1105,8 +1135,44 @@ export default function ProductsPage() {
         </div>
       </div>
 
-      <div className="mt-4 text-sm text-gray-600">
-        แสดง {(products || []).length} จาก {totalCount} รายการ
+      {/* Pagination Controls (survey-style) */}
+      <div className="mt-4 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+        <div className="text-sm text-gray-600">
+          แสดง {pageStart}-{pageEnd} จาก {totalCount} รายการ
+        </div>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-gray-600">แสดงต่อหน้า</span>
+            <select
+              value={pageSize}
+              onChange={handlePageSizeChange}
+              className="rounded border border-gray-300 px-2 py-1 text-sm"
+            >
+              {PAGE_SIZE_OPTIONS.map((size) => (
+                <option key={size} value={size}>{size}</option>
+              ))}
+            </select>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => goToPage(page - 1)}
+              disabled={page === 1}
+              className={`px-3 py-1 rounded border text-sm ${page === 1 ? 'text-gray-400 border-gray-200 cursor-not-allowed' : 'text-gray-700 border-gray-300 hover:bg-gray-100'}`}
+            >
+              ก่อนหน้า
+            </button>
+            <span className="text-sm text-gray-700">
+              หน้า {page} / {totalPages}
+            </span>
+            <button
+              onClick={() => goToPage(page + 1)}
+              disabled={page >= totalPages}
+              className={`px-3 py-1 rounded border text-sm ${page >= totalPages ? 'text-gray-400 border-gray-200 cursor-not-allowed' : 'text-gray-700 border-gray-300 hover:bg-gray-100'}`}
+            >
+              ถัดไป
+            </button>
+          </div>
+        </div>
       </div>
 
       <div className="bg-white shadow-md rounded-lg overflow-hidden">

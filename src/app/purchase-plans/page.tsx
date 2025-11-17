@@ -25,6 +25,7 @@ interface PurchasePlanFormData {
 
 export default function PurchasePlansPage() {
   const [items, setItems] = useState<any[]>([]);
+  const [summaryItems, setSummaryItems] = useState<any[]>([]);
   const [totalCount, setTotalCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [filtersLoading, setFiltersLoading] = useState(true);
@@ -43,6 +44,8 @@ export default function PurchasePlansPage() {
   // sort
   const [sortBy, setSortBy] = useState('id');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
 
   // dynamic options
   const [categories, setCategories] = useState<string[]>([]);
@@ -54,10 +57,17 @@ export default function PurchasePlansPage() {
   useEffect(() => {
     fetchFilters();
     fetchData();
+    fetchSummaryData();
   }, []);
 
   useEffect(() => {
     fetchData();
+  }, [nameFilter, categoryFilter, typeFilter, subtypeFilter, departmentFilter, yearFilter, sortBy, sortOrder, page, pageSize]);
+
+  // When filters or sorting change, reset to first page and refresh summary data
+  useEffect(() => {
+    setPage(1);
+    fetchSummaryData();
   }, [nameFilter, categoryFilter, typeFilter, subtypeFilter, departmentFilter, yearFilter, sortBy, sortOrder]);
 
   const fetchFilters = async () => {
@@ -79,6 +89,21 @@ export default function PurchasePlansPage() {
     }
   };
 
+  const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
+  const pageStart = totalCount === 0 ? 0 : (page - 1) * pageSize + 1;
+  const pageEnd = totalCount === 0 ? 0 : Math.min(totalCount, pageStart + (items.length || 0) - 1);
+
+  const goToPage = (newPage: number) => {
+    if (newPage < 1 || newPage > totalPages) return;
+    setPage(newPage);
+  };
+
+  const handlePageSizeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const newSize = parseInt(e.target.value, 10);
+    setPageSize(newSize);
+    setPage(1);
+  };
+
   const fetchData = async () => {
     try {
       setLoading(true);
@@ -91,16 +116,46 @@ export default function PurchasePlansPage() {
       if (yearFilter) params.append('budgetYear', yearFilter);
       params.append('orderBy', sortBy);
       params.append('sortOrder', sortOrder);
+      params.append('page', page.toString());
+      params.append('pageSize', pageSize.toString());
 
       const res = await fetch(`/api/purchase-plans?${params.toString()}`);
       if (!res.ok) throw new Error('fetch failed');
       const data = await res.json();
       setItems(data.data || []);
       setTotalCount(data.totalCount || 0);
+      if (data.page && data.page !== page) {
+        setPage(data.page);
+      }
+      if (data.pageSize && data.pageSize !== pageSize) {
+        setPageSize(data.pageSize);
+      }
     } catch (e) {
       console.error(e);
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Fetch full filtered dataset for summary (independent of pagination)
+  const fetchSummaryData = async () => {
+    try {
+      const params = new URLSearchParams();
+      if (nameFilter) params.append('productName', nameFilter);
+      if (categoryFilter) params.append('category', categoryFilter);
+      if (typeFilter) params.append('productType', typeFilter);
+      if (subtypeFilter) params.append('productSubtype', subtypeFilter);
+      if (departmentFilter) params.append('purchasingDepartment', departmentFilter);
+      if (yearFilter) params.append('budgetYear', yearFilter);
+      params.append('orderBy', sortBy);
+      params.append('sortOrder', sortOrder);
+
+      const res = await fetch(`/api/purchase-plans?${params.toString()}`);
+      if (!res.ok) return;
+      const data = await res.json();
+      setSummaryItems(data.data || []);
+    } catch (e) {
+      console.error(e);
     }
   };
 
@@ -240,7 +295,71 @@ export default function PurchasePlansPage() {
         </div>
       </div>
 
-      <div className="mt-4 text-sm text-gray-600">แสดง {items.length} จาก {totalCount} รายการ</div>
+      {/* Summary Section (based on filtered dataset, not pagination) */}
+      <div className="bg-white shadow-md rounded-lg overflow-hidden mb-4">
+        <div className="px-4 py-3 bg-gray-50 border-b border-gray-200">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            <h3 className="text-lg font-medium text-gray-900">สรุปข้อมูลแผนการจัดซื้อ</h3>
+            <div className="flex flex-wrap items-center gap-6 text-sm">
+              <div>
+                <span className="text-gray-500">มูลค่ารวมตามแผน (totalRequiredValue): </span>
+                <span className="font-semibold text-gray-900">
+                  ฿{summaryItems
+                    .reduce((sum, row) => sum + (Number(row.totalRequiredValue) || 0), 0)
+                    .toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </span>
+              </div>
+              <div>
+                <span className="text-gray-500">มูลค่ารวมซื้อเพิ่ม (additionalPurchaseValue): </span>
+                <span className="font-semibold text-gray-900">
+                  ฿{summaryItems
+                    .reduce((sum, row) => sum + (Number(row.additionalPurchaseValue) || 0), 0)
+                    .toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="mt-4 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+        <div className="text-sm text-gray-600">
+          แสดง {pageStart}-{pageEnd} จาก {totalCount} รายการ
+        </div>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-gray-600">แสดงต่อหน้า</span>
+            <select
+              value={pageSize}
+              onChange={handlePageSizeChange}
+              className="rounded border border-gray-300 px-2 py-1 text-sm"
+            >
+              {[10, 20, 50].map((size) => (
+                <option key={size} value={size}>{size}</option>
+              ))}
+            </select>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => goToPage(page - 1)}
+              disabled={page === 1}
+              className={`px-3 py-1 rounded border text-sm ${page === 1 ? 'text-gray-400 border-gray-200 cursor-not-allowed' : 'text-gray-700 border-gray-300 hover:bg-gray-100'}`}
+            >
+              ก่อนหน้า
+            </button>
+            <span className="text-sm text-gray-700">
+              หน้า {page} / {totalPages}
+            </span>
+            <button
+              onClick={() => goToPage(page + 1)}
+              disabled={page >= totalPages}
+              className={`px-3 py-1 rounded border text-sm ${page >= totalPages ? 'text-gray-400 border-gray-200 cursor-not-allowed' : 'text-gray-700 border-gray-300 hover:bg-gray-100'}`}
+            >
+              ถัดไป
+            </button>
+          </div>
+        </div>
+      </div>
 
       <div className="bg-white shadow-md rounded-lg overflow-hidden">
         {loading ? (

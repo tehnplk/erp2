@@ -1,7 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import { prisma } from '@/lib/prisma';
 
 export async function GET(request: NextRequest) {
   try {
@@ -12,6 +10,9 @@ export async function GET(request: NextRequest) {
     const requestingDept = searchParams.get('requestingDept');
     const orderBy = searchParams.get('orderBy') || 'id';
     const sortOrder = searchParams.get('sortOrder') || 'desc';
+
+    const pageParam = searchParams.get('page');
+    const pageSizeParam = searchParams.get('pageSize');
 
     // Build where clause
     const where: any = {};
@@ -42,17 +43,48 @@ export async function GET(request: NextRequest) {
     } else {
       orderByClause.id = 'desc';
     }
-    
-    const surveys = await prisma.survey.findMany({
-      where,
-      orderBy: orderByClause,
-    });
-    
-    const totalCount = await prisma.survey.count({ where });
+
+    // If no pagination params provided, return all matching surveys (for summaries, exports, etc.)
+    if (!pageParam && !pageSizeParam) {
+      const [surveys, totalCount] = await Promise.all([
+        prisma.survey.findMany({
+          where,
+          orderBy: orderByClause,
+        }),
+        prisma.survey.count({ where }),
+      ]);
+
+      return NextResponse.json({
+        surveys,
+        totalCount,
+      });
+    }
+
+    // Paginated mode (used by main listing)
+    let page = pageParam ? parseInt(pageParam, 10) : 1;
+    let pageSize = pageSizeParam ? parseInt(pageSizeParam, 10) : 20;
+
+    if (Number.isNaN(page) || page < 1) page = 1;
+    if (Number.isNaN(pageSize) || pageSize < 1) pageSize = 20;
+    if (pageSize > 200) pageSize = 200;
+
+    const skip = (page - 1) * pageSize;
+
+    const [surveys, totalCount] = await Promise.all([
+      prisma.survey.findMany({
+        where,
+        orderBy: orderByClause,
+        skip,
+        take: pageSize,
+      }),
+      prisma.survey.count({ where }),
+    ]);
     
     return NextResponse.json({
       surveys,
-      totalCount
+      totalCount,
+      page,
+      pageSize,
     });
   } catch (error) {
     console.error('Error fetching surveys:', error);

@@ -49,6 +49,8 @@ export default function WarehousePage() {
   // sort
   const [sortBy, setSortBy] = useState('id');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
 
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editData, setEditData] = useState<WarehouseFormData>({});
@@ -70,8 +72,10 @@ export default function WarehousePage() {
   const [subtypes, setSubtypes] = useState<string[]>([]);
   const [departments, setDepartments] = useState<string[]>([]);
 
-  useEffect(() => { fetchData(); }, [nameFilter, categoryFilter, typeFilter, subtypeFilter, departmentFilter, sortBy, sortOrder]);
+  useEffect(() => { fetchData(); }, [nameFilter, categoryFilter, typeFilter, subtypeFilter, departmentFilter, sortBy, sortOrder, page, pageSize]);
   useEffect(() => { fetchFilters(); }, []);
+
+  useEffect(() => { setPage(1); }, [nameFilter, categoryFilter, typeFilter, subtypeFilter, departmentFilter, sortBy, sortOrder]);
 
   const fetchFilters = async () => {
     try {
@@ -86,6 +90,21 @@ export default function WarehousePage() {
     } catch (e) { console.error(e); }
   };
 
+  const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
+  const pageStart = totalCount === 0 ? 0 : (page - 1) * pageSize + 1;
+  const pageEnd = totalCount === 0 ? 0 : Math.min(totalCount, pageStart + (items.length || 0) - 1);
+
+  const goToPage = (newPage: number) => {
+    if (newPage < 1 || newPage > totalPages) return;
+    setPage(newPage);
+  };
+
+  const handlePageSizeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const newSize = parseInt(e.target.value, 10);
+    setPageSize(newSize);
+    setPage(1);
+  };
+
   const fetchData = async () => {
     try {
       setLoading(true);
@@ -97,12 +116,20 @@ export default function WarehousePage() {
       if (departmentFilter) params.append('requestingDepartment', departmentFilter);
       params.append('orderBy', sortBy);
       params.append('sortOrder', sortOrder);
+      params.append('page', page.toString());
+      params.append('pageSize', pageSize.toString());
 
       const res = await fetch(`/api/warehouse?${params.toString()}`);
       if (!res.ok) throw new Error('fetch failed');
       const data = await res.json();
       setItems(data.data || []);
       setTotalCount(data.totalCount || 0);
+      if (data.page && data.page !== page) {
+        setPage(data.page);
+      }
+      if (data.pageSize && data.pageSize !== pageSize) {
+        setPageSize(data.pageSize);
+      }
     } catch (e) { console.error(e); } finally { setLoading(false); }
   };
 
@@ -687,8 +714,44 @@ export default function WarehousePage() {
           </div>
         </div>
       </div>
-
-      <div className="mt-4 text-sm text-gray-600">แสดง {items.length} จาก {totalCount} รายการ</div>
+      <div className="mt-4 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+        <div className="text-sm text-gray-600">
+          แสดง {pageStart}-{pageEnd} จาก {totalCount} รายการ
+        </div>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-gray-600">แสดงต่อหน้า</span>
+            <select
+              value={pageSize}
+              onChange={handlePageSizeChange}
+              className="rounded border border-gray-300 px-2 py-1 text-sm"
+            >
+              {[10, 20, 50].map((size) => (
+                <option key={size} value={size}>{size}</option>
+              ))}
+            </select>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => goToPage(page - 1)}
+              disabled={page === 1}
+              className={`px-3 py-1 rounded border text-sm ${page === 1 ? 'text-gray-400 border-gray-200 cursor-not-allowed' : 'text-gray-700 border-gray-300 hover:bg-gray-100'}`}
+            >
+              ก่อนหน้า
+            </button>
+            <span className="text-sm text-gray-700">
+              หน้า {page} / {totalPages}
+            </span>
+            <button
+              onClick={() => goToPage(page + 1)}
+              disabled={page >= totalPages}
+              className={`px-3 py-1 rounded border text-sm ${page >= totalPages ? 'text-gray-400 border-gray-200 cursor-not-allowed' : 'text-gray-700 border-gray-300 hover:bg-gray-100'}`}
+            >
+              ถัดไป
+            </button>
+          </div>
+        </div>
+      </div>
 
       <div className="bg-white shadow-md rounded-lg overflow-hidden">
         <table className="min-w-full divide-y divide-gray-200">

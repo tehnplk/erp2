@@ -14,7 +14,7 @@ export async function GET(request: NextRequest) {
       return queryValidation.error;
     }
     
-    const { name, category, type, subtype, orderBy, sortOrder } = queryValidation.data as any;
+    const { name, category, type, subtype, orderBy, sortOrder, page = 1, pageSize = 20 } = queryValidation.data as any;
     
     // Build where clause
     const where: any = {};
@@ -36,16 +36,20 @@ export async function GET(request: NextRequest) {
       orderByClause = { [orderBy]: sortOrder };
     }
     
+    const skip = (page - 1) * pageSize;
+    
     // Get total count and products in parallel
     const [totalCount, products] = await Promise.all([
-      prisma.product.count(),
+      prisma.product.count({ where }),
       prisma.product.findMany({
         where,
-        orderBy: orderByClause
+        orderBy: orderByClause,
+        skip,
+        take: pageSize
       })
     ]);
     
-    return apiSuccess(products, undefined, totalCount);
+    return apiSuccess(products, undefined, totalCount, 200, { page, pageSize });
   } catch (error) {
     console.error('Error fetching products:', error);
     return apiError('Failed to fetch products');

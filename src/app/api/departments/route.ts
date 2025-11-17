@@ -1,19 +1,51 @@
 import { NextRequest } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { apiSuccess, apiError } from '@/lib/api-response';
-import { validateRequest } from '@/lib/validation/validate';
-import { createDepartmentSchema } from '@/lib/validation/schemas';
+import { validateRequest, validateQuery } from '@/lib/validation/validate';
+import { createDepartmentSchema, departmentQuerySchema } from '@/lib/validation/schemas';
 
-// GET /api/departments - Get all departments
-export async function GET() {
+// GET /api/departments - Get departments with optional filters and pagination
+export async function GET(request: NextRequest) {
   try {
-    const departments = await prisma.department.findMany({
-      orderBy: {
-        id: 'asc'
-      }
-    });
+    const { searchParams } = new URL(request.url);
+
+    const queryValidation = validateQuery(departmentQuerySchema, searchParams);
+    if (!queryValidation.success) {
+      return queryValidation.error;
+    }
+
+    const { name, page, pageSize } = queryValidation.data as any;
+
+    const where: any = {};
+    if (name) {
+      where.name = {
+        contains: name,
+        mode: 'insensitive'
+      };
+    }
+
+    // If no pagination params, return all departments (backwards compatible)
+    if (!page || !pageSize) {
+      const departments = await prisma.department.findMany({
+        where,
+        orderBy: { id: 'asc' }
+      });
+      return apiSuccess(departments, undefined, departments.length);
+    }
+
+    const skip = (page - 1) * pageSize;
+
+    const [totalCount, departments] = await Promise.all([
+      prisma.department.count({ where }),
+      prisma.department.findMany({
+        where,
+        orderBy: { id: 'asc' },
+        skip,
+        take: pageSize
+      })
+    ]);
     
-    return apiSuccess(departments);
+    return apiSuccess(departments, undefined, totalCount, 200, { page, pageSize });
   } catch (error) {
     console.error('Error fetching departments:', error);
     return apiError('Failed to fetch departments');

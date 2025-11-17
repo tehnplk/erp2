@@ -32,6 +32,7 @@ interface SurveyFormData {
 
 export default function SurveysPage() {
   const [surveys, setSurveys] = useState<Survey[]>([]);
+  const [summarySurveys, setSummarySurveys] = useState<Survey[]>([]);
   const [totalCount, setTotalCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -85,6 +86,8 @@ export default function SurveysPage() {
   // Sort states
   const [sortField, setSortField] = useState('id');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
   
   // Filter options
   const [categories, setCategories] = useState<string[]>([]);
@@ -92,18 +95,19 @@ export default function SurveysPage() {
   const [subtypes, setSubtypes] = useState<string[]>([]);
   const [departments, setDepartments] = useState<string[]>([]);
 
-  // Initialize data on component mount
-  useEffect(() => {
-    fetchSurveys();
-  }, []);
-
   useEffect(() => {
     fetchFilterOptions();
   }, []);
 
-  // Fetch surveys when filters or sorting change
+  // Fetch surveys when filters, sorting or pagination change (current page only)
   useEffect(() => {
     fetchSurveys();
+  }, [productNameFilter, categoryFilter, typeFilter, requestingDeptFilter, sortField, sortOrder, page, pageSize]);
+
+  // Fetch summary data when filters change (independent of pagination)
+  useEffect(() => {
+    fetchSummarySurveys();
+    setPage(1);
   }, [productNameFilter, categoryFilter, typeFilter, requestingDeptFilter, sortField, sortOrder]);
 
   const fetchFilterOptions = async () => {
@@ -121,6 +125,21 @@ export default function SurveysPage() {
     }
   };
 
+  const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
+  const pageStart = totalCount === 0 ? 0 : (page - 1) * pageSize + 1;
+  const pageEnd = totalCount === 0 ? 0 : Math.min(totalCount, pageStart + (surveys.length || 0) - 1);
+
+  const goToPage = (newPage: number) => {
+    if (newPage < 1 || newPage > totalPages) return;
+    setPage(newPage);
+  };
+
+  const handlePageSizeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const newSize = parseInt(e.target.value, 10);
+    setPageSize(newSize);
+    setPage(1);
+  };
+
   const fetchSurveys = async () => {
     try {
       setLoading(true);
@@ -132,17 +151,47 @@ export default function SurveysPage() {
       if (requestingDeptFilter) params.append('requestingDept', requestingDeptFilter);
       if (sortField) params.append('orderBy', sortField);
       if (sortOrder) params.append('sortOrder', sortOrder);
+      params.append('page', page.toString());
+      params.append('pageSize', pageSize.toString());
       
       const response = await fetch(`/api/surveys?${params.toString()}`);
       if (response.ok) {
         const data = await response.json();
         setSurveys(data.surveys);
-        setTotalCount(data.totalCount);
+        setTotalCount(data.totalCount || 0);
+        if (data.page && data.page !== page) {
+          setPage(data.page);
+        }
+        if (data.pageSize && data.pageSize !== pageSize) {
+          setPageSize(data.pageSize);
+        }
       }
     } catch (error) {
       console.error('Error fetching surveys:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Fetch full filtered dataset for summary (not paginated)
+  const fetchSummarySurveys = async () => {
+    try {
+      const params = new URLSearchParams();
+
+      if (productNameFilter) params.append('productName', productNameFilter);
+      if (categoryFilter) params.append('category', categoryFilter);
+      if (typeFilter) params.append('type', typeFilter);
+      if (requestingDeptFilter) params.append('requestingDept', requestingDeptFilter);
+      if (sortField) params.append('orderBy', sortField);
+      if (sortOrder) params.append('sortOrder', sortOrder);
+
+      const response = await fetch(`/api/surveys?${params.toString()}`);
+      if (response.ok) {
+        const data = await response.json();
+        setSummarySurveys(data.surveys || []);
+      }
+    } catch (error) {
+      console.error('Error fetching summary surveys:', error);
     }
   };
 
@@ -672,18 +721,11 @@ export default function SurveysPage() {
               </select>
             </div>
             
-            <div className="flex items-end">
-              <button
-                onClick={clearFilters}
-                className="w-full px-4 py-2 bg-gray-500 text-white rounded-md hover:bg-gray-600 transition-colors"
-              >
-                ล้างตัวกรอง
-              </button>
-            </div>
+            
           </div>
         </div>
 
-        {/* Summary Section */}
+        {/* Summary Section (based on filtered dataset, not pagination) */}
         <div className="bg-white shadow-md rounded-lg overflow-hidden mb-4">
           <div className="px-4 py-3 bg-gray-50 border-b border-gray-200">
             <div className="flex justify-between items-center">
@@ -692,13 +734,13 @@ export default function SurveysPage() {
                 <div className="text-sm">
                   <span className="text-gray-500">มูลค่ารวมที่ขอ: </span>
                   <span className="font-semibold text-gray-900">
-                    ฿{surveys.reduce((sum, s) => sum + ((s.requestedAmount || 0) * (s.pricePerUnit || 0)), 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    ฿{summarySurveys.reduce((sum, s) => sum + ((s.requestedAmount || 0) * (s.pricePerUnit || 0)), 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </span>
                 </div>
                 <div className="text-sm">
                   <span className="text-gray-500">มูลค่ารวมที่อนุมัติ: </span>
                   <span className="font-semibold text-gray-900">
-                    ฿{surveys.reduce((sum, s) => sum + ((s.approvedQuota || 0) * (s.pricePerUnit || 0)), 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    ฿{summarySurveys.reduce((sum, s) => sum + ((s.approvedQuota || 0) * (s.pricePerUnit || 0)), 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </span>
                 </div>
               </div>
@@ -706,8 +748,43 @@ export default function SurveysPage() {
           </div>
         </div>
 
-        <div className="mb-4 text-sm text-gray-600">
-          แสดง {surveys.length} จาก {totalCount} รายการ
+        <div className="mt-4 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+          <div className="text-sm text-gray-600">
+            แสดง {pageStart}-{pageEnd} จาก {totalCount} รายการ
+          </div>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-gray-600">แสดงต่อหน้า</span>
+              <select
+                value={pageSize}
+                onChange={handlePageSizeChange}
+                className="rounded border border-gray-300 px-2 py-1 text-sm"
+              >
+                {[10, 20, 50].map((size) => (
+                  <option key={size} value={size}>{size}</option>
+                ))}
+              </select>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => goToPage(page - 1)}
+                disabled={page === 1}
+                className={`px-3 py-1 rounded border text-sm ${page === 1 ? 'text-gray-400 border-gray-200 cursor-not-allowed' : 'text-gray-700 border-gray-300 hover:bg-gray-100'}`}
+              >
+                ก่อนหน้า
+              </button>
+              <span className="text-sm text-gray-700">
+                หน้า {page} / {totalPages}
+              </span>
+              <button
+                onClick={() => goToPage(page + 1)}
+                disabled={page >= totalPages}
+                className={`px-3 py-1 rounded border text-sm ${page >= totalPages ? 'text-gray-400 border-gray-200 cursor-not-allowed' : 'text-gray-700 border-gray-300 hover:bg-gray-100'}`}
+              >
+                ถัดไป
+              </button>
+            </div>
+          </div>
         </div>
 
         {/* Table */}
@@ -811,7 +888,7 @@ export default function SurveysPage() {
 
         {/* Form Modal */}
         {showForm && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="fixed inset-0 bg-black bg-opacity-20 flex items-center justify-center z-50 p-4">
             <div className="bg-white rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] overflow-y-auto">
               <div className="px-6 py-4 border-b border-gray-200">
                 <h2 className="text-xl font-semibold text-gray-800">
@@ -1016,7 +1093,7 @@ export default function SurveysPage() {
 
         {/* Bulk Add Surveys Modal */}
         {showBulkForm && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="fixed inset-0 bg-black bg-opacity-20 flex items-center justify-center z-50">
             <div className="bg-white rounded-lg p-6 w-full max-w-7xl max-h-[90vh] overflow-y-auto">
               <div className="flex justify-between items-center mb-4">
                 <h2 className="text-xl font-bold">เพิ่มความต้องการใหม่ (5 รายการพร้อมแก้ไข)</h2>
@@ -1248,7 +1325,7 @@ export default function SurveysPage() {
 
         {/* Form Modal */}
         {showForm && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="fixed inset-0 bg-gray-900 bg-opacity-40 flex items-center justify-center z-50 p-4">
             <div className="bg-white rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] overflow-y-auto">
               <div className="px-6 py-4 border-b border-gray-200">
                 <h2 className="text-xl font-semibold text-gray-800">

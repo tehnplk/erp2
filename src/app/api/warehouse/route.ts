@@ -15,7 +15,17 @@ export async function GET(request: NextRequest) {
       return queryValidation.error;
     }
     
-    const { orderBy, sortOrder, productName, category, productType, productSubtype, requestingDepartment } = queryValidation.data as any;
+    const {
+      orderBy,
+      sortOrder,
+      productName,
+      category,
+      productType,
+      productSubtype,
+      requestingDepartment,
+      page = 1,
+      pageSize = 20
+    } = queryValidation.data as any;
 
     // Build safe WHERE using parameterized raw SQL
     const conditions: Prisma.Sql[] = [];
@@ -46,9 +56,15 @@ export async function GET(request: NextRequest) {
     const orderColSql = orderBy ? orderColumnMap[orderBy] : orderColumnMap['id'];
     const dirSql = sortOrder === 'asc' ? Prisma.sql`ASC` : Prisma.sql`DESC`;
 
-    // Get total count and items in parallel
-    const [totalCount, items] = await Promise.all([
-      prisma.warehouse.count(),
+    const offset = (page - 1) * pageSize;
+
+    // Get total count and paginated items in parallel
+    const [countResult, items] = await Promise.all([
+      prisma.$queryRaw<{ count: bigint }[]>`
+        SELECT COUNT(*)::bigint AS count
+        FROM "Warehouse"
+        ${whereSql}
+      `,
       prisma.$queryRaw<any[]>`
         SELECT
           "id",
@@ -64,10 +80,13 @@ export async function GET(request: NextRequest) {
         FROM "Warehouse"
         ${whereSql}
         ORDER BY ${orderColSql} ${dirSql}
+        LIMIT ${pageSize} OFFSET ${offset}
       `
     ]);
 
-    return apiSuccess(items, undefined, totalCount);
+    const totalCount = Number(countResult[0]?.count ?? 0);
+
+    return apiSuccess(items, undefined, totalCount, 200, { page, pageSize });
   } catch (error) {
     console.error('Error fetching warehouse records:', error);
     return apiError('Failed to fetch warehouse records');

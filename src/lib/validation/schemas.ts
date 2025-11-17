@@ -4,6 +4,10 @@ import { z } from 'zod';
 const positiveNumber = z.string().transform((val: string) => parseFloat(val)).pipe(z.number().min(0));
 const positiveInteger = z.string().transform((val: string) => parseInt(val)).pipe(z.number().int().min(0));
 const nonEmptyString = z.string().min(1, 'This field is required');
+const paginationFields = {
+  page: z.coerce.number().int().min(1).optional(),
+  pageSize: z.coerce.number().int().min(1).max(200).optional()
+};
 
 // Product schemas
 export const createProductSchema = z.object({
@@ -30,7 +34,8 @@ export const productQuerySchema = z.object({
   type: z.string().optional(),
   subtype: z.string().optional(),
   orderBy: z.enum(['id', 'code', 'name', 'category', 'type', 'subtype', 'costPrice', 'sellPrice']).optional(),
-  sortOrder: z.enum(['asc', 'desc']).optional()
+  sortOrder: z.enum(['asc', 'desc']).optional(),
+  ...paginationFields
 });
 
 // Seller schemas
@@ -47,12 +52,22 @@ export const createSellerSchema = z.object({
 
 export const updateSellerSchema = createSellerSchema.partial();
 
+export const sellerQuerySchema = z.object({
+  name: z.string().optional(),
+  ...paginationFields
+});
+
 // Department schemas
 export const createDepartmentSchema = z.object({
   name: nonEmptyString
 });
 
 export const updateDepartmentSchema = createDepartmentSchema.partial();
+
+export const departmentQuerySchema = z.object({
+  name: z.string().optional(),
+  ...paginationFields
+});
 
 // Category schemas
 export const createCategorySchema = z.object({
@@ -62,6 +77,13 @@ export const createCategorySchema = z.object({
 });
 
 export const updateCategorySchema = createCategorySchema.partial();
+
+export const categoryQuerySchema = z.object({
+  category: z.string().optional(),
+  type: z.string().optional(),
+  subtype: z.string().optional(),
+  ...paginationFields
+});
 
 // Warehouse schemas
 export const createWarehouseSchema = z.object({
@@ -103,7 +125,8 @@ export const warehouseQuerySchema = z.object({
     'transactionQuantity', 'remainingQuantity', 'category', 
     'productType', 'productSubtype', 'requestingDepartment'
   ]).optional(),
-  sortOrder: z.enum(['asc', 'desc']).optional()
+  sortOrder: z.enum(['asc', 'desc']).optional(),
+  ...paginationFields
 });
 
 // Purchase Plan schemas
@@ -173,7 +196,8 @@ export const purchaseApprovalQuerySchema = z.object({
     'productName', 'productCode', 'category', 'productType', 
     'productSubtype', 'requester', 'approver'
   ]).optional(),
-  sortOrder: z.enum(['asc', 'desc']).optional()
+  sortOrder: z.enum(['asc', 'desc']).optional(),
+  ...paginationFields
 });
 
 // ID parameter validation

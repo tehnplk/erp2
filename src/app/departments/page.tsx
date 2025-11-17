@@ -34,12 +34,18 @@ export default function DepartmentsPage() {
   const [filters, setFilters] = useState({
     search: ''
   });
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
+  const PAGE_SIZE_OPTIONS = [10, 20, 50];
   const fetchDepartments = async () => {
     try {
       const response = await fetch('/api/departments');
       if (response.ok) {
-        const data = await response.json();
-        setDepartments(data);
+        const json = await response.json();
+        const items: Department[] = Array.isArray(json)
+          ? json
+          : (Array.isArray(json?.data) ? json.data : []);
+        setDepartments(items);
       } else {
         const errorData = await response.json().catch(() => ({}));
         console.error('Failed to fetch departments:', {
@@ -57,7 +63,7 @@ export default function DepartmentsPage() {
 
   // Apply filters
   const applyFilters = () => {
-    let filtered = departments;
+    let filtered: Department[] = Array.isArray(departments) ? departments : [];
 
     // Search filter
     if (filters.search) {
@@ -67,6 +73,7 @@ export default function DepartmentsPage() {
     }
 
     setFilteredDepartments(filtered);
+    setPage(1);
   };
 
   // Clear all filters
@@ -307,6 +314,26 @@ export default function DepartmentsPage() {
     applyFilters();
   }, [filters, departments]);
 
+  const totalCount = filteredDepartments.length;
+  const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
+  const pageStart = totalCount === 0 ? 0 : (page - 1) * pageSize + 1;
+  const pageEnd = totalCount === 0 ? 0 : Math.min(totalCount, pageStart + pageSize - 1);
+
+  const paginatedDepartments = filteredDepartments.slice(
+    (page - 1) * pageSize,
+    (page - 1) * pageSize + pageSize
+  );
+
+  const goToPage = (newPage: number) => {
+    if (newPage < 1 || newPage > totalPages) return;
+    setPage(newPage);
+  };
+
+  const handlePageSizeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    setPageSize(parseInt(e.target.value, 10));
+    setPage(1);
+  };
+
   if (loading) {
     return (
       <div className="flex justify-center items-center min-h-screen">
@@ -542,11 +569,11 @@ export default function DepartmentsPage() {
 
       {/* Results Counter */}
       <div className="mt-4 text-sm text-gray-600">
-        แสดง {filteredDepartments.length} จาก {departments.length} รายการ
+        แสดง {pageStart}-{pageEnd} จาก {totalCount} รายการ (ทั้งหมด {departments.length})
       </div>
 
       {/* Add New Record Button */}
-      <div className="flex justify-end mb-4">
+      <div className="flex justify-end mt-2 mb-4">
         <button
           onClick={() => {
             setShowBulkForm(true);
@@ -567,6 +594,46 @@ export default function DepartmentsPage() {
         </button>
       </div>
 
+      {/* Pagination Controls */}
+      <div className="mt-4 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+        <div className="text-sm text-gray-600">
+          แสดง {pageStart}-{pageEnd} จาก {totalCount} รายการ
+        </div>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-gray-600">แสดงต่อหน้า</span>
+            <select
+              value={pageSize}
+              onChange={handlePageSizeChange}
+              className="rounded border border-gray-300 px-2 py-1 text-sm"
+            >
+              {PAGE_SIZE_OPTIONS.map((size) => (
+                <option key={size} value={size}>{size}</option>
+              ))}
+            </select>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => goToPage(page - 1)}
+              disabled={page === 1}
+              className={`px-3 py-1 rounded border text-sm ${page === 1 ? 'text-gray-400 border-gray-200 cursor-not-allowed' : 'text-gray-700 border-gray-300 hover:bg-gray-50'}`}
+            >
+              ก่อนหน้า
+            </button>
+            <span className="text-sm text-gray-700">
+              หน้า {page} / {totalPages}
+            </span>
+            <button
+              onClick={() => goToPage(page + 1)}
+              disabled={page === totalPages || totalCount === 0}
+              className={`px-3 py-1 rounded border text-sm ${page === totalPages || totalCount === 0 ? 'text-gray-400 border-gray-200 cursor-not-allowed' : 'text-gray-700 border-gray-300 hover:bg-gray-50'}`}
+            >
+              ถัดไป
+            </button>
+          </div>
+        </div>
+      </div>
+
       {/* Departments Table */}
       <div className="bg-white rounded-lg shadow-md overflow-hidden">
         <div className="overflow-x-auto">
@@ -585,7 +652,7 @@ export default function DepartmentsPage() {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {filteredDepartments.map((dept) => (
+              {paginatedDepartments.map((dept) => (
                 <tr key={dept.id} className="hover:bg-gray-50">
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                     {dept.id}
@@ -666,7 +733,7 @@ export default function DepartmentsPage() {
         )}
       </div>
 
-      <div className="mt-4 text-sm text-gray-600">
+      <div className="mt-4 pb-8 text-sm text-gray-600">
         แผนกทั้งหมด: {departments.length}
       </div>
     </div>
