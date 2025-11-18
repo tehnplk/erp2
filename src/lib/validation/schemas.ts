@@ -158,11 +158,21 @@ export const purchasePlanQuerySchema = z.object({
   purchasingDepartment: z.string().optional(),
   budgetYear: z.string().optional(),
   orderBy: z.enum([
-    'id', 'productCode', 'productName', 'category', 
-    'productType', 'productSubtype', 'budgetYear', 
+    'id',
+    'productCode',
+    'productName',
+    'category',
+    'productType',
+    'productSubtype',
+    'unit',
+    'pricePerUnit',
+    'requiredQuantityForYear',
+    'totalRequiredValue',
+    'budgetYear',
     'purchasingDepartment'
   ]).optional(),
-  sortOrder: z.enum(['asc', 'desc']).optional()
+  sortOrder: z.enum(['asc', 'desc']).optional(),
+  ...paginationFields
 });
 
 // Purchase Approval schemas
