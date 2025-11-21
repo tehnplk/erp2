@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { MessageHistory } from '@/app/types/messageHistory';
+import { MessageHistory } from '@/app/main1/types/messageHistory';
 
 interface ChatResponse {
     message: string;
