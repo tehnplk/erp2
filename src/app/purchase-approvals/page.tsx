@@ -30,6 +30,36 @@ export default function PurchaseApprovalsPage() {
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<any | null>(null);
   const [formData, setFormData] = useState<PurchaseApprovalFormData>({});
+  const [showMemo, setShowMemo] = useState(false);
+  const [memoPreview, setMemoPreview] = useState(false);
+  const [memoText, setMemoText] = useState(
+    `บันทึกข้อความ\n` +
+    `ส่วนราชการ  โรงพยาบาลวังทอง   อำเภอวังทอง จังหวัดพิษณุโลก   โทร..............................\n` +
+    `ที่  วถ..............................\n` +
+    `วันที่  ......................................................\n` +
+    `เรื่อง  ขอความเห็นชอบจัดซื้อ.........................................................\n\n` +
+    `เรียน  ผู้อำนวยการโรงพยาบาลวังทอง\n\n` +
+    `         ด้วย  .................................................................................\n` +
+    `.................................................................................................\n` +
+    `.................................................................................................\n\n` +
+    `         จึงเรียนมาเพื่อโปรดพิจารณา........................................................\n` +
+    `.................................................................................................\n\n` +
+    `ลงชื่อ...............................................................   ผู้เสนอเรื่อง\n` +
+    `(............................................................)\n` +
+    `ตำแหน่ง.....................................................\n\n` +
+    `ความเห็นผู้บังคับบัญชา/หัวหน้าหน่วยงาน\n` +
+    `.................................................................................................\n` +
+    `.................................................................................................\n` +
+    `ลงชื่อ...............................................................\n` +
+    `(............................................................)\n` +
+    `ตำแหน่ง.....................................................\n\n` +
+    `ความเห็นผู้อำนวยการโรงพยาบาลวังทอง\n` +
+    `.................................................................................................\n` +
+    `.................................................................................................\n` +
+    `ลงชื่อ...............................................................\n` +
+    `(............................................................)\n` +
+    `ผู้อำนวยการโรงพยาบาลวังทอง`
+  );
 
   // filters
   const [nameFilter, setNameFilter] = useState('');
@@ -206,8 +236,78 @@ export default function PurchaseApprovalsPage() {
     <div className="container mx-auto px-4 py-8">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold text-gray-800">ขออนุมัติจัดซื้อ</h1>
-        <button onClick={() => setShowForm(true)} className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">เพิ่มรายการ</button>
+        <div className="flex gap-2">
+          <button
+            onClick={() => setShowMemo(true)}
+            className="bg-emerald-500 hover:bg-emerald-700 text-white font-bold py-2 px-4 rounded"
+          >
+            ขอความเห็นชอบจัดซื้อ
+          </button>
+          <button
+            onClick={() => setShowForm(true)}
+            className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
+          >
+            เพิ่มรายการ
+          </button>
+        </div>
       </div>
+
+      {showMemo && (
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+          <div className="relative top-20 mx-auto p-5 border w-11/12 md:w-3/4 lg:w-3/4 shadow-lg rounded-md bg-white">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-medium">บันทึกข้อความ</h3>
+              <button onClick={() => setShowMemo(false)} className="text-gray-400 hover:text-gray-600">✕</button>
+            </div>
+            <div className="space-y-4">
+              <div className="flex justify-end space-x-2 text-sm">
+                <button
+                  type="button"
+                  onClick={() => setMemoPreview(false)}
+                  className={`px-3 py-1 rounded border ${!memoPreview ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-700 border-gray-300'}`}
+                >
+                  โหมดแก้ไข
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setMemoPreview(true)}
+                  className={`px-3 py-1 rounded border ${memoPreview ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-700 border-gray-300'}`}
+                >
+                  ตัวอย่างก่อนพิมพ์
+                </button>
+              </div>
+
+              {!memoPreview ? (
+                <textarea
+                  className="w-full border rounded px-3 py-2 h-80 resize-none text-sm"
+                  value={memoText}
+                  onChange={(e) => setMemoText(e.target.value)}
+                  placeholder="พิมพ์บันทึกข้อความที่นี่..."
+                  style={{ whiteSpace: 'pre-wrap', fontFamily: 'Tahoma, system-ui, sans-serif' }}
+                />
+              ) : (
+                <div className="flex justify-center">
+                  <div
+                    className="bg-white border shadow-sm rounded px-10 py-10 max-h-[32rem] overflow-auto text-sm w-full md:w-[800px]"
+                    style={{ whiteSpace: 'pre-wrap', fontFamily: 'Tahoma, system-ui, sans-serif', lineHeight: 1.8 }}
+                  >
+                    {memoText}
+                  </div>
+                </div>
+              )}
+              <div className="flex justify-end space-x-3">
+                <button
+                  type="button"
+                  onClick={() => setShowMemo(false)}
+                  className="px-4 py-2 border rounded"
+                >
+                  ปิด
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {showForm && (
         <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">

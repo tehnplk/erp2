@@ -7,11 +7,12 @@ import { idParamSchema, updateSellerSchema } from '@/lib/validation/schemas';
 // GET /api/sellers/[id] - Get seller by ID
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const rawParams = await params;
     // Validate ID parameter
-    const idValidation = await validateRequest(idParamSchema, params);
+    const idValidation = await validateRequest(idParamSchema, rawParams);
     if (!idValidation.success) {
       return idValidation.error;
     }
@@ -36,11 +37,12 @@ export async function GET(
 // PUT /api/sellers/[id] - Update seller
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const rawParams = await params;
     // Validate ID parameter
-    const idValidation = await validateRequest(idParamSchema, params);
+    const idValidation = await validateRequest(idParamSchema, rawParams);
     if (!idValidation.success) {
       return idValidation.error;
     }
@@ -73,11 +75,12 @@ export async function PUT(
 // DELETE /api/sellers/[id] - Delete seller
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const rawParams = await params;
     // Validate ID parameter
-    const idValidation = await validateRequest(idParamSchema, params);
+    const idValidation = await validateRequest(idParamSchema, rawParams);
     if (!idValidation.success) {
       return idValidation.error;
     }

@@ -3,9 +3,10 @@ import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
-export async function PUT(request: NextRequest, { params }: { params: { id: string } }) {
+export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const id = parseInt(params.id);
+    const { id } = await params;
+    const numericId = parseInt(id);
     const body = await request.json();
     const data: any = {
       approvalId: body.approvalId ?? null,
@@ -26,7 +27,7 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
       approver: body.approver ?? null,
     };
 
-    const updated = await prisma.purchaseApproval.update({ where: { id }, data });
+    const updated = await prisma.purchaseApproval.update({ where: { id: numericId }, data });
     return NextResponse.json(updated);
   } catch (error) {
     console.error('Error updating purchase approval:', error);
@@ -34,10 +35,11 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
   }
 }
 
-export async function DELETE(_request: NextRequest, { params }: { params: { id: string } }) {
+export async function DELETE(_request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const id = parseInt(params.id);
-    await prisma.purchaseApproval.delete({ where: { id } });
+    const { id } = await params;
+    const numericId = parseInt(id);
+    await prisma.purchaseApproval.delete({ where: { id: numericId } });
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error('Error deleting purchase approval:', error);

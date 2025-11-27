@@ -5,10 +5,11 @@ const prisma = new PrismaClient();
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const id = parseInt(params.id);
+    const { id } = await params;
+    const numericId = parseInt(id);
     const body = await request.json();
     
     const {
@@ -25,7 +26,7 @@ export async function PUT(
     } = body;
     
     const survey = await prisma.survey.update({
-      where: { id },
+      where: { id: numericId },
       data: {
         productCode: productCode || null,
         category: category || null,
@@ -52,13 +53,14 @@ export async function PUT(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const id = parseInt(params.id);
+    const { id } = await params;
+    const numericId = parseInt(id);
     
     await prisma.survey.delete({
-      where: { id }
+      where: { id: numericId }
     });
     
     return NextResponse.json({ message: 'Survey deleted successfully' });

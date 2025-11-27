@@ -6,12 +6,13 @@ const prisma = new PrismaClient();
 // GET /api/categories/[id] - Get category by ID
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const id = parseInt(params.id);
+    const { id } = await params;
+    const numericId = parseInt(id);
     
-    if (isNaN(id)) {
+    if (isNaN(numericId)) {
       return NextResponse.json(
         { success: false, error: 'Invalid category ID' },
         { status: 400 }
@@ -19,7 +20,7 @@ export async function GET(
     }
 
     const category = await prisma.category.findUnique({
-      where: { id }
+      where: { id: numericId }
     });
 
     if (!category) {
@@ -45,14 +46,15 @@ export async function GET(
 // PUT /api/categories/[id] - Update category
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const id = parseInt(params.id);
+    const { id } = await params;
+    const numericId = parseInt(id);
     const body = await request.json();
     const { category, type, subtype } = body;
 
-    if (isNaN(id)) {
+    if (isNaN(numericId)) {
       return NextResponse.json(
         { success: false, error: 'Invalid category ID' },
         { status: 400 }
@@ -68,7 +70,7 @@ export async function PUT(
     }
 
     const updatedCategory = await prisma.category.update({
-      where: { id },
+      where: { id: numericId },
       data: {
         category,
         type,
@@ -81,7 +83,7 @@ export async function PUT(
       data: updatedCategory,
       message: 'Category updated successfully'
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error updating category:', error);
     if (error.code === 'P2025') {
       return NextResponse.json(
@@ -99,12 +101,13 @@ export async function PUT(
 // DELETE /api/categories/[id] - Delete category
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const id = parseInt(params.id);
+    const { id } = await params;
+    const numericId = parseInt(id);
 
-    if (isNaN(id)) {
+    if (isNaN(numericId)) {
       return NextResponse.json(
         { success: false, error: 'Invalid category ID' },
         { status: 400 }
@@ -112,14 +115,14 @@ export async function DELETE(
     }
 
     await prisma.category.delete({
-      where: { id }
+      where: { id: numericId }
     });
 
     return NextResponse.json({
       success: true,
       message: 'Category deleted successfully'
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error deleting category:', error);
     if (error.code === 'P2025') {
       return NextResponse.json(

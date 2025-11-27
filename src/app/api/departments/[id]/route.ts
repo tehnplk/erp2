@@ -6,12 +6,13 @@ const prisma = new PrismaClient();
 // GET /api/departments/[id] - Get a specific department
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const id = parseInt(params.id);
+    const { id } = await params;
+    const numericId = parseInt(id);
     
-    if (isNaN(id)) {
+    if (isNaN(numericId)) {
       return NextResponse.json(
         { error: 'Invalid department ID' },
         { status: 400 }
@@ -19,7 +20,7 @@ export async function GET(
     }
 
     const department = await prisma.department.findUnique({
-      where: { id }
+      where: { id: numericId }
     });
 
     if (!department) {
@@ -42,12 +43,13 @@ export async function GET(
 // PUT /api/departments/[id] - Update a specific department
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const id = parseInt(params.id);
+    const { id } = await params;
+    const numericId = parseInt(id);
     
-    if (isNaN(id)) {
+    if (isNaN(numericId)) {
       return NextResponse.json(
         { error: 'Invalid department ID' },
         { status: 400 }
@@ -66,7 +68,7 @@ export async function PUT(
 
     // Check if department exists
     const existingDepartment = await prisma.department.findUnique({
-      where: { id }
+      where: { id: numericId }
     });
 
     if (!existingDepartment) {
@@ -77,7 +79,7 @@ export async function PUT(
     }
 
     const updatedDepartment = await prisma.department.update({
-      where: { id },
+      where: { id: numericId },
       data: {
         name
       }
@@ -96,12 +98,13 @@ export async function PUT(
 // DELETE /api/departments/[id] - Delete a specific department
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const id = parseInt(params.id);
+    const { id } = await params;
+    const numericId = parseInt(id);
     
-    if (isNaN(id)) {
+    if (isNaN(numericId)) {
       return NextResponse.json(
         { error: 'Invalid department ID' },
         { status: 400 }
@@ -110,7 +113,7 @@ export async function DELETE(
 
     // Check if department exists
     const existingDepartment = await prisma.department.findUnique({
-      where: { id }
+      where: { id: numericId }
     });
 
     if (!existingDepartment) {
@@ -121,7 +124,7 @@ export async function DELETE(
     }
 
     await prisma.department.delete({
-      where: { id }
+      where: { id: numericId }
     });
 
     return NextResponse.json(
