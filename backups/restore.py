@@ -33,12 +33,13 @@ def main() -> None:
     # copy ไฟล์จาก Windows host เข้า container
     run(["docker", "cp", dump_path, f"{TARGET_CONTAINER}:{container_dump_path}"])
 
-    # pg_restore ทับฐาน TARGET_DB_NAME
+    # pg_restore ทับฐาน TARGET_DB_NAME โดยไม่ตั้ง owner จาก dump (เลี่ยง role admin)
     run([
         "docker", "exec", "-e", f"PGPASSWORD={TARGET_DB_PASSWORD}", "-it", TARGET_CONTAINER,
         "pg_restore", "-U", TARGET_DB_USER,
         "-d", TARGET_DB_NAME,
         "--clean", "--if-exists",
+        "--no-owner",
         container_dump_path,
     ])
 
