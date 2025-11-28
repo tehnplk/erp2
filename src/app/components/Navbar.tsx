@@ -3,6 +3,22 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useState, useEffect, useRef } from 'react';
+import {
+  BadgeCheck,
+  BarChart4,
+  Bot,
+  Building2,
+  ClipboardList,
+  Home as HomeIcon,
+  Hospital,
+  Menu,
+  Package,
+  Pill,
+  Settings,
+  Store,
+  Warehouse,
+  X,
+} from 'lucide-react';
 
 export default function Navbar() {
   const pathname = usePathname();
@@ -11,10 +27,10 @@ export default function Navbar() {
   const settingsRef = useRef<HTMLDivElement>(null);
 
   const settingsItems = [
-    { href: '/sellers', label: 'ผู้จำหน่าย', icon: '🏪' },
-    { href: '/categories', label: 'หมวดหมู่สินค้า', icon: '💊' },
-    { href: '/products', label: 'รายการสินค้า', icon: '📦' },
-    { href: '/departments', label: 'แผนก', icon: '🏥' },
+    { href: '/sellers', label: 'ผู้จำหน่าย', icon: Store },
+    { href: '/categories', label: 'หมวดหมู่สินค้า', icon: Pill },
+    { href: '/products', label: 'รายการสินค้า', icon: Package },
+    { href: '/departments', label: 'แผนก', icon: Hospital },
   ];
 
   useEffect(() => {
@@ -36,7 +52,7 @@ export default function Navbar() {
         <div className="flex justify-between items-center" style={{height: '52px'}}>
           {/* Logo */}
           <Link href="/" className="flex items-center space-x-2">
-            <span className="text-2xl">🏥</span>
+            <Building2 className="h-6 w-6" />
             <span className="text-xl font-bold">Hospital ERP</span>
           </Link>
 
@@ -45,70 +61,70 @@ export default function Navbar() {
             {/* Home */}
             <Link
               href="/"
-              className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+              className={`flex items-center px-3 py-2 rounded-md text-sm font-medium transition-colors ${
                 pathname === '/'
                   ? 'bg-blue-700 text-white'
                   : 'text-blue-100 hover:bg-blue-500 hover:text-white'
               }`}
             >
-              <span className="mr-2">🏠</span>
+              <HomeIcon className="mr-2 h-4 w-4" />
               หน้าหลัก
             </Link>
 
             {/* Other top-level links */}
             <Link
               href="/surveys"
-              className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+              className={`flex items-center px-3 py-2 rounded-md text-sm font-medium transition-colors ${
                 pathname === '/surveys'
                   ? 'bg-blue-700 text-white'
                   : 'text-blue-100 hover:bg-blue-500 hover:text-white'
               }`}
             >
-              <span className="mr-2">📋</span>
+              <ClipboardList className="mr-2 h-4 w-4" />
               แผนการใช้
             </Link>
             <Link
               href="/purchase-plans"
-              className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+              className={`flex items-center px-3 py-2 rounded-md text-sm font-medium transition-colors ${
                 pathname === '/purchase-plans'
                   ? 'bg-blue-700 text-white'
                   : 'text-blue-100 hover:bg-blue-500 hover:text-white'
               }`}
             >
-              <span className="mr-2">📊</span>
+              <BarChart4 className="mr-2 h-4 w-4" />
               แผนจัดซื้อ
             </Link>
             <Link
               href="/purchase-approvals"
-              className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+              className={`flex items-center px-3 py-2 rounded-md text-sm font-medium transition-colors ${
                 pathname === '/purchase-approvals'
                   ? 'bg-blue-700 text-white'
                   : 'text-blue-100 hover:bg-blue-500 hover:text-white'
               }`}
             >
-              <span className="mr-2">✅</span>
+              <BadgeCheck className="mr-2 h-4 w-4" />
               อนุมัติจัดซื้อ
             </Link>
             <Link
               href="/warehouse"
-              className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+              className={`flex items-center px-3 py-2 rounded-md text-sm font-medium transition-colors ${
                 pathname === '/warehouse'
                   ? 'bg-blue-700 text-white'
                   : 'text-blue-100 hover:bg-blue-500 hover:text-white'
               }`}
             >
-              <span className="mr-2">🏥</span>
+              <Warehouse className="mr-2 h-4 w-4" />
               คลัง
             </Link>
             <Link
               href="/chat"
-              className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+              className={`flex items-center px-3 py-2 rounded-md text-sm font-medium transition-colors ${
                 pathname === '/chat'
                   ? 'bg-blue-700 text-white'
                   : 'text-blue-100 hover:bg-blue-500 hover:text-white'
               }`}
             >
-              <span className="mr-2">🤖</span>
+              <Bot className="mr-2 h-4 w-4" />
               AI Assistant
             </Link>
 
@@ -121,25 +137,28 @@ export default function Navbar() {
                 aria-haspopup="true"
                 aria-expanded={isSettingsOpen}
               >
-                <span className="mr-2">⚙️</span>
+                <Settings className="mr-2 h-4 w-4" />
                 ตั้งค่า
                 <span className="ml-1">▾</span>
               </button>
               {isSettingsOpen && (
                 <div className="absolute right-0 mt-2 min-w-max bg-white text-gray-800 rounded-md shadow-lg py-1 z-50 whitespace-nowrap">
-                  {settingsItems.map((item) => (
-                    <Link
-                      key={item.href}
-                      href={item.href}
-                      onClick={() => setIsSettingsOpen(false)}
-                      className={`flex items-center px-4 py-2 text-sm hover:bg-gray-100 ${
-                        pathname === item.href ? 'bg-gray-100 font-medium' : ''
-                      }`}
-                    >
-                      <span className="mr-2">{item.icon}</span>
-                      {item.label}
-                    </Link>
-                  ))}
+                  {settingsItems.map((item) => {
+                    const Icon = item.icon;
+                    return (
+                      <Link
+                        key={item.href}
+                        href={item.href}
+                        onClick={() => setIsSettingsOpen(false)}
+                        className={`flex items-center px-4 py-2 text-sm hover:bg-gray-100 ${
+                          pathname === item.href ? 'bg-gray-100 font-medium' : ''
+                        }`}
+                      >
+                        <Icon className="mr-2 h-4 w-4" />
+                        {item.label}
+                      </Link>
+                    );
+                  })}
                 </div>
               )}
             </div>
@@ -149,8 +168,9 @@ export default function Navbar() {
           <button
             onClick={() => setIsMenuOpen(!isMenuOpen)}
             className="md:hidden p-2 rounded-md hover:bg-blue-500"
+            aria-label="Toggle navigation menu"
           >
-            <span className="text-xl">{isMenuOpen ? '✖️' : '☰'}</span>
+            {isMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
           </button>
         </div>
 
@@ -162,13 +182,13 @@ export default function Navbar() {
               <Link
                 href="/"
                 onClick={() => setIsMenuOpen(false)}
-                className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                className={`flex items-center px-3 py-2 rounded-md text-sm font-medium transition-colors ${
                   pathname === '/'
                     ? 'bg-blue-700 text-white'
                     : 'text-blue-100 hover:bg-blue-500 hover:text-white'
                 }`}
               >
-                <span className="mr-2">🏠</span>
+                <HomeIcon className="mr-2 h-4 w-4" />
                 หน้าหลัก
               </Link>
 
@@ -176,89 +196,92 @@ export default function Navbar() {
               <Link
                 href="/surveys"
                 onClick={() => setIsMenuOpen(false)}
-                className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                className={`flex items-center px-3 py-2 rounded-md text-sm font-medium transition-colors ${
                   pathname === '/surveys'
                     ? 'bg-blue-700 text-white'
                     : 'text-blue-100 hover:bg-blue-500 hover:text-white'
                 }`}
               >
-                <span className="mr-2">📋</span>
+                <ClipboardList className="mr-2 h-4 w-4" />
                 แผนการใช้
               </Link>
               <Link
                 href="/purchase-plans"
                 onClick={() => setIsMenuOpen(false)}
-                className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                className={`flex items-center px-3 py-2 rounded-md text-sm font-medium transition-colors ${
                   pathname === '/purchase-plans'
                     ? 'bg-blue-700 text-white'
                     : 'text-blue-100 hover:bg-blue-500 hover:text-white'
                 }`}
               >
-                <span className="mr-2">📊</span>
+                <BarChart4 className="mr-2 h-4 w-4" />
                 แผนจัดซื้อ
               </Link>
               <Link
                 href="/purchase-approvals"
                 onClick={() => setIsMenuOpen(false)}
-                className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                className={`flex items-center px-3 py-2 rounded-md text-sm font-medium transition-colors ${
                   pathname === '/purchase-approvals'
                     ? 'bg-blue-700 text-white'
                     : 'text-blue-100 hover:bg-blue-500 hover:text-white'
                 }`}
               >
-                <span className="mr-2">✅</span>
+                <BadgeCheck className="mr-2 h-4 w-4" />
                 อนุมัติจัดซื้อ
               </Link>
               <Link
                 href="/warehouse"
                 onClick={() => setIsMenuOpen(false)}
-                className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                className={`flex items-center px-3 py-2 rounded-md text-sm font-medium transition-colors ${
                   pathname === '/warehouse'
                     ? 'bg-blue-700 text-white'
                     : 'text-blue-100 hover:bg-blue-500 hover:text-white'
                 }`}
               >
-                <span className="mr-2">🏥</span>
+                <Warehouse className="mr-2 h-4 w-4" />
                 คลัง
               </Link>
               <Link
                 href="/chat"
                 onClick={() => setIsMenuOpen(false)}
-                className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                className={`flex items-center px-3 py-2 rounded-md text-sm font-medium transition-colors ${
                   pathname === '/chat'
                     ? 'bg-blue-700 text-white'
                     : 'text-blue-100 hover:bg-blue-500 hover:text-white'
                 }`}
               >
-                <span className="mr-2">🤖</span>
+                <Bot className="mr-2 h-4 w-4" />
                 AI Assistant
               </Link>
 
               {/* ตั้งค่า collapsible - last in mobile menu */}
               <button
                 onClick={() => setIsSettingsOpen(!isSettingsOpen)}
-                className="px-3 py-2 rounded-md text-sm font-medium transition-colors text-blue-100 hover:bg-blue-500 hover:text-white text-left"
+                className="flex items-center px-3 py-2 rounded-md text-sm font-medium transition-colors text-blue-100 hover:bg-blue-500 hover:text-white text-left"
               >
-                <span className="mr-2">⚙️</span>
+                <Settings className="mr-2 h-4 w-4" />
                 ตั้งค่า {isSettingsOpen ? '▴' : '▾'}
               </button>
               {isSettingsOpen && (
                 <div className="ml-4 flex flex-col space-y-2">
-                  {settingsItems.map((item) => (
-                    <Link
-                      key={item.href}
-                      href={item.href}
-                      onClick={() => { setIsMenuOpen(false); setIsSettingsOpen(false); }}
-                      className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                        pathname === item.href
-                          ? 'bg-blue-700 text-white'
-                          : 'text-blue-100 hover:bg-blue-500 hover:text-white'
-                      }`}
-                    >
-                      <span className="mr-2">{item.icon}</span>
-                      {item.label}
-                    </Link>
-                  ))}
+                  {settingsItems.map((item) => {
+                    const Icon = item.icon;
+                    return (
+                      <Link
+                        key={item.href}
+                        href={item.href}
+                        onClick={() => { setIsMenuOpen(false); setIsSettingsOpen(false); }}
+                        className={`flex items-center px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                          pathname === item.href
+                            ? 'bg-blue-700 text-white'
+                            : 'text-blue-100 hover:bg-blue-500 hover:text-white'
+                        }`}
+                      >
+                        <Icon className="mr-2 h-4 w-4" />
+                        {item.label}
+                      </Link>
+                    );
+                  })}
                 </div>
               )}
             </div>

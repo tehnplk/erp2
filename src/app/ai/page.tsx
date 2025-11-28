@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import { Bot, BarChart3, TrendingUp, Target, Send, DollarSign, AlertTriangle } from 'lucide-react';
 
 interface Message {
   id: number;
@@ -40,7 +41,7 @@ export default function AIPage() {
     },
     {
       id: 5,
-      text: 'จากการวิเคราะห์ข้อมูลการใช้งานและสต็อกปัจจุบัน ผมแนะนำการจัดซื้อดังนี้:\n\n🔴 **ต้องจัดซื้อด่วน:**\n• ยาแก้ปวด - เหลือ 15%\n• เข็มฉีดยา - เหลือ 8%\n\n🟡 **ควรจัดซื้อ:**\n• ผ้าพันแผล - เหลือ 35%\n• แอลกอฮอล์ - เหลือ 28%\n\n💰 **งบประมาณที่แนะนำ:** ฿125,000\n\nต้องการให้สร้างใบสั่งซื้อให้ไหมครับ?',
+      text: 'จากการวิเคราะห์ข้อมูลการใช้งานและสต็อกปัจจุบัน ผมแนะนำการจัดซื้อดังนี้:\n\nต้องจัดซื้อด่วน:\n• ยาแก้ปวด - เหลือ 15%\n• เข็มฉีดยา - เหลือ 8%\n\nควรจัดซื้อ:\n• ผ้าพันแผล - เหลือ 35%\n• แอลกอฮอล์ - เหลือ 28%\n\nงบประมาณที่แนะนำ: ฿125,000\n\nต้องการให้สร้างใบสั่งซื้อให้ไหมครับ?',
       isUser: false,
       timestamp: '10:34'
     }
@@ -74,7 +75,7 @@ export default function AIPage() {
 
     // Simulate AI response
     setTimeout(() => {
-      let responseText = 'ขอบคุณสำหรับคำถามครับ ผมกำลังประมวลผลข้อมูลให้คุณ... 🤖';
+      let responseText = 'ขอบคุณสำหรับคำถามครับ ผมกำลังประมวลผลข้อมูลให้คุณ...';
       
       // Check if user asked for chart
       if (inputText.includes('กราฟ') || inputText.includes('chart')) {
@@ -123,7 +124,10 @@ export default function AIPage() {
                   <div>
                     <div className="mb-4">{message.text}</div>
                     <div className="bg-gray-50 p-4 rounded-lg">
-                      <h4 className="font-bold mb-3 text-gray-700">📊 กราฟแท่งการจัดซื้อ</h4>
+                      <h4 className="font-bold mb-3 text-gray-700 flex items-center gap-2">
+                        <BarChart3 className="h-5 w-5" />
+                        กราฟแท่งการจัดซื้อ
+                      </h4>
                       <div className="space-y-2">
                         <div className="flex items-center">
                           <span className="w-20 text-xs text-gray-600">ยาแก้ปวด</span>
@@ -170,10 +174,57 @@ export default function AIPage() {
                       </div>
                       <div className="mt-4 pt-3 border-t border-gray-200 text-xs text-gray-600">
                         <div className="grid grid-cols-2 gap-2">
-                          <div>💰 งบประมาณ: ฿125,000</div>
-                          <div>📈 เพิ่มขึ้น: 15%</div>
+                          <div className="flex items-center gap-2">
+                            <DollarSign className="h-4 w-4" />
+                            งบประมาณ: ฿125,000
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <TrendingUp className="h-4 w-4" />
+                            เพิ่มขึ้น: 15%
+                          </div>
                         </div>
-                        <div className="mt-2">🎯 แนะนำ: ควรเพิ่มสต็อกยาแก้ปวดและเข็มฉีดยา</div>
+                        <div className="mt-2 flex items-center gap-2">
+                          <Target className="h-4 w-4" />
+                          แนะนำ: ควรเพิ่มสต็อกยาแก้ปวดและเข็มฉีดยา
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ) : !message.isUser && message.id === 5 ? (
+                  <div>
+                    <div className="mb-2">
+                      จากการวิเคราะห์ข้อมูลการใช้งานและสต็อกปัจจุบัน ผมแนะนำการจัดซื้อดังนี้:
+                    </div>
+                    <div className="space-y-3 text-sm">
+                      <div>
+                        <div className="flex items-center gap-2 font-semibold text-red-600">
+                          <AlertTriangle className="h-4 w-4" />
+                          ต้องจัดซื้อด่วน
+                        </div>
+                        <ul className="mt-1 list-disc list-inside space-y-0.5">
+                          <li>ยาแก้ปวด - เหลือ 15%</li>
+                          <li>เข็มฉีดยา - เหลือ 8%</li>
+                        </ul>
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2 font-semibold text-yellow-600">
+                          <AlertTriangle className="h-4 w-4" />
+                          ควรจัดซื้อ
+                        </div>
+                        <ul className="mt-1 list-disc list-inside space-y-0.5">
+                          <li>ผ้าพันแผล - เหลือ 35%</li>
+                          <li>แอลกอฮอล์ - เหลือ 28%</li>
+                        </ul>
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs text-gray-700">
+                        <div className="flex items-center gap-2">
+                          <DollarSign className="h-4 w-4" />
+                          งบประมาณที่แนะนำ: ฿125,000
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Target className="h-4 w-4" />
+                          แนะนำ: ควรเพิ่มสต็อกยาแก้ปวดและเข็มฉีดยา
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -209,7 +260,7 @@ export default function AIPage() {
               disabled={!inputText.trim()}
               className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              ส่ง 📤
+              <Send className="h-4 w-4" />
             </button>
           </div>
         </div>
@@ -217,36 +268,41 @@ export default function AIPage() {
 
       {/* Quick Actions */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-2 flex-shrink-0 pb-2">
-        <button
-          onClick={() => setInputText('แสดงข้อมูลสต็อกที่เหลือน้อย')}
-          className="bg-white/80 backdrop-blur-sm border border-white/20 rounded-lg p-3 text-sm hover:bg-white/90 transition-colors"
-        >
-          📊 สต็อกเหลือน้อย
-        </button>
-        <button
-          onClick={() => setInputText('สรุปการจัดซื้อเดือนนี้')}
-          className="bg-white/80 backdrop-blur-sm border border-white/20 rounded-lg p-3 text-sm hover:bg-white/90 transition-colors"
-        >
-          💰 สรุปจัดซื้อ
-        </button>
-        <button
-          onClick={() => setInputText('แนะนำการจัดซื้อเดือนหน้า')}
-          className="bg-white/80 backdrop-blur-sm border border-white/20 rounded-lg p-3 text-sm hover:bg-white/90 transition-colors"
-        >
-          🎯 แนะนำจัดซื้อ
-        </button>
-        <button
-          onClick={() => setInputText('รายงานการใช้งานระบบ')}
-          className="bg-white/80 backdrop-blur-sm border border-white/20 rounded-lg p-3 text-sm hover:bg-white/90 transition-colors"
-        >
-          📈 รายงานระบบ
-        </button>
-        <button
-          onClick={() => setInputText('สร้างกราฟแสดงข้อมูลการจัดซื้อ')}
-          className="bg-white/80 backdrop-blur-sm border border-white/20 rounded-lg p-3 text-sm hover:bg-white/90 transition-colors"
-        >
-          📊 สร้างกราฟ
-        </button>
+          <button
+            onClick={() => setInputText('แสดงข้อมูลสต็อกที่เหลือน้อย')}
+            className="bg-white/80 backdrop-blur-sm border border-white/20 rounded-lg p-3 text-sm hover:bg-white/90 transition-colors flex items-center gap-2"
+          >
+            <BarChart3 className="h-4 w-4" />
+            สต็อกเหลือน้อย
+          </button>
+          <button
+            onClick={() => setInputText('สรุปการจัดซื้อเดือนนี้')}
+            className="bg-white/80 backdrop-blur-sm border border-white/20 rounded-lg p-3 text-sm hover:bg-white/90 transition-colors flex items-center gap-2"
+          >
+            <DollarSign className="h-4 w-4" />
+            สรุปจัดซื้อ
+          </button>
+          <button
+            onClick={() => setInputText('แนะนำการจัดซื้อเดือนหน้า')}
+            className="bg-white/80 backdrop-blur-sm border border-white/20 rounded-lg p-3 text-sm hover:bg-white/90 transition-colors flex items-center gap-2"
+          >
+            <Target className="h-4 w-4" />
+            แนะนำจัดซื้อ
+          </button>
+          <button
+            onClick={() => setInputText('รายงานการใช้งานระบบ')}
+            className="bg-white/80 backdrop-blur-sm border border-white/20 rounded-lg p-3 text-sm hover:bg-white/90 transition-colors flex items-center gap-2"
+          >
+            <TrendingUp className="h-4 w-4" />
+            รายงานระบบ
+          </button>
+          <button
+            onClick={() => setInputText('สร้างกราฟแสดงข้อมูลการจัดซื้อ')}
+            className="bg-white/80 backdrop-blur-sm border border-white/20 rounded-lg p-3 text-sm hover:bg-white/90 transition-colors flex items-center gap-2"
+          >
+            <BarChart3 className="h-4 w-4" />
+            สร้างกราฟ
+          </button>
         </div>
       </div>
     </div>
