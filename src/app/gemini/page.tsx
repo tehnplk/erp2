@@ -2,6 +2,8 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { Bot, Send, User, Sparkles, Trash2 } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 
 interface Message {
   content: string;
@@ -121,13 +123,65 @@ export default function GeminiChatPage() {
               )}
               
               <div
-                className={`max-w-[80%] p-3 rounded-2xl shadow-sm ${
+                className={`max-w-[80%] p-3 rounded-2xl shadow-sm overflow-x-auto ${
                   msg.isUser
                     ? 'bg-blue-600 text-white rounded-br-none'
                     : 'bg-white text-gray-800 border border-gray-100 rounded-bl-none'
                 }`}
               >
-                <p className="whitespace-pre-wrap leading-relaxed">{msg.content}</p>
+                <div className="markdown-content text-sm">
+                  <ReactMarkdown 
+                    remarkPlugins={[remarkGfm]}
+                    components={{
+                      // Override p to avoid nesting issues with block elements like pre
+                      p: ({node, ...props}) => <div className="my-2" {...props} />,
+                      // Style tables
+                      table: ({node, ...props}) => (
+                        <table className="border-collapse table-auto w-full my-2 border border-gray-300" {...props} />
+                      ),
+                      thead: ({node, ...props}) => (
+                        <thead className="bg-gray-100 text-gray-700" {...props} />
+                      ),
+                      th: ({node, ...props}) => (
+                        <th className="border border-gray-300 px-3 py-2 text-left font-semibold" {...props} />
+                      ),
+                      td: ({node, ...props}) => (
+                        <td className="border border-gray-300 px-3 py-2" {...props} />
+                      ),
+                      // Style lists
+                      ul: ({node, ...props}) => (
+                        <ul className="list-disc list-inside my-2" {...props} />
+                      ),
+                      ol: ({node, ...props}) => (
+                        <ol className="list-decimal list-inside my-2" {...props} />
+                      ),
+                      // Style headings
+                      h1: ({node, ...props}) => <h1 className="text-xl font-bold my-2" {...props} />,
+                      h2: ({node, ...props}) => <h2 className="text-lg font-bold my-2" {...props} />,
+                      h3: ({node, ...props}) => <h3 className="text-md font-bold my-1" {...props} />,
+                      // Style links
+                      a: ({node, ...props}) => (
+                        <a className="text-blue-600 hover:underline" target="_blank" rel="noopener noreferrer" {...props} />
+                      ),
+                      // Style code
+                      code: ({node, inline, className, children, ...props}: any) => {
+                        return inline ? (
+                          <code className="bg-gray-100 px-1 py-0.5 rounded text-red-500 font-mono text-xs" {...props}>
+                            {children}
+                          </code>
+                        ) : (
+                          <pre className="bg-gray-800 text-white p-3 rounded-lg overflow-x-auto my-2">
+                            <code className="font-mono text-xs" {...props}>
+                              {children}
+                            </code>
+                          </pre>
+                        );
+                      }
+                    }}
+                  >
+                    {msg.content}
+                  </ReactMarkdown>
+                </div>
               </div>
 
               {msg.isUser && (
