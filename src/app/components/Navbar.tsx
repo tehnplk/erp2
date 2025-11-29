@@ -117,15 +117,15 @@ export default function Navbar() {
               คลัง
             </Link>
             <Link
-              href="/chat"
+              href="/gemini"
               className={`flex items-center px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                pathname === '/chat'
+                pathname === '/gemini'
                   ? 'bg-blue-700 text-white'
                   : 'text-blue-100 hover:bg-blue-500 hover:text-white'
               }`}
             >
               <Bot className="mr-2 h-4 w-4" />
-              AI Assistant
+              Gemini AI
             </Link>
 
             {/* ตั้งค่า Dropdown - rightmost */}
@@ -242,16 +242,16 @@ export default function Navbar() {
                 คลัง
               </Link>
               <Link
-                href="/chat"
+                href="/gemini"
                 onClick={() => setIsMenuOpen(false)}
                 className={`flex items-center px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                  pathname === '/chat'
+                  pathname === '/gemini'
                     ? 'bg-blue-700 text-white'
                     : 'text-blue-100 hover:bg-blue-500 hover:text-white'
                 }`}
               >
                 <Bot className="mr-2 h-4 w-4" />
-                AI Assistant
+                Gemini AI
               </Link>
 
               {/* ตั้งค่า collapsible - last in mobile menu */}

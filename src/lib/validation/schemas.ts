@@ -210,6 +210,43 @@ export const purchaseApprovalQuerySchema = z.object({
   ...paginationFields
 });
 
+// Survey schemas
+export const createSurveySchema = z.object({
+  productCode: z.string().nullable().optional(),
+  category: z.string().nullable().optional(),
+  type: z.string().nullable().optional(),
+  subtype: z.string().nullable().optional(),
+  productName: z.string().nullable().optional(),
+  requestedAmount: z.string().transform((val: string) => val === null || val === undefined || val === '' ? null : parseInt(val)).pipe(z.number().nullable()).optional(),
+  unit: z.string().nullable().optional(),
+  pricePerUnit: z.string().transform((val: string) => val === null || val === undefined || val === '' ? 0 : parseFloat(val)).pipe(z.number()).optional(),
+  requestingDept: z.string().nullable().optional(),
+  approvedQuota: z.string().transform((val: string) => val === null || val === undefined || val === '' ? null : parseInt(val)).pipe(z.number().nullable()).optional()
+});
+
+export const updateSurveySchema = createSurveySchema.partial();
+
+export const surveyQuerySchema = z.object({
+  productName: z.string().optional(),
+  category: z.string().optional(),
+  type: z.string().optional(),
+  requestingDept: z.string().optional(),
+  orderBy: z.enum([
+    'id',
+    'productCode',
+    'productName',
+    'category',
+    'type',
+    'subtype',
+    'requestingDept'
+  ]).optional(),
+  sortOrder: z.enum(['asc', 'desc']).optional(),
+  ...paginationFields
+});
+
+// Warehouse update schema
+export const updateWarehouseSchema = createWarehouseSchema.partial();
+
 // ID parameter validation
 export const idParamSchema = z.object({
   id: z.string().transform((val: string) => parseInt(val)).pipe(z.number().int().positive('Invalid ID format'))

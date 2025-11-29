@@ -1,18 +1,27 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { validateQuery, validateRequest } from '@/lib/validation/validate';
+import { surveyQuerySchema, createSurveySchema } from '@/lib/validation/schemas';
 
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
-    const productName = searchParams.get('productName');
-    const category = searchParams.get('category');
-    const type = searchParams.get('type');
-    const requestingDept = searchParams.get('requestingDept');
-    const orderBy = searchParams.get('orderBy') || 'id';
-    const sortOrder = searchParams.get('sortOrder') || 'desc';
 
-    const pageParam = searchParams.get('page');
-    const pageSizeParam = searchParams.get('pageSize');
+    const queryValidation = validateQuery(surveyQuerySchema, searchParams);
+    if (!queryValidation.success) {
+      return queryValidation.error;
+    }
+
+    const {
+      productName,
+      category,
+      type,
+      requestingDept,
+      orderBy,
+      sortOrder,
+      page: validatedPage,
+      pageSize: validatedPageSize,
+    } = queryValidation.data as any;
 
     // Build where clause
     const where: any = {};
@@ -20,7 +29,7 @@ export async function GET(request: NextRequest) {
     if (productName) {
       where.productName = {
         contains: productName,
-        mode: 'insensitive'
+        mode: 'insensitive',
       };
     }
     
@@ -38,14 +47,14 @@ export async function GET(request: NextRequest) {
     
     // Build orderBy clause
     const orderByClause: any = {};
-    if (orderBy) {
-      orderByClause[orderBy] = sortOrder;
-    } else {
-      orderByClause.id = 'desc';
-    }
+    const orderField = orderBy || 'id';
+    const orderDirection = sortOrder || 'desc';
+    orderByClause[orderField] = orderDirection;
+
+    const hasPagination = validatedPage !== undefined || validatedPageSize !== undefined;
 
     // If no pagination params provided, return all matching surveys (for summaries, exports, etc.)
-    if (!pageParam && !pageSizeParam) {
+    if (!hasPagination) {
       const [surveys, totalCount] = await Promise.all([
         prisma.survey.findMany({
           where,
@@ -61,12 +70,8 @@ export async function GET(request: NextRequest) {
     }
 
     // Paginated mode (used by main listing)
-    let page = pageParam ? parseInt(pageParam, 10) : 1;
-    let pageSize = pageSizeParam ? parseInt(pageSizeParam, 10) : 20;
-
-    if (Number.isNaN(page) || page < 1) page = 1;
-    if (Number.isNaN(pageSize) || pageSize < 1) pageSize = 20;
-    if (pageSize > 200) pageSize = 200;
+    const page = validatedPage ?? 1;
+    const pageSize = validatedPageSize ?? 20;
 
     const skip = (page - 1) * pageSize;
 
@@ -98,33 +103,14 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    
-    const {
-      productCode,
-      category,
-      type,
-      subtype,
-      productName,
-      requestedAmount,
-      unit,
-      pricePerUnit,
-      requestingDept,
-      approvedQuota
-    } = body;
-    
+
+    const validation = await validateRequest(createSurveySchema, body);
+    if (!validation.success) {
+      return validation.error;
+    }
+
     const survey = await prisma.survey.create({
-      data: {
-        productCode: productCode || null,
-        category: category || null,
-        type: type || null,
-        subtype: subtype || null,
-        productName: productName || null,
-        requestedAmount: requestedAmount ? parseInt(requestedAmount) : null,
-        unit: unit || null,
-        pricePerUnit: pricePerUnit ? parseFloat(pricePerUnit) : 0,
-        requestingDept: requestingDept || null,
-        approvedQuota: approvedQuota ? parseInt(approvedQuota) : null
-      }
+      data: validation.data as any,
     });
     
     return NextResponse.json(survey, { status: 201 });

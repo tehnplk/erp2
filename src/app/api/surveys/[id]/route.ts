@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import { prisma } from '@/lib/prisma';
+import { validateRequest } from '@/lib/validation/validate';
+import { idParamSchema, updateSurveySchema } from '@/lib/validation/schemas';
 
 export async function PUT(
   request: NextRequest,
@@ -9,36 +9,26 @@ export async function PUT(
 ) {
   try {
     const { id } = await params;
-    const numericId = parseInt(id);
+
+    const parsedId = idParamSchema.safeParse({ id });
+    if (!parsedId.success) {
+      return NextResponse.json(
+        { error: 'Invalid ID format' },
+        { status: 400 }
+      );
+    }
+
+    const numericId = parsedId.data.id;
     const body = await request.json();
-    
-    const {
-      productCode,
-      category,
-      type,
-      subtype,
-      productName,
-      requestedAmount,
-      unit,
-      pricePerUnit,
-      requestingDept,
-      approvedQuota
-    } = body;
+
+    const validation = await validateRequest(updateSurveySchema, body);
+    if (!validation.success) {
+      return validation.error;
+    }
     
     const survey = await prisma.survey.update({
       where: { id: numericId },
-      data: {
-        productCode: productCode || null,
-        category: category || null,
-        type: type || null,
-        subtype: subtype || null,
-        productName: productName || null,
-        requestedAmount: requestedAmount ? parseInt(requestedAmount) : null,
-        unit: unit || null,
-        pricePerUnit: pricePerUnit ? parseFloat(pricePerUnit) : 0,
-        requestingDept: requestingDept || null,
-        approvedQuota: approvedQuota ? parseInt(approvedQuota) : null
-      }
+      data: validation.data as any,
     });
     
     return NextResponse.json(survey);
@@ -57,7 +47,16 @@ export async function DELETE(
 ) {
   try {
     const { id } = await params;
-    const numericId = parseInt(id);
+
+    const parsedId = idParamSchema.safeParse({ id });
+    if (!parsedId.success) {
+      return NextResponse.json(
+        { error: 'Invalid ID format' },
+        { status: 400 }
+      );
+    }
+
+    const numericId = parsedId.data.id;
     
     await prisma.survey.delete({
       where: { id: numericId }
