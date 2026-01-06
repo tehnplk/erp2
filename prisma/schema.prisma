@@ -173,3 +173,5 @@ model MeetingRoomBooking {
   createdAt       DateTime @default(now()) // วันที่สร้างการจอง
   updatedAt       DateTime @updatedAt // วันที่อัปเดตการจองล่าสุด
 }
+
+
