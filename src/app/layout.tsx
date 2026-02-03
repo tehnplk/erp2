@@ -25,13 +25,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className="antialiased" style={{
-        backgroundImage: 'url(/images/background.png)',
-        backgroundSize: 'cover',
-        backgroundPosition: 'center',
-        backgroundRepeat: 'no-repeat',
-        minHeight: '100vh'
-      }}>
+      <body className="antialiased" style={{ minHeight: '100vh' }}>
         <Navbar />
         <div style={{ paddingTop: '52px' }}>
           {children}
