@@ -63,6 +63,14 @@ model Survey {
   pricePerUnit    Decimal @default(0) @db.Decimal(10, 2)
   requestingDept  String?
   approvedQuota   Int?
+  budgetYear      Int?
+  sequenceNo      Int?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@unique([budgetYear, requestingDept, productCode, sequenceNo])
+  @@index([budgetYear])
+  @@index([createdAt])
 }
 
 model Category {

@@ -3,36 +3,44 @@ import { prisma } from '@/lib/prisma';
 
 export async function GET() {
   try {
-    // Get distinct values for each filter field
-    const [categories, types, subtypes, sellerCodes] = await Promise.all([
-      prisma.product.findMany({
-        select: { category: true },
-        distinct: ['category'],
-        orderBy: { category: 'asc' }
+    const [categoryRows, unitRows, sellerRows] = await Promise.all([
+      prisma.category.findMany({
+        select: {
+          category: true,
+          type: true,
+          subtype: true,
+        },
+        orderBy: [
+          { category: 'asc' },
+          { type: 'asc' },
+          { subtype: 'asc' },
+        ],
       }),
       prisma.product.findMany({
-        select: { type: true },
-        distinct: ['type'],
-        orderBy: { type: 'asc' }
+        select: { unit: true },
+        distinct: ['unit'],
+        orderBy: { unit: 'asc' },
       }),
-      prisma.product.findMany({
-        select: { subtype: true },
-        distinct: ['subtype'],
-        orderBy: { subtype: 'asc' }
+      prisma.seller.findMany({
+        select: { code: true, name: true },
+        orderBy: { code: 'asc' },
       }),
-      prisma.product.findMany({
-        select: { sellerCode: true },
-        distinct: ['sellerCode'],
-        where: { sellerCode: { not: null } },
-        orderBy: { sellerCode: 'asc' }
-      })
     ]);
 
+    const categories = Array.from(new Set(categoryRows.map((item) => item.category).filter(Boolean)));
+    const types = Array.from(new Set(categoryRows.map((item) => item.type).filter(Boolean)));
+    const subtypes = Array.from(new Set(categoryRows.map((item) => item.subtype).filter(Boolean)));
+    const units = unitRows.map((item) => item.unit).filter(Boolean);
+    const sellerCodes = sellerRows.map((seller) => seller.code).filter(Boolean);
+
     return NextResponse.json({
-      categories: categories.map(item => item.category).filter(Boolean),
-      types: types.map(item => item.type).filter(Boolean),
-      subtypes: subtypes.map(item => item.subtype).filter(Boolean),
-      sellerCodes: sellerCodes.map(item => item.sellerCode).filter(Boolean)
+      categories,
+      types,
+      subtypes,
+      units,
+      sellerCodes,
+      categoryOptions: categoryRows,
+      sellerOptions: sellerRows,
     });
   } catch (error) {
     console.error('Error fetching product filter options:', error);

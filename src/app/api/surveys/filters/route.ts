@@ -1,41 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { pgQuery } from '@/lib/pg';
 
 export async function GET(request: NextRequest) {
   try {
-    // Get unique categories
-    const categories = await prisma.survey.findMany({
-      select: { category: true },
-      distinct: ['category'],
-      where: { category: { not: null } }
-    });
-
-    // Get unique types
-    const types = await prisma.survey.findMany({
-      select: { type: true },
-      distinct: ['type'],
-      where: { type: { not: null } }
-    });
-
-    // Get unique subtypes
-    const subtypes = await prisma.survey.findMany({
-      select: { subtype: true },
-      distinct: ['subtype'],
-      where: { subtype: { not: null } }
-    });
-
-    // Get unique requesting departments
-    const departments = await prisma.survey.findMany({
-      select: { requestingDept: true },
-      distinct: ['requestingDept'],
-      where: { requestingDept: { not: null } }
-    });
+    const [categories, types, subtypes, departments, budgetYears] = await Promise.all([
+      pgQuery('SELECT DISTINCT category FROM public."Survey" WHERE category IS NOT NULL ORDER BY category ASC'),
+      pgQuery('SELECT DISTINCT type FROM public."Survey" WHERE type IS NOT NULL ORDER BY type ASC'),
+      pgQuery('SELECT DISTINCT subtype FROM public."Survey" WHERE subtype IS NOT NULL ORDER BY subtype ASC'),
+      pgQuery('SELECT DISTINCT "requestingDept" AS "requestingDept" FROM public."Survey" WHERE "requestingDept" IS NOT NULL ORDER BY "requestingDept" ASC'),
+      pgQuery('SELECT DISTINCT budget_year AS "budgetYear" FROM public."Survey" WHERE budget_year IS NOT NULL ORDER BY budget_year DESC')
+    ]);
 
     return NextResponse.json({
-      categories: categories.map(c => c.category).filter(Boolean),
-      types: types.map(t => t.type).filter(Boolean),
-      subtypes: subtypes.map(s => s.subtype).filter(Boolean),
-      departments: departments.map(d => d.requestingDept).filter(Boolean)
+      categories: categories.rows.map((c: any) => c.category).filter(Boolean),
+      types: types.rows.map((t: any) => t.type).filter(Boolean),
+      subtypes: subtypes.rows.map((s: any) => s.subtype).filter(Boolean),
+      departments: departments.rows.map((d: any) => d.requestingDept).filter(Boolean),
+      budgetYears: budgetYears.rows.map((year: any) => year.budgetYear).filter((value: number | null) => value !== null)
     });
   } catch (error) {
     console.error('Error fetching filter options:', error);

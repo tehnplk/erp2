@@ -218,6 +218,8 @@ export default function PurchasePlansPage() {
     else { const err = await res.json().catch(()=>({})); alert(err.error || 'บันทึกล้มเหลว'); }
   };
 
+  const modalFieldClassName = 'w-full border rounded px-3 py-2';
+
   const handleDelete = async (id: number) => {
     const result = await Swal.fire({ title: 'ลบข้อมูล?', text: 'ยืนยันการลบรายการ', icon: 'warning', showCancelButton: true, confirmButtonText: 'ลบ', cancelButtonText: 'ยกเลิก' });
     if (!result.isConfirmed) return;
@@ -242,16 +244,76 @@ export default function PurchasePlansPage() {
             </div>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <input placeholder="รหัสสินค้า" name="productCode" value={formData.productCode || ''} onChange={handleInputChange} className="border rounded px-3 py-2" />
-                <input placeholder="ชื่อสินค้า" name="productName" value={formData.productName || ''} onChange={handleInputChange} className="border rounded px-3 py-2" />
-                <input placeholder="หน่วย" name="unit" value={formData.unit || ''} onChange={handleInputChange} className="border rounded px-3 py-2" />
-                <input placeholder="หมวดหมู่" name="category" value={formData.category || ''} onChange={handleInputChange} className="border rounded px-3 py-2" />
-                <input placeholder="ประเภท" name="productType" value={formData.productType || ''} onChange={handleInputChange} className="border rounded px-3 py-2" />
-                <input placeholder="ประเภทย่อย" name="productSubtype" value={formData.productSubtype || ''} onChange={handleInputChange} className="border rounded px-3 py-2" />
-                <input placeholder="ราคา/หน่วย" type="number" step="0.01" name="pricePerUnit" value={formData.pricePerUnit ?? ''} onChange={handleInputChange} className="border rounded px-3 py-2" />
-                <input placeholder="จำนวนที่ต้องการ/ปี" type="number" name="requiredQuantityForYear" value={formData.requiredQuantityForYear ?? ''} onChange={handleInputChange} className="border rounded px-3 py-2" />
-                <input placeholder="ปีงบประมาณ" name="budgetYear" value={formData.budgetYear || ''} onChange={handleInputChange} className="border rounded px-3 py-2" />
-                <input placeholder="หน่วยงานจัดซื้อ" name="purchasingDepartment" value={formData.purchasingDepartment || ''} onChange={handleInputChange} className="border rounded px-3 py-2" />
+                <label className="flex flex-col gap-1 text-sm text-gray-700">
+                  <span className="font-medium">รหัสสินค้า</span>
+                  <input name="productCode" value={formData.productCode || ''} onChange={handleInputChange} className={modalFieldClassName} />
+                </label>
+                <label className="flex flex-col gap-1 text-sm text-gray-700">
+                  <span className="font-medium">ชื่อสินค้า</span>
+                  <input name="productName" value={formData.productName || ''} onChange={handleInputChange} className={modalFieldClassName} />
+                </label>
+                <label className="flex flex-col gap-1 text-sm text-gray-700">
+                  <span className="font-medium">หน่วย</span>
+                  <input list="purchase-plan-units" name="unit" value={formData.unit || ''} onChange={handleInputChange} className={modalFieldClassName} />
+                  <datalist id="purchase-plan-units">
+                    {Array.from(new Set(items.map((item) => item.unit).filter(Boolean))).map((unit) => (
+                      <option key={unit} value={unit} />
+                    ))}
+                  </datalist>
+                </label>
+                <label className="flex flex-col gap-1 text-sm text-gray-700">
+                  <span className="font-medium">หมวดหมู่</span>
+                  <input list="purchase-plan-categories" name="category" value={formData.category || ''} onChange={handleInputChange} className={modalFieldClassName} />
+                  <datalist id="purchase-plan-categories">
+                    {categories.map((category) => (
+                      <option key={category} value={category} />
+                    ))}
+                  </datalist>
+                </label>
+                <label className="flex flex-col gap-1 text-sm text-gray-700">
+                  <span className="font-medium">ประเภท</span>
+                  <input list="purchase-plan-types" name="productType" value={formData.productType || ''} onChange={handleInputChange} className={modalFieldClassName} />
+                  <datalist id="purchase-plan-types">
+                    {types.map((type) => (
+                      <option key={type} value={type} />
+                    ))}
+                  </datalist>
+                </label>
+                <label className="flex flex-col gap-1 text-sm text-gray-700">
+                  <span className="font-medium">ประเภทย่อย</span>
+                  <input list="purchase-plan-subtypes" name="productSubtype" value={formData.productSubtype || ''} onChange={handleInputChange} className={modalFieldClassName} />
+                  <datalist id="purchase-plan-subtypes">
+                    {subtypes.map((subtype) => (
+                      <option key={subtype} value={subtype} />
+                    ))}
+                  </datalist>
+                </label>
+                <label className="flex flex-col gap-1 text-sm text-gray-700">
+                  <span className="font-medium">ราคา/หน่วย</span>
+                  <input type="number" step="0.01" name="pricePerUnit" value={formData.pricePerUnit ?? ''} onChange={handleInputChange} className={modalFieldClassName} />
+                </label>
+                <label className="flex flex-col gap-1 text-sm text-gray-700">
+                  <span className="font-medium">จำนวนที่ต้องการ/ปี</span>
+                  <input type="number" name="requiredQuantityForYear" value={formData.requiredQuantityForYear ?? ''} onChange={handleInputChange} className={modalFieldClassName} />
+                </label>
+                <label className="flex flex-col gap-1 text-sm text-gray-700">
+                  <span className="font-medium">ปีงบประมาณ</span>
+                  <input list="purchase-plan-years" name="budgetYear" value={formData.budgetYear || ''} onChange={handleInputChange} className={modalFieldClassName} />
+                  <datalist id="purchase-plan-years">
+                    {years.map((year) => (
+                      <option key={year} value={year} />
+                    ))}
+                  </datalist>
+                </label>
+                <label className="flex flex-col gap-1 text-sm text-gray-700">
+                  <span className="font-medium">หน่วยงานจัดซื้อ</span>
+                  <input list="purchase-plan-departments" name="purchasingDepartment" value={formData.purchasingDepartment || ''} onChange={handleInputChange} className={modalFieldClassName} />
+                  <datalist id="purchase-plan-departments">
+                    {departments.map((department) => (
+                      <option key={department} value={department} />
+                    ))}
+                  </datalist>
+                </label>
               </div>
               <div className="flex justify-end space-x-3">
                 <button type="button" onClick={resetForm} className="px-4 py-2 border rounded">ยกเลิก</button>

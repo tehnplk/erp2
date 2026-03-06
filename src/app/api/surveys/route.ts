@@ -1,7 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { pgQuery } from '@/lib/pg';
 import { validateQuery, validateRequest } from '@/lib/validation/validate';
 import { surveyQuerySchema, createSurveySchema } from '@/lib/validation/schemas';
+
+const buildSurveyConstraintError = () =>
+  NextResponse.json(
+    { error: 'สินค้าเดิม หน่วยงานเดิม และปีงบเดิม สามารถมีได้ไม่เกิน 2 ครั้ง' },
+    { status: 400 }
+  );
 
 export async function GET(request: NextRequest) {
   try {
@@ -17,77 +23,93 @@ export async function GET(request: NextRequest) {
       category,
       type,
       requestingDept,
+      budgetYear,
       orderBy,
       sortOrder,
       page: validatedPage,
       pageSize: validatedPageSize,
     } = queryValidation.data as any;
 
-    // Build where clause
-    const where: any = {};
-    
-    if (productName) {
-      where.productName = {
-        contains: productName,
-        mode: 'insensitive',
-      };
-    }
-    
-    if (category) {
-      where.category = category;
-    }
-    
-    if (type) {
-      where.type = type;
-    }
-    
-    if (requestingDept) {
-      where.requestingDept = requestingDept;
-    }
-    
-    // Build orderBy clause
-    const orderByClause: any = {};
     const orderField = orderBy || 'id';
     const orderDirection = sortOrder || 'desc';
-    orderByClause[orderField] = orderDirection;
+    const allowedOrderFields: Record<string, string> = {
+      id: 'id',
+      productCode: '"productCode"',
+      productName: '"productName"',
+      category: 'category',
+      type: 'type',
+      subtype: 'subtype',
+      requestingDept: '"requestingDept"',
+      budgetYear: 'budget_year',
+      sequenceNo: 'sequence_no',
+      createdAt: 'created_at',
+      updatedAt: 'updated_at',
+    };
+    const safeOrderField = allowedOrderFields[orderField] || 'id';
+
+    const whereClauses: string[] = [];
+    const params: unknown[] = [];
+
+    if (productName) {
+      params.push(`%${productName}%`);
+      whereClauses.push(`"productName" ILIKE $${params.length}`);
+    }
+
+    if (category) {
+      params.push(category);
+      whereClauses.push(`category = $${params.length}`);
+    }
+
+    if (type) {
+      params.push(type);
+      whereClauses.push(`type = $${params.length}`);
+    }
+
+    if (requestingDept) {
+      params.push(requestingDept);
+      whereClauses.push(`"requestingDept" = $${params.length}`);
+    }
+
+    if (budgetYear) {
+      params.push(parseInt(budgetYear, 10));
+      whereClauses.push(`budget_year = $${params.length}`);
+    }
+
+    const whereSql = whereClauses.length > 0 ? `WHERE ${whereClauses.join(' AND ')}` : '';
 
     const hasPagination = validatedPage !== undefined || validatedPageSize !== undefined;
 
-    // If no pagination params provided, return all matching surveys (for summaries, exports, etc.)
     if (!hasPagination) {
-      const [surveys, totalCount] = await Promise.all([
-        prisma.survey.findMany({
-          where,
-          orderBy: orderByClause,
-        }),
-        prisma.survey.count({ where }),
+      const [surveysResult, totalCountResult] = await Promise.all([
+        pgQuery(
+          `SELECT id, "productCode", category, type, subtype, "productName", "requestedAmount", unit, "pricePerUnit"::float8 AS "pricePerUnit", "requestingDept", "approvedQuota", budget_year AS "budgetYear", sequence_no AS "sequenceNo", created_at AS "createdAt", updated_at AS "updatedAt" FROM public."Survey" ${whereSql} ORDER BY ${safeOrderField} ${orderDirection}`,
+          params
+        ),
+        pgQuery(`SELECT COUNT(*)::int AS count FROM public."Survey" ${whereSql}`, params),
       ]);
 
       return NextResponse.json({
-        surveys,
-        totalCount,
+        surveys: surveysResult.rows,
+        totalCount: totalCountResult.rows[0]?.count || 0,
       });
     }
 
-    // Paginated mode (used by main listing)
     const page = validatedPage ?? 1;
     const pageSize = validatedPageSize ?? 20;
+    const offset = (page - 1) * pageSize;
+    const paginatedParams = [...params, pageSize, offset];
 
-    const skip = (page - 1) * pageSize;
-
-    const [surveys, totalCount] = await Promise.all([
-      prisma.survey.findMany({
-        where,
-        orderBy: orderByClause,
-        skip,
-        take: pageSize,
-      }),
-      prisma.survey.count({ where }),
+    const [surveysResult, totalCountResult] = await Promise.all([
+      pgQuery(
+        `SELECT id, "productCode", category, type, subtype, "productName", "requestedAmount", unit, "pricePerUnit"::float8 AS "pricePerUnit", "requestingDept", "approvedQuota", budget_year AS "budgetYear", sequence_no AS "sequenceNo", created_at AS "createdAt", updated_at AS "updatedAt" FROM public."Survey" ${whereSql} ORDER BY ${safeOrderField} ${orderDirection} LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,
+        paginatedParams
+      ),
+      pgQuery(`SELECT COUNT(*)::int AS count FROM public."Survey" ${whereSql}`, params),
     ]);
     
     return NextResponse.json({
-      surveys,
-      totalCount,
+      surveys: surveysResult.rows,
+      totalCount: totalCountResult.rows[0]?.count || 0,
       page,
       pageSize,
     });
@@ -109,11 +131,64 @@ export async function POST(request: NextRequest) {
       return validation.error;
     }
 
-    const survey = await prisma.survey.create({
-      data: validation.data as any,
-    });
+    const surveyData = validation.data as any;
+
+    if (surveyData.budgetYear === null || surveyData.budgetYear === undefined) {
+      surveyData.budgetYear = 2569;
+    }
+
+    if (surveyData.budgetYear !== null && surveyData.budgetYear !== undefined && surveyData.sequenceNo !== null && surveyData.sequenceNo !== undefined) {
+      const existing = await pgQuery(
+        `SELECT id FROM public."Survey" WHERE budget_year = $1 AND "requestingDept" IS NOT DISTINCT FROM $2 AND "productCode" IS NOT DISTINCT FROM $3 AND sequence_no = $4 LIMIT 1`,
+        [surveyData.budgetYear, surveyData.requestingDept || null, surveyData.productCode || null, surveyData.sequenceNo]
+      );
+
+      if (existing.rows.length > 0) {
+        return buildSurveyConstraintError();
+      }
+    }
+
+    if (surveyData.budgetYear !== null && surveyData.budgetYear !== undefined) {
+      const existingCountResult = await pgQuery(
+        `SELECT COUNT(*)::int AS count FROM public."Survey" WHERE budget_year = $1 AND "requestingDept" IS NOT DISTINCT FROM $2 AND "productCode" IS NOT DISTINCT FROM $3`,
+        [surveyData.budgetYear, surveyData.requestingDept || null, surveyData.productCode || null]
+      );
+      const existingCount = existingCountResult.rows[0]?.count || 0;
+
+      if (existingCount >= 2) {
+        return buildSurveyConstraintError();
+      }
+
+      if (surveyData.sequenceNo === null || surveyData.sequenceNo === undefined) {
+        surveyData.sequenceNo = existingCount + 1;
+      }
+    }
+
+    if (surveyData.sequenceNo === null || surveyData.sequenceNo === undefined) {
+      surveyData.sequenceNo = 1;
+    }
+
+    const survey = await pgQuery(
+      `INSERT INTO public."Survey" ("productCode", category, type, subtype, "productName", "requestedAmount", unit, "pricePerUnit", "requestingDept", "approvedQuota", budget_year, sequence_no)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+       RETURNING id, "productCode", category, type, subtype, "productName", "requestedAmount", unit, "pricePerUnit"::float8 AS "pricePerUnit", "requestingDept", "approvedQuota", budget_year AS "budgetYear", sequence_no AS "sequenceNo", created_at AS "createdAt", updated_at AS "updatedAt"`,
+      [
+        surveyData.productCode || null,
+        surveyData.category || null,
+        surveyData.type || null,
+        surveyData.subtype || null,
+        surveyData.productName || null,
+        surveyData.requestedAmount ?? null,
+        surveyData.unit || null,
+        surveyData.pricePerUnit ?? 0,
+        surveyData.requestingDept || null,
+        surveyData.approvedQuota ?? null,
+        surveyData.budgetYear ?? null,
+        surveyData.sequenceNo ?? null,
+      ]
+    );
     
-    return NextResponse.json(survey, { status: 201 });
+    return NextResponse.json(survey.rows[0], { status: 201 });
   } catch (error) {
     console.error('Error creating survey:', error);
     return NextResponse.json(

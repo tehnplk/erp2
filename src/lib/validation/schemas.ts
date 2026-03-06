@@ -211,17 +211,33 @@ export const purchaseApprovalQuerySchema = z.object({
 });
 
 // Survey schemas
+const nullableIntInput = z.union([z.string(), z.number(), z.null(), z.undefined()])
+  .transform((val) => val === null || val === undefined || val === '' ? null : parseInt(String(val), 10))
+  .pipe(z.number().nullable());
+
+const numberInput = z.union([z.string(), z.number(), z.null(), z.undefined()])
+  .transform((val) => val === null || val === undefined || val === '' ? 0 : parseFloat(String(val)))
+  .pipe(z.number());
+
 export const createSurveySchema = z.object({
   productCode: z.string().nullable().optional(),
   category: z.string().nullable().optional(),
   type: z.string().nullable().optional(),
   subtype: z.string().nullable().optional(),
   productName: z.string().nullable().optional(),
-  requestedAmount: z.string().transform((val: string) => val === null || val === undefined || val === '' ? null : parseInt(val)).pipe(z.number().nullable()).optional(),
+  requestedAmount: nullableIntInput.optional(),
   unit: z.string().nullable().optional(),
-  pricePerUnit: z.string().transform((val: string) => val === null || val === undefined || val === '' ? 0 : parseFloat(val)).pipe(z.number()).optional(),
+  pricePerUnit: numberInput.optional(),
   requestingDept: z.string().nullable().optional(),
-  approvedQuota: z.string().transform((val: string) => val === null || val === undefined || val === '' ? null : parseInt(val)).pipe(z.number().nullable()).optional()
+  approvedQuota: nullableIntInput.optional(),
+  budgetYear: z.union([z.string(), z.number(), z.null(), z.undefined()])
+    .transform((val) => val === null || val === undefined || val === '' ? null : parseInt(String(val), 10))
+    .pipe(z.number().int().nullable())
+    .optional(),
+  sequenceNo: z.union([z.string(), z.number(), z.null(), z.undefined()])
+    .transform((val) => val === null || val === undefined || val === '' ? null : parseInt(String(val), 10))
+    .pipe(z.number().int().min(1).max(2).nullable())
+    .optional()
 });
 
 export const updateSurveySchema = createSurveySchema.partial();
@@ -231,6 +247,7 @@ export const surveyQuerySchema = z.object({
   category: z.string().optional(),
   type: z.string().optional(),
   requestingDept: z.string().optional(),
+  budgetYear: z.string().optional(),
   orderBy: z.enum([
     'id',
     'productCode',
@@ -238,7 +255,11 @@ export const surveyQuerySchema = z.object({
     'category',
     'type',
     'subtype',
-    'requestingDept'
+    'requestingDept',
+    'budgetYear',
+    'sequenceNo',
+    'createdAt',
+    'updatedAt'
   ]).optional(),
   sortOrder: z.enum(['asc', 'desc']).optional(),
   ...paginationFields

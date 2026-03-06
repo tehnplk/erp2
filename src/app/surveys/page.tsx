@@ -1,8 +1,57 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import Swal from 'sweetalert2';
 import { Upload, Plus, CheckCircle2, AlertCircle, X as XIcon, ChevronUp, ChevronDown, ArrowUpDown, Pencil, Trash2 } from 'lucide-react';
+
+const getCurrentBudgetYear = () => {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = now.getMonth();
+  return month >= 9 ? year + 544 : year + 543;
+};
+
+const formatDateTime = (value?: string | null) => {
+  if (!value) return '-';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '-';
+  return date.toLocaleString('th-TH', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+};
+
+interface ProductOption {
+  id: number;
+  code: string;
+  name: string;
+  category: string;
+  type: string;
+  subtype: string | null;
+  unit: string;
+  costPrice?: number | null;
+}
+
+interface BulkSurveyRecord {
+  id: number;
+  productSearch: string;
+  productCode: string;
+  category: string;
+  type: string;
+  subtype: string;
+  productName: string;
+  requestedAmount: string;
+  unit: string;
+  pricePerUnit: string;
+  requestingDept: string;
+  approvedQuota: string;
+  budgetYear: string;
+  sequenceNo: string;
+}
 
 interface Survey {
   id: number;
@@ -16,6 +65,10 @@ interface Survey {
   pricePerUnit: number;
   requestingDept: string | null;
   approvedQuota: number | null;
+  budgetYear: number | null;
+  sequenceNo: number | null;
+  createdAt: string;
+  updatedAt: string;
 }
 
 interface SurveyFormData {
@@ -29,9 +82,14 @@ interface SurveyFormData {
   pricePerUnit: string;
   requestingDept: string;
   approvedQuota: string;
+  budgetYear: string;
+  sequenceNo: string;
 }
 
 export default function SurveysPage() {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const [surveys, setSurveys] = useState<Survey[]>([]);
   const [summarySurveys, setSummarySurveys] = useState<Survey[]>([]);
   const [totalCount, setTotalCount] = useState(0);
@@ -49,7 +107,9 @@ export default function SurveysPage() {
     unit: '',
     pricePerUnit: '',
     requestingDept: '',
-    approvedQuota: ''
+    approvedQuota: '',
+    budgetYear: getCurrentBudgetYear().toString(),
+    sequenceNo: '1'
   });
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editData, setEditData] = useState({
@@ -62,10 +122,12 @@ export default function SurveysPage() {
     unit: '',
     pricePerUnit: '',
     requestingDept: '',
-    approvedQuota: ''
+    approvedQuota: '',
+    budgetYear: getCurrentBudgetYear().toString(),
+    sequenceNo: '1'
   });
   const [showBulkForm, setShowBulkForm] = useState(false);
-  const [bulkRecords, setBulkRecords] = useState<any[]>([]);
+  const [bulkRecords, setBulkRecords] = useState<BulkSurveyRecord[]>([]);
   const [toast, setToast] = useState<{
     message: string;
     type: 'success' | 'error';
@@ -83,6 +145,7 @@ export default function SurveysPage() {
   const [categoryFilter, setCategoryFilter] = useState('');
   const [typeFilter, setTypeFilter] = useState('');
   const [requestingDeptFilter, setRequestingDeptFilter] = useState('');
+  const [budgetYearFilter, setBudgetYearFilter] = useState(getCurrentBudgetYear().toString());
   
   // Sort states
   const [sortField, setSortField] = useState('id');
@@ -95,21 +158,67 @@ export default function SurveysPage() {
   const [types, setTypes] = useState<string[]>([]);
   const [subtypes, setSubtypes] = useState<string[]>([]);
   const [departments, setDepartments] = useState<string[]>([]);
+  const [budgetYears, setBudgetYears] = useState<number[]>([]);
+  const [productOptions, setProductOptions] = useState<ProductOption[]>([]);
+  const [productSearch, setProductSearch] = useState('');
+
+  const fallbackBudgetYears = Array.from({ length: 6 }, (_, index) => getCurrentBudgetYear() - index);
+  const availableBudgetYears = Array.from(new Set([...budgetYears, ...fallbackBudgetYears])).sort((a, b) => b - a);
+
+  useEffect(() => {
+    const nextProductName = searchParams.get('productName') || '';
+    const nextCategory = searchParams.get('category') || '';
+    const nextType = searchParams.get('type') || '';
+    const nextRequestingDept = searchParams.get('requestingDept') || '';
+    const nextBudgetYear = searchParams.get('budgetYear') || getCurrentBudgetYear().toString();
+    const nextSortField = searchParams.get('orderBy') || 'id';
+    const nextSortOrder = (searchParams.get('sortOrder') === 'asc' ? 'asc' : 'desc') as 'asc' | 'desc';
+    const nextPage = Math.max(1, parseInt(searchParams.get('page') || '1', 10) || 1);
+    const nextPageSize = Math.max(1, parseInt(searchParams.get('pageSize') || '20', 10) || 20);
+
+    setProductNameFilter((prev) => prev === nextProductName ? prev : nextProductName);
+    setCategoryFilter((prev) => prev === nextCategory ? prev : nextCategory);
+    setTypeFilter((prev) => prev === nextType ? prev : nextType);
+    setRequestingDeptFilter((prev) => prev === nextRequestingDept ? prev : nextRequestingDept);
+    setBudgetYearFilter((prev) => prev === nextBudgetYear ? prev : nextBudgetYear);
+    setSortField((prev) => prev === nextSortField ? prev : nextSortField);
+    setSortOrder((prev) => prev === nextSortOrder ? prev : nextSortOrder);
+    setPage((prev) => prev === nextPage ? prev : nextPage);
+    setPageSize((prev) => prev === nextPageSize ? prev : nextPageSize);
+  }, [searchParams]);
+
+  useEffect(() => {
+    const params = new URLSearchParams();
+
+    if (productNameFilter) params.set('productName', productNameFilter);
+    if (categoryFilter) params.set('category', categoryFilter);
+    if (typeFilter) params.set('type', typeFilter);
+    if (requestingDeptFilter) params.set('requestingDept', requestingDeptFilter);
+    if (budgetYearFilter) params.set('budgetYear', budgetYearFilter);
+    if (sortField && sortField !== 'id') params.set('orderBy', sortField);
+    if (sortOrder !== 'desc') params.set('sortOrder', sortOrder);
+    if (page > 1) params.set('page', page.toString());
+    if (pageSize !== 20) params.set('pageSize', pageSize.toString());
+
+    const nextUrl = params.toString() ? `${pathname}?${params.toString()}` : pathname;
+    router.replace(nextUrl, { scroll: false });
+  }, [pathname, router, productNameFilter, categoryFilter, typeFilter, requestingDeptFilter, budgetYearFilter, sortField, sortOrder, page, pageSize]);
 
   useEffect(() => {
     fetchFilterOptions();
+    fetchProductOptions();
   }, []);
 
   // Fetch surveys when filters, sorting or pagination change (current page only)
   useEffect(() => {
     fetchSurveys();
-  }, [productNameFilter, categoryFilter, typeFilter, requestingDeptFilter, sortField, sortOrder, page, pageSize]);
+  }, [productNameFilter, categoryFilter, typeFilter, requestingDeptFilter, budgetYearFilter, sortField, sortOrder, page, pageSize]);
 
   // Fetch summary data when filters change (independent of pagination)
   useEffect(() => {
     fetchSummarySurveys();
     setPage(1);
-  }, [productNameFilter, categoryFilter, typeFilter, requestingDeptFilter, sortField, sortOrder]);
+  }, [productNameFilter, categoryFilter, typeFilter, requestingDeptFilter, budgetYearFilter, sortField, sortOrder]);
 
   const fetchFilterOptions = async () => {
     try {
@@ -120,9 +229,24 @@ export default function SurveysPage() {
         setTypes(data.types);
         setSubtypes(data.subtypes);
         setDepartments(data.departments);
+        setBudgetYears((data.budgetYears || []).sort((a: number, b: number) => b - a));
       }
     } catch (error) {
       console.error('Error fetching filter options:', error);
+    }
+  };
+
+  const fetchProductOptions = async () => {
+    try {
+      const response = await fetch('/api/products?page=1&pageSize=200');
+      if (!response.ok) {
+        throw new Error('Failed to fetch products');
+      }
+
+      const data = await response.json();
+      setProductOptions(data.data || []);
+    } catch (error) {
+      console.error('Error fetching product options:', error);
     }
   };
 
@@ -133,6 +257,18 @@ export default function SurveysPage() {
   const goToPage = (newPage: number) => {
     if (newPage < 1 || newPage > totalPages) return;
     setPage(newPage);
+  };
+
+  const resetToNewestFirst = () => {
+    setSortField('id');
+    setSortOrder('desc');
+    setPage(1);
+  };
+
+  const hideToastLater = () => {
+    setTimeout(() => {
+      setToast((prev) => ({ ...prev, visible: false }));
+    }, 3000);
   };
 
   const handlePageSizeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
@@ -150,6 +286,7 @@ export default function SurveysPage() {
       if (categoryFilter) params.append('category', categoryFilter);
       if (typeFilter) params.append('type', typeFilter);
       if (requestingDeptFilter) params.append('requestingDept', requestingDeptFilter);
+      if (budgetYearFilter) params.append('budgetYear', budgetYearFilter);
       if (sortField) params.append('orderBy', sortField);
       if (sortOrder) params.append('sortOrder', sortOrder);
       params.append('page', page.toString());
@@ -206,6 +343,47 @@ export default function SurveysPage() {
     }
   };
 
+  const handleProductSelect = (value: string) => {
+    setProductSearch(value);
+
+    const normalizedValue = value.trim().toLowerCase();
+    const selectedProduct = productOptions.find((product) => {
+      const label = `${product.code} - ${product.name}`.toLowerCase();
+      return label === normalizedValue || product.code.toLowerCase() === normalizedValue || product.name.toLowerCase() === normalizedValue;
+    });
+
+    if (!selectedProduct) {
+      setFormData((prev) => ({
+        ...prev,
+        productCode: value,
+      }));
+      return;
+    }
+
+    setFormData((prev) => ({
+      ...prev,
+      productCode: selectedProduct.code || '',
+      productName: selectedProduct.name || '',
+      category: selectedProduct.category || '',
+      type: selectedProduct.type || '',
+      subtype: selectedProduct.subtype || '',
+      unit: selectedProduct.unit || '',
+    }));
+
+    setErrors((prev) => ({
+      ...prev,
+      productCode: '',
+      productName: '',
+    }));
+  };
+
+  const updateInlineField = (field: 'requestedAmount' | 'pricePerUnit' | 'approvedQuota', value: string) => {
+    setEditData((prev) => ({
+      ...prev,
+      [field]: value,
+    }));
+  };
+
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
     
@@ -237,10 +415,15 @@ export default function SurveysPage() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(formData),
+        body: JSON.stringify({
+          ...formData,
+          budgetYear: formData.budgetYear ? parseInt(formData.budgetYear, 10) : null,
+          sequenceNo: formData.sequenceNo ? parseInt(formData.sequenceNo, 10) : null,
+        }),
       });
       
       if (response.ok) {
+        const savedSurvey = await response.json();
         await Swal.fire({
           title: 'สำเร็จ!',
           text: editingSurvey ? 'แก้ไขข้อมูลเรียบร้อยแล้ว' : 'เพิ่มข้อมูลเรียบร้อยแล้ว',
@@ -249,15 +432,21 @@ export default function SurveysPage() {
         });
         
         closeForm();
-        fetchSurveys();
+        resetToNewestFirst();
+        await fetchSurveys();
+        await fetchSummarySurveys();
+        if (savedSurvey?.id) {
+          setEditingSurvey(null);
+        }
       } else {
-        throw new Error('Failed to save survey');
+        const errorData = await response.json().catch(() => null);
+        throw new Error(errorData?.error || 'Failed to save survey');
       }
     } catch (error) {
       console.error('Error saving survey:', error);
       await Swal.fire({
         title: 'เกิดข้อผิดพลาด!',
-        text: 'ไม่สามารถบันทึกข้อมูลได้',
+        text: error instanceof Error ? error.message : 'ไม่สามารถบันทึกข้อมูลได้',
         icon: 'error',
         confirmButtonText: 'ตกลง'
       });
@@ -266,6 +455,7 @@ export default function SurveysPage() {
 
   const handleEdit = (survey: Survey) => {
     setEditingSurvey(survey);
+    setProductSearch(survey.productCode && survey.productName ? `${survey.productCode} - ${survey.productName}` : survey.productCode || survey.productName || '');
     setFormData({
       productCode: survey.productCode || '',
       category: survey.category || '',
@@ -276,7 +466,9 @@ export default function SurveysPage() {
       unit: survey.unit || '',
       pricePerUnit: survey.pricePerUnit?.toString() || '',
       requestingDept: survey.requestingDept || '',
-      approvedQuota: survey.approvedQuota?.toString() || ''
+      approvedQuota: survey.approvedQuota?.toString() || '',
+      budgetYear: survey.budgetYear?.toString() || getCurrentBudgetYear().toString(),
+      sequenceNo: survey.sequenceNo?.toString() || '1'
     });
     setShowForm(true);
   };
@@ -306,6 +498,7 @@ export default function SurveysPage() {
             icon: 'success',
             confirmButtonText: 'ตกลง'
           });
+          resetToNewestFirst();
           fetchSurveys();
         } else {
           throw new Error('Failed to delete survey');
@@ -325,6 +518,7 @@ export default function SurveysPage() {
   const closeForm = () => {
     setShowForm(false);
     setEditingSurvey(null);
+    setProductSearch('');
     setFormData({
       productCode: '',
       category: '',
@@ -335,7 +529,9 @@ export default function SurveysPage() {
       unit: '',
       pricePerUnit: '',
       requestingDept: '',
-      approvedQuota: ''
+      approvedQuota: '',
+      budgetYear: getCurrentBudgetYear().toString(),
+      sequenceNo: '1'
     });
     setErrors({});
   };
@@ -397,6 +593,7 @@ export default function SurveysPage() {
         icon: 'success',
         confirmButtonText: 'ตกลง'
       });
+      resetToNewestFirst();
       fetchSurveys();
     } catch (err) {
       console.error('Error importing excel:', err);
@@ -424,7 +621,9 @@ export default function SurveysPage() {
       unit: survey.unit || '',
       pricePerUnit: survey.pricePerUnit?.toString() || '',
       requestingDept: survey.requestingDept || '',
-      approvedQuota: survey.approvedQuota?.toString() || ''
+      approvedQuota: survey.approvedQuota?.toString() || '',
+      budgetYear: survey.budgetYear?.toString() || getCurrentBudgetYear().toString(),
+      sequenceNo: survey.sequenceNo?.toString() || '1'
     });
   };
 
@@ -434,15 +633,21 @@ export default function SurveysPage() {
       const response = await fetch(`/api/surveys/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(editData)
+        body: JSON.stringify({
+          requestedAmount: editData.requestedAmount,
+          approvedQuota: editData.approvedQuota,
+          requestingDept: editData.requestingDept,
+        })
       });
 
       if (response.ok) {
         setEditingId(null);
         setEditData({
-          productCode: '', category: '', type: '', subtype: '', productName: '', requestedAmount: '', unit: '', pricePerUnit: '', requestingDept: '', approvedQuota: ''
+          productCode: '', category: '', type: '', subtype: '', productName: '', requestedAmount: '', unit: '', pricePerUnit: '', requestingDept: '', approvedQuota: '', budgetYear: getCurrentBudgetYear().toString(), sequenceNo: '1'
         });
-        fetchSurveys();
+        resetToNewestFirst();
+        await fetchSurveys();
+        await fetchSummarySurveys();
 
         setToast({
           message: 'บันทึกข้อมูลสำเร็จ!',
@@ -450,19 +655,16 @@ export default function SurveysPage() {
           visible: true
         });
 
-        setTimeout(() => {
-          setToast({ ...toast, visible: false });
-        }, 3000);
+        hideToastLater();
       } else {
+        const errorData = await response.json().catch(() => null);
         setToast({
-          message: 'เกิดข้อผิดพลาดในการบันทึกข้อมูล',
+          message: errorData?.error || 'เกิดข้อผิดพลาดในการบันทึกข้อมูล',
           type: 'error',
           visible: true
         });
 
-        setTimeout(() => {
-          setToast({ ...toast, visible: false });
-        }, 3000);
+        hideToastLater();
       }
     } catch (error) {
       console.error('Error updating survey:', error);
@@ -473,9 +675,7 @@ export default function SurveysPage() {
         visible: true
       });
 
-      setTimeout(() => {
-        setToast({ ...toast, visible: false });
-      }, 3000);
+      hideToastLater();
     }
   };
 
@@ -483,8 +683,57 @@ export default function SurveysPage() {
   const cancelInlineEdit = () => {
     setEditingId(null);
     setEditData({
-      productCode: '', category: '', type: '', subtype: '', productName: '', requestedAmount: '', unit: '', pricePerUnit: '', requestingDept: '', approvedQuota: ''
+      productCode: '', category: '', type: '', subtype: '', productName: '', requestedAmount: '', unit: '', pricePerUnit: '', requestingDept: '', approvedQuota: '', budgetYear: getCurrentBudgetYear().toString(), sequenceNo: '1'
     });
+  };
+
+  const createEmptyBulkRecord = (id: number): BulkSurveyRecord => ({
+    id,
+    productSearch: '',
+    productCode: '',
+    category: '',
+    type: '',
+    subtype: '',
+    productName: '',
+    requestedAmount: '',
+    unit: '',
+    pricePerUnit: '',
+    requestingDept: '',
+    approvedQuota: '',
+    budgetYear: getCurrentBudgetYear().toString(),
+    sequenceNo: '1'
+  });
+
+  const updateBulkRecord = (id: number, updater: (record: BulkSurveyRecord) => BulkSurveyRecord) => {
+    setBulkRecords((prev) => prev.map((record) => (record.id === id ? updater(record) : record)));
+  };
+
+  const handleBulkProductSelect = (id: number, value: string) => {
+    const normalizedValue = value.trim().toLowerCase();
+    const selectedProduct = productOptions.find((product) => {
+      const label = `${product.code} - ${product.name}`.toLowerCase();
+      return label === normalizedValue || product.code.toLowerCase() === normalizedValue || product.name.toLowerCase() === normalizedValue;
+    });
+
+    if (!selectedProduct) {
+      updateBulkRecord(id, (record) => ({
+        ...record,
+        productSearch: value,
+      }));
+      return;
+    }
+
+    updateBulkRecord(id, (record) => ({
+      ...record,
+      productSearch: `${selectedProduct.code} - ${selectedProduct.name}`,
+      productCode: selectedProduct.code || '',
+      category: selectedProduct.category || '',
+      type: selectedProduct.type || '',
+      subtype: selectedProduct.subtype || '',
+      productName: selectedProduct.name || '',
+      unit: selectedProduct.unit || '',
+      pricePerUnit: selectedProduct.costPrice?.toString() || '0'
+    }));
   };
 
   // Save bulk surveys
@@ -500,9 +749,7 @@ export default function SurveysPage() {
           type: 'error',
           visible: true
         });
-        setTimeout(() => {
-          setToast({ ...toast, visible: false });
-        }, 3000);
+        hideToastLater();
         return;
       }
 
@@ -520,7 +767,8 @@ export default function SurveysPage() {
             unit: record.unit || '',
             pricePerUnit: record.pricePerUnit ? parseFloat(record.pricePerUnit) : 0,
             requestingDept: record.requestingDept || '',
-            approvedQuota: record.approvedQuota ? parseFloat(record.approvedQuota) : 0
+            approvedQuota: record.approvedQuota ? parseFloat(record.approvedQuota) : 0,
+            budgetYear: record.budgetYear ? parseInt(record.budgetYear, 10) : null,
           })
         })
       );
@@ -528,11 +776,26 @@ export default function SurveysPage() {
       const results = await Promise.allSettled(promises);
       const successful = results.filter(result => result.status === 'fulfilled' && result.value.ok).length;
       const failed = results.length - successful;
+      const firstFailedResponse = results.find(
+        (result): result is PromiseFulfilledResult<Response> => result.status === 'fulfilled' && !result.value.ok
+      )?.value;
+      let failedMessage = 'เกิดข้อผิดพลาดในการบันทึกข้อมูลทั้งหมด';
+
+      if (firstFailedResponse) {
+        try {
+          const errorData = await firstFailedResponse.json();
+          failedMessage = errorData?.error || failedMessage;
+        } catch {
+          failedMessage = 'เกิดข้อผิดพลาดในการบันทึกข้อมูลทั้งหมด';
+        }
+      }
 
       if (successful > 0) {
         setShowBulkForm(false);
         setBulkRecords([]);
-        fetchSurveys();
+        resetToNewestFirst();
+        await fetchSurveys();
+        await fetchSummarySurveys();
 
         setToast({
           message: `บันทึกสำเร็จ ${successful} รายการ${failed > 0 ? `, ไม่สำเร็จ ${failed} รายการ` : ''}`,
@@ -540,21 +803,17 @@ export default function SurveysPage() {
           visible: true
         });
 
-        setTimeout(() => {
-          setToast({ ...toast, visible: false });
-        }, 3000);
+        hideToastLater();
       }
 
       if (failed > 0 && successful === 0) {
         setToast({
-          message: 'เกิดข้อผิดพลาดในการบันทึกข้อมูลทั้งหมด',
+          message: failedMessage,
           type: 'error',
           visible: true
         });
 
-        setTimeout(() => {
-          setToast({ ...toast, visible: false });
-        }, 3000);
+        hideToastLater();
       }
     } catch (error) {
       console.error('Error saving bulk surveys:', error);
@@ -565,9 +824,7 @@ export default function SurveysPage() {
         visible: true
       });
 
-      setTimeout(() => {
-        setToast({ ...toast, visible: false });
-      }, 3000);
+      hideToastLater();
     }
   };
   const getSortIcon = (field: string) => {
@@ -592,6 +849,7 @@ export default function SurveysPage() {
     setCategoryFilter('');
     setTypeFilter('');
     setRequestingDeptFilter('');
+    setBudgetYearFilter(getCurrentBudgetYear().toString());
   };
 
   return (
@@ -646,13 +904,7 @@ export default function SurveysPage() {
             <button
               onClick={() => {
                 setShowBulkForm(true);
-                setBulkRecords([
-                  { id: 1, productCode: '', category: '', type: '', subtype: '', productName: '', requestedAmount: '', unit: '', pricePerUnit: '', requestingDept: '', approvedQuota: '' },
-                  { id: 2, productCode: '', category: '', type: '', subtype: '', productName: '', requestedAmount: '', unit: '', pricePerUnit: '', requestingDept: '', approvedQuota: '' },
-                  { id: 3, productCode: '', category: '', type: '', subtype: '', productName: '', requestedAmount: '', unit: '', pricePerUnit: '', requestingDept: '', approvedQuota: '' },
-                  { id: 4, productCode: '', category: '', type: '', subtype: '', productName: '', requestedAmount: '', unit: '', pricePerUnit: '', requestingDept: '', approvedQuota: '' },
-                  { id: 5, productCode: '', category: '', type: '', subtype: '', productName: '', requestedAmount: '', unit: '', pricePerUnit: '', requestingDept: '', approvedQuota: '' }
-                ]);
+                setBulkRecords([createEmptyBulkRecord(1)]);
               }}
               className="bg-blue-600 text-white p-3 rounded-full hover:bg-blue-700 transition-colors shadow-lg"
               title="เพิ่มความต้องการใหม่"
@@ -664,6 +916,33 @@ export default function SurveysPage() {
         {/* Filter Section */}
         <div className="bg-white rounded-lg shadow-md p-6 mb-6">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">ปีงบ</label>
+              <select
+                value={budgetYearFilter}
+                onChange={(e) => setBudgetYearFilter(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                {availableBudgetYears.map((year) => (
+                  <option key={year} value={year.toString()}>{year}</option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">หน่วยงานที่ขอ</label>
+              <select
+                value={requestingDeptFilter}
+                onChange={(e) => setRequestingDeptFilter(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="">ทั้งหมด</option>
+                {departments.map((dept) => (
+                  <option key={dept} value={dept}>{dept}</option>
+                ))}
+              </select>
+            </div>
+
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">ชื่อสินค้า</label>
               <input
@@ -702,22 +981,6 @@ export default function SurveysPage() {
                 ))}
               </select>
             </div>
-            
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">หน่วยงานที่ขอ</label>
-              <select
-                value={requestingDeptFilter}
-                onChange={(e) => setRequestingDeptFilter(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="">ทั้งหมด</option>
-                {departments.map((dept) => (
-                  <option key={dept} value={dept}>{dept}</option>
-                ))}
-              </select>
-            </div>
-            
-            
           </div>
         </div>
 
@@ -798,6 +1061,12 @@ export default function SurveysPage() {
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                   <tr>
+                    <th onClick={() => handleSort('budgetYear')} className={getHeaderClass('budgetYear')}>
+                      ปีงบ {getSortIcon('budgetYear')}
+                    </th>
+                    <th onClick={() => handleSort('sequenceNo')} className={getHeaderClass('sequenceNo')}>
+                      ครั้งที่ {getSortIcon('sequenceNo')}
+                    </th>
                     <th onClick={() => handleSort('productCode')} className={getHeaderClass('productCode') + ' w-24'}>
                       รหัสสินค้า {getSortIcon('productCode')}
                     </th>
@@ -831,6 +1100,12 @@ export default function SurveysPage() {
                   {surveys.map((survey) => (
                     <tr key={survey.id} className="hover:bg-gray-50">
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {survey.budgetYear || '-'}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {survey.sequenceNo || '-'}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                         {survey.productCode}
                       </td>
                       <td className="px-6 py-4 text-sm text-gray-900 break-words max-w-xs">
@@ -843,32 +1118,91 @@ export default function SurveysPage() {
                         {survey.type}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {survey.requestedAmount?.toLocaleString() || ''} {survey.unit}
+                        {editingId === survey.id ? (
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="number"
+                              min="0"
+                              value={editData.requestedAmount}
+                              onChange={(e) => updateInlineField('requestedAmount', e.target.value)}
+                              className="w-24 rounded border border-gray-300 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            />
+                            <span className="text-xs text-gray-500">{survey.unit || ''}</span>
+                          </div>
+                        ) : (
+                          <>
+                            {survey.requestedAmount?.toLocaleString() || ''} {survey.unit}
+                          </>
+                        )}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        ฿{survey.pricePerUnit?.toLocaleString() || '0'}
+                        <>฿{survey.pricePerUnit?.toLocaleString() || '0'}</>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {survey.requestingDept}
+                        {editingId === survey.id ? (
+                          <select
+                            value={editData.requestingDept}
+                            onChange={(e) => setEditData((prev) => ({ ...prev, requestingDept: e.target.value }))}
+                            className="rounded border border-gray-300 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          >
+                            <option value="">เลือกหน่วยงาน</option>
+                            {departments.map((dept) => (
+                              <option key={dept} value={dept}>{dept}</option>
+                            ))}
+                          </select>
+                        ) : (
+                          survey.requestingDept
+                        )}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {survey.approvedQuota?.toLocaleString() || '-'}
+                        {editingId === survey.id ? (
+                          <input
+                            type="number"
+                            min="0"
+                            value={editData.approvedQuota}
+                            onChange={(e) => updateInlineField('approvedQuota', e.target.value)}
+                            className="w-24 rounded border border-gray-300 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          />
+                        ) : (
+                          <>{survey.approvedQuota?.toLocaleString() || '-'}</>
+                        )}
                       </td>
                       <td className="px-3 py-4 whitespace-nowrap text-sm font-medium w-24">
-                        <button
-                          onClick={() => handleEdit(survey)}
-                          className="text-indigo-600 hover:text-indigo-900 mr-2 cursor-pointer"
-                          title="แก้ไข"
-                        >
-                          <Pencil className="h-5 w-5" />
-                        </button>
-                        <button
-                          onClick={() => handleDelete(survey)}
-                          className="text-red-600 hover:text-red-900 cursor-pointer"
-                          title="ลบ"
-                        >
-                          <Trash2 className="h-5 w-5" />
-                        </button>
+                        <div className="flex items-center gap-2">
+                          {editingId === survey.id ? (
+                            <>
+                              <button
+                                onClick={() => saveInlineEdit(survey.id)}
+                                className="text-green-600 hover:text-green-800 cursor-pointer"
+                                title="บันทึก"
+                              >
+                                <CheckCircle2 className="h-5 w-5" />
+                              </button>
+                              <button
+                                onClick={cancelInlineEdit}
+                                className="text-gray-500 hover:text-gray-700 cursor-pointer"
+                                title="ยกเลิก"
+                              >
+                                <XIcon className="h-5 w-5" />
+                              </button>
+                            </>
+                          ) : (
+                            <button
+                              onClick={() => startInlineEdit(survey)}
+                              className="text-indigo-600 hover:text-indigo-900 cursor-pointer"
+                              title="แก้ไข"
+                            >
+                              <Pencil className="h-5 w-5" />
+                            </button>
+                          )}
+                          <button
+                            onClick={() => handleDelete(survey)}
+                            className="text-red-600 hover:text-red-900 cursor-pointer"
+                            title="ลบ"
+                          >
+                            <Trash2 className="h-5 w-5" />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -880,31 +1214,37 @@ export default function SurveysPage() {
 
         {/* Form Modal */}
         {showForm && (
-          <div className="fixed inset-0 bg-black bg-opacity-20 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] overflow-y-auto">
-              <div className="px-6 py-4 border-b border-gray-200">
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-100/80 p-4 backdrop-blur-sm">
+            <div className="w-full max-w-4xl max-h-[90vh] overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_24px_80px_rgba(15,23,42,0.18)] ring-1 ring-slate-200">
+              <div className="border-b border-slate-200 bg-gradient-to-r from-blue-50 via-white to-slate-50 px-6 py-5">
                 <h2 className="text-xl font-semibold text-gray-800">
                   {editingSurvey ? 'แก้ไขข้อมูลความต้องการ' : 'เพิ่มข้อมูลความต้องการ'}
                 </h2>
+                <p className="mt-1 text-sm text-slate-500">เลือกสินค้าและกรอกรายละเอียดที่จำเป็นให้ครบถ้วนก่อนบันทึก</p>
               </div>
               
-              <form onSubmit={handleSubmit} className="px-6 py-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <form onSubmit={handleSubmit} className="overflow-y-auto px-6 py-6">
+                <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
                   {/* Product Code */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      รหัสสินค้า *
+                      ค้นหา/เลือกสินค้า *
                     </label>
                     <input
+                      list="survey-product-options"
                       type="text"
-                      name="productCode"
-                      value={formData.productCode}
-                      onChange={handleInputChange}
+                      value={productSearch}
+                      onChange={(e) => handleProductSelect(e.target.value)}
                       className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
                         errors.productCode ? 'border-red-500' : 'border-gray-300'
                       }`}
-                      placeholder="ระบุรหัสสินค้า"
+                      placeholder="พิมพ์รหัสหรือชื่อสินค้า"
                     />
+                    <datalist id="survey-product-options">
+                      {productOptions.map((product) => (
+                        <option key={product.id} value={`${product.code} - ${product.name}`} />
+                      ))}
+                    </datalist>
                     {errors.productCode && <p className="mt-1 text-sm text-red-600">{errors.productCode}</p>}
                   </div>
                   
@@ -918,10 +1258,11 @@ export default function SurveysPage() {
                       name="productName"
                       value={formData.productName}
                       onChange={handleInputChange}
+                      readOnly
                       className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                        errors.productName ? 'border-red-500' : 'border-gray-300'
+                        errors.productName ? 'border-red-500' : 'border-gray-300 bg-gray-50'
                       }`}
-                      placeholder="ระบุชื่อสินค้า"
+                      placeholder="เลือกสินค้าจากรายการ"
                     />
                     {errors.productName && <p className="mt-1 text-sm text-red-600">{errors.productName}</p>}
                   </div>
@@ -935,7 +1276,8 @@ export default function SurveysPage() {
                       name="category"
                       value={formData.category}
                       onChange={handleInputChange}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      disabled
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 focus:outline-none"
                     >
                       <option value="">เลือกหมวดสินค้า</option>
                       {categories.map((cat) => (
@@ -953,7 +1295,8 @@ export default function SurveysPage() {
                       name="type"
                       value={formData.type}
                       onChange={handleInputChange}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      disabled
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 focus:outline-none"
                     >
                       <option value="">เลือกประเภท</option>
                       {types.map((type) => (
@@ -971,7 +1314,8 @@ export default function SurveysPage() {
                       name="subtype"
                       value={formData.subtype}
                       onChange={handleInputChange}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      disabled
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 focus:outline-none"
                     >
                       <option value="">เลือกประเภทย่อย</option>
                       {subtypes.map((subtype) => (
@@ -990,8 +1334,9 @@ export default function SurveysPage() {
                       name="unit"
                       value={formData.unit}
                       onChange={handleInputChange}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      placeholder="ระบุหน่วยนับ"
+                      readOnly
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 focus:outline-none"
+                      placeholder="เลือกสินค้าจากรายการ"
                     />
                   </div>
                   
@@ -1043,6 +1388,37 @@ export default function SurveysPage() {
                       {departments.map((dept) => (
                         <option key={dept} value={dept}>{dept}</option>
                       ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      ปีงบ
+                    </label>
+                    <select
+                      name="budgetYear"
+                      value={formData.budgetYear}
+                      onChange={handleInputChange}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      {availableBudgetYears.map((year) => (
+                        <option key={year} value={year.toString()}>{year}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      ครั้งที่
+                    </label>
+                    <select
+                      name="sequenceNo"
+                      value={formData.sequenceNo}
+                      onChange={handleInputChange}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="1">ครั้งที่ 1</option>
+                      <option value="2">ครั้งที่ 2</option>
                     </select>
                   </div>
                   
@@ -1063,17 +1439,17 @@ export default function SurveysPage() {
                   </div>
                 </div>
                 
-                <div className="mt-6 flex justify-end space-x-3">
+                <div className="mt-8 flex justify-end gap-3 border-t border-slate-200 pt-5">
                   <button
                     type="button"
                     onClick={closeForm}
-                    className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 transition-colors"
+                    className="rounded-lg border border-slate-300 px-4 py-2 text-slate-700 transition-colors hover:bg-slate-50"
                   >
                     ยกเลิก
                   </button>
                   <button
                     type="submit"
-                    className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+                    className="rounded-lg bg-blue-600 px-4 py-2 text-white shadow-sm transition-colors hover:bg-blue-700"
                   >
                     {editingSurvey ? 'บันทึกการแก้ไข' : 'บันทึกข้อมูล'}
                   </button>
@@ -1085,110 +1461,85 @@ export default function SurveysPage() {
 
         {/* Bulk Add Surveys Modal */}
         {showBulkForm && (
-          <div className="fixed inset-0 bg-black bg-opacity-20 flex items-center justify-center z-50">
-            <div className="bg-white rounded-lg p-6 w-full max-w-7xl max-h-[90vh] overflow-y-auto">
-              <div className="flex justify-between items-center mb-4">
-                <h2 className="text-xl font-bold">เพิ่มความต้องการใหม่ (5 รายการพร้อมแก้ไข)</h2>
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-100/80 p-4 backdrop-blur-sm">
+            <div className="w-full max-w-7xl max-h-[90vh] overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_24px_80px_rgba(15,23,42,0.18)] ring-1 ring-slate-200">
+              <div className="flex items-start justify-between border-b border-slate-200 bg-gradient-to-r from-blue-50 via-white to-slate-50 px-6 py-5">
+                <div>
+                  <h2 className="text-xl font-bold text-slate-900">เพิ่มรายการสินค้าเข้าแผนการใช้</h2>
+                  <p className="mt-1 text-sm text-slate-500">เลือกสินค้าแบบสะสมหลายรายการก่อนกดบันทึกครั้งเดียว</p>
+                </div>
                 <button
                   onClick={() => {
                     setShowBulkForm(false);
                     setBulkRecords([]);
                   }}
-                  className="text-gray-500 hover:text-gray-700"
+                  className="rounded-full p-2 text-slate-500 transition-colors hover:bg-white hover:text-slate-700"
                 >
                   <XIcon className="h-6 w-6" />
                 </button>
               </div>
 
-              <div className="mb-4">
-                <div className="bg-gray-50 rounded-lg overflow-hidden">
+              <div className="px-6 py-6">
+                <p className="mb-4 text-sm text-slate-600">ค้นหาสินค้าด้วยรหัสสินค้า หรือชื่อสินค้า แล้วกรอกเฉพาะจำนวนที่ขอ หน่วยงานที่ขอ และจำนวนที่อนุมัติ สามารถเพิ่มหลายรายการก่อนกดบันทึกได้</p>
+                <div className="overflow-hidden rounded-xl border border-slate-200 bg-slate-50">
                   <div className="overflow-x-auto">
                     <table className="w-full">
-                      <thead className="bg-gray-100">
+                      <thead className="bg-slate-100">
                         <tr>
                           <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase">ลำดับ</th>
+                          <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase">ค้นหาสินค้า</th>
                           <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase">รหัสสินค้า</th>
                           <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase">ชื่อสินค้า</th>
-                          <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase">หมวดสินค้า</th>
-                          <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase">ประเภท</th>
                           <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase">จำนวนที่ขอ</th>
                           <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase">หน่วย</th>
-                          <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase">ราคาต่อหน่วย</th>
                           <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase">หน่วยงานที่ขอ</th>
                           <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase">จำนวนที่อนุมัติ</th>
                           <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase">จัดการ</th>
                         </tr>
                       </thead>
                       <tbody>
-                        {bulkRecords.map((record: any, index: number) => (
-                          <tr key={record.id} className="border-b border-gray-200">
+                        {bulkRecords.map((record, index) => (
+                          <tr key={record.id} className="border-b border-slate-200 bg-white">
                             <td className="px-2 py-3 text-sm text-gray-900">{index + 1}</td>
                             <td className="px-2 py-3">
                               <input
                                 type="text"
-                                value={record.productCode || ''}
-                                onChange={(e) => {
-                                  const updated = [...bulkRecords];
-                                  updated[index].productCode = e.target.value;
-                                  setBulkRecords(updated);
-                                }}
-                                placeholder="รหัสสินค้า"
+                                list={`survey-bulk-product-options-${record.id}`}
+                                value={record.productSearch}
+                                onChange={(e) => handleBulkProductSelect(record.id, e.target.value)}
+                                placeholder="ค้นหารหัสหรือชื่อสินค้า"
                                 className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                              />
+                              <datalist id={`survey-bulk-product-options-${record.id}`}>
+                                {productOptions.map((product) => (
+                                  <option key={product.id} value={`${product.code} - ${product.name}`} />
+                                ))}
+                              </datalist>
+                            </td>
+                            <td className="px-2 py-3">
+                              <input
+                                type="text"
+                                value={record.productCode}
+                                readOnly
+                                placeholder="รหัสสินค้า"
+                                className="w-full px-2 py-1 border border-gray-300 rounded bg-gray-100 text-sm"
                               />
                             </td>
                             <td className="px-2 py-3">
                               <input
                                 type="text"
-                                value={record.productName || ''}
-                                onChange={(e) => {
-                                  const updated = [...bulkRecords];
-                                  updated[index].productName = e.target.value;
-                                  setBulkRecords(updated);
-                                }}
+                                value={record.productName}
+                                readOnly
                                 placeholder="ชื่อสินค้า"
-                                className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                                className="w-full px-2 py-1 border border-gray-300 rounded bg-gray-100 text-sm"
                               />
-                            </td>
-                            <td className="px-2 py-3">
-                              <select
-                                value={record.category || ''}
-                                onChange={(e) => {
-                                  const updated = [...bulkRecords];
-                                  updated[index].category = e.target.value;
-                                  setBulkRecords(updated);
-                                }}
-                                className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
-                              >
-                                <option value="">เลือกหมวด</option>
-                                {categories.map((cat) => (
-                                  <option key={cat} value={cat}>{cat}</option>
-                                ))}
-                              </select>
-                            </td>
-                            <td className="px-2 py-3">
-                              <select
-                                value={record.type || ''}
-                                onChange={(e) => {
-                                  const updated = [...bulkRecords];
-                                  updated[index].type = e.target.value;
-                                  setBulkRecords(updated);
-                                }}
-                                className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
-                              >
-                                <option value="">เลือกประเภท</option>
-                                {types.map((type) => (
-                                  <option key={type} value={type}>{type}</option>
-                                ))}
-                              </select>
                             </td>
                             <td className="px-2 py-3">
                               <input
                                 type="number"
                                 value={record.requestedAmount || ''}
                                 onChange={(e) => {
-                                  const updated = [...bulkRecords];
-                                  updated[index].requestedAmount = e.target.value;
-                                  setBulkRecords(updated);
+                                  updateBulkRecord(record.id, (current) => ({ ...current, requestedAmount: e.target.value }));
                                 }}
                                 placeholder="จำนวนที่ขอ"
                                 className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
@@ -1198,35 +1549,16 @@ export default function SurveysPage() {
                               <input
                                 type="text"
                                 value={record.unit || ''}
-                                onChange={(e) => {
-                                  const updated = [...bulkRecords];
-                                  updated[index].unit = e.target.value;
-                                  setBulkRecords(updated);
-                                }}
+                                readOnly
                                 placeholder="หน่วย"
-                                className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
-                              />
-                            </td>
-                            <td className="px-2 py-3">
-                              <input
-                                type="number"
-                                value={record.pricePerUnit || ''}
-                                onChange={(e) => {
-                                  const updated = [...bulkRecords];
-                                  updated[index].pricePerUnit = e.target.value;
-                                  setBulkRecords(updated);
-                                }}
-                                placeholder="ราคา"
-                                className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                                className="w-full px-2 py-1 border border-gray-300 rounded bg-gray-100 text-sm"
                               />
                             </td>
                             <td className="px-2 py-3">
                               <select
                                 value={record.requestingDept || ''}
                                 onChange={(e) => {
-                                  const updated = [...bulkRecords];
-                                  updated[index].requestingDept = e.target.value;
-                                  setBulkRecords(updated);
+                                  updateBulkRecord(record.id, (current) => ({ ...current, requestingDept: e.target.value }));
                                 }}
                                 className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
                               >
@@ -1241,9 +1573,7 @@ export default function SurveysPage() {
                                 type="number"
                                 value={record.approvedQuota || ''}
                                 onChange={(e) => {
-                                  const updated = [...bulkRecords];
-                                  updated[index].approvedQuota = e.target.value;
-                                  setBulkRecords(updated);
+                                  updateBulkRecord(record.id, (current) => ({ ...current, approvedQuota: e.target.value }));
                                 }}
                                 placeholder="จำนวนอนุมัติ"
                                 className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
@@ -1251,14 +1581,11 @@ export default function SurveysPage() {
                             </td>
                             <td className="px-2 py-3">
                               <div className="flex gap-1">
-                                {bulkRecords.length < 5 && (
+                                {bulkRecords.length < 10 && (
                                   <button
                                     onClick={() => {
-                                      const newRecord = {
-                                        id: Math.max(...bulkRecords.map((r: any) => r.id)) + 1,
-                                        productCode: '', category: '', type: '', subtype: '', productName: '', requestedAmount: '', unit: '', pricePerUnit: '', requestingDept: '', approvedQuota: ''
-                                      };
-                                      setBulkRecords([...bulkRecords, newRecord]);
+                                      const nextId = bulkRecords.length > 0 ? Math.max(...bulkRecords.map((r) => r.id)) + 1 : 1;
+                                      setBulkRecords([...bulkRecords, createEmptyBulkRecord(nextId)]);
                                     }}
                                     className="text-green-600 hover:text-green-900 p-1"
                                     title="เพิ่มแถวใหม่"
@@ -1269,7 +1596,7 @@ export default function SurveysPage() {
                                 {bulkRecords.length > 1 && (
                                   <button
                                     onClick={() => {
-                                      setBulkRecords(bulkRecords.filter((r: any) => r.id !== record.id));
+                                      setBulkRecords(bulkRecords.filter((r) => r.id !== record.id));
                                     }}
                                     className="text-red-600 hover:text-red-900 p-1"
                                     title="ลบแถวนี้"
@@ -1287,10 +1614,10 @@ export default function SurveysPage() {
                 </div>
               </div>
 
-              <div className="flex gap-3">
+              <div className="flex gap-3 border-t border-slate-200 bg-slate-50 px-6 py-5">
                 <button
                   onClick={saveBulkSurveys}
-                  className="flex-1 bg-blue-600 text-white py-2 rounded-md hover:bg-blue-700 transition-colors"
+                  className="flex-1 rounded-lg bg-blue-600 py-2.5 text-white shadow-sm transition-colors hover:bg-blue-700"
                 >
                   บันทึกทั้งหมด ({bulkRecords.length} รายการ)
                 </button>
@@ -1299,7 +1626,7 @@ export default function SurveysPage() {
                     setShowBulkForm(false);
                     setBulkRecords([]);
                   }}
-                  className="flex-1 bg-gray-500 text-white py-2 rounded-md hover:bg-gray-600 transition-colors"
+                  className="flex-1 rounded-lg bg-slate-500 py-2.5 text-white transition-colors hover:bg-slate-600"
                 >
                   ยกเลิก
                 </button>
@@ -1308,210 +1635,6 @@ export default function SurveysPage() {
           </div>
         )}
 
-        {/* Form Modal */}
-        {showForm && (
-          <div className="fixed inset-0 bg-gray-900 bg-opacity-40 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] overflow-y-auto">
-              <div className="px-6 py-4 border-b border-gray-200">
-                <h2 className="text-xl font-semibold text-gray-800">
-                  {editingSurvey ? 'แก้ไขข้อมูลความต้องการ' : 'เพิ่มข้อมูลความต้องการ'}
-                </h2>
-              </div>
-
-              <form onSubmit={handleSubmit} className="px-6 py-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {/* Product Code */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      รหัสสินค้า *
-                    </label>
-                    <input
-                      type="text"
-                      name="productCode"
-                      value={formData.productCode}
-                      onChange={handleInputChange}
-                      className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                        errors.productCode ? 'border-red-500' : 'border-gray-300'
-                      }`}
-                      placeholder="ระบุรหัสสินค้า"
-                    />
-                    {errors.productCode && <p className="mt-1 text-sm text-red-600">{errors.productCode}</p>}
-                  </div>
-
-                  {/* Product Name */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      ชื่อสินค้า *
-                    </label>
-                    <input
-                      type="text"
-                      name="productName"
-                      value={formData.productName}
-                      onChange={handleInputChange}
-                      className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                        errors.productName ? 'border-red-500' : 'border-gray-300'
-                      }`}
-                      placeholder="ระบุชื่อสินค้า"
-                    />
-                    {errors.productName && <p className="mt-1 text-sm text-red-600">{errors.productName}</p>}
-                  </div>
-
-                  {/* Category */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      หมวดสินค้า
-                    </label>
-                    <select
-                      name="category"
-                      value={formData.category}
-                      onChange={handleInputChange}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    >
-                      <option value="">เลือกหมวดสินค้า</option>
-                      {categories.map((cat) => (
-                        <option key={cat} value={cat}>{cat}</option>
-                      ))}
-                    </select>
-                  </div>
-
-                  {/* Type */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      ประเภท
-                    </label>
-                    <select
-                      name="type"
-                      value={formData.type}
-                      onChange={handleInputChange}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    >
-                      <option value="">เลือกประเภท</option>
-                      {types.map((type) => (
-                        <option key={type} value={type}>{type}</option>
-                      ))}
-                    </select>
-                  </div>
-
-                  {/* Subtype */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      ประเภทย่อย
-                    </label>
-                    <select
-                      name="subtype"
-                      value={formData.subtype}
-                      onChange={handleInputChange}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    >
-                      <option value="">เลือกประเภทย่อย</option>
-                      {subtypes.map((subtype) => (
-                        <option key={subtype} value={subtype}>{subtype}</option>
-                      ))}
-                    </select>
-                  </div>
-
-                  {/* Unit */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      หน่วยนับ
-                    </label>
-                    <input
-                      type="text"
-                      name="unit"
-                      value={formData.unit}
-                      onChange={handleInputChange}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      placeholder="ระบุหน่วยนับ"
-                    />
-                  </div>
-
-                  {/* Requested Amount */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      จำนวนที่ขอ
-                    </label>
-                    <input
-                      type="number"
-                      name="requestedAmount"
-                      value={formData.requestedAmount}
-                      onChange={handleInputChange}
-                      min="0"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      placeholder="ระบุจำนวนที่ขอ"
-                    />
-                  </div>
-
-                  {/* Price Per Unit */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      ราคาต่อหน่วย (บาท)
-                    </label>
-                    <input
-                      type="number"
-                      name="pricePerUnit"
-                      value={formData.pricePerUnit}
-                      onChange={handleInputChange}
-                      min="0"
-                      step="0.01"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      placeholder="ระบุราคาต่อหน่วย"
-                    />
-                  </div>
-
-                  {/* Requesting Department */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      หน่วยงานที่ขอ
-                    </label>
-                    <select
-                      name="requestingDept"
-                      value={formData.requestingDept}
-                      onChange={handleInputChange}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    >
-                      <option value="">เลือกหน่วยงานที่ขอ</option>
-                      {departments.map((dept) => (
-                        <option key={dept} value={dept}>{dept}</option>
-                      ))}
-                    </select>
-                  </div>
-
-                  {/* Approved Quota */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      จำนวนที่ได้รับอนุมัติ
-                    </label>
-                    <input
-                      type="number"
-                      name="approvedQuota"
-                      value={formData.approvedQuota}
-                      onChange={handleInputChange}
-                      min="0"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      placeholder="ระบุจำนวนที่ได้รับอนุมัติ"
-                    />
-                  </div>
-                </div>
-
-                <div className="mt-6 flex justify-end space-x-3">
-                  <button
-                    type="button"
-                    onClick={closeForm}
-                    className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 transition-colors"
-                  >
-                    ยกเลิก
-                  </button>
-                  <button
-                    type="submit"
-                    className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
-                  >
-                    {editingSurvey ? 'บันทึกการแก้ไข' : 'บันทึกข้อมูล'}
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>
-        )}
       </div>
     </div>
   );

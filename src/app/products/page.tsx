@@ -5,6 +5,17 @@ import { Product } from '@prisma/client';
 import Swal from 'sweetalert2';
 import { Check, X, Pencil, Trash2, ChevronUp, ChevronDown, ArrowUpDown } from 'lucide-react';
 
+interface CategoryOption {
+  category: string;
+  type: string;
+  subtype: string | null;
+}
+
+interface SellerOption {
+  code: string;
+  name: string;
+}
+
 interface ProductFormData {
   code: string;
   category: string;
@@ -97,7 +108,10 @@ export default function ProductsPage() {
   const [categories, setCategories] = useState<string[]>([]);
   const [types, setTypes] = useState<string[]>([]);
   const [subtypes, setSubtypes] = useState<string[]>([]);
+  const [units, setUnits] = useState<string[]>([]);
   const [sellerCodes, setSellerCodes] = useState<string[]>([]);
+  const [sellerOptions, setSellerOptions] = useState<SellerOption[]>([]);
+  const [categoryOptions, setCategoryOptions] = useState<CategoryOption[]>([]);
 
   // Initialize data on component mount
   useEffect(() => {
@@ -140,13 +154,75 @@ export default function ProductsPage() {
       const response = await fetch('/api/products/filters');
       if (response.ok) {
         const data = await response.json();
-        setCategories(data.categories);
-        setTypes(data.types);
-        setSubtypes(data.subtypes);
-        setSellerCodes(data.sellerCodes);
+        setCategories(data.categories || []);
+        setTypes(data.types || []);
+        setSubtypes(data.subtypes || []);
+        setUnits(data.units || []);
+        setSellerCodes(data.sellerCodes || []);
+        setSellerOptions(data.sellerOptions || []);
+        setCategoryOptions(data.categoryOptions || []);
       }
     } catch (error) {
       console.error('Error fetching filter options:', error);
+    }
+  };
+
+  const filteredTypeOptions = formData.category
+    ? Array.from(
+        new Set(
+          categoryOptions
+            .filter((option) => option.category === formData.category)
+            .map((option) => option.type)
+            .filter(Boolean)
+        )
+      )
+    : types;
+
+  const filteredSubtypeOptions = formData.type
+    ? Array.from(
+        new Set(
+          categoryOptions
+            .filter((option) => {
+              const categoryMatched = formData.category ? option.category === formData.category : true;
+              return categoryMatched && option.type === formData.type;
+            })
+            .map((option) => option.subtype)
+            .filter(Boolean)
+        )
+      ) as string[]
+    : subtypes;
+
+  const handleLookupChange = (name: 'category' | 'type' | 'subtype', value: string) => {
+    setFormData((prev) => {
+      if (name === 'category') {
+        return {
+          ...prev,
+          category: value,
+          type: '',
+          subtype: '',
+        };
+      }
+
+      if (name === 'type') {
+        return {
+          ...prev,
+          type: value,
+          subtype: '',
+        };
+      }
+
+      return {
+        ...prev,
+        subtype: value,
+      };
+    });
+
+    if (errors[name]) {
+      setErrors((prev) => {
+        const newErrors = { ...prev };
+        delete newErrors[name];
+        return newErrors;
+      });
     }
   };
 
@@ -384,6 +460,10 @@ export default function ProductsPage() {
     setShowForm(false);
   };
 
+  const modalInputClassName = 'mt-2 block w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-900 shadow-sm outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100';
+  const modalErrorInputClassName = 'border-red-500 focus:border-red-500 focus:ring-red-100';
+  const modalCardClassName = 'rounded-2xl border border-gray-100 bg-gray-50/80 p-4';
+
   // Inline editing functions
   const startInlineEdit = (product: Product) => {
     setEditingId(product.id);
@@ -614,14 +694,16 @@ export default function ProductsPage() {
 
       {showForm && (
         <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-          <div className="relative top-20 mx-auto p-5 border w-11/12 md:w-3/4 lg:w-1/2 shadow-lg rounded-md bg-white">
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-medium">
-                {editingProduct ? 'แก้ไขสินค้า' : 'เพิ่มสินค้าใหม่'}
-              </h3>
+          <div className="relative top-10 mx-auto w-11/12 max-w-5xl rounded-3xl bg-white shadow-2xl ring-1 ring-black/5">
+            <div className="flex items-start justify-between border-b border-gray-100 px-6 py-5 md:px-8">
+              <div>
+                <h3 className="text-xl font-semibold text-gray-900">
+                  {editingProduct ? 'แก้ไขสินค้า' : 'เพิ่มสินค้าใหม่'}
+                </h3>
+              </div>
               <button
                 onClick={resetForm}
-                className="text-gray-400 hover:text-gray-600"
+                className="rounded-full p-2 text-gray-400 transition hover:bg-gray-100 hover:text-gray-600"
               >
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -629,165 +711,230 @@ export default function ProductsPage() {
               </button>
             </div>
 
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">รหัสสินค้า *</label>
-                  <input
-                    type="text"
-                    name="code"
-                    value={formData.code}
-                    onChange={handleInputChange}
-                    required
-                    className={`mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 ${errors.code ? 'border-red-500' : ''}`}
-                  />
-                  {errors.code && <p className="mt-1 text-sm text-red-600">{errors.code}</p>}
+            <form onSubmit={handleSubmit} className="space-y-6 px-6 py-6 md:px-8 md:py-8">
+              <div className="grid grid-cols-1 gap-6 xl:grid-cols-[1.3fr_0.9fr]">
+                <div className="space-y-6">
+                  <div className={modalCardClassName}>
+                    <div className="mb-4">
+                      <h4 className="text-sm font-semibold text-gray-900">ข้อมูลหลัก</h4>
+                      <p className="text-xs text-gray-500">กำหนดรหัส ชื่อ หมวด ประเภท และหน่วยของสินค้า</p>
+                    </div>
+                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700">รหัสสินค้า *</label>
+                        <input
+                          type="text"
+                          name="code"
+                          value={formData.code}
+                          onChange={handleInputChange}
+                          required
+                          className={`${modalInputClassName} ${errors.code ? modalErrorInputClassName : ''}`}
+                        />
+                        {errors.code && <p className="mt-1 text-sm text-red-600">{errors.code}</p>}
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700">ชื่อสินค้า *</label>
+                        <input
+                          type="text"
+                          name="name"
+                          value={formData.name}
+                          onChange={handleInputChange}
+                          required
+                          className={`${modalInputClassName} ${errors.name ? modalErrorInputClassName : ''}`}
+                        />
+                        {errors.name && <p className="mt-1 text-sm text-red-600">{errors.name}</p>}
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700">หมวดหมู่ *</label>
+                        <input
+                          list="product-categories"
+                          name="category"
+                          value={formData.category}
+                          onChange={(e) => handleLookupChange('category', e.target.value)}
+                          required
+                          className={`${modalInputClassName} ${errors.category ? modalErrorInputClassName : ''}`}
+                        />
+                        <datalist id="product-categories">
+                          {categories.map((category) => (
+                            <option key={category} value={category} />
+                          ))}
+                        </datalist>
+                        {errors.category && <p className="mt-1 text-sm text-red-600">{errors.category}</p>}
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700">ประเภท *</label>
+                        <input
+                          list="product-types"
+                          name="type"
+                          value={formData.type}
+                          onChange={(e) => handleLookupChange('type', e.target.value)}
+                          required
+                          className={`${modalInputClassName} ${errors.type ? modalErrorInputClassName : ''}`}
+                        />
+                        <datalist id="product-types">
+                          {filteredTypeOptions.map((type) => (
+                            <option key={type} value={type} />
+                          ))}
+                        </datalist>
+                        {errors.type && <p className="mt-1 text-sm text-red-600">{errors.type}</p>}
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700">ชนิดย่อย *</label>
+                        <input
+                          list="product-subtypes"
+                          name="subtype"
+                          value={formData.subtype}
+                          onChange={(e) => handleLookupChange('subtype', e.target.value)}
+                          required
+                          className={`${modalInputClassName} ${errors.subtype ? modalErrorInputClassName : ''}`}
+                        />
+                        <datalist id="product-subtypes">
+                          {filteredSubtypeOptions.map((subtype) => (
+                            <option key={subtype} value={subtype} />
+                          ))}
+                        </datalist>
+                        {errors.subtype && <p className="mt-1 text-sm text-red-600">{errors.subtype}</p>}
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700">หน่วย *</label>
+                        <input
+                          list="product-units"
+                          type="text"
+                          name="unit"
+                          value={formData.unit}
+                          onChange={handleInputChange}
+                          required
+                          className={`${modalInputClassName} ${errors.unit ? modalErrorInputClassName : ''}`}
+                        />
+                        <datalist id="product-units">
+                          {units.map((unit) => (
+                            <option key={unit} value={unit} />
+                          ))}
+                        </datalist>
+                        {errors.unit && <p className="mt-1 text-sm text-red-600">{errors.unit}</p>}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className={modalCardClassName}>
+                    <div className="mb-4">
+                      <h4 className="text-sm font-semibold text-gray-900">ราคาและคงคลัง</h4>
+                      <p className="text-xs text-gray-500">บันทึกราคาทุน ราคาขาย และข้อมูลสต็อกให้ครบถ้วน</p>
+                    </div>
+                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700">ราคาทุน</label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          name="costPrice"
+                          value={formData.costPrice || ''}
+                          onChange={handleInputChange}
+                          className={modalInputClassName}
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700">ราคาขาย</label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          name="sellPrice"
+                          value={formData.sellPrice || ''}
+                          onChange={handleInputChange}
+                          className={modalInputClassName}
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700">จำนวนคงคลัง</label>
+                        <input
+                          type="number"
+                          name="stockBalance"
+                          value={formData.stockBalance || ''}
+                          onChange={handleInputChange}
+                          className={modalInputClassName}
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700">มูลค่าสต็อก</label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          name="stockValue"
+                          value={formData.stockValue || ''}
+                          onChange={handleInputChange}
+                          className={modalInputClassName}
+                        />
+                      </div>
+                    </div>
+                  </div>
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">ชื่อสินค้า *</label>
-                  <input
-                    type="text"
-                    name="name"
-                    value={formData.name}
-                    onChange={handleInputChange}
-                    required
-                    className={`mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 ${errors.name ? 'border-red-500' : ''}`}
-                  />
-                  {errors.name && <p className="mt-1 text-sm text-red-600">{errors.name}</p>}
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">หมวดหมู่ *</label>
-                  <input
-                    type="text"
-                    name="category"
-                    value={formData.category}
-                    onChange={handleInputChange}
-                    required
-                    className={`mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 ${errors.category ? 'border-red-500' : ''}`}
-                  />
-                  {errors.category && <p className="mt-1 text-sm text-red-600">{errors.category}</p>}
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">ประเภท *</label>
-                  <input
-                    type="text"
-                    name="type"
-                    value={formData.type}
-                    onChange={handleInputChange}
-                    required
-                    className={`mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 ${errors.type ? 'border-red-500' : ''}`}
-                  />
-                  {errors.type && <p className="mt-1 text-sm text-red-600">{errors.type}</p>}
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">ชนิดย่อย *</label>
-                  <input
-                    type="text"
-                    name="subtype"
-                    value={formData.subtype}
-                    onChange={handleInputChange}
-                    required
-                    className={`mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 ${errors.subtype ? 'border-red-500' : ''}`}
-                  />
-                  {errors.subtype && <p className="mt-1 text-sm text-red-600">{errors.subtype}</p>}
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">หน่วย *</label>
-                  <input
-                    type="text"
-                    name="unit"
-                    value={formData.unit}
-                    onChange={handleInputChange}
-                    required
-                    className={`mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 ${errors.unit ? 'border-red-500' : ''}`}
-                  />
-                  {errors.unit && <p className="mt-1 text-sm text-red-600">{errors.unit}</p>}
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">ราคาทุน</label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    name="costPrice"
-                    value={formData.costPrice || ''}
-                    onChange={handleInputChange}
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">ราคาขาย</label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    name="sellPrice"
-                    value={formData.sellPrice || ''}
-                    onChange={handleInputChange}
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">จำนวนคงคลัง</label>
-                  <input
-                    type="number"
-                    name="stockBalance"
-                    value={formData.stockBalance || ''}
-                    onChange={handleInputChange}
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">มูลค่าสต็อก</label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    name="stockValue"
-                    value={formData.stockValue || ''}
-                    onChange={handleInputChange}
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">รหัสผู้ขาย</label>
-                  <input
-                    type="text"
-                    name="sellerCode"
-                    value={formData.sellerCode}
-                    onChange={handleInputChange}
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">รูปภาพ</label>
-                  <input
-                    type="text"
-                    name="image"
-                    value={formData.image}
-                    onChange={handleInputChange}
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                  />
+
+                <div className="space-y-6">
+                  <div className={modalCardClassName}>
+                    <div className="mb-4">
+                      <h4 className="text-sm font-semibold text-gray-900">ข้อมูลเพิ่มเติม</h4>
+                      <p className="text-xs text-gray-500">ข้อมูลผู้ขาย รูปภาพ และหมายเหตุการดูแลสินค้า</p>
+                    </div>
+                    <div className="space-y-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700">รหัสผู้ขาย</label>
+                        <input
+                          list="product-seller-codes"
+                          type="text"
+                          name="sellerCode"
+                          value={formData.sellerCode}
+                          onChange={handleInputChange}
+                          className={modalInputClassName}
+                        />
+                        <datalist id="product-seller-codes">
+                          {sellerOptions.length > 0
+                            ? sellerOptions.map((seller) => (
+                                <option key={seller.code} value={seller.code}>
+                                  {seller.name}
+                                </option>
+                              ))
+                            : sellerCodes.map((sellerCode) => (
+                                <option key={sellerCode} value={sellerCode} />
+                              ))}
+                        </datalist>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700">รูปภาพ</label>
+                        <input
+                          type="text"
+                          name="image"
+                          value={formData.image}
+                          onChange={handleInputChange}
+                          placeholder="URL หรือ path ของรูปภาพ"
+                          className={modalInputClassName}
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700">หมายเหตุ</label>
+                        <textarea
+                          name="adminNote"
+                          value={formData.adminNote}
+                          onChange={handleInputChange}
+                          rows={8}
+                          className={`${modalInputClassName} min-h-[220px] resize-y`}
+                        />
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700">หมายเหตุ</label>
-                <textarea
-                  name="adminNote"
-                  value={formData.adminNote}
-                  onChange={handleInputChange}
-                  rows={3}
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                />
-              </div>
-              <div className="flex justify-end space-x-3">
+
+              <div className="flex flex-col-reverse gap-3 border-t border-gray-100 pt-5 sm:flex-row sm:justify-end">
                 <button
                   type="button"
                   onClick={resetForm}
-                  className="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50"
+                  className="inline-flex items-center justify-center rounded-xl border border-gray-300 px-5 py-3 text-sm font-medium text-gray-700 transition hover:bg-gray-50"
                 >
                   ยกเลิก
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700"
+                  className="inline-flex items-center justify-center rounded-xl bg-blue-600 px-5 py-3 text-sm font-medium text-white shadow-sm transition hover:bg-blue-700"
                 >
                   {editingProduct ? 'บันทึกการแก้ไข' : 'เพิ่มสินค้า'}
                 </button>
