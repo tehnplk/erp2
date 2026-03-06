@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { Suspense, useState, useEffect, useRef } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import Swal from 'sweetalert2';
 import { Upload, Plus, CheckCircle2, AlertCircle, X as XIcon, ChevronUp, ChevronDown, ArrowUpDown, Pencil, Trash2 } from 'lucide-react';
@@ -86,7 +86,7 @@ interface SurveyFormData {
   sequenceNo: string;
 }
 
-export default function SurveysPage() {
+function SurveysPageContent() {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -1637,5 +1637,13 @@ export default function SurveysPage() {
 
       </div>
     </div>
+  );
+}
+
+export default function SurveysPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-gray-50" />}>
+      <SurveysPageContent />
+    </Suspense>
   );
 }

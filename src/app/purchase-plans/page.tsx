@@ -1,8 +1,37 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import Swal from 'sweetalert2';
-import { Pencil, Trash2 } from 'lucide-react';
+import { Pencil, Trash2, X } from 'lucide-react';
+
+const getCurrentBudgetYear = () => {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = now.getMonth();
+  return month >= 9 ? year + 544 : year + 543;
+};
+
+interface SurveyOption {
+  id: number;
+  productCode: string | null;
+  category: string | null;
+  type: string | null;
+  subtype: string | null;
+  productName: string | null;
+  requestedAmount: number | null;
+  unit: string | null;
+  pricePerUnit: number;
+  requestingDept: string | null;
+  approvedQuota: number | null;
+  budgetYear: number | null;
+  sequenceNo: number | null;
+}
+
+interface ProductOption {
+  code: string;
+  costPrice?: number | null;
+}
 
 interface PurchasePlanFormData {
   productCode?: string;
@@ -25,8 +54,17 @@ interface PurchasePlanFormData {
 }
 
 export default function PurchasePlansPage() {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const [items, setItems] = useState<any[]>([]);
   const [summaryItems, setSummaryItems] = useState<any[]>([]);
+  const [surveyOptions, setSurveyOptions] = useState<SurveyOption[]>([]);
+  const [productCostMap, setProductCostMap] = useState<Record<string, number>>({});
+  const [surveysLoading, setSurveysLoading] = useState(false);
+  const [surveySearchTerm, setSurveySearchTerm] = useState('');
+  const [showSurveySuggestions, setShowSurveySuggestions] = useState(false);
+  const [highlightedSurveyIndex, setHighlightedSurveyIndex] = useState(-1);
   const [totalCount, setTotalCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [filtersLoading, setFiltersLoading] = useState(true);
@@ -35,12 +73,12 @@ export default function PurchasePlansPage() {
   const [formData, setFormData] = useState<PurchasePlanFormData>({});
 
   // filters
-  const [nameFilter, setNameFilter] = useState('');
+  const [productNameFilter, setProductNameFilter] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
   const [typeFilter, setTypeFilter] = useState('');
   const [subtypeFilter, setSubtypeFilter] = useState('');
-  const [departmentFilter, setDepartmentFilter] = useState('');
-  const [yearFilter, setYearFilter] = useState('');
+  const [requestingDeptFilter, setRequestingDeptFilter] = useState('');
+  const [budgetYearFilter, setBudgetYearFilter] = useState('');
 
   // sort
   const [sortBy, setSortBy] = useState('id');
@@ -54,22 +92,70 @@ export default function PurchasePlansPage() {
   const [subtypes, setSubtypes] = useState<string[]>([]);
   const [departments, setDepartments] = useState<string[]>([]);
   const [years, setYears] = useState<string[]>([]);
+  const availableBudgetYears = Array.from(new Set([
+    ...years,
+    ...Array.from({ length: 6 }, (_, index) => String(getCurrentBudgetYear() - index)),
+  ])).sort((a, b) => Number(b) - Number(a));
 
   useEffect(() => {
     fetchFilters();
     fetchData();
     fetchSummaryData();
+    fetchSurveyOptions();
+    fetchProductCosts();
   }, []);
 
   useEffect(() => {
     fetchData();
-  }, [nameFilter, categoryFilter, typeFilter, subtypeFilter, departmentFilter, yearFilter, sortBy, sortOrder, page, pageSize]);
+  }, [productNameFilter, categoryFilter, typeFilter, subtypeFilter, requestingDeptFilter, budgetYearFilter, sortBy, sortOrder, page, pageSize]);
 
   // When filters or sorting change, reset to first page and refresh summary data
   useEffect(() => {
     setPage(1);
     fetchSummaryData();
-  }, [nameFilter, categoryFilter, typeFilter, subtypeFilter, departmentFilter, yearFilter, sortBy, sortOrder]);
+  }, [productNameFilter, categoryFilter, typeFilter, subtypeFilter, requestingDeptFilter, budgetYearFilter, sortBy, sortOrder]);
+
+  useEffect(() => {
+    const nextProductName = searchParams.get('productName') || '';
+    const nextCategory = searchParams.get('category') || '';
+    const nextType = searchParams.get('type') || '';
+    const nextSubtype = searchParams.get('productSubtype') || '';
+    const nextRequestingDept = searchParams.get('requestingDept') || '';
+    const nextBudgetYear = searchParams.get('budgetYear') || '';
+    const nextSortBy = searchParams.get('orderBy') || 'id';
+    const nextSortOrder = (searchParams.get('sortOrder') === 'asc' ? 'asc' : 'desc') as 'asc' | 'desc';
+    const nextPage = Math.max(1, parseInt(searchParams.get('page') || '1', 10) || 1);
+    const nextPageSize = Math.max(1, parseInt(searchParams.get('pageSize') || '20', 10) || 20);
+
+    setProductNameFilter((prev) => prev === nextProductName ? prev : nextProductName);
+    setCategoryFilter((prev) => prev === nextCategory ? prev : nextCategory);
+    setTypeFilter((prev) => prev === nextType ? prev : nextType);
+    setSubtypeFilter((prev) => prev === nextSubtype ? prev : nextSubtype);
+    setRequestingDeptFilter((prev) => prev === nextRequestingDept ? prev : nextRequestingDept);
+    setBudgetYearFilter((prev) => prev === nextBudgetYear ? prev : nextBudgetYear);
+    setSortBy((prev) => prev === nextSortBy ? prev : nextSortBy);
+    setSortOrder((prev) => prev === nextSortOrder ? prev : nextSortOrder);
+    setPage((prev) => prev === nextPage ? prev : nextPage);
+    setPageSize((prev) => prev === nextPageSize ? prev : nextPageSize);
+  }, [searchParams]);
+
+  useEffect(() => {
+    const params = new URLSearchParams();
+
+    if (productNameFilter) params.set('productName', productNameFilter);
+    if (categoryFilter) params.set('category', categoryFilter);
+    if (typeFilter) params.set('type', typeFilter);
+    if (subtypeFilter) params.set('productSubtype', subtypeFilter);
+    if (requestingDeptFilter) params.set('requestingDept', requestingDeptFilter);
+    if (budgetYearFilter) params.set('budgetYear', budgetYearFilter);
+    if (sortBy && sortBy !== 'id') params.set('orderBy', sortBy);
+    if (sortOrder !== 'desc') params.set('sortOrder', sortOrder);
+    if (page > 1) params.set('page', page.toString());
+    if (pageSize !== 20) params.set('pageSize', pageSize.toString());
+
+    const nextUrl = params.toString() ? `${pathname}?${params.toString()}` : pathname;
+    router.replace(nextUrl, { scroll: false });
+  }, [pathname, router, productNameFilter, categoryFilter, typeFilter, subtypeFilter, requestingDeptFilter, budgetYearFilter, sortBy, sortOrder, page, pageSize]);
 
   const fetchFilters = async () => {
     try {
@@ -87,6 +173,56 @@ export default function PurchasePlansPage() {
       console.error(e);
     } finally {
       setFiltersLoading(false);
+    }
+  };
+
+  const fetchProductCosts = async () => {
+    try {
+      const nextMap: Record<string, number> = {};
+      let currentPage = 1;
+      let hasMore = true;
+
+      while (hasMore) {
+        const params = new URLSearchParams();
+        params.append('orderBy', 'code');
+        params.append('sortOrder', 'asc');
+        params.append('page', String(currentPage));
+        params.append('pageSize', '200');
+        const res = await fetch(`/api/products?${params.toString()}`);
+        if (!res.ok) throw new Error('fetch products failed');
+        const data = await res.json();
+        const products = (data.data || []) as ProductOption[];
+
+        products.forEach((product) => {
+          if (product.code) {
+            nextMap[product.code] = Number(product.costPrice) || 0;
+          }
+        });
+
+        hasMore = products.length === 200;
+        currentPage += 1;
+      }
+
+      setProductCostMap(nextMap);
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const fetchSurveyOptions = async () => {
+    try {
+      setSurveysLoading(true);
+      const params = new URLSearchParams();
+      params.append('orderBy', 'id');
+      params.append('sortOrder', 'desc');
+      const res = await fetch(`/api/surveys?${params.toString()}`);
+      if (!res.ok) throw new Error('fetch surveys failed');
+      const data = await res.json();
+      setSurveyOptions(data.surveys || []);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setSurveysLoading(false);
     }
   };
 
@@ -109,12 +245,12 @@ export default function PurchasePlansPage() {
     try {
       setLoading(true);
       const params = new URLSearchParams();
-      if (nameFilter) params.append('productName', nameFilter);
+      if (productNameFilter) params.append('productName', productNameFilter);
       if (categoryFilter) params.append('category', categoryFilter);
-      if (typeFilter) params.append('productType', typeFilter);
+      if (typeFilter) params.append('type', typeFilter);
       if (subtypeFilter) params.append('productSubtype', subtypeFilter);
-      if (departmentFilter) params.append('purchasingDepartment', departmentFilter);
-      if (yearFilter) params.append('budgetYear', yearFilter);
+      if (requestingDeptFilter) params.append('requestingDept', requestingDeptFilter);
+      if (budgetYearFilter) params.append('budgetYear', budgetYearFilter);
       params.append('orderBy', sortBy);
       params.append('sortOrder', sortOrder);
       params.append('page', page.toString());
@@ -142,12 +278,12 @@ export default function PurchasePlansPage() {
   const fetchSummaryData = async () => {
     try {
       const params = new URLSearchParams();
-      if (nameFilter) params.append('productName', nameFilter);
+      if (productNameFilter) params.append('productName', productNameFilter);
       if (categoryFilter) params.append('category', categoryFilter);
-      if (typeFilter) params.append('productType', typeFilter);
+      if (typeFilter) params.append('type', typeFilter);
       if (subtypeFilter) params.append('productSubtype', subtypeFilter);
-      if (departmentFilter) params.append('purchasingDepartment', departmentFilter);
-      if (yearFilter) params.append('budgetYear', yearFilter);
+      if (requestingDeptFilter) params.append('requestingDept', requestingDeptFilter);
+      if (budgetYearFilter) params.append('budgetYear', budgetYearFilter);
       params.append('orderBy', sortBy);
       params.append('sortOrder', sortOrder);
 
@@ -169,6 +305,7 @@ export default function PurchasePlansPage() {
 
   const handleEdit = (row: any) => {
     setEditing(row);
+    const matchedSurvey = surveyOptions.find((survey) => survey.id === row.planId);
     setFormData({
       productCode: row.productCode || '',
       category: row.category || '',
@@ -188,13 +325,143 @@ export default function PurchasePlansPage() {
       additionalPurchaseValue: row.additionalPurchaseValue ? Number(row.additionalPurchaseValue) : undefined,
       purchasingDepartment: row.purchasingDepartment || '',
     });
+    setSurveySearchTerm(
+      matchedSurvey
+        ? `${matchedSurvey.productCode || '-'} | ${matchedSurvey.productName || '-'}`
+        : ''
+    );
     setShowForm(true);
   };
+
+  const selectedSurvey = surveyOptions.find((survey) => survey.id === formData.planId);
+  const isEditing = Boolean(editing);
+  const purchasingDepartmentOptions = Array.from(new Set([...(formData.purchasingDepartment ? [formData.purchasingDepartment] : []), ...departments].filter(Boolean)));
+  const isSurveySearchDirty = surveySearchTerm.trim() !== '' && (!selectedSurvey || surveySearchTerm !== `${selectedSurvey.productCode || '-'} | ${selectedSurvey.productName || '-'}`);
+  const filteredSurveyOptions = surveyOptions.filter((survey) => {
+    const search = isSurveySearchDirty ? surveySearchTerm.trim().toLowerCase() : '';
+    if (!search) return true;
+
+    const productCode = (survey.productCode || '').toLowerCase();
+    const productName = (survey.productName || '').toLowerCase();
+
+    return productCode.includes(search) || productName.includes(search);
+  }).slice(0, 20);
+
+  const derivedPricePerUnit = selectedSurvey ? Number(selectedSurvey.pricePerUnit) || 0 : 0;
+  const derivedProductCostPrice = selectedSurvey?.productCode ? (productCostMap[selectedSurvey.productCode] ?? 0) : 0;
+  const derivedApprovedQuota = selectedSurvey?.approvedQuota ?? 0;
+  const derivedRequestedAmount = selectedSurvey?.requestedAmount ?? 0;
+  const derivedCarriedForwardValue = Number((((formData.carriedForwardQuantity ?? 0) * derivedProductCostPrice)).toFixed(2));
+  const derivedTotalRequiredValue = Number((derivedApprovedQuota * derivedPricePerUnit).toFixed(2));
+  const derivedAdditionalPurchaseQtyRaw = derivedRequestedAmount - (formData.carriedForwardQuantity ?? 0);
+  const derivedAdditionalPurchaseQty = derivedAdditionalPurchaseQtyRaw > 0 ? derivedAdditionalPurchaseQtyRaw : 0;
+  const derivedAdditionalPurchaseValue = Number((derivedAdditionalPurchaseQty * derivedPricePerUnit).toFixed(2));
+
+  useEffect(() => {
+    if (!selectedSurvey) {
+      return;
+    }
+
+    setFormData((prev) => ({
+      ...prev,
+      productCode: selectedSurvey.productCode || '',
+      category: selectedSurvey.category || '',
+      productName: selectedSurvey.productName || '',
+      productType: selectedSurvey.type || '',
+      productSubtype: selectedSurvey.subtype || '',
+      unit: selectedSurvey.unit || '',
+      pricePerUnit: derivedPricePerUnit,
+      budgetYear: selectedSurvey.budgetYear !== null && selectedSurvey.budgetYear !== undefined ? String(selectedSurvey.budgetYear) : '',
+      carriedForwardValue: derivedCarriedForwardValue,
+      requiredQuantityForYear: derivedRequestedAmount,
+      totalRequiredValue: derivedTotalRequiredValue,
+      additionalPurchaseQty: derivedAdditionalPurchaseQty,
+      additionalPurchaseValue: derivedAdditionalPurchaseValue,
+      purchasingDepartment: prev.purchasingDepartment || selectedSurvey.requestingDept || '',
+    }));
+  }, [selectedSurvey, derivedPricePerUnit, derivedCarriedForwardValue, derivedRequestedAmount, derivedTotalRequiredValue, derivedAdditionalPurchaseQty, derivedAdditionalPurchaseValue]);
 
   const resetForm = () => {
     setEditing(null);
     setFormData({});
+    setSurveySearchTerm('');
+    setShowSurveySuggestions(false);
+    setHighlightedSurveyIndex(-1);
     setShowForm(false);
+  };
+
+  const handleSurveySelect = (survey: SurveyOption) => {
+    setFormData((prev) => ({
+      ...prev,
+      planId: survey.id,
+    }));
+    setSurveySearchTerm(`${survey.productCode || '-'} | ${survey.productName || '-'}`);
+    setShowSurveySuggestions(false);
+    setHighlightedSurveyIndex(-1);
+  };
+
+  const clearSurveySelection = () => {
+    setSurveySearchTerm('');
+    setShowSurveySuggestions(false);
+    setHighlightedSurveyIndex(-1);
+    setFormData((prev) => ({
+      ...prev,
+      planId: null,
+      productCode: '',
+      category: '',
+      productName: '',
+      productType: '',
+      productSubtype: '',
+      unit: '',
+      pricePerUnit: undefined,
+      budgetYear: '',
+      requiredQuantityForYear: null,
+      totalRequiredValue: undefined,
+      additionalPurchaseQty: null,
+      additionalPurchaseValue: undefined,
+      purchasingDepartment: '',
+    }));
+  };
+
+  const handleSurveySearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (!filteredSurveyOptions.length) {
+      if (e.key === 'Escape') {
+        setShowSurveySuggestions(false);
+      }
+      return;
+    }
+
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setShowSurveySuggestions(true);
+      setHighlightedSurveyIndex((prev) => (prev + 1) % filteredSurveyOptions.length);
+      return;
+    }
+
+    if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setShowSurveySuggestions(true);
+      setHighlightedSurveyIndex((prev) => (prev <= 0 ? filteredSurveyOptions.length - 1 : prev - 1));
+      return;
+    }
+
+    if (e.key === 'Enter') {
+      if (showSurveySuggestions) {
+        e.preventDefault();
+        const targetIndex = highlightedSurveyIndex >= 0 ? highlightedSurveyIndex : 0;
+        const survey = filteredSurveyOptions[targetIndex];
+        if (survey) {
+          handleSurveySelect(survey);
+        }
+      }
+      return;
+    }
+
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      setShowSurveySuggestions(false);
+      setHighlightedSurveyIndex(-1);
+    }
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
@@ -245,16 +512,91 @@ export default function PurchasePlansPage() {
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <label className="flex flex-col gap-1 text-sm text-gray-700">
+                  <span className="font-medium">อ้างอิงแผนการใช้</span>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      value={surveySearchTerm}
+                      name="surveySearch"
+                      onChange={(e) => {
+                        setSurveySearchTerm(e.target.value);
+                        setShowSurveySuggestions(true);
+                        setHighlightedSurveyIndex(-1);
+                        setFormData((prev) => ({
+                          ...prev,
+                          planId: null,
+                        }));
+                      }}
+                      onFocus={() => setShowSurveySuggestions(true)}
+                      onKeyDown={handleSurveySearchKeyDown}
+                      placeholder="ค้นหาด้วยรหัสหรือชื่อสินค้า"
+                      className={`${modalFieldClassName} pr-10 ${isEditing ? 'bg-gray-50' : ''}`}
+                      readOnly={isEditing}
+                    />
+                    {surveySearchTerm && !isEditing && (
+                      <button
+                        type="button"
+                        onClick={clearSurveySelection}
+                        className="absolute inset-y-0 right-2 flex items-center text-gray-400 hover:text-gray-600"
+                        aria-label="ล้างค่า"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    )}
+                    {showSurveySuggestions && filteredSurveyOptions.length > 0 && !isEditing && (
+                      <div className="absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded border border-gray-200 bg-white shadow-lg">
+                        {filteredSurveyOptions.map((survey, index) => (
+                          <button
+                            key={survey.id}
+                            type="button"
+                            onClick={() => handleSurveySelect(survey)}
+                            className={`block w-full border-b border-gray-100 px-3 py-2 text-left text-sm ${index === highlightedSurveyIndex ? 'bg-blue-50' : 'hover:bg-gray-50'}`}
+                          >
+                            <div className="font-medium text-gray-900">
+                              {survey.productCode || '-'} | {survey.productName || '-'}
+                            </div>
+                            <div className="text-xs text-gray-500">
+                              {survey.requestingDept || '-'} | ปี {survey.budgetYear || '-'}
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                    {showSurveySuggestions && !filteredSurveyOptions.length && isSurveySearchDirty && !isEditing && (
+                      <div className="absolute z-10 mt-1 w-full rounded border border-gray-200 bg-white px-3 py-2 text-sm text-gray-500 shadow-lg">
+                        ไม่พบรายการที่ค้นหา
+                      </div>
+                    )}
+                  </div>
+                  {surveysLoading && <span className="text-xs text-gray-500">กำลังโหลดรายการแผนการใช้...</span>}
+                </label>
+                <label className="flex flex-col gap-1 text-sm text-gray-700">
+                  <span className="font-medium">รายการในแผน/นอกแผน</span>
+                  <select name="inPlan" value={formData.inPlan || ''} onChange={handleInputChange} className={modalFieldClassName}>
+                    <option value="">เลือกประเภท</option>
+                    <option value="ในแผน">ในแผน</option>
+                    <option value="นอกแผน">นอกแผน</option>
+                  </select>
+                </label>
+                <label className="flex flex-col gap-1 text-sm text-gray-700">
+                  <span className="font-medium">จำนวนยกยอดมา</span>
+                  <input type="number" name="carriedForwardQuantity" value={formData.carriedForwardQuantity ?? ''} onChange={handleInputChange} className={modalFieldClassName} min="0" />
+                </label>
+                <label className="flex flex-col gap-1 text-sm text-gray-700">
+                  <span className="font-medium">มูลค่ายกยอดมา</span>
+                  <input type="number" step="0.01" name="carriedForwardValue" value={formData.carriedForwardValue ?? ''} className={`${modalFieldClassName} bg-gray-50`} min="0" readOnly />
+                </label>
+                <label className="flex flex-col gap-1 text-sm text-gray-700">
                   <span className="font-medium">รหัสสินค้า</span>
-                  <input name="productCode" value={formData.productCode || ''} onChange={handleInputChange} className={modalFieldClassName} />
+                  <input name="productCode" value={formData.productCode || ''} className={`${modalFieldClassName} bg-gray-50`} readOnly />
                 </label>
                 <label className="flex flex-col gap-1 text-sm text-gray-700">
                   <span className="font-medium">ชื่อสินค้า</span>
-                  <input name="productName" value={formData.productName || ''} onChange={handleInputChange} className={modalFieldClassName} />
+                  <input name="productName" value={formData.productName || ''} className={`${modalFieldClassName} bg-gray-50`} readOnly />
                 </label>
                 <label className="flex flex-col gap-1 text-sm text-gray-700">
                   <span className="font-medium">หน่วย</span>
-                  <input list="purchase-plan-units" name="unit" value={formData.unit || ''} onChange={handleInputChange} className={modalFieldClassName} />
+                  <input list="purchase-plan-units" name="unit" value={formData.unit || ''} className={`${modalFieldClassName} bg-gray-50`} readOnly />
                   <datalist id="purchase-plan-units">
                     {Array.from(new Set(items.map((item) => item.unit).filter(Boolean))).map((unit) => (
                       <option key={unit} value={unit} />
@@ -263,7 +605,7 @@ export default function PurchasePlansPage() {
                 </label>
                 <label className="flex flex-col gap-1 text-sm text-gray-700">
                   <span className="font-medium">หมวดหมู่</span>
-                  <input list="purchase-plan-categories" name="category" value={formData.category || ''} onChange={handleInputChange} className={modalFieldClassName} />
+                  <input list="purchase-plan-categories" name="category" value={formData.category || ''} className={`${modalFieldClassName} bg-gray-50`} readOnly />
                   <datalist id="purchase-plan-categories">
                     {categories.map((category) => (
                       <option key={category} value={category} />
@@ -272,7 +614,7 @@ export default function PurchasePlansPage() {
                 </label>
                 <label className="flex flex-col gap-1 text-sm text-gray-700">
                   <span className="font-medium">ประเภท</span>
-                  <input list="purchase-plan-types" name="productType" value={formData.productType || ''} onChange={handleInputChange} className={modalFieldClassName} />
+                  <input list="purchase-plan-types" name="productType" value={formData.productType || ''} className={`${modalFieldClassName} bg-gray-50`} readOnly />
                   <datalist id="purchase-plan-types">
                     {types.map((type) => (
                       <option key={type} value={type} />
@@ -281,7 +623,7 @@ export default function PurchasePlansPage() {
                 </label>
                 <label className="flex flex-col gap-1 text-sm text-gray-700">
                   <span className="font-medium">ประเภทย่อย</span>
-                  <input list="purchase-plan-subtypes" name="productSubtype" value={formData.productSubtype || ''} onChange={handleInputChange} className={modalFieldClassName} />
+                  <input list="purchase-plan-subtypes" name="productSubtype" value={formData.productSubtype || ''} className={`${modalFieldClassName} bg-gray-50`} readOnly />
                   <datalist id="purchase-plan-subtypes">
                     {subtypes.map((subtype) => (
                       <option key={subtype} value={subtype} />
@@ -290,15 +632,27 @@ export default function PurchasePlansPage() {
                 </label>
                 <label className="flex flex-col gap-1 text-sm text-gray-700">
                   <span className="font-medium">ราคา/หน่วย</span>
-                  <input type="number" step="0.01" name="pricePerUnit" value={formData.pricePerUnit ?? ''} onChange={handleInputChange} className={modalFieldClassName} />
+                  <input type="number" step="0.01" name="pricePerUnit" value={formData.pricePerUnit ?? ''} className={`${modalFieldClassName} bg-gray-50`} readOnly />
                 </label>
                 <label className="flex flex-col gap-1 text-sm text-gray-700">
-                  <span className="font-medium">จำนวนที่ต้องการ/ปี</span>
-                  <input type="number" name="requiredQuantityForYear" value={formData.requiredQuantityForYear ?? ''} onChange={handleInputChange} className={modalFieldClassName} />
+                  <span className="font-medium">จำนวนที่ต้องการใช้ในปี</span>
+                  <input type="number" name="requiredQuantityForYear" value={formData.requiredQuantityForYear ?? ''} className={`${modalFieldClassName} bg-gray-50`} readOnly />
+                </label>
+                <label className="flex flex-col gap-1 text-sm text-gray-700">
+                  <span className="font-medium">มูลค่ารวมที่ต้องใช้ในปี</span>
+                  <input type="number" step="0.01" name="totalRequiredValue" value={formData.totalRequiredValue ?? ''} className={`${modalFieldClassName} bg-gray-50`} readOnly />
+                </label>
+                <label className="flex flex-col gap-1 text-sm text-gray-700">
+                  <span className="font-medium">จำนวนที่ต้องซื้อเพิ่มในปี</span>
+                  <input type="number" name="additionalPurchaseQty" value={formData.additionalPurchaseQty ?? ''} className={`${modalFieldClassName} bg-gray-50`} readOnly />
+                </label>
+                <label className="flex flex-col gap-1 text-sm text-gray-700">
+                  <span className="font-medium">มูลค่าที่ต้องซื้อเพิ่มในปี</span>
+                  <input type="number" step="0.01" name="additionalPurchaseValue" value={formData.additionalPurchaseValue ?? ''} className={`${modalFieldClassName} bg-gray-50`} readOnly />
                 </label>
                 <label className="flex flex-col gap-1 text-sm text-gray-700">
                   <span className="font-medium">ปีงบประมาณ</span>
-                  <input list="purchase-plan-years" name="budgetYear" value={formData.budgetYear || ''} onChange={handleInputChange} className={modalFieldClassName} />
+                  <input list="purchase-plan-years" name="budgetYear" value={formData.budgetYear || ''} className={`${modalFieldClassName} bg-gray-50`} readOnly />
                   <datalist id="purchase-plan-years">
                     {years.map((year) => (
                       <option key={year} value={year} />
@@ -307,12 +661,12 @@ export default function PurchasePlansPage() {
                 </label>
                 <label className="flex flex-col gap-1 text-sm text-gray-700">
                   <span className="font-medium">หน่วยงานจัดซื้อ</span>
-                  <input list="purchase-plan-departments" name="purchasingDepartment" value={formData.purchasingDepartment || ''} onChange={handleInputChange} className={modalFieldClassName} />
-                  <datalist id="purchase-plan-departments">
-                    {departments.map((department) => (
-                      <option key={department} value={department} />
+                  <select name="purchasingDepartment" value={formData.purchasingDepartment || ''} onChange={handleInputChange} className={modalFieldClassName}>
+                    <option value="">เลือกหน่วยงานจัดซื้อ</option>
+                    {purchasingDepartmentOptions.map((department) => (
+                      <option key={department} value={department}>{department}</option>
                     ))}
-                  </datalist>
+                  </select>
                 </label>
               </div>
               <div className="flex justify-end space-x-3">
@@ -332,7 +686,15 @@ export default function PurchasePlansPage() {
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-6 gap-4 mb-4">
-              <input placeholder="ชื่อสินค้า" value={nameFilter} onChange={(e)=>setNameFilter(e.target.value)} className="w-full rounded-md border-gray-300 shadow-sm text-sm px-3 py-2" />
+              <select value={budgetYearFilter} onChange={(e)=>setBudgetYearFilter(e.target.value)} className="w-full rounded-md border-gray-300 shadow-sm text-sm px-3 py-2">
+                <option value="">ปีงบ</option>
+                {availableBudgetYears.map(x => <option key={x} value={x}>{x}</option>)}
+              </select>
+              <select value={requestingDeptFilter} onChange={(e)=>setRequestingDeptFilter(e.target.value)} className="w-full rounded-md border-gray-300 shadow-sm text-sm px-3 py-2">
+                <option value="">หน่วยงาน</option>
+                {departments.map(x => <option key={x} value={x}>{x}</option>)}
+              </select>
+              <input placeholder="ชื่อสินค้า" value={productNameFilter} onChange={(e)=>setProductNameFilter(e.target.value)} className="w-full rounded-md border-gray-300 shadow-sm text-sm px-3 py-2" />
               <select value={categoryFilter} onChange={(e)=>setCategoryFilter(e.target.value)} className="w-full rounded-md border-gray-300 shadow-sm text-sm px-3 py-2">
                 <option value="">หมวด</option>
                 {categories.map(x => <option key={x} value={x}>{x}</option>)}
@@ -344,14 +706,6 @@ export default function PurchasePlansPage() {
               <select value={subtypeFilter} onChange={(e)=>setSubtypeFilter(e.target.value)} className="w-full rounded-md border-gray-300 shadow-sm text-sm px-3 py-2">
                 <option value="">ประเภทย่อย</option>
                 {subtypes.map(x => <option key={x} value={x}>{x}</option>)}
-              </select>
-              <select value={departmentFilter} onChange={(e)=>setDepartmentFilter(e.target.value)} className="w-full rounded-md border-gray-300 shadow-sm text-sm px-3 py-2">
-                <option value="">หน่วยงาน</option>
-                {departments.map(x => <option key={x} value={x}>{x}</option>)}
-              </select>
-              <select value={yearFilter} onChange={(e)=>setYearFilter(e.target.value)} className="w-full rounded-md border-gray-300 shadow-sm text-sm px-3 py-2">
-                <option value="">ปีงบ</option>
-                {years.map(x => <option key={x} value={x}>{x}</option>)}
               </select>
             </div>
           )}

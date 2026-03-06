@@ -1,4 +1,6 @@
 # Docker Database
 
-- container name: postgres
-- db name: erp2
+- container: postgres
+- db: erp2
+- user : admin
+- password : 112233

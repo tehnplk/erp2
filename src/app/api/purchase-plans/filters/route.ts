@@ -1,43 +1,23 @@
 import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { pgQuery } from '@/lib/pg';
 
 export async function GET() {
   try {
     // Get distinct values for each filter field
     const [categories, productTypes, productSubtypes, departments, budgetYears] = await Promise.all([
-      prisma.purchasePlan.findMany({
-        select: { category: true },
-        distinct: ['category'],
-        orderBy: { category: 'asc' }
-      }),
-      prisma.purchasePlan.findMany({
-        select: { productType: true },
-        distinct: ['productType'],
-        orderBy: { productType: 'asc' }
-      }),
-      prisma.purchasePlan.findMany({
-        select: { productSubtype: true },
-        distinct: ['productSubtype'],
-        orderBy: { productSubtype: 'asc' }
-      }),
-      prisma.purchasePlan.findMany({
-        select: { purchasingDepartment: true },
-        distinct: ['purchasingDepartment'],
-        orderBy: { purchasingDepartment: 'asc' }
-      }),
-      prisma.purchasePlan.findMany({
-        select: { budgetYear: true },
-        distinct: ['budgetYear'],
-        orderBy: { budgetYear: 'desc' }
-      })
+      pgQuery(`SELECT DISTINCT category FROM public."PurchasePlan" WHERE category IS NOT NULL AND category <> '' ORDER BY category ASC`),
+      pgQuery(`SELECT DISTINCT "productType" FROM public."PurchasePlan" WHERE "productType" IS NOT NULL AND "productType" <> '' ORDER BY "productType" ASC`),
+      pgQuery(`SELECT DISTINCT "productSubtype" FROM public."PurchasePlan" WHERE "productSubtype" IS NOT NULL AND "productSubtype" <> '' ORDER BY "productSubtype" ASC`),
+      pgQuery(`SELECT DISTINCT "purchasingDepartment" FROM public."PurchasePlan" WHERE "purchasingDepartment" IS NOT NULL AND "purchasingDepartment" <> '' ORDER BY "purchasingDepartment" ASC`),
+      pgQuery(`SELECT DISTINCT "budgetYear" FROM public."PurchasePlan" WHERE "budgetYear" IS NOT NULL AND "budgetYear" <> '' ORDER BY "budgetYear" DESC`)
     ]);
 
     return NextResponse.json({
-      categories: categories.map(item => item.category).filter(Boolean),
-      productTypes: productTypes.map(item => item.productType).filter(Boolean),
-      productSubtypes: productSubtypes.map(item => item.productSubtype).filter(Boolean),
-      departments: departments.map(item => item.purchasingDepartment).filter(Boolean),
-      budgetYears: budgetYears.map(item => item.budgetYear).filter(Boolean)
+      categories: categories.rows.map(item => item.category).filter(Boolean),
+      productTypes: productTypes.rows.map(item => item.productType).filter(Boolean),
+      productSubtypes: productSubtypes.rows.map(item => item.productSubtype).filter(Boolean),
+      departments: departments.rows.map(item => item.purchasingDepartment).filter(Boolean),
+      budgetYears: budgetYears.rows.map(item => item.budgetYear).filter(Boolean)
     });
   } catch (error) {
     console.error('Error fetching purchase plan filter options:', error);

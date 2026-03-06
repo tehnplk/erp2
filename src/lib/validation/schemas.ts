@@ -3,6 +3,8 @@ import { z } from 'zod';
 // Common validation patterns
 const positiveNumber = z.string().transform((val: string) => parseFloat(val)).pipe(z.number().min(0));
 const positiveInteger = z.string().transform((val: string) => parseInt(val)).pipe(z.number().int().min(0));
+const numberInput = z.union([z.string(), z.number()]).transform((val) => val === '' ? 0 : Number(val)).pipe(z.number().min(0));
+const nullableIntInput = z.union([z.string(), z.number(), z.null(), z.undefined()]).transform((val) => val === null || val === undefined || val === '' ? null : parseInt(String(val), 10)).pipe(z.number().int().min(0).nullable());
 const nonEmptyString = z.string().min(1, 'This field is required');
 const paginationFields = {
   page: z.coerce.number().int().min(1).optional(),
@@ -137,18 +139,20 @@ export const createPurchasePlanSchema = z.object({
   productType: z.string().optional(),
   productSubtype: z.string().optional(),
   unit: z.string().optional(),
-  pricePerUnit: positiveNumber.optional(),
+  pricePerUnit: numberInput.optional(),
   budgetYear: z.string().optional(),
-  planId: positiveInteger.optional(),
+  planId: nullableIntInput.optional(),
   inPlan: z.string().optional(),
-  carriedForwardQuantity: positiveInteger.optional(),
-  carriedForwardValue: positiveNumber.optional(),
-  requiredQuantityForYear: positiveInteger.optional(),
-  totalRequiredValue: positiveNumber.optional(),
-  additionalPurchaseQty: positiveInteger.optional(),
-  additionalPurchaseValue: positiveNumber.optional(),
+  carriedForwardQuantity: nullableIntInput.optional(),
+  carriedForwardValue: numberInput.optional(),
+  requiredQuantityForYear: nullableIntInput.optional(),
+  totalRequiredValue: numberInput.optional(),
+  additionalPurchaseQty: nullableIntInput.optional(),
+  additionalPurchaseValue: numberInput.optional(),
   purchasingDepartment: z.string().optional()
 });
+
+ export const updatePurchasePlanSchema = createPurchasePlanSchema.partial();
 
 export const purchasePlanQuerySchema = z.object({
   productName: z.string().optional(),
@@ -211,14 +215,6 @@ export const purchaseApprovalQuerySchema = z.object({
 });
 
 // Survey schemas
-const nullableIntInput = z.union([z.string(), z.number(), z.null(), z.undefined()])
-  .transform((val) => val === null || val === undefined || val === '' ? null : parseInt(String(val), 10))
-  .pipe(z.number().nullable());
-
-const numberInput = z.union([z.string(), z.number(), z.null(), z.undefined()])
-  .transform((val) => val === null || val === undefined || val === '' ? 0 : parseFloat(String(val)))
-  .pipe(z.number());
-
 export const createSurveySchema = z.object({
   productCode: z.string().nullable().optional(),
   category: z.string().nullable().optional(),
