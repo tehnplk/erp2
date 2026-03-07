@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import Swal from 'sweetalert2';
 import { Pencil, Trash2, X } from 'lucide-react';
@@ -53,7 +53,7 @@ interface PurchasePlanFormData {
   purchasingDepartment?: string;
 }
 
-export default function PurchasePlansPage() {
+function PurchasePlansPageContent() {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -528,6 +528,12 @@ export default function PurchasePlansPage() {
                         }));
                       }}
                       onFocus={() => setShowSurveySuggestions(true)}
+                      onBlur={() => {
+                        setTimeout(() => {
+                          setShowSurveySuggestions(false);
+                          setHighlightedSurveyIndex(-1);
+                        }, 0);
+                      }}
                       onKeyDown={handleSurveySearchKeyDown}
                       placeholder="ค้นหาด้วยรหัสหรือชื่อสินค้า"
                       className={`${modalFieldClassName} pr-10 ${isEditing ? 'bg-gray-50' : ''}`}
@@ -549,6 +555,7 @@ export default function PurchasePlansPage() {
                           <button
                             key={survey.id}
                             type="button"
+                            onMouseDown={(e) => e.preventDefault()}
                             onClick={() => handleSurveySelect(survey)}
                             className={`block w-full border-b border-gray-100 px-3 py-2 text-left text-sm ${index === highlightedSurveyIndex ? 'bg-blue-50' : 'hover:bg-gray-50'}`}
                           >
@@ -842,5 +849,13 @@ export default function PurchasePlansPage() {
         )}
       </div>
     </div>
+  );
+}
+
+export default function PurchasePlansPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-gray-50" />}>
+      <PurchasePlansPageContent />
+    </Suspense>
   );
 }

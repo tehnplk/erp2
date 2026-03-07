@@ -1,122 +1,194 @@
-import Link from 'next/link';
-import {
-  BadgeCheck,
-  BarChart4,
-  Bot,
-  ClipboardList,
-  Hospital,
-  Pill,
-  Store,
-  Stethoscope,
-  Warehouse,
-} from 'lucide-react';
+import { pgQuery } from '@/lib/pg';
+import HomeDashboard from './components/HomeDashboard';
 
-export default function Home() {
-  const modules = [
-    {
-      title: 'หมวดหมู่สินค้า',
-      description: 'จัดการหมวดหมู่และประเภทสินค้า',
-      href: '/categories',
-      icon: Pill,
-      color: 'bg-blue-500'
-    },
-    {
-      title: 'แผนก',
-      description: 'จัดการข้อมูลแผนกต่างๆ ในโรงพยาบาล',
-      href: '/departments',
-      icon: Hospital,
-      color: 'bg-green-500'
-    },
-    {
-      title: 'สินค้า',
-      description: 'จัดการข้อมูลเวชภัณฑ์และอุปกรณ์การแพทย์',
-      href: '/products',
-      icon: Stethoscope,
-      color: 'bg-purple-500'
-    },
-    {
-      title: 'ผู้จำหน่าย',
-      description: 'จัดการข้อมูลผู้จำหน่ายเวชภัณฑ์',
-      href: '/sellers',
-      icon: Store,
-      color: 'bg-orange-500'
-    },
-    {
-      title: 'แผนการใช้',
-      description: 'จัดการแบบสำรวจและการประเมินคุณภาพ',
-      href: '/surveys',
-      icon: ClipboardList,
-      color: 'bg-teal-500'
-    },
-    {
-      title: 'แผนจัดซื้อ',
-      description: 'จัดการแผนการจัดซื้อเวชภัณฑ์และงบประมาณ',
-      href: '/purchase-plans',
-      icon: BarChart4,
-      color: 'bg-indigo-500'
-    },
-    {
-      title: 'อนุมัติจัดซื้อ',
-      description: 'จัดการการอนุมัติและขออนุมัติจัดซื้อเวชภัณฑ์',
-      href: '/purchase-approvals',
-      icon: BadgeCheck,
-      color: 'bg-emerald-500'
-    },
-    {
-      title: 'คลัง',
-      description: 'จัดการสต็อกและการเคลื่อนไหวเวชภัณฑ์',
-      href: '/warehouse',
-      icon: Warehouse,
-      color: 'bg-red-500'
-    },
-    {
-      title: 'AI Assistant',
-      description: 'ผู้ช่วย AI สำหรับการวิเคราะห์และแนะนำ',
-      href: '/chat',
-      icon: Bot,
-      color: 'bg-gradient-to-r from-purple-500 to-pink-500'
-    }
+export const dynamic = 'force-dynamic';
+
+type CountRow = { count: number };
+type SumRow = { total: number | null };
+type ChartRow = { name: string | null; value: number };
+type BudgetTrendRow = { year: string; surveyValue: number; planValue: number };
+type DepartmentComparisonRow = { name: string | null; surveyCount: number; planCount: number; approvalCount: number };
+type DepartmentValueRow = { name: string | null; surveyValue: number; planValue: number; approvalValue: number };
+
+const normalizeChartRows = (rows: ChartRow[]) => rows.map((row) => ({
+  name: row.name || 'ไม่ระบุ',
+  value: Number(row.value) || 0,
+}));
+
+export default async function Home() {
+  const [
+    productCountResult,
+    surveyCountResult,
+    purchasePlanCountResult,
+    approvalCountResult,
+    warehouseCountResult,
+    departmentCountResult,
+    surveyValueResult,
+    planValueResult,
+    approvalValueResult,
+    warehouseValueResult,
+    productsByCategoryResult,
+    surveysByDepartmentResult,
+    purchasePlanStatusResult,
+    warehouseTransactionsResult,
+    budgetTrendResult,
+    departmentComparisonResult,
+    departmentValueResult,
+  ] = await Promise.all([
+    pgQuery<CountRow>('SELECT COUNT(*)::int AS count FROM public."Product"'),
+    pgQuery<CountRow>('SELECT COUNT(*)::int AS count FROM public."Survey"'),
+    pgQuery<CountRow>('SELECT COUNT(*)::int AS count FROM public."PurchasePlan"'),
+    pgQuery<CountRow>('SELECT COUNT(*)::int AS count FROM public."PurchaseApproval"'),
+    pgQuery<CountRow>('SELECT COUNT(*)::int AS count FROM public."Warehouse"'),
+    pgQuery<CountRow>('SELECT COUNT(*)::int AS count FROM public."Department"'),
+    pgQuery<SumRow>('SELECT COALESCE(SUM(COALESCE("requestedAmount", 0) * COALESCE("pricePerUnit", 0)), 0)::float8 AS total FROM public."Survey"'),
+    pgQuery<SumRow>('SELECT COALESCE(SUM(COALESCE("totalRequiredValue", 0)), 0)::float8 AS total FROM public."PurchasePlan"'),
+    pgQuery<SumRow>('SELECT COALESCE(SUM(COALESCE("totalValue", 0)), 0)::float8 AS total FROM public."PurchaseApproval"'),
+    pgQuery<SumRow>('SELECT COALESCE(SUM(COALESCE("remainingValue", 0)), 0)::float8 AS total FROM public."Warehouse"'),
+    pgQuery<ChartRow>(
+      'SELECT category AS name, COUNT(*)::int AS value FROM public."Product" GROUP BY category ORDER BY value DESC, name ASC LIMIT 6'
+    ),
+    pgQuery<ChartRow>(
+      'SELECT "requestingDept" AS name, COUNT(*)::int AS value FROM public."Survey" GROUP BY "requestingDept" ORDER BY value DESC, name ASC LIMIT 6'
+    ),
+    pgQuery<ChartRow>(
+      `SELECT COALESCE("inPlan", 'ไม่ระบุ') AS name, COUNT(*)::int AS value
+       FROM public."PurchasePlan"
+       GROUP BY COALESCE("inPlan", 'ไม่ระบุ')
+       ORDER BY value DESC, name ASC`
+    ),
+    pgQuery<ChartRow>(
+      `SELECT COALESCE("transactionType", 'ไม่ระบุ') AS name, COUNT(*)::int AS value
+       FROM public."Warehouse"
+       GROUP BY COALESCE("transactionType", 'ไม่ระบุ')
+       ORDER BY value DESC, name ASC
+       LIMIT 6`
+    ),
+    pgQuery<BudgetTrendRow>(
+      `WITH survey_stats AS (
+         SELECT budget_year::text AS year,
+                COALESCE(SUM(COALESCE("requestedAmount", 0) * COALESCE("pricePerUnit", 0)), 0)::float8 AS "surveyValue"
+         FROM public."Survey"
+         GROUP BY budget_year
+       ),
+       plan_stats AS (
+         SELECT "budgetYear"::text AS year,
+                COALESCE(SUM(COALESCE("totalRequiredValue", 0)), 0)::float8 AS "planValue"
+         FROM public."PurchasePlan"
+         GROUP BY "budgetYear"
+       )
+       SELECT COALESCE(survey_stats.year, plan_stats.year) AS year,
+              COALESCE(survey_stats."surveyValue", 0)::float8 AS "surveyValue",
+              COALESCE(plan_stats."planValue", 0)::float8 AS "planValue"
+       FROM survey_stats
+       FULL OUTER JOIN plan_stats ON survey_stats.year = plan_stats.year
+       ORDER BY COALESCE(survey_stats.year, plan_stats.year) ASC`
+    ),
+    pgQuery<DepartmentComparisonRow>(
+      `WITH survey_counts AS (
+         SELECT COALESCE("requestingDept", 'ไม่ระบุ') AS name, COUNT(*)::int AS "surveyCount"
+         FROM public."Survey"
+         GROUP BY COALESCE("requestingDept", 'ไม่ระบุ')
+       ),
+       plan_counts AS (
+         SELECT COALESCE("purchasingDepartment", 'ไม่ระบุ') AS name, COUNT(*)::int AS "planCount"
+         FROM public."PurchasePlan"
+         GROUP BY COALESCE("purchasingDepartment", 'ไม่ระบุ')
+       ),
+       approval_counts AS (
+         SELECT COALESCE(department, 'ไม่ระบุ') AS name, COUNT(*)::int AS "approvalCount"
+         FROM public."PurchaseApproval"
+         GROUP BY COALESCE(department, 'ไม่ระบุ')
+       )
+       SELECT COALESCE(survey_counts.name, plan_counts.name, approval_counts.name) AS name,
+              COALESCE(survey_counts."surveyCount", 0)::int AS "surveyCount",
+              COALESCE(plan_counts."planCount", 0)::int AS "planCount",
+              COALESCE(approval_counts."approvalCount", 0)::int AS "approvalCount"
+       FROM survey_counts
+       FULL OUTER JOIN plan_counts ON survey_counts.name = plan_counts.name
+       FULL OUTER JOIN approval_counts ON COALESCE(survey_counts.name, plan_counts.name) = approval_counts.name
+       ORDER BY (COALESCE(survey_counts."surveyCount", 0) + COALESCE(plan_counts."planCount", 0) + COALESCE(approval_counts."approvalCount", 0)) DESC,
+                COALESCE(survey_counts.name, plan_counts.name, approval_counts.name) ASC
+       LIMIT 8`
+    ),
+    pgQuery<DepartmentValueRow>(
+      `WITH survey_values AS (
+         SELECT COALESCE("requestingDept", 'ไม่ระบุ') AS name,
+                COALESCE(SUM(COALESCE("requestedAmount", 0) * COALESCE("pricePerUnit", 0)), 0)::float8 AS "surveyValue"
+         FROM public."Survey"
+         GROUP BY COALESCE("requestingDept", 'ไม่ระบุ')
+       ),
+       plan_values AS (
+         SELECT COALESCE("purchasingDepartment", 'ไม่ระบุ') AS name,
+                COALESCE(SUM(COALESCE("totalRequiredValue", 0)), 0)::float8 AS "planValue"
+         FROM public."PurchasePlan"
+         GROUP BY COALESCE("purchasingDepartment", 'ไม่ระบุ')
+       ),
+       approval_values AS (
+         SELECT COALESCE(department, 'ไม่ระบุ') AS name,
+                COALESCE(SUM(COALESCE("totalValue", 0)), 0)::float8 AS "approvalValue"
+         FROM public."PurchaseApproval"
+         GROUP BY COALESCE(department, 'ไม่ระบุ')
+       )
+       SELECT COALESCE(survey_values.name, plan_values.name, approval_values.name) AS name,
+              COALESCE(survey_values."surveyValue", 0)::float8 AS "surveyValue",
+              COALESCE(plan_values."planValue", 0)::float8 AS "planValue",
+              COALESCE(approval_values."approvalValue", 0)::float8 AS "approvalValue"
+       FROM survey_values
+       FULL OUTER JOIN plan_values ON survey_values.name = plan_values.name
+       FULL OUTER JOIN approval_values ON COALESCE(survey_values.name, plan_values.name) = approval_values.name
+       ORDER BY (COALESCE(survey_values."surveyValue", 0) + COALESCE(plan_values."planValue", 0) + COALESCE(approval_values."approvalValue", 0)) DESC,
+                COALESCE(survey_values.name, plan_values.name, approval_values.name) ASC
+       LIMIT 8`
+    ),
+  ]);
+
+  const overview = [
+    { label: 'สินค้า', value: productCountResult.rows[0]?.count || 0, color: 'bg-purple-500', icon: 'products' as const },
+    { label: 'แผนการใช้', value: surveyCountResult.rows[0]?.count || 0, color: 'bg-teal-500', icon: 'surveys' as const },
+    { label: 'แผนจัดซื้อ', value: purchasePlanCountResult.rows[0]?.count || 0, color: 'bg-indigo-500', icon: 'plans' as const },
+    { label: 'อนุมัติจัดซื้อ', value: approvalCountResult.rows[0]?.count || 0, color: 'bg-emerald-500', icon: 'approvals' as const },
+    { label: 'คลังสินค้า', value: warehouseCountResult.rows[0]?.count || 0, color: 'bg-red-500', icon: 'warehouse' as const },
+    { label: 'แผนก', value: departmentCountResult.rows[0]?.count || 0, color: 'bg-green-500', icon: 'departments' as const },
+  ];
+
+  const valueStats = [
+    { label: 'มูลค่าความต้องการ', value: Number(surveyValueResult.rows[0]?.total) || 0 },
+    { label: 'มูลค่าแผนจัดซื้อ', value: Number(planValueResult.rows[0]?.total) || 0 },
+    { label: 'มูลค่าอนุมัติจัดซื้อ', value: Number(approvalValueResult.rows[0]?.total) || 0 },
+    { label: 'มูลค่าคงเหลือคลัง', value: Number(warehouseValueResult.rows[0]?.total) || 0 },
   ];
 
   return (
     <div className="min-h-screen">
       <div className="container mx-auto px-4 py-8">
         {/* Header */}
-        <div className="text-center mb-12">
-          <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-4">
-            Hospital Resource Planning System
-          </h1>
-        </div>
-
+        <HomeDashboard
+          overview={overview}
+          valueStats={valueStats}
+          productsByCategory={normalizeChartRows(productsByCategoryResult.rows)}
+          surveysByDepartment={normalizeChartRows(surveysByDepartmentResult.rows)}
+          purchasePlanStatus={normalizeChartRows(purchasePlanStatusResult.rows)}
+          warehouseTransactions={normalizeChartRows(warehouseTransactionsResult.rows)}
+          budgetTrend={budgetTrendResult.rows.map((row) => ({
+            year: row.year || '-',
+            surveyValue: Number(row.surveyValue) || 0,
+            planValue: Number(row.planValue) || 0,
+          }))}
+          departmentComparison={departmentComparisonResult.rows.map((row) => ({
+            name: row.name || 'ไม่ระบุ',
+            surveyCount: Number(row.surveyCount) || 0,
+            planCount: Number(row.planCount) || 0,
+            approvalCount: Number(row.approvalCount) || 0,
+          }))}
+          departmentValue={departmentValueResult.rows.map((row) => ({
+            name: row.name || 'ไม่ระบุ',
+            surveyValue: Number(row.surveyValue) || 0,
+            planValue: Number(row.planValue) || 0,
+            approvalValue: Number(row.approvalValue) || 0,
+          }))}
+        />
         {/* Module Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-        {modules.map((module) => (
-          <Link
-            key={module.href}
-            href={module.href}
-            className="group block"
-          >
-            <div className="bg-white/80 backdrop-blur-sm rounded-lg shadow-md hover:shadow-xl transition-all duration-300 p-6 h-full border border-white/20">
-              <div className="flex items-center mb-4">
-                <div className={`${module.color} rounded-lg p-3 mr-4`}>
-                  {(() => {
-                    const Icon = module.icon;
-                    return <Icon className="h-6 w-6 text-white" />;
-                  })()}
-                </div>
-                <h3 className="text-lg font-semibold text-gray-800 group-hover:text-blue-600 transition-colors">
-                  {module.title}
-                </h3>
-              </div>
-              <p className="text-gray-600 text-sm">
-                {module.description}
-              </p>
-            </div>
-          </Link>
-        ))}
-        </div>
-
-       
       </div>
     </div>
   );

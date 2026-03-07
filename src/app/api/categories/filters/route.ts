@@ -1,31 +1,19 @@
 import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { pgQuery } from '@/lib/pg';
 
 export async function GET() {
   try {
     // Get distinct values for each filter field
-    const [categories, types, subtypes] = await Promise.all([
-      prisma.category.findMany({
-        select: { category: true },
-        distinct: ['category'],
-        orderBy: { category: 'asc' }
-      }),
-      prisma.category.findMany({
-        select: { type: true },
-        distinct: ['type'],
-        orderBy: { type: 'asc' }
-      }),
-      prisma.category.findMany({
-        select: { subtype: true },
-        distinct: ['subtype'],
-        orderBy: { subtype: 'asc' }
-      })
+    const [categoriesResult, typesResult, subtypesResult] = await Promise.all([
+      pgQuery('SELECT DISTINCT category FROM public."Category" ORDER BY category ASC'),
+      pgQuery('SELECT DISTINCT type FROM public."Category" ORDER BY type ASC'),
+      pgQuery('SELECT DISTINCT subtype FROM public."Category" ORDER BY subtype ASC'),
     ]);
 
     return NextResponse.json({
-      categories: categories.map(item => item.category).filter(Boolean),
-      types: types.map(item => item.type).filter(Boolean),
-      subtypes: subtypes.map(item => item.subtype).filter(Boolean)
+      categories: categoriesResult.rows.map((item: any) => item.category).filter(Boolean),
+      types: typesResult.rows.map((item: any) => item.type).filter(Boolean),
+      subtypes: subtypesResult.rows.map((item: any) => item.subtype).filter(Boolean)
     });
   } catch (error) {
     console.error('Error fetching category filter options:', error);

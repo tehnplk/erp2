@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { pgQuery } from '@/lib/pg';
 import { apiSuccess, apiError } from '@/lib/api-response';
 import { validateRequest, validateQuery } from '@/lib/validation/validate';
 import { createCategorySchema, categoryQuerySchema } from '@/lib/validation/schemas';
@@ -16,33 +16,38 @@ export async function GET(request: NextRequest) {
 
     const { category, type, subtype, page, pageSize } = queryValidation.data as any;
 
-    const where: any = {};
-    if (category) where.category = { contains: category, mode: 'insensitive' };
-    if (type) where.type = { contains: type, mode: 'insensitive' };
-    if (subtype) where.subtype = { contains: subtype, mode: 'insensitive' };
+    const whereClauses: string[] = [];
+    const params: unknown[] = [];
 
-    // If no pagination params, return all categories (backwards compatible)
+    if (category) {
+      params.push(`%${category}%`);
+      whereClauses.push(`category ILIKE $${params.length}`);
+    }
+    if (type) {
+      params.push(`%${type}%`);
+      whereClauses.push(`type ILIKE $${params.length}`);
+    }
+    if (subtype) {
+      params.push(`%${subtype}%`);
+      whereClauses.push(`subtype ILIKE $${params.length}`);
+    }
+
+    const whereSql = whereClauses.length ? `WHERE ${whereClauses.join(' AND ')}` : '';
+    const baseSelect = 'SELECT id, category, type, subtype FROM public."Category"';
+
     if (!page || !pageSize) {
-      const categories = await prisma.category.findMany({
-        where,
-        orderBy: { id: 'asc' }
-      });
-      return apiSuccess(categories, undefined, categories.length);
+      const categoriesResult = await pgQuery(`${baseSelect} ${whereSql} ORDER BY id ASC`, params);
+      return apiSuccess(categoriesResult.rows, undefined, categoriesResult.rows.length);
     }
 
     const skip = (page - 1) * pageSize;
 
-    const [totalCount, categories] = await Promise.all([
-      prisma.category.count({ where }),
-      prisma.category.findMany({
-        where,
-        orderBy: { id: 'asc' },
-        skip,
-        take: pageSize
-      })
+    const [totalCountResult, categoriesResult] = await Promise.all([
+      pgQuery(`SELECT COUNT(*)::int AS count FROM public."Category" ${whereSql}`, params),
+      pgQuery(`${baseSelect} ${whereSql} ORDER BY id ASC LIMIT $${params.length + 1} OFFSET $${params.length + 2}`, [...params, pageSize, skip]),
     ]);
-    
-    return apiSuccess(categories, undefined, totalCount, 200, { page, pageSize });
+
+    return apiSuccess(categoriesResult.rows, undefined, totalCountResult.rows[0]?.count || 0, 200, { page, pageSize });
   } catch (error) {
     console.error('Error fetching categories:', error);
     return apiError('Failed to fetch categories');
@@ -53,18 +58,20 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    
-    // Validate request body
+
     const validation = await validateRequest(createCategorySchema, body);
     if (!validation.success) {
       return validation.error;
     }
 
-    const newCategory = await prisma.category.create({
-      data: validation.data as any
-    });
+    const result = await pgQuery(
+      `INSERT INTO public."Category" (category, type, subtype)
+       VALUES ($1, $2, $3)
+       RETURNING id, category, type, subtype`,
+      [validation.data.category, validation.data.type, validation.data.subtype]
+    );
 
-    return apiSuccess(newCategory, 'Category created successfully', undefined, 201);
+    return apiSuccess(result.rows[0], 'Category created successfully', undefined, 201);
   } catch (error) {
     console.error('Error creating category:', error);
     return apiError('Failed to create category');

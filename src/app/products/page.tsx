@@ -1,9 +1,26 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Product } from '@prisma/client';
 import Swal from 'sweetalert2';
 import { Check, X, Pencil, Trash2, ChevronUp, ChevronDown, ArrowUpDown } from 'lucide-react';
+
+type Product = {
+  id: number;
+  code: string;
+  category: string;
+  name: string;
+  type: string;
+  subtype: string;
+  unit: string;
+  costPrice?: number | null;
+  sellPrice?: number | null;
+  stockBalance?: number | null;
+  stockValue?: number | null;
+  sellerCode?: string | null;
+  image?: string | null;
+  flagActivate?: boolean;
+  adminNote?: string | null;
+};
 
 interface CategoryOption {
   category: string;

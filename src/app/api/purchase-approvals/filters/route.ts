@@ -1,51 +1,25 @@
 import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { pgQuery } from '@/lib/pg';
 
 export async function GET() {
   try {
     // Get distinct values for each filter field
-    const [departments, categories, productTypes, productSubtypes, requesters, approvers] = await Promise.all([
-      prisma.purchaseApproval.findMany({
-        select: { department: true },
-        distinct: ['department'],
-        orderBy: { department: 'asc' }
-      }),
-      prisma.purchaseApproval.findMany({
-        select: { category: true },
-        distinct: ['category'],
-        orderBy: { category: 'asc' }
-      }),
-      prisma.purchaseApproval.findMany({
-        select: { productType: true },
-        distinct: ['productType'],
-        orderBy: { productType: 'asc' }
-      }),
-      prisma.purchaseApproval.findMany({
-        select: { productSubtype: true },
-        distinct: ['productSubtype'],
-        orderBy: { productSubtype: 'asc' }
-      }),
-      prisma.purchaseApproval.findMany({
-        select: { requester: true },
-        distinct: ['requester'],
-        where: { requester: { not: null } },
-        orderBy: { requester: 'asc' }
-      }),
-      prisma.purchaseApproval.findMany({
-        select: { approver: true },
-        distinct: ['approver'],
-        where: { approver: { not: null } },
-        orderBy: { approver: 'asc' }
-      })
+    const [departmentsResult, categoriesResult, productTypesResult, productSubtypesResult, requestersResult, approversResult] = await Promise.all([
+      pgQuery('SELECT DISTINCT department FROM public."PurchaseApproval" ORDER BY department ASC'),
+      pgQuery('SELECT DISTINCT category FROM public."PurchaseApproval" ORDER BY category ASC'),
+      pgQuery('SELECT DISTINCT "productType" FROM public."PurchaseApproval" ORDER BY "productType" ASC'),
+      pgQuery('SELECT DISTINCT "productSubtype" FROM public."PurchaseApproval" ORDER BY "productSubtype" ASC'),
+      pgQuery('SELECT DISTINCT requester FROM public."PurchaseApproval" WHERE requester IS NOT NULL ORDER BY requester ASC'),
+      pgQuery('SELECT DISTINCT approver FROM public."PurchaseApproval" WHERE approver IS NOT NULL ORDER BY approver ASC'),
     ]);
 
     return NextResponse.json({
-      departments: departments.map(item => item.department).filter(Boolean),
-      categories: categories.map(item => item.category).filter(Boolean),
-      productTypes: productTypes.map(item => item.productType).filter(Boolean),
-      productSubtypes: productSubtypes.map(item => item.productSubtype).filter(Boolean),
-      requesters: requesters.map(item => item.requester).filter(Boolean),
-      approvers: approvers.map(item => item.approver).filter(Boolean)
+      departments: departmentsResult.rows.map((item: any) => item.department).filter(Boolean),
+      categories: categoriesResult.rows.map((item: any) => item.category).filter(Boolean),
+      productTypes: productTypesResult.rows.map((item: any) => item.productType).filter(Boolean),
+      productSubtypes: productSubtypesResult.rows.map((item: any) => item.productSubtype).filter(Boolean),
+      requesters: requestersResult.rows.map((item: any) => item.requester).filter(Boolean),
+      approvers: approversResult.rows.map((item: any) => item.approver).filter(Boolean)
     });
   } catch (error) {
     console.error('Error fetching purchase approval filter options:', error);

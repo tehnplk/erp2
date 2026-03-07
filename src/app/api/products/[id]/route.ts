@@ -1,8 +1,10 @@
 import { NextRequest } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { pgQuery } from '@/lib/pg';
 import { apiSuccess, apiError, apiNotFound, apiConflict } from '@/lib/api-response';
 import { validateRequest } from '@/lib/validation/validate';
 import { idParamSchema, updateProductSchema } from '@/lib/validation/schemas';
+
+const productSelect = `SELECT id, code, category, name, type, subtype, unit, "costPrice"::float8 AS "costPrice", "sellPrice"::float8 AS "sellPrice", "stockBalance", "stockValue"::float8 AS "stockValue", "sellerCode", image, "flagActivate", "adminNote" FROM public."Product"`;
 
 export async function GET(
   request: NextRequest,
@@ -10,17 +12,14 @@ export async function GET(
 ) {
   try {
     const rawParams = await params;
-    // Validate ID parameter
     const idValidation = await validateRequest(idParamSchema, rawParams);
     if (!idValidation.success) {
       return idValidation.error;
     }
-    
+
     const { id } = idValidation.data;
-    
-    const product = await prisma.product.findUnique({
-      where: { id }
-    });
+    const productResult = await pgQuery(`${productSelect} WHERE id = $1 LIMIT 1`, [id]);
+    const product = productResult.rows[0];
 
     if (!product) {
       return apiNotFound('Product');
@@ -39,47 +38,70 @@ export async function PUT(
 ) {
   try {
     const rawParams = await params;
-    // Validate ID parameter
     const idValidation = await validateRequest(idParamSchema, rawParams);
     if (!idValidation.success) {
       return idValidation.error;
     }
-    
+
     const { id } = idValidation.data;
-    
     const body = await request.json();
-    
-    // Validate request body
     const validation = await validateRequest(updateProductSchema, body);
     if (!validation.success) {
       return validation.error;
     }
-    
-    const { code } = validation.data as any;
 
-    const existingProduct = await prisma.product.findUnique({
-      where: { id }
-    });
-
+    const existingProductResult = await pgQuery(`SELECT id, code FROM public."Product" WHERE id = $1 LIMIT 1`, [id]);
+    const existingProduct = existingProductResult.rows[0];
     if (!existingProduct) {
       return apiNotFound('Product');
     }
 
+    const { code } = validation.data as any;
     if (code && code !== existingProduct.code) {
-      const duplicateCode = await prisma.product.findUnique({
-        where: { code }
-      });
-      if (duplicateCode) {
+      const duplicateCodeResult = await pgQuery(`SELECT id FROM public."Product" WHERE code = $1 LIMIT 1`, [code]);
+      if (duplicateCodeResult.rows.length > 0) {
         return apiConflict('Product with this code already exists');
       }
     }
 
-    const product = await prisma.product.update({
-      where: { id },
-      data: validation.data as any
+    const columnMap: Record<string, string> = {
+      code: 'code',
+      category: 'category',
+      name: 'name',
+      type: 'type',
+      subtype: 'subtype',
+      unit: 'unit',
+      costPrice: '"costPrice"',
+      sellPrice: '"sellPrice"',
+      stockBalance: '"stockBalance"',
+      stockValue: '"stockValue"',
+      sellerCode: '"sellerCode"',
+      image: 'image',
+      adminNote: '"adminNote"',
+    };
+
+    const assignments: string[] = [];
+    const values: unknown[] = [];
+
+    Object.entries(validation.data as Record<string, unknown>).forEach(([key, value]) => {
+      const column = columnMap[key];
+      if (!column) return;
+      values.push(value ?? null);
+      assignments.push(`${column} = $${values.length}`);
     });
 
-    return apiSuccess(product, 'Product updated successfully');
+    if (assignments.length === 0) {
+      const unchangedResult = await pgQuery(`${productSelect} WHERE id = $1 LIMIT 1`, [id]);
+      return apiSuccess(unchangedResult.rows[0], 'Product updated successfully');
+    }
+
+    values.push(id);
+    const result = await pgQuery(
+      `UPDATE public."Product" SET ${assignments.join(', ')} WHERE id = $${values.length} RETURNING id, code, category, name, type, subtype, unit, "costPrice"::float8 AS "costPrice", "sellPrice"::float8 AS "sellPrice", "stockBalance", "stockValue"::float8 AS "stockValue", "sellerCode", image, "flagActivate", "adminNote"`,
+      values
+    );
+
+    return apiSuccess(result.rows[0], 'Product updated successfully');
   } catch (error) {
     console.error('Error updating product:', error);
     return apiError('Failed to update product');
@@ -92,26 +114,18 @@ export async function DELETE(
 ) {
   try {
     const rawParams = await params;
-    // Validate ID parameter
     const idValidation = await validateRequest(idParamSchema, rawParams);
     if (!idValidation.success) {
       return idValidation.error;
     }
-    
-    const { id } = idValidation.data;
-    
-    const product = await prisma.product.findUnique({
-      where: { id }
-    });
 
-    if (!product) {
+    const { id } = idValidation.data;
+    const productResult = await pgQuery(`SELECT id FROM public."Product" WHERE id = $1 LIMIT 1`, [id]);
+    if (productResult.rows.length === 0) {
       return apiNotFound('Product');
     }
 
-    await prisma.product.delete({
-      where: { id }
-    });
-
+    await pgQuery(`DELETE FROM public."Product" WHERE id = $1`, [id]);
     return apiSuccess(null, 'Product deleted successfully');
   } catch (error) {
     console.error('Error deleting product:', error);

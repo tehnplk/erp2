@@ -1,37 +1,36 @@
 import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { pgQuery } from '@/lib/pg';
 
 export async function GET() {
   try {
-    const [categoryRows, unitRows, sellerRows] = await Promise.all([
-      prisma.category.findMany({
-        select: {
-          category: true,
-          type: true,
-          subtype: true,
-        },
-        orderBy: [
-          { category: 'asc' },
-          { type: 'asc' },
-          { subtype: 'asc' },
-        ],
-      }),
-      prisma.product.findMany({
-        select: { unit: true },
-        distinct: ['unit'],
-        orderBy: { unit: 'asc' },
-      }),
-      prisma.seller.findMany({
-        select: { code: true, name: true },
-        orderBy: { code: 'asc' },
-      }),
+    const [categoryRowsResult, unitRowsResult, sellerRowsResult] = await Promise.all([
+      pgQuery(
+        `SELECT category, type, subtype
+         FROM public."Category"
+         ORDER BY category ASC, type ASC, subtype ASC`
+      ),
+      pgQuery(
+        `SELECT DISTINCT unit
+         FROM public."Product"
+         WHERE unit IS NOT NULL
+         ORDER BY unit ASC`
+      ),
+      pgQuery(
+        `SELECT code, name
+         FROM public."Seller"
+         ORDER BY code ASC`
+      ),
     ]);
 
-    const categories = Array.from(new Set(categoryRows.map((item) => item.category).filter(Boolean)));
-    const types = Array.from(new Set(categoryRows.map((item) => item.type).filter(Boolean)));
-    const subtypes = Array.from(new Set(categoryRows.map((item) => item.subtype).filter(Boolean)));
-    const units = unitRows.map((item) => item.unit).filter(Boolean);
-    const sellerCodes = sellerRows.map((seller) => seller.code).filter(Boolean);
+    const categoryRows = categoryRowsResult.rows;
+    const unitRows = unitRowsResult.rows;
+    const sellerRows = sellerRowsResult.rows;
+
+    const categories = Array.from(new Set(categoryRows.map((item: any) => item.category).filter(Boolean)));
+    const types = Array.from(new Set(categoryRows.map((item: any) => item.type).filter(Boolean)));
+    const subtypes = Array.from(new Set(categoryRows.map((item: any) => item.subtype).filter(Boolean)));
+    const units = unitRows.map((item: any) => item.unit).filter(Boolean);
+    const sellerCodes = sellerRows.map((seller: any) => seller.code).filter(Boolean);
 
     return NextResponse.json({
       categories,
