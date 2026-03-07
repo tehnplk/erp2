@@ -114,7 +114,7 @@ export default function Navbar() {
               }`}
             >
               <Warehouse className="mr-2 h-4 w-4" />
-              ระบบคลังสินค้า
+              ระบบคลัง
             </Link>
             <Link
               href="/gemini"
@@ -239,7 +239,7 @@ export default function Navbar() {
                 }`}
               >
                 <Warehouse className="mr-2 h-4 w-4" />
-                ระบบคลังสินค้า
+                ระบบคลัง
               </Link>
               <Link
                 href="/gemini"

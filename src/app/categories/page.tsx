@@ -15,8 +15,6 @@ export default function CategoriesPage() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [filteredCategories, setFilteredCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
-  const [showForm, setShowForm] = useState(false);
-  const [editingCategory, setEditingCategory] = useState<Category | null>(null);
   const [formData, setFormData] = useState({
     category: '',
     type: '',
@@ -54,6 +52,17 @@ export default function CategoriesPage() {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
   const PAGE_SIZE_OPTIONS = [10, 20, 50];
+
+  const createEmptyCategoryRecord = () => ({
+    category: '',
+    type: '',
+    subtype: ''
+  });
+
+  const createEmptyBulkCategoryRecord = () => ({
+    id: Date.now() + Math.random(),
+    ...createEmptyCategoryRecord()
+  });
 
   // Fetch categories
   const fetchCategories = async () => {
@@ -115,52 +124,18 @@ export default function CategoriesPage() {
     setFilteredCategories(categories);
   };
 
+  const openBulkForm = () => {
+    setShowBulkForm(true);
+    setBulkRecords([createEmptyBulkCategoryRecord()]);
+  };
+
+  const addBulkRow = () => {
+    setBulkRecords((current) => [...current, createEmptyBulkCategoryRecord()]);
+  };
+
   // Get unique values for filter dropdowns
   const getUniqueValues = (field: keyof Category) => {
     return [...new Set(categories.map(cat => cat[field]))].sort();
-  };
-
-  // Create category
-  const createCategory = async (e: React.FormEvent) => {
-    e.preventDefault();
-    try {
-      const response = await fetch('/api/categories', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData)
-      });
-      
-      if (response.ok) {
-        setFormData({ category: '', type: '', subtype: '' });
-        setShowForm(false);
-        fetchCategories();
-      }
-    } catch (error) {
-      console.error('Error creating category:', error);
-    }
-  };
-
-  // Update category
-  const updateCategory = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!editingCategory) return;
-
-    try {
-      const response = await fetch(`/api/categories/${editingCategory.id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData)
-      });
-      
-      if (response.ok) {
-        setEditingCategory(null);
-        setFormData({ category: '', type: '', subtype: '' });
-        setShowForm(false);
-        fetchCategories();
-      }
-    } catch (error) {
-      console.error('Error updating category:', error);
-    }
   };
 
   // Delete category
@@ -257,11 +232,31 @@ export default function CategoriesPage() {
 
   // Save new record
   const saveNewRecord = async () => {
+    if (
+      !newRecordData.category.trim() ||
+      !newRecordData.type.trim() ||
+      !newRecordData.subtype.trim()
+    ) {
+      setToast({
+        message: 'กรุณากรอกข้อมูลให้ครบถ้วน',
+        type: 'error',
+        visible: true
+      });
+      setTimeout(() => {
+        setToast({ ...toast, visible: false });
+      }, 3000);
+      return;
+    }
+
     try {
       const response = await fetch('/api/categories', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(newRecordData)
+        body: JSON.stringify({
+          category: newRecordData.category.trim(),
+          type: newRecordData.type.trim(),
+          subtype: newRecordData.subtype.trim()
+        })
       });
 
       if (response.ok) {
@@ -397,11 +392,9 @@ export default function CategoriesPage() {
     setEditData({ category: '', type: '', subtype: '' });
   };
 
-  // Cancel form
-  const cancelForm = () => {
-    setShowForm(false);
-    setEditingCategory(null);
-    setFormData({ category: '', type: '', subtype: '' });
+  const cancelNewRecord = () => {
+    setAddingNew(false);
+    setNewRecordData(createEmptyCategoryRecord());
   };
 
   useEffect(() => {
@@ -441,7 +434,7 @@ export default function CategoriesPage() {
   }
 
   return (
-    <div className="container mx-auto px-4 py-8">
+    <div className="container mx-auto px-4 py-6">
       {/* Toast Notification */}
       {toast.visible && (
         <div className={`fixed top-4 right-4 z-50 p-4 rounded-lg shadow-lg transition-all duration-300 ${
@@ -474,84 +467,19 @@ export default function CategoriesPage() {
           </div>
         </div>
       )}
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold text-gray-800">จัดการหมวดหมู่สินค้า</h1>
+      <div className="mb-4">
+        <h1 className="text-2xl font-semibold text-gray-900">จัดการหมวดหมู่สินค้า</h1>
       </div>
-
-      {/* Form Modal */}
-      {showForm && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-md">
-            <h2 className="text-xl font-bold mb-4">
-              {editingCategory ? 'แก้ไขหมวดหมู่' : 'เพิ่มหมวดหมู่ใหม่'}
-            </h2>
-            
-            <form onSubmit={editingCategory ? updateCategory : createCategory}>
-              <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  หมวดหมู่
-                </label>
-                <input
-                  type="text"
-                  value={formData.category}
-                  onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  required
-                />
-              </div>
-
-              <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  ประเภท
-                </label>
-                <input
-                  type="text"
-                  value={formData.type}
-                  onChange={(e) => setFormData({ ...formData, type: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  required
-                />
-              </div>
-
-              <div className="mb-6">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  ประเภทย่อย
-                </label>
-                <input
-                  type="text"
-                  value={formData.subtype}
-                  onChange={(e) => setFormData({ ...formData, subtype: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  required
-                />
-              </div>
-
-              <div className="flex gap-3">
-                <button
-                  type="submit"
-                  className="flex-1 bg-blue-600 text-white py-2 rounded-md hover:bg-blue-700 transition-colors"
-                >
-                  {editingCategory ? 'อัพเดท' : 'สร้าง'}
-                </button>
-                <button
-                  type="button"
-                  onClick={cancelForm}
-                  className="flex-1 bg-gray-500 text-white py-2 rounded-md hover:bg-gray-600 transition-colors"
-                >
-                  ยกเลิก
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
 
       {/* Bulk Add Form Modal */}
       {showBulkForm && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 w-full max-w-4xl max-h-[80vh] overflow-y-auto">
             <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-bold">เพิ่มหมวดหมู่ใหม่ (5 รายการพร้อมแก้ไข)</h2>
+              <div>
+                <h2 className="text-xl font-bold">Bulk insert หมวดหมู่สินค้า</h2>
+                <p className="mt-1 text-sm text-gray-500">เพิ่มหลายรายการพร้อมกัน และกดปุ่ม + เพื่อเพิ่มแถวได้ตามต้องการ</p>
+              </div>
               <button
                 onClick={() => {
                   setShowBulkForm(false);
@@ -622,25 +550,13 @@ export default function CategoriesPage() {
                         </td>
                         <td className="px-4 py-3">
                           <div className="flex gap-1">
-                            {bulkRecords.length < 5 && (
-                              <button
-                                onClick={() => {
-                                  const newRecord = {
-                                    id: Math.max(...bulkRecords.map(r => r.id)) + 1,
-                                    category: '',
-                                    type: '',
-                                    subtype: ''
-                                  };
-                                  setBulkRecords([...bulkRecords, newRecord]);
-                                }}
-                                className="text-green-600 hover:text-green-900 p-1"
-                                title="เพิ่มแถวใหม่"
-                              >
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                                  <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
-                                </svg>
-                              </button>
-                            )}
+                            <button
+                              onClick={addBulkRow}
+                              className="text-green-600 hover:text-green-900 p-1"
+                              title="เพิ่มแถวใหม่"
+                            >
+                              <Plus className="h-4 w-4" />
+                            </button>
                             {bulkRecords.length > 1 && (
                               <button
                                 onClick={() => {
@@ -686,13 +602,11 @@ export default function CategoriesPage() {
       )}
 
       {/* Filter Section */}
-      <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-        <h3 className="text-lg font-semibold mb-4">ตัวกรอง</h3>
-        
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+      <div className="mb-4 rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-5">
           {/* Search Filter */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="mb-1 block text-sm font-medium text-gray-700">
               ค้นหา
             </label>
             <input
@@ -706,7 +620,7 @@ export default function CategoriesPage() {
 
           {/* Category Filter */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="mb-1 block text-sm font-medium text-gray-700">
               หมวดหมู่
             </label>
             <select
@@ -723,7 +637,7 @@ export default function CategoriesPage() {
 
           {/* Type Filter */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="mb-1 block text-sm font-medium text-gray-700">
               ประเภท
             </label>
             <select
@@ -740,7 +654,7 @@ export default function CategoriesPage() {
 
           {/* Subtype Filter */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="mb-1 block text-sm font-medium text-gray-700">
               ประเภทย่อย
             </label>
             <select
@@ -757,42 +671,41 @@ export default function CategoriesPage() {
 
           {/* Clear Button */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              การดำเนินการ
+            <label className="mb-1 block text-sm font-medium text-gray-700">
+              รีเซ็ต
             </label>
             <button
               onClick={clearFilters}
-              className="w-full px-4 py-2 bg-gray-500 text-white rounded-md hover:bg-gray-600 transition-colors"
+              className="w-full rounded-md bg-slate-600 px-4 py-2 text-white transition-colors hover:bg-slate-700"
             >
               ล้างตัวกรอง
             </button>
           </div>
         </div>
-
       </div>
 
-      {/* Add New Record Button */}
-      <div className="flex justify-end mt-4 mb-4">
+      <div className="mb-4 flex items-center justify-end gap-2">
+        <button
+          onClick={openBulkForm}
+          className="rounded-md border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50"
+        >
+          Bulk insert
+        </button>
         <button
           onClick={() => {
-            setShowBulkForm(true);
-            setBulkRecords([
-              { id: 1, category: '', type: '', subtype: '' },
-              { id: 2, category: '', type: '', subtype: '' },
-              { id: 3, category: '', type: '', subtype: '' },
-              { id: 4, category: '', type: '', subtype: '' },
-              { id: 5, category: '', type: '', subtype: '' }
-            ]);
+            setAddingNew(true);
+            setNewRecordData(createEmptyCategoryRecord());
           }}
-          className="bg-blue-600 text-white p-3 rounded-full hover:bg-blue-700 transition-colors shadow-lg"
+          disabled={addingNew}
+          className="rounded-md bg-blue-600 px-3 py-2 text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-blue-300"
           title="เพิ่มหมวดหมู่ใหม่"
         >
-          <Plus className="h-6 w-6" />
+          <Plus className="h-5 w-5" />
         </button>
       </div>
 
       {/* Pagination Controls (survey-style) */}
-      <div className="mt-4 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+      <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <div className="text-sm text-gray-600">
           แสดง {pageStart}-{pageEnd} จาก {totalCount} รายการ
         </div>
@@ -832,7 +745,7 @@ export default function CategoriesPage() {
       </div>
 
       {/* Categories Table */}
-      <div className="bg-white rounded-lg shadow-md overflow-hidden">
+      <div className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
         <div className="overflow-x-auto">
           <table className="w-full table-auto">
             <thead className="bg-gray-50">
@@ -855,7 +768,56 @@ export default function CategoriesPage() {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {/* Existing Categories Rows */}
+              {addingNew && (
+                <tr className="bg-blue-50/60">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">ใหม่</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm">
+                    <input
+                      type="text"
+                      value={newRecordData.category}
+                      onChange={(e) => setNewRecordData({ ...newRecordData, category: e.target.value })}
+                      className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="หมวดหมู่"
+                    />
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm">
+                    <input
+                      type="text"
+                      value={newRecordData.type}
+                      onChange={(e) => setNewRecordData({ ...newRecordData, type: e.target.value })}
+                      className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="ประเภท"
+                    />
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm">
+                    <input
+                      type="text"
+                      value={newRecordData.subtype}
+                      onChange={(e) => setNewRecordData({ ...newRecordData, subtype: e.target.value })}
+                      className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="ประเภทย่อย"
+                    />
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium w-32">
+                    <div className="flex gap-1">
+                      <button
+                        onClick={saveNewRecord}
+                        className="text-green-600 hover:text-green-900 cursor-pointer"
+                        title="บันทึก"
+                      >
+                        <Check className="h-4 w-4" />
+                      </button>
+                      <button
+                        onClick={cancelNewRecord}
+                        className="text-red-600 hover:text-red-900 cursor-pointer"
+                        title="ยกเลิก"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              )}
               {paginatedCategories.map((cat) => (
                 <tr key={cat.id} className="hover:bg-gray-50">
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
@@ -942,7 +904,7 @@ export default function CategoriesPage() {
 
         {filteredCategories.length === 0 && categories.length > 0 && (
           <div className="text-center py-8 text-gray-500">
-            ไม่พบหมวดหมู่ที่ตรงกับตัวกรอง กรุณาปรับเกณฑ์การค้นหา
+            ไม่พบข้อมูลตามตัวกรอง
           </div>
         )}
 

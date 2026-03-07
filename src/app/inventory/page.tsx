@@ -68,73 +68,102 @@ export default async function InventoryPage() {
 
   const stats = [
     {
-      label: 'รายการคงคลัง',
-      value: formatNumber(balanceCountResult.rows[0]?.count || 0),
-      helper: 'จำนวนสินค้าและ lot ที่มีการเคลื่อนไหวในระบบคลังสินค้า',
+      label: 'รายการที่อนุมัติจัดซื้อ-รอเข้าคลัง',
+      value: formatNumber(pendingReceiptCountResult.rows[0]?.count || 0),
+      icon: ClipboardCheck,
+      borderClass: 'border-emerald-200',
+      shadowClass: 'shadow-[0_20px_35px_-28px_rgba(16,185,129,0.9)]',
+      iconBorderClass: 'border-emerald-100',
+      iconBgClass: 'bg-emerald-50',
+      iconColorClass: 'text-emerald-600',
+      valueClass: 'text-emerald-700',
     },
     {
-      label: 'รอรับเข้าจาก PurchaseApproval',
-      value: formatNumber(pendingReceiptCountResult.rows[0]?.count || 0),
-      helper: 'รายการที่ยังรับเข้าไม่ครบ',
+      label: 'รายการคงคลัง',
+      value: formatNumber(balanceCountResult.rows[0]?.count || 0),
+      icon: Boxes,
+      borderClass: 'border-sky-200',
+      shadowClass: 'shadow-[0_20px_35px_-28px_rgba(14,165,233,0.9)]',
+      iconBorderClass: 'border-sky-100',
+      iconBgClass: 'bg-sky-50',
+      iconColorClass: 'text-sky-600',
+      valueClass: 'text-sky-700',
     },
     {
       label: 'เอกสารขอเบิก',
       value: formatNumber(requisitionCountResult.rows[0]?.count || 0),
-      helper: 'จำนวนคำขอเบิกที่บันทึกในระบบคลังสินค้า',
+      icon: FileClock,
+      borderClass: 'border-violet-200',
+      shadowClass: 'shadow-[0_20px_35px_-28px_rgba(139,92,246,0.9)]',
+      iconBorderClass: 'border-violet-100',
+      iconBgClass: 'bg-violet-50',
+      iconColorClass: 'text-violet-600',
+      valueClass: 'text-violet-700',
     },
     {
       label: 'เอกสารจ่าย',
       value: formatNumber(issueCountResult.rows[0]?.count || 0),
-      helper: 'จำนวนเอกสารจ่ายสินค้าที่บันทึกเรียบร้อยแล้ว',
+      icon: ArrowRightLeft,
+      borderClass: 'border-amber-200',
+      shadowClass: 'shadow-[0_20px_35px_-28px_rgba(245,158,11,0.85)]',
+      iconBorderClass: 'border-amber-100',
+      iconBgClass: 'bg-amber-50',
+      iconColorClass: 'text-amber-600',
+      valueClass: 'text-amber-700',
     },
   ];
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      <div className="mx-auto flex max-w-7xl flex-col gap-8 px-4 py-8 sm:px-6 lg:px-8">
-        <section className="rounded-3xl bg-gradient-to-r from-slate-900 via-blue-900 to-cyan-700 px-6 py-8 text-white shadow-xl">
+    <div className="min-h-screen bg-white">
+      <div className="mx-auto flex max-w-6xl flex-col gap-8 px-4 py-8 sm:px-6 lg:px-8">
+        <section className="border-b border-slate-200 pb-6">
           <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
             <div className="max-w-3xl">
-              <p className="text-sm font-medium uppercase tracking-[0.25em] text-cyan-100">Warehouse Management</p>
-              <h1 className="mt-2 text-3xl font-bold sm:text-4xl">ระบบคลังสินค้า</h1>
-              <p className="mt-3 text-sm text-slate-100 sm:text-base">
-                ศูนย์กลางการบริหารรับเข้า เบิกจ่าย และติดตามความเคลื่อนไหวสินค้าแบบครบถ้วนบนฐานข้อมูลกลาง
-              </p>
+              <p className="text-xs font-medium uppercase tracking-[0.2em] text-slate-500">Inventory Management</p>
+              <h1 className="mt-2 text-3xl font-semibold text-slate-900 sm:text-4xl">ระบบคลังสินค้า</h1>
             </div>
-            <div className="rounded-2xl bg-white/10 px-5 py-4 backdrop-blur-sm">
-              <p className="text-xs text-cyan-100">มูลค่าสินค้าคงเหลือรวม</p>
-              <p className="mt-2 text-2xl font-semibold">{formatCurrency(Number(inventorySummaryResult.rows[0]?.totalvalue || 0))}</p>
-              <p className="mt-1 text-sm text-slate-100">จำนวนคงเหลือรวม {formatNumber(Number(inventorySummaryResult.rows[0]?.totalqty || 0))} หน่วย</p>
+            <div className="rounded-2xl border border-slate-200 bg-slate-50 px-5 py-4">
+              <p className="text-xs text-slate-500">มูลค่าสินค้าคงเหลือรวม</p>
+              <p className="mt-2 text-2xl font-semibold text-slate-900">{formatCurrency(Number(inventorySummaryResult.rows[0]?.totalvalue || 0))}</p>
+              <p className="mt-1 text-sm text-slate-600">จำนวนคงเหลือรวม {formatNumber(Number(inventorySummaryResult.rows[0]?.totalqty || 0))} หน่วย</p>
             </div>
           </div>
         </section>
 
-        <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <section className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
           {stats.map((stat) => (
-            <div key={stat.label} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-              <p className="text-sm text-slate-500">{stat.label}</p>
-              <p className="mt-3 text-3xl font-bold text-slate-900">{stat.value}</p>
-              <p className="mt-2 text-sm text-slate-500">{stat.helper}</p>
+            <div
+              key={stat.label}
+              className={`rounded-2xl border bg-white p-5 shadow-[0_0_0_1px_rgba(148,163,184,0.08),0_10px_24px_-18px_rgba(15,23,42,0.45)] ${stat.borderClass} ${stat.shadowClass}`}
+            >
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <p className="text-sm text-slate-500">{stat.label}</p>
+                  <p className={`mt-2 text-2xl font-semibold ${stat.valueClass}`}>{stat.value}</p>
+                </div>
+                <div className={`rounded-xl border p-3 ${stat.iconBorderClass} ${stat.iconBgClass}`}>
+                  <stat.icon className={`h-5 w-5 ${stat.iconColorClass}`} />
+                </div>
+              </div>
             </div>
           ))}
         </section>
 
-        <section className="grid grid-cols-1 gap-5 xl:grid-cols-2">
+        <section className="grid grid-cols-1 gap-4 xl:grid-cols-2">
           {shortcuts.map((item) => {
             const Icon = item.icon;
             return (
-              <Link key={item.href} href={item.href} className="group rounded-3xl border border-slate-200 bg-white p-6 shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg">
+              <Link key={item.href} href={item.href} className="group rounded-2xl border border-slate-300 bg-white p-5 shadow-[0_0_0_1px_rgba(148,163,184,0.08),0_12px_28px_-20px_rgba(15,23,42,0.5)] transition hover:border-slate-400 hover:shadow-[0_0_0_1px_rgba(100,116,139,0.12),0_16px_32px_-22px_rgba(15,23,42,0.55)] hover:bg-slate-50">
                 <div className="flex items-start gap-4">
-                  <div className={`rounded-2xl bg-gradient-to-br ${item.tone} p-4 text-white shadow-lg`}>
-                    <Icon className="h-6 w-6" />
+                  <div className="rounded-xl border border-slate-300 bg-slate-50 p-3 text-slate-700 shadow-sm">
+                    <Icon className="h-5 w-5" />
                   </div>
                   <div className="flex-1">
                     <div className="flex items-center justify-between gap-3">
-                      <h2 className="text-xl font-semibold text-slate-900">{item.title}</h2>
-                      <PackageSearch className="h-5 w-5 text-slate-400 transition group-hover:text-slate-700" />
+                      <h2 className="text-lg font-semibold text-slate-900">{item.title}</h2>
+                      <PackageSearch className="h-5 w-5 text-slate-300 transition group-hover:text-slate-600" />
                     </div>
-                    <p className="mt-2 text-sm leading-6 text-slate-600">{item.description}</p>
-                    <div className="mt-4 inline-flex items-center gap-2 text-sm font-medium text-blue-700">
+                    <div className="mt-4 inline-flex items-center gap-2 text-sm font-medium text-slate-700">
                       เข้าสู่หน้าจัดการ
                       <ArrowRightLeft className="h-4 w-4" />
                     </div>
