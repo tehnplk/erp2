@@ -183,6 +183,10 @@ export const purchasePlanQuerySchema = z.object({
 export const createPurchaseApprovalSchema = z.object({
   approvalId: z.string().optional(),
   department: z.string().optional(),
+  budgetYear: z.union([z.string(), z.number(), z.null(), z.undefined()])
+    .transform((val) => val === null || val === undefined || val === '' ? null : parseInt(String(val), 10))
+    .pipe(z.number().int().nullable())
+    .optional(),
   recordNumber: z.string().optional(),
   requestDate: z.string().optional(),
   productName: z.string().optional(),
@@ -205,8 +209,9 @@ export const purchaseApprovalQuerySchema = z.object({
   productType: z.string().optional(),
   productSubtype: z.string().optional(),
   department: z.string().optional(),
+  budgetYear: z.string().optional(),
   orderBy: z.enum([
-    'id', 'department', 'recordNumber', 'requestDate', 
+    'id', 'department', 'budgetYear', 'recordNumber', 'requestDate', 
     'productName', 'productCode', 'category', 'productType', 
     'productSubtype', 'requester', 'approver'
   ]).optional(),

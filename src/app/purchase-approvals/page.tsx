@@ -2,11 +2,37 @@
 
 import { useEffect, useState } from 'react';
 import Swal from 'sweetalert2';
-import { Pencil, Trash2 } from 'lucide-react';
+import { Pencil, Search, Trash2, X } from 'lucide-react';
+
+const getCurrentBudgetYear = () => {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = now.getMonth();
+  return month >= 9 ? year + 544 : year + 543;
+};
+
+const getTodayDateInputValue = () => {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
+const formatNumberWithComma = (value?: number | null, fractionDigits = 0) => {
+  if (value === null || value === undefined || Number.isNaN(Number(value))) {
+    return '';
+  }
+  return Number(value).toLocaleString('en-US', {
+    minimumFractionDigits: fractionDigits,
+    maximumFractionDigits: fractionDigits,
+  });
+};
 
 interface PurchaseApprovalFormData {
   approvalId?: string;
   department?: string;
+  budgetYear?: string;
   recordNumber?: string;
   requestDate?: string;
   productName?: string;
@@ -23,14 +49,41 @@ interface PurchaseApprovalFormData {
   approver?: string;
 }
 
+interface PurchaseApprovalItem extends PurchaseApprovalFormData {
+  id: number;
+  created_at?: string;
+  updated_at?: string;
+}
+
+interface PurchasePlanOption {
+  id: number;
+  productCode?: string | null;
+  productName?: string | null;
+  category?: string | null;
+  productType?: string | null;
+  productSubtype?: string | null;
+  unit?: string | null;
+  pricePerUnit?: number | null;
+  budgetYear?: string | number | null;
+  requiredQuantityForYear?: number | null;
+  purchasingDepartment?: string | null;
+}
+
 export default function PurchaseApprovalsPage() {
-  const [items, setItems] = useState<any[]>([]);
-  const [summaryItems, setSummaryItems] = useState<any[]>([]);
+  const [items, setItems] = useState<PurchaseApprovalItem[]>([]);
+  const [summaryItems, setSummaryItems] = useState<PurchaseApprovalItem[]>([]);
   const [totalCount, setTotalCount] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [filtersLoading, setFiltersLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
-  const [editing, setEditing] = useState<any | null>(null);
+  const [editing, setEditing] = useState<PurchaseApprovalItem | null>(null);
   const [formData, setFormData] = useState<PurchaseApprovalFormData>({});
+  const [purchasePlanOptions, setPurchasePlanOptions] = useState<PurchasePlanOption[]>([]);
+  const [plansLoading, setPlansLoading] = useState(false);
+  const [planSearchTerm, setPlanSearchTerm] = useState('');
+  const [selectedPlanLabel, setSelectedPlanLabel] = useState('');
+  const [showPlanSuggestions, setShowPlanSuggestions] = useState(false);
+  const [highlightedPlanIndex, setHighlightedPlanIndex] = useState(-1);
   const [showMemo, setShowMemo] = useState(false);
   const [memoPreview, setMemoPreview] = useState(false);
   const [memoText, setMemoText] = useState(
@@ -68,6 +121,7 @@ export default function PurchaseApprovalsPage() {
   const [typeFilter, setTypeFilter] = useState('');
   const [subtypeFilter, setSubtypeFilter] = useState('');
   const [departmentFilter, setDepartmentFilter] = useState('');
+  const [budgetYearFilter, setBudgetYearFilter] = useState('');
 
   // sort
   const [sortBy, setSortBy] = useState('id');
@@ -82,19 +136,59 @@ export default function PurchaseApprovalsPage() {
   const [departments, setDepartments] = useState<string[]>([]);
   const [requesters, setRequesters] = useState<string[]>([]);
   const [approvers, setApprovers] = useState<string[]>([]);
+  const [years, setYears] = useState<string[]>([]);
+  const availableBudgetYears = Array.from(new Set([
+    ...years,
+    ...Array.from({ length: 6 }, (_, index) => String(getCurrentBudgetYear() - index)),
+  ])).sort((a, b) => Number(b) - Number(a));
 
-  useEffect(() => { fetchData(); }, [nameFilter, categoryFilter, typeFilter, subtypeFilter, departmentFilter, sortBy, sortOrder, page, pageSize]);
+  useEffect(() => { fetchData(); }, [nameFilter, categoryFilter, typeFilter, subtypeFilter, departmentFilter, budgetYearFilter, sortBy, sortOrder, page, pageSize]);
 
   // When filters or sorting change, reset to first page and refresh summary data
   useEffect(() => {
     setPage(1);
     fetchSummaryData();
-  }, [nameFilter, categoryFilter, typeFilter, subtypeFilter, departmentFilter, sortBy, sortOrder]);
+  }, [nameFilter, categoryFilter, typeFilter, subtypeFilter, departmentFilter, budgetYearFilter, sortBy, sortOrder]);
 
-  useEffect(() => { fetchFilters(); fetchSummaryData(); }, []);
+  useEffect(() => { fetchFilters(); fetchSummaryData(); fetchPurchasePlanOptions(); }, []);
+
+  useEffect(() => {
+    setFormData((prev) => {
+      const quantity = prev.requestedQuantity ?? 0;
+      const price = prev.pricePerUnit ?? 0;
+      const nextTotal = Number((quantity * price).toFixed(2));
+
+      if ((prev.totalValue ?? 0) === nextTotal) {
+        return prev;
+      }
+
+      return {
+        ...prev,
+        totalValue: nextTotal,
+      };
+    });
+  }, [formData.requestedQuantity, formData.pricePerUnit]);
+
+  const fetchPurchasePlanOptions = async () => {
+    try {
+      setPlansLoading(true);
+      const res = await fetch('/api/purchase-plans?orderBy=id&sortOrder=desc');
+      if (!res.ok) {
+        throw new Error('fetch purchase plans failed');
+      }
+
+      const data = await res.json();
+      setPurchasePlanOptions(data.data || []);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setPlansLoading(false);
+    }
+  };
 
   const fetchFilters = async () => {
     try {
+      setFiltersLoading(true);
       const res = await fetch('/api/purchase-approvals/filters');
       if (res.ok) {
         const data = await res.json();
@@ -104,8 +198,10 @@ export default function PurchaseApprovalsPage() {
         setDepartments(data.departments || []);
         setRequesters(data.requesters || []);
         setApprovers(data.approvers || []);
+        setYears(data.budgetYears || []);
       }
     } catch (e) { console.error(e); }
+    finally { setFiltersLoading(false); }
   };
 
   const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
@@ -132,6 +228,7 @@ export default function PurchaseApprovalsPage() {
       if (typeFilter) params.append('productType', typeFilter);
       if (subtypeFilter) params.append('productSubtype', subtypeFilter);
       if (departmentFilter) params.append('department', departmentFilter);
+      if (budgetYearFilter) params.append('budgetYear', budgetYearFilter);
       params.append('orderBy', sortBy);
       params.append('sortOrder', sortOrder);
       params.append('page', page.toString());
@@ -160,6 +257,7 @@ export default function PurchaseApprovalsPage() {
       if (typeFilter) params.append('productType', typeFilter);
       if (subtypeFilter) params.append('productSubtype', subtypeFilter);
       if (departmentFilter) params.append('department', departmentFilter);
+      if (budgetYearFilter) params.append('budgetYear', budgetYearFilter);
       params.append('orderBy', sortBy);
       params.append('sortOrder', sortOrder);
 
@@ -181,9 +279,15 @@ export default function PurchaseApprovalsPage() {
 
   const handleEdit = (row: any) => {
     setEditing(row);
+    const selectedLabel = [row.productCode, row.productName].filter(Boolean).join(' - ');
+    setPlanSearchTerm(selectedLabel);
+    setSelectedPlanLabel(selectedLabel);
+    setShowPlanSuggestions(false);
+    setHighlightedPlanIndex(-1);
     setFormData({
       approvalId: row.approvalId || '',
       department: row.department || '',
+      budgetYear: row.budgetYear ? String(row.budgetYear) : '',
       recordNumber: row.recordNumber || '',
       requestDate: row.requestDate || '',
       productName: row.productName || '',
@@ -202,7 +306,15 @@ export default function PurchaseApprovalsPage() {
     setShowForm(true);
   };
 
-  const resetForm = () => { setEditing(null); setFormData({}); setShowForm(false); };
+  const resetForm = () => {
+    setEditing(null);
+    setFormData({ budgetYear: String(getCurrentBudgetYear()), requestDate: getTodayDateInputValue() });
+    setPlanSearchTerm('');
+    setSelectedPlanLabel('');
+    setShowPlanSuggestions(false);
+    setHighlightedPlanIndex(-1);
+    setShowForm(false);
+  };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -225,6 +337,115 @@ export default function PurchaseApprovalsPage() {
     else { const err = await res.json().catch(()=>({})); alert(err.error || 'บันทึกล้มเหลว'); }
   };
 
+  const modalFieldClassName = 'w-full border rounded px-3 py-2';
+
+  const filteredPlanOptions = planSearchTerm.trim().length === 0
+    ? purchasePlanOptions.slice(0, 12)
+    : purchasePlanOptions.filter((option) => {
+        const searchValue = planSearchTerm.trim().toLowerCase();
+        return [option.productCode, option.productName]
+          .filter(Boolean)
+          .some((value) => String(value).toLowerCase().includes(searchValue));
+      }).slice(0, 12);
+
+  const applyPurchasePlanSelection = (plan: PurchasePlanOption) => {
+    const selectedLabel = [plan.productCode, plan.productName].filter(Boolean).join(' - ');
+    setPlanSearchTerm(selectedLabel);
+    setSelectedPlanLabel(selectedLabel);
+    setShowPlanSuggestions(false);
+    setHighlightedPlanIndex(-1);
+    setFormData((prev) => ({
+      ...prev,
+      productCode: plan.productCode || '',
+      productName: plan.productName || '',
+      category: plan.category || '',
+      productType: plan.productType || '',
+      productSubtype: plan.productSubtype || '',
+      unit: plan.unit || '',
+      pricePerUnit: plan.pricePerUnit != null ? Number(plan.pricePerUnit) : undefined,
+      budgetYear: plan.budgetYear != null ? String(plan.budgetYear) : prev.budgetYear || String(getCurrentBudgetYear()),
+      requestedQuantity: plan.requiredQuantityForYear != null ? Number(plan.requiredQuantityForYear) : prev.requestedQuantity ?? null,
+      department: plan.purchasingDepartment || prev.department || '',
+    }));
+  };
+
+  const handlePlanSearchChange = (value: string) => {
+    setPlanSearchTerm(value);
+    const isExistingSelection = value.trim().length > 0 && value.trim() === selectedPlanLabel.trim();
+    if (!isExistingSelection) {
+      setSelectedPlanLabel('');
+    }
+    setShowPlanSuggestions(!isExistingSelection);
+    setHighlightedPlanIndex(-1);
+
+    if (!value.trim()) {
+      setFormData((prev) => ({
+        ...prev,
+        productCode: '',
+        productName: '',
+        category: '',
+        productType: '',
+        productSubtype: '',
+        unit: '',
+        pricePerUnit: undefined,
+        requestedQuantity: null,
+        totalValue: 0,
+      }));
+    }
+  };
+
+  const handlePlanSearchKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
+    if (!showPlanSuggestions || filteredPlanOptions.length === 0) {
+      return;
+    }
+
+    if (event.key === 'ArrowDown') {
+      event.preventDefault();
+      setHighlightedPlanIndex((prev) => (prev + 1) % filteredPlanOptions.length);
+      return;
+    }
+
+    if (event.key === 'ArrowUp') {
+      event.preventDefault();
+      setHighlightedPlanIndex((prev) => (prev <= 0 ? filteredPlanOptions.length - 1 : prev - 1));
+      return;
+    }
+
+    if (event.key === 'Enter' && highlightedPlanIndex >= 0) {
+      event.preventDefault();
+      applyPurchasePlanSelection(filteredPlanOptions[highlightedPlanIndex]);
+      return;
+    }
+
+    if (event.key === 'Escape') {
+      setShowPlanSuggestions(false);
+      setHighlightedPlanIndex(-1);
+    }
+  };
+
+  const openCreateForm = () => {
+    setEditing(null);
+    setFormData({ budgetYear: String(getCurrentBudgetYear()), requestDate: getTodayDateInputValue() });
+    setPlanSearchTerm('');
+    setSelectedPlanLabel('');
+    setShowPlanSuggestions(false);
+    setHighlightedPlanIndex(-1);
+    setShowForm(true);
+  };
+
+  const shouldShowNoResults = showPlanSuggestions
+    && !plansLoading
+    && planSearchTerm.trim().length > 0
+    && planSearchTerm.trim() !== selectedPlanLabel.trim()
+    && filteredPlanOptions.length === 0;
+
+  const formatDateTime = (value?: string) => {
+    if (!value) return '-';
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return value;
+    return date.toLocaleString('th-TH');
+  };
+
   const handleDelete = async (id: number) => {
     const result = await Swal.fire({ title: 'ลบข้อมูล?', text: 'ยืนยันการลบรายการ', icon: 'warning', showCancelButton: true, confirmButtonText: 'ลบ', cancelButtonText: 'ยกเลิก' });
     if (!result.isConfirmed) return;
@@ -239,16 +460,16 @@ export default function PurchaseApprovalsPage() {
         <h1 className="text-3xl font-bold text-gray-800">ขออนุมัติจัดซื้อ</h1>
         <div className="flex gap-2">
           <button
+            onClick={openCreateForm}
+            className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
+          >
+            เพิ่มรายการ
+          </button>
+          <button
             onClick={() => setShowMemo(true)}
             className="bg-emerald-500 hover:bg-emerald-700 text-white font-bold py-2 px-4 rounded"
           >
             ขอความเห็นชอบจัดซื้อ
-          </button>
-          <button
-            onClick={() => setShowForm(true)}
-            className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
-          >
-            เพิ่มรายการ
           </button>
         </div>
       </div>
@@ -312,30 +533,195 @@ export default function PurchaseApprovalsPage() {
 
       {showForm && (
         <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-          <div className="relative top-20 mx-auto p-5 border w-11/12 md:w-3/4 lg:w-3/4 shadow-lg rounded-md bg-white">
+          <div className="relative top-20 mx-auto p-5 border w-11/12 md:w-3/4 lg:w-2/3 shadow-lg rounded-md bg-white">
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-lg font-medium">{editing ? 'แก้ไขรายการ' : 'เพิ่มรายการใหม่'}</h3>
               <button onClick={resetForm} className="text-gray-400 hover:text-gray-600">✕</button>
             </div>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <input placeholder="รหัสอนุมัติ" name="approvalId" value={formData.approvalId || ''} onChange={handleInputChange} className="border rounded px-3 py-2" />
-                <input placeholder="หน่วยงาน" name="department" value={formData.department || ''} onChange={handleInputChange} className="border rounded px-3 py-2" />
-                <input placeholder="เลขที่บันทึก" name="recordNumber" value={formData.recordNumber || ''} onChange={handleInputChange} className="border rounded px-3 py-2" />
-                <input placeholder="วันที่ขอ" name="requestDate" value={formData.requestDate || ''} onChange={handleInputChange} className="border rounded px-3 py-2" />
-                <input placeholder="ชื่อสินค้า" name="productName" value={formData.productName || ''} onChange={handleInputChange} className="border rounded px-3 py-2" />
-                <input placeholder="รหัสสินค้า" name="productCode" value={formData.productCode || ''} onChange={handleInputChange} className="border rounded px-3 py-2" />
-                <input placeholder="หมวดหมู่" name="category" value={formData.category || ''} onChange={handleInputChange} className="border rounded px-3 py-2" />
-                <input placeholder="ประเภท" name="productType" value={formData.productType || ''} onChange={handleInputChange} className="border rounded px-3 py-2" />
-                <input placeholder="ประเภทย่อย" name="productSubtype" value={formData.productSubtype || ''} onChange={handleInputChange} className="border rounded px-3 py-2" />
-                <input placeholder="ปริมาณที่ขอ" type="number" name="requestedQuantity" value={formData.requestedQuantity ?? ''} onChange={handleInputChange} className="border rounded px-3 py-2" />
-                <input placeholder="หน่วย" name="unit" value={formData.unit || ''} onChange={handleInputChange} className="border rounded px-3 py-2" />
-                <input placeholder="ราคา/หน่วย" type="number" step="0.01" name="pricePerUnit" value={formData.pricePerUnit ?? ''} onChange={handleInputChange} className="border rounded px-3 py-2" />
-                <input placeholder="มูลค่ารวม" type="number" step="0.01" name="totalValue" value={formData.totalValue ?? ''} onChange={handleInputChange} className="border rounded px-3 py-2" />
-                <input placeholder="กรณีเกินแผน" name="overPlanCase" value={formData.overPlanCase || ''} onChange={handleInputChange} className="border rounded px-3 py-2" />
-                <input placeholder="ผู้ขอ" name="requester" value={formData.requester || ''} onChange={handleInputChange} className="border rounded px-3 py-2" />
-                <input placeholder="ผู้อนุมัติ" name="approver" value={formData.approver || ''} onChange={handleInputChange} className="border rounded px-3 py-2" />
+                <div className="md:col-span-3 rounded-lg border border-blue-100 bg-blue-50 p-4">
+                  <label className="flex flex-col gap-2 text-sm text-gray-700">
+                    <div className="relative">
+                      <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                      <input
+                        id="purchase-approval-plan-search"
+                        name="purchasePlanSearch"
+                        value={planSearchTerm}
+                        onChange={(e) => handlePlanSearchChange(e.target.value)}
+                        onFocus={() => {
+                          if (!editing && planSearchTerm.trim() && planSearchTerm.trim() !== selectedPlanLabel.trim()) {
+                            setShowPlanSuggestions(true);
+                          }
+                        }}
+                        onKeyDown={handlePlanSearchKeyDown}
+                        placeholder="พิมพ์รหัสสินค้า หรือชื่อสินค้า"
+                        autoComplete="off"
+                        aria-label="ค้นหารหัสหรือชื่อสินค้าจากแผนจัดซื้อ"
+                        className={`${modalFieldClassName} pl-9 pr-9 ${editing ? 'bg-gray-50' : ''}`}
+                        readOnly={Boolean(editing)}
+                      />
+                      {planSearchTerm && !editing && (
+                        <button
+                          type="button"
+                          onClick={() => handlePlanSearchChange('')}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                          aria-label="ล้างคำค้น"
+                        >
+                          <X className="h-4 w-4" />
+                        </button>
+                      )}
+                      {showPlanSuggestions && !editing && (
+                        <div className="absolute z-10 mt-2 max-h-72 w-full overflow-auto rounded-md border border-gray-200 bg-white shadow-lg">
+                          {plansLoading ? (
+                            <div className="px-4 py-3 text-sm text-gray-500">กำลังโหลดข้อมูลแผนจัดซื้อ...</div>
+                          ) : shouldShowNoResults ? (
+                            <div className="px-4 py-3 text-sm text-gray-500">ไม่พบรายการที่ค้นหา</div>
+                          ) : (
+                            filteredPlanOptions.map((plan, index) => (
+                              <button
+                                key={`${plan.id}-${plan.productCode || plan.productName || index}`}
+                                type="button"
+                                onClick={() => applyPurchasePlanSelection(plan)}
+                                onMouseEnter={() => setHighlightedPlanIndex(index)}
+                                className={`block w-full px-4 py-3 text-left text-sm ${highlightedPlanIndex === index ? 'bg-blue-50' : 'hover:bg-gray-50'}`}
+                              >
+                                <div className="font-medium text-gray-900">{plan.productCode || '-'} - {plan.productName || 'ไม่ระบุชื่อสินค้า'}</div>
+                                <div className="mt-1 text-xs text-gray-500">
+                                  หน่วยงาน: {plan.purchasingDepartment || '-'} | ปีงบ: {plan.budgetYear || '-'} | ราคา/หน่วย: {(Number(plan.pricePerUnit) || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                </div>
+                              </button>
+                            ))
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </label>
+                </div>
+                <label className="flex flex-col gap-1 text-sm text-gray-700">
+                  <span className="font-medium">รหัสอนุมัติ</span>
+                  <input id="purchase-approval-approvalId" name="approvalId" value={formData.approvalId || ''} onChange={handleInputChange} className={modalFieldClassName} />
+                </label>
+                <label className="flex flex-col gap-1 text-sm text-gray-700">
+                  <span className="font-medium">หน่วยงาน</span>
+                  <select id="purchase-approval-department" name="department" value={formData.department || ''} onChange={handleInputChange} className={modalFieldClassName}>
+                    <option value="">เลือกหน่วยงาน</option>
+                    {departments.map((department) => (
+                      <option key={department} value={department}>{department}</option>
+                    ))}
+                  </select>
+                </label>
+                <label className="flex flex-col gap-1 text-sm text-gray-700">
+                  <span className="font-medium">ปีงบประมาณ</span>
+                  <select id="purchase-approval-budgetYear" name="budgetYear" value={formData.budgetYear || ''} onChange={handleInputChange} className={modalFieldClassName}>
+                    <option value="">เลือกปีงบประมาณ</option>
+                    {availableBudgetYears.map((year) => (
+                      <option key={year} value={year}>{year}</option>
+                    ))}
+                  </select>
+                </label>
+                <div className="md:col-span-3 grid grid-cols-1 gap-4 md:grid-cols-6">
+                  <label className="flex flex-col gap-1 text-sm text-gray-700 md:col-span-4">
+                    <span className="font-medium">เลขที่บันทึก</span>
+                    <input id="purchase-approval-recordNumber" name="recordNumber" value={formData.recordNumber || ''} onChange={handleInputChange} className={modalFieldClassName} />
+                  </label>
+                  <label className="flex flex-col gap-1 text-sm text-gray-700 md:col-span-2">
+                    <span className="font-medium">วันที่ขอ</span>
+                    <input id="purchase-approval-requestDate" type="date" name="requestDate" value={formData.requestDate || ''} onChange={handleInputChange} className={modalFieldClassName} />
+                  </label>
+                </div>
+                <div className="md:col-span-3 grid grid-cols-1 gap-4 md:grid-cols-3">
+                  <label className="flex flex-col gap-1 text-sm text-gray-700">
+                    <span className="font-medium">รหัสสินค้า</span>
+                    <input id="purchase-approval-productCode" name="productCode" value={formData.productCode || ''} onChange={handleInputChange} className={`${modalFieldClassName} bg-gray-50`} readOnly />
+                  </label>
+                  <label className="flex flex-col gap-1 text-sm text-gray-700 md:col-span-2">
+                    <span className="font-medium">ชื่อสินค้า</span>
+                    <input id="purchase-approval-productName" name="productName" value={formData.productName || ''} onChange={handleInputChange} className={`${modalFieldClassName} bg-gray-50`} readOnly />
+                  </label>
+                </div>
+                <div className="md:col-span-3 grid grid-cols-1 gap-4 md:grid-cols-3">
+                  <label className="flex flex-col gap-1 text-sm text-gray-700">
+                    <span className="font-medium">หมวดหมู่</span>
+                    <input id="purchase-approval-category" list="purchase-approval-categories" name="category" value={formData.category || ''} onChange={handleInputChange} className={`${modalFieldClassName} bg-gray-50`} readOnly />
+                    <datalist id="purchase-approval-categories">
+                      {categories.map((category) => (
+                        <option key={category} value={category} />
+                      ))}
+                    </datalist>
+                  </label>
+                  <label className="flex flex-col gap-1 text-sm text-gray-700">
+                    <span className="font-medium">ประเภท</span>
+                    <input id="purchase-approval-type" list="purchase-approval-types" name="productType" value={formData.productType || ''} onChange={handleInputChange} className={`${modalFieldClassName} bg-gray-50`} readOnly />
+                    <datalist id="purchase-approval-types">
+                      {types.map((type) => (
+                        <option key={type} value={type} />
+                      ))}
+                    </datalist>
+                  </label>
+                  <label className="flex flex-col gap-1 text-sm text-gray-700">
+                    <span className="font-medium">ประเภทย่อย</span>
+                    <input id="purchase-approval-subtype" list="purchase-approval-subtypes" name="productSubtype" value={formData.productSubtype || ''} onChange={handleInputChange} className={`${modalFieldClassName} bg-gray-50`} readOnly />
+                    <datalist id="purchase-approval-subtypes">
+                      {subtypes.map((subtype) => (
+                        <option key={subtype} value={subtype} />
+                      ))}
+                    </datalist>
+                  </label>
+                </div>
+                <div className="md:col-span-3 grid grid-cols-1 gap-4 md:grid-cols-4">
+                  <label className="flex flex-col gap-1 text-sm text-gray-700">
+                    <span className="font-medium">ปริมาณที่ขอ</span>
+                    <input id="purchase-approval-requestedQuantity" type="text" inputMode="numeric" name="requestedQuantity" value={formatNumberWithComma(formData.requestedQuantity, 0)} onChange={handleInputChange} className={`${modalFieldClassName} bg-gray-50`} readOnly />
+                  </label>
+                  <label className="flex flex-col gap-1 text-sm text-gray-700">
+                    <span className="font-medium">หน่วย</span>
+                    <input id="purchase-approval-unit" name="unit" value={formData.unit || ''} onChange={handleInputChange} className={`${modalFieldClassName} bg-gray-50`} readOnly />
+                  </label>
+                  <label className="flex flex-col gap-1 text-sm text-gray-700">
+                    <span className="font-medium">ราคา/หน่วย</span>
+                    <input id="purchase-approval-pricePerUnit" type="text" inputMode="decimal" name="pricePerUnit" value={formatNumberWithComma(formData.pricePerUnit, 2)} onChange={handleInputChange} className={`${modalFieldClassName} bg-gray-50`} readOnly />
+                  </label>
+                  <label className="flex flex-col gap-1 text-sm text-gray-700">
+                    <span className="font-medium">มูลค่ารวม</span>
+                    <input id="purchase-approval-totalValue" type="text" inputMode="decimal" name="totalValue" value={formatNumberWithComma(formData.totalValue, 2)} className={`${modalFieldClassName} bg-gray-50`} readOnly />
+                  </label>
+                </div>
+                <label className="flex flex-col gap-1 text-sm text-gray-700 md:col-span-3">
+                  <span className="font-medium">กรณีเกินแผน</span>
+                  <input id="purchase-approval-overPlanCase" name="overPlanCase" value={formData.overPlanCase || ''} onChange={handleInputChange} className={modalFieldClassName} />
+                </label>
+                <div className="md:col-span-3 grid grid-cols-1 gap-4 md:grid-cols-2">
+                  <label className="flex flex-col gap-1 text-sm text-gray-700">
+                    <span className="font-medium">ผู้ขอ</span>
+                    <input id="purchase-approval-requester" list="purchase-approval-requesters" name="requester" value={formData.requester || ''} onChange={handleInputChange} className={modalFieldClassName} />
+                    <datalist id="purchase-approval-requesters">
+                      {requesters.map((requester) => (
+                        <option key={requester} value={requester} />
+                      ))}
+                    </datalist>
+                  </label>
+                  <label className="flex flex-col gap-1 text-sm text-gray-700">
+                    <span className="font-medium">ผู้อนุมัติ</span>
+                    <input id="purchase-approval-approver" list="purchase-approval-approvers" name="approver" value={formData.approver || ''} onChange={handleInputChange} className={modalFieldClassName} />
+                    <datalist id="purchase-approval-approvers">
+                      {approvers.map((approver) => (
+                        <option key={approver} value={approver} />
+                      ))}
+                    </datalist>
+                  </label>
+                </div>
               </div>
+              {editing && (
+                <div className="grid grid-cols-1 gap-3 rounded-lg bg-gray-50 p-4 text-sm text-gray-600 md:grid-cols-2">
+                  <div>
+                    <span className="font-medium text-gray-700">สร้างเมื่อ:</span> {formatDateTime(editing.created_at)}
+                  </div>
+                  <div>
+                    <span className="font-medium text-gray-700">อัปเดตล่าสุด:</span> {formatDateTime(editing.updated_at)}
+                  </div>
+                </div>
+              )}
               <div className="flex justify-end space-x-3">
                 <button type="button" onClick={resetForm} className="px-4 py-2 border rounded">ยกเลิก</button>
                 <button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded">บันทึก</button>
@@ -365,7 +751,12 @@ export default function PurchaseApprovalsPage() {
               <option value="">หน่วยงาน</option>
               {departments.map(x => <option key={x} value={x}>{x}</option>)}
             </select>
+            <select value={budgetYearFilter} onChange={(e)=>setBudgetYearFilter(e.target.value)} className="w-full rounded-md border-gray-300 shadow-sm text-sm px-3 py-2">
+              <option value="">ปีงบประมาณ</option>
+              {availableBudgetYears.map(x => <option key={x} value={x}>{x}</option>)}
+            </select>
           </div>
+          {filtersLoading && <div className="text-sm text-gray-500">กำลังโหลดตัวกรอง...</div>}
         </div>
       </div>
 
@@ -433,6 +824,7 @@ export default function PurchaseApprovalsPage() {
             <tr>
               <th onClick={()=>handleSort('approvalId')} className={getHeaderClass('approvalId')}>เลขอนุมัติ</th>
               <th onClick={()=>handleSort('department')} className={getHeaderClass('department')}>หน่วยงาน</th>
+              <th onClick={()=>handleSort('budgetYear')} className={getHeaderClass('budgetYear')}>ปีงบ</th>
               <th onClick={()=>handleSort('productName')} className={getHeaderClass('productName')}>ชื่อสินค้า</th>
               <th onClick={()=>handleSort('requestedQuantity')} className={getHeaderClass('requestedQuantity')}>จำนวน</th>
               <th onClick={()=>handleSort('pricePerUnit')} className={getHeaderClass('pricePerUnit')}>ราคา/หน่วย</th>
@@ -445,6 +837,7 @@ export default function PurchaseApprovalsPage() {
               <tr key={row.id}>
                 <td className="px-3 py-2 text-sm">{row.approvalId}</td>
                 <td className="px-3 py-2 text-sm">{row.department}</td>
+                <td className="px-3 py-2 text-sm">{row.budgetYear || '-'}</td>
                 <td className="px-3 py-2 text-sm">
                   <div className="whitespace-normal break-words" title={row.productName}>
                     {row.productName}

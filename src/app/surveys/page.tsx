@@ -3,7 +3,7 @@
 import { Suspense, useState, useEffect, useRef } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import Swal from 'sweetalert2';
-import { Upload, Plus, CheckCircle2, AlertCircle, X as XIcon, ChevronUp, ChevronDown, ArrowUpDown, Pencil, Trash2 } from 'lucide-react';
+import { Upload, Plus, CheckCircle2, AlertCircle, X as XIcon, ChevronUp, ChevronDown, ArrowUpDown, Pencil, Trash2, Search, X } from 'lucide-react';
 
 const getCurrentBudgetYear = () => {
   const now = new Date();
@@ -138,6 +138,8 @@ function SurveysPageContent() {
     visible: false
   });
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const bulkProductSearchInputRef = useRef<HTMLInputElement>(null);
+  const bulkProductSuggestionsRef = useRef<HTMLDivElement>(null);
   
   // Validation state
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -161,6 +163,14 @@ function SurveysPageContent() {
   const [budgetYears, setBudgetYears] = useState<number[]>([]);
   const [productOptions, setProductOptions] = useState<ProductOption[]>([]);
   const [productSearch, setProductSearch] = useState('');
+  const [showProductSuggestions, setShowProductSuggestions] = useState(false);
+  const [highlightedProductIndex, setHighlightedProductIndex] = useState(-1);
+  const [selectedProductLabel, setSelectedProductLabel] = useState('');
+  const [bulkProductSearch, setBulkProductSearch] = useState('');
+  const [showBulkProductSuggestions, setShowBulkProductSuggestions] = useState(false);
+  const [highlightedBulkProductIndex, setHighlightedBulkProductIndex] = useState(-1);
+  const [selectedBulkProductLabel, setSelectedBulkProductLabel] = useState('');
+  const [bulkValidationErrors, setBulkValidationErrors] = useState<Record<number, { requestedAmount?: string; requestingDept?: string }>>({});
 
   const fallbackBudgetYears = Array.from({ length: 6 }, (_, index) => getCurrentBudgetYear() - index);
   const availableBudgetYears = Array.from(new Set([...budgetYears, ...fallbackBudgetYears])).sort((a, b) => b - a);
@@ -209,6 +219,32 @@ function SurveysPageContent() {
     fetchProductOptions();
   }, []);
 
+  useEffect(() => {
+    if (!showBulkForm) {
+      return;
+    }
+
+    const focusFrame = window.requestAnimationFrame(() => {
+      bulkProductSearchInputRef.current?.focus();
+    });
+
+    return () => window.cancelAnimationFrame(focusFrame);
+  }, [showBulkForm]);
+
+  useEffect(() => {
+    if (!showBulkProductSuggestions || highlightedBulkProductIndex < 0) {
+      return;
+    }
+
+    const suggestionContainer = bulkProductSuggestionsRef.current;
+    if (!suggestionContainer) {
+      return;
+    }
+
+    const highlightedElement = suggestionContainer.querySelector<HTMLElement>(`[data-bulk-suggestion-index="${highlightedBulkProductIndex}"]`);
+    highlightedElement?.scrollIntoView({ block: 'nearest' });
+  }, [highlightedBulkProductIndex, showBulkProductSuggestions]);
+
   // Fetch surveys when filters, sorting or pagination change (current page only)
   useEffect(() => {
     fetchSurveys();
@@ -233,6 +269,92 @@ function SurveysPageContent() {
       }
     } catch (error) {
       console.error('Error fetching filter options:', error);
+    }
+  };
+
+  const handleBulkProductSearchKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
+    if (!showBulkProductSuggestions || filteredBulkProductOptions.length === 0) {
+      return;
+    }
+
+    if (event.key === 'ArrowDown') {
+      event.preventDefault();
+      setHighlightedBulkProductIndex((prev) => (prev + 1) % filteredBulkProductOptions.length);
+    }
+
+    if (event.key === 'ArrowUp') {
+      event.preventDefault();
+      setHighlightedBulkProductIndex((prev) => (prev <= 0 ? filteredBulkProductOptions.length - 1 : prev - 1));
+    }
+
+    if (event.key === 'Enter' && highlightedBulkProductIndex >= 0) {
+      event.preventDefault();
+      const selectedOption = filteredBulkProductOptions[highlightedBulkProductIndex];
+      if (selectedOption) {
+        handleBulkProductSelect(selectedOption.id, `${selectedOption.code} - ${selectedOption.name}`);
+      }
+    }
+
+    if (event.key === 'Escape') {
+      setShowBulkProductSuggestions(false);
+      setHighlightedBulkProductIndex(-1);
+    }
+  };
+
+  const filteredProductOptions = productSearch.trim().length === 0
+    ? productOptions.slice(0, 12)
+    : productOptions.filter((product) => {
+        const searchValue = productSearch.trim().toLowerCase();
+        return [product.code, product.name]
+          .filter(Boolean)
+          .some((value) => String(value).toLowerCase().includes(searchValue));
+      }).slice(0, 12);
+
+  const shouldShowProductNoResults = showProductSuggestions
+    && productSearch.trim().length > 0
+    && productSearch.trim() !== selectedProductLabel.trim()
+    && filteredProductOptions.length === 0;
+
+  const filteredBulkProductOptions = bulkProductSearch.trim().length === 0
+    ? productOptions.slice(0, 12)
+    : productOptions.filter((product) => {
+        const searchValue = bulkProductSearch.trim().toLowerCase();
+        return [product.code, product.name]
+          .filter(Boolean)
+          .some((value) => String(value).toLowerCase().includes(searchValue));
+      }).slice(0, 12);
+
+  const shouldShowBulkProductNoResults = showBulkProductSuggestions
+    && bulkProductSearch.trim().length > 0
+    && bulkProductSearch.trim() !== selectedBulkProductLabel.trim()
+    && filteredBulkProductOptions.length === 0;
+
+  const handleProductSearchKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
+    if (!showProductSuggestions || filteredProductOptions.length === 0) {
+      return;
+    }
+
+    if (event.key === 'ArrowDown') {
+      event.preventDefault();
+      setHighlightedProductIndex((prev) => (prev + 1) % filteredProductOptions.length);
+    }
+
+    if (event.key === 'ArrowUp') {
+      event.preventDefault();
+      setHighlightedProductIndex((prev) => (prev <= 0 ? filteredProductOptions.length - 1 : prev - 1));
+    }
+
+    if (event.key === 'Enter' && highlightedProductIndex >= 0) {
+      event.preventDefault();
+      const selectedOption = filteredProductOptions[highlightedProductIndex];
+      if (selectedOption) {
+        handleProductSelect(`${selectedOption.code} - ${selectedOption.name}`);
+      }
+    }
+
+    if (event.key === 'Escape') {
+      setShowProductSuggestions(false);
+      setHighlightedProductIndex(-1);
     }
   };
 
@@ -353,13 +475,27 @@ function SurveysPageContent() {
     });
 
     if (!selectedProduct) {
+      setSelectedProductLabel('');
+      setShowProductSuggestions(value.trim().length > 0);
+      setHighlightedProductIndex(-1);
       setFormData((prev) => ({
         ...prev,
         productCode: value,
+        productName: '',
+        category: '',
+        type: '',
+        subtype: '',
+        unit: '',
+        pricePerUnit: '',
       }));
       return;
     }
 
+    const selectedLabel = `${selectedProduct.code} - ${selectedProduct.name}`;
+    setProductSearch(selectedLabel);
+    setSelectedProductLabel(selectedLabel);
+    setShowProductSuggestions(false);
+    setHighlightedProductIndex(-1);
     setFormData((prev) => ({
       ...prev,
       productCode: selectedProduct.code || '',
@@ -368,6 +504,7 @@ function SurveysPageContent() {
       type: selectedProduct.type || '',
       subtype: selectedProduct.subtype || '',
       unit: selectedProduct.unit || '',
+      pricePerUnit: selectedProduct.costPrice?.toString() || prev.pricePerUnit,
     }));
 
     setErrors((prev) => ({
@@ -455,7 +592,11 @@ function SurveysPageContent() {
 
   const handleEdit = (survey: Survey) => {
     setEditingSurvey(survey);
-    setProductSearch(survey.productCode && survey.productName ? `${survey.productCode} - ${survey.productName}` : survey.productCode || survey.productName || '');
+    const label = survey.productCode && survey.productName ? `${survey.productCode} - ${survey.productName}` : survey.productCode || survey.productName || '';
+    setProductSearch(label);
+    setSelectedProductLabel(label);
+    setShowProductSuggestions(false);
+    setHighlightedProductIndex(-1);
     setFormData({
       productCode: survey.productCode || '',
       category: survey.category || '',
@@ -519,6 +660,9 @@ function SurveysPageContent() {
     setShowForm(false);
     setEditingSurvey(null);
     setProductSearch('');
+    setSelectedProductLabel('');
+    setShowProductSuggestions(false);
+    setHighlightedProductIndex(-1);
     setFormData({
       productCode: '',
       category: '',
@@ -708,6 +852,29 @@ function SurveysPageContent() {
     setBulkRecords((prev) => prev.map((record) => (record.id === id ? updater(record) : record)));
   };
 
+  const clearBulkValidationError = (id: number, field: 'requestedAmount' | 'requestingDept') => {
+    setBulkValidationErrors((prev) => {
+      const current = prev[id];
+      if (!current?.[field]) {
+        return prev;
+      }
+
+      const nextRecordErrors = { ...current };
+      delete nextRecordErrors[field];
+
+      if (Object.keys(nextRecordErrors).length === 0) {
+        const nextErrors = { ...prev };
+        delete nextErrors[id];
+        return nextErrors;
+      }
+
+      return {
+        ...prev,
+        [id]: nextRecordErrors,
+      };
+    });
+  };
+
   const handleBulkProductSelect = (id: number, value: string) => {
     const normalizedValue = value.trim().toLowerCase();
     const selectedProduct = productOptions.find((product) => {
@@ -716,36 +883,91 @@ function SurveysPageContent() {
     });
 
     if (!selectedProduct) {
-      updateBulkRecord(id, (record) => ({
-        ...record,
-        productSearch: value,
-      }));
+      setSelectedBulkProductLabel('');
+      setShowBulkProductSuggestions(value.trim().length > 0);
+      setHighlightedBulkProductIndex(-1);
       return;
     }
 
-    updateBulkRecord(id, (record) => ({
-      ...record,
-      productSearch: `${selectedProduct.code} - ${selectedProduct.name}`,
-      productCode: selectedProduct.code || '',
-      category: selectedProduct.category || '',
-      type: selectedProduct.type || '',
-      subtype: selectedProduct.subtype || '',
-      productName: selectedProduct.name || '',
-      unit: selectedProduct.unit || '',
-      pricePerUnit: selectedProduct.costPrice?.toString() || '0'
-    }));
+    const selectedLabel = `${selectedProduct.code} - ${selectedProduct.name}`;
+    setSelectedBulkProductLabel('');
+    setBulkProductSearch('');
+    setShowBulkProductSuggestions(false);
+    setHighlightedBulkProductIndex(-1);
+    setBulkValidationErrors((prev) => {
+      const nextErrors = { ...prev };
+      delete nextErrors[id];
+      return nextErrors;
+    });
+
+    setBulkRecords((prev) => {
+      const hasExistingRecord = prev.some((record) => record.productCode === selectedProduct.code);
+      if (hasExistingRecord) {
+        return prev;
+      }
+
+      const nextId = prev.length > 0 ? Math.max(...prev.map((record) => record.id)) + 1 : 1;
+      return [
+        ...prev,
+        {
+          id: nextId,
+          productSearch: selectedLabel,
+          productCode: selectedProduct.code || '',
+          category: selectedProduct.category || '',
+          type: selectedProduct.type || '',
+          subtype: selectedProduct.subtype || '',
+          productName: selectedProduct.name || '',
+          requestedAmount: '',
+          unit: selectedProduct.unit || '',
+          pricePerUnit: selectedProduct.costPrice?.toString() || '0',
+          requestingDept: '',
+          approvedQuota: '',
+          budgetYear: getCurrentBudgetYear().toString(),
+          sequenceNo: '1',
+        },
+      ];
+    });
   };
 
   // Save bulk surveys
   const saveBulkSurveys = async () => {
     try {
-      const validRecords = bulkRecords.filter(record =>
-        record.productCode.trim() !== '' && record.productName.trim() !== ''
-      );
+      const nextValidationErrors: Record<number, { requestedAmount?: string; requestingDept?: string }> = {};
+
+      const validRecords = bulkRecords.filter((record) => {
+        const hasProduct = record.productCode.trim() !== '' && record.productName.trim() !== '';
+
+        if (!hasProduct) {
+          return false;
+        }
+
+        const requestedAmount = record.requestedAmount.trim();
+        const requestingDept = record.requestingDept.trim();
+        const recordErrors: { requestedAmount?: string; requestingDept?: string } = {};
+
+        if (!requestedAmount || Number.isNaN(Number(requestedAmount)) || Number(requestedAmount) <= 0) {
+          recordErrors.requestedAmount = 'กรุณากรอกจำนวนที่ขอมากกว่า 0';
+        }
+
+        if (!requestingDept) {
+          recordErrors.requestingDept = 'กรุณาเลือกหน่วยงานที่ขอ';
+        }
+
+        if (Object.keys(recordErrors).length > 0) {
+          nextValidationErrors[record.id] = recordErrors;
+          return false;
+        }
+
+        return true;
+      });
+
+      setBulkValidationErrors(nextValidationErrors);
 
       if (validRecords.length === 0) {
         setToast({
-          message: 'กรุณากรอกข้อมูลให้ครบถ้วนอย่างน้อย 1 รายการ',
+          message: bulkRecords.some((record) => record.productCode.trim() !== '' && record.productName.trim() !== '')
+            ? 'กรุณากรอกจำนวนที่ขอและหน่วยงานที่ขอให้ครบถ้วน'
+            : 'กรุณากรอกข้อมูลให้ครบถ้วนอย่างน้อย 1 รายการ',
           type: 'error',
           visible: true
         });
@@ -793,6 +1015,7 @@ function SurveysPageContent() {
       if (successful > 0) {
         setShowBulkForm(false);
         setBulkRecords([]);
+        setBulkValidationErrors({});
         resetToNewestFirst();
         await fetchSurveys();
         await fetchSummarySurveys();
@@ -887,6 +1110,8 @@ function SurveysPageContent() {
           </div>
           <div className="flex items-center gap-3">
             <input
+              id="surveys-import-file"
+              name="surveysImportFile"
               ref={fileInputRef}
               type="file"
               accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
@@ -894,6 +1119,7 @@ function SurveysPageContent() {
               className="hidden"
             />
             <button
+              type="button"
               onClick={handleImportClick}
               disabled={importing}
               className={`bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 transition-colors flex items-center space-x-2 ${importing ? 'opacity-70 cursor-not-allowed' : ''}`}
@@ -902,9 +1128,10 @@ function SurveysPageContent() {
               <span>{importing ? 'กำลังนำเข้า...' : 'นำเข้า Excel'}</span>
             </button>
             <button
+              type="button"
               onClick={() => {
                 setShowBulkForm(true);
-                setBulkRecords([createEmptyBulkRecord(1)]);
+                setBulkRecords([]);
               }}
               className="bg-blue-600 text-white p-3 rounded-full hover:bg-blue-700 transition-colors shadow-lg"
               title="เพิ่มความต้องการใหม่"
@@ -917,8 +1144,10 @@ function SurveysPageContent() {
         <div className="bg-white rounded-lg shadow-md p-6 mb-6">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">ปีงบ</label>
+              <label htmlFor="surveys-filter-budget-year" className="block text-sm font-medium text-gray-700 mb-2">ปีงบ</label>
               <select
+                id="surveys-filter-budget-year"
+                name="budgetYearFilter"
                 value={budgetYearFilter}
                 onChange={(e) => setBudgetYearFilter(e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -930,8 +1159,10 @@ function SurveysPageContent() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">หน่วยงานที่ขอ</label>
+              <label htmlFor="surveys-filter-requesting-dept" className="block text-sm font-medium text-gray-700 mb-2">หน่วยงานที่ขอ</label>
               <select
+                id="surveys-filter-requesting-dept"
+                name="requestingDeptFilter"
                 value={requestingDeptFilter}
                 onChange={(e) => setRequestingDeptFilter(e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -944,8 +1175,10 @@ function SurveysPageContent() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">ชื่อสินค้า</label>
+              <label htmlFor="surveys-filter-product-name" className="block text-sm font-medium text-gray-700 mb-2">ชื่อสินค้า</label>
               <input
+                id="surveys-filter-product-name"
+                name="productNameFilter"
                 type="text"
                 value={productNameFilter}
                 onChange={(e) => setProductNameFilter(e.target.value)}
@@ -955,8 +1188,10 @@ function SurveysPageContent() {
             </div>
             
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">หมวดสินค้า</label>
+              <label htmlFor="surveys-filter-category" className="block text-sm font-medium text-gray-700 mb-2">หมวดสินค้า</label>
               <select
+                id="surveys-filter-category"
+                name="categoryFilter"
                 value={categoryFilter}
                 onChange={(e) => setCategoryFilter(e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -969,8 +1204,10 @@ function SurveysPageContent() {
             </div>
             
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">ประเภท</label>
+              <label htmlFor="surveys-filter-type" className="block text-sm font-medium text-gray-700 mb-2">ประเภท</label>
               <select
+                id="surveys-filter-type"
+                name="typeFilter"
                 value={typeFilter}
                 onChange={(e) => setTypeFilter(e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -1013,8 +1250,10 @@ function SurveysPageContent() {
           </div>
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
             <div className="flex items-center gap-2">
-              <span className="text-sm text-gray-600">แสดงต่อหน้า</span>
+              <label htmlFor="surveys-page-size" className="text-sm text-gray-600">แสดงต่อหน้า</label>
               <select
+                id="surveys-page-size"
+                name="pageSize"
                 value={pageSize}
                 onChange={handlePageSizeChange}
                 className="rounded border border-gray-300 px-2 py-1 text-sm"
@@ -1026,6 +1265,7 @@ function SurveysPageContent() {
             </div>
             <div className="flex items-center gap-2">
               <button
+                type="button"
                 onClick={() => goToPage(page - 1)}
                 disabled={page === 1}
                 className={`px-3 py-1 rounded border text-sm ${page === 1 ? 'text-gray-400 border-gray-200 cursor-not-allowed' : 'text-gray-700 border-gray-300 hover:bg-gray-100'}`}
@@ -1036,6 +1276,7 @@ function SurveysPageContent() {
                 หน้า {page} / {totalPages}
               </span>
               <button
+                type="button"
                 onClick={() => goToPage(page + 1)}
                 disabled={page >= totalPages}
                 className={`px-3 py-1 rounded border text-sm ${page >= totalPages ? 'text-gray-400 border-gray-200 cursor-not-allowed' : 'text-gray-700 border-gray-300 hover:bg-gray-100'}`}
@@ -1121,6 +1362,9 @@ function SurveysPageContent() {
                         {editingId === survey.id ? (
                           <div className="flex items-center gap-2">
                             <input
+                              id={`survey-inline-requested-amount-${survey.id}`}
+                              name={`inlineRequestedAmount-${survey.id}`}
+                              aria-label={`จำนวนที่ขอ รายการ ${survey.id}`}
                               type="number"
                               min="0"
                               value={editData.requestedAmount}
@@ -1141,9 +1385,12 @@ function SurveysPageContent() {
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                         {editingId === survey.id ? (
                           <select
+                            id={`survey-inline-requesting-dept-${survey.id}`}
+                            name={`inlineRequestingDept-${survey.id}`}
+                            aria-label={`หน่วยงานที่ขอ รายการ ${survey.id}`}
                             value={editData.requestingDept}
                             onChange={(e) => setEditData((prev) => ({ ...prev, requestingDept: e.target.value }))}
-                            className="rounded border border-gray-300 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            className="w-40 rounded border border-gray-300 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                           >
                             <option value="">เลือกหน่วยงาน</option>
                             {departments.map((dept) => (
@@ -1157,6 +1404,9 @@ function SurveysPageContent() {
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                         {editingId === survey.id ? (
                           <input
+                            id={`survey-inline-approved-quota-${survey.id}`}
+                            name={`inlineApprovedQuota-${survey.id}`}
+                            aria-label={`จำนวนที่อนุมัติ รายการ ${survey.id}`}
                             type="number"
                             min="0"
                             value={editData.approvedQuota}
@@ -1172,6 +1422,7 @@ function SurveysPageContent() {
                           {editingId === survey.id ? (
                             <>
                               <button
+                                type="button"
                                 onClick={() => saveInlineEdit(survey.id)}
                                 className="text-green-600 hover:text-green-800 cursor-pointer"
                                 title="บันทึก"
@@ -1179,6 +1430,7 @@ function SurveysPageContent() {
                                 <CheckCircle2 className="h-5 w-5" />
                               </button>
                               <button
+                                type="button"
                                 onClick={cancelInlineEdit}
                                 className="text-gray-500 hover:text-gray-700 cursor-pointer"
                                 title="ยกเลิก"
@@ -1188,6 +1440,7 @@ function SurveysPageContent() {
                             </>
                           ) : (
                             <button
+                              type="button"
                               onClick={() => startInlineEdit(survey)}
                               className="text-indigo-600 hover:text-indigo-900 cursor-pointer"
                               title="แก้ไข"
@@ -1196,6 +1449,7 @@ function SurveysPageContent() {
                             </button>
                           )}
                           <button
+                            type="button"
                             onClick={() => handleDelete(survey)}
                             className="text-red-600 hover:text-red-900 cursor-pointer"
                             title="ลบ"
@@ -1223,221 +1477,152 @@ function SurveysPageContent() {
                 <p className="mt-1 text-sm text-slate-500">เลือกสินค้าและกรอกรายละเอียดที่จำเป็นให้ครบถ้วนก่อนบันทึก</p>
               </div>
               
-              <form onSubmit={handleSubmit} className="overflow-y-auto px-6 py-6">
-                <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-                  {/* Product Code */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      ค้นหา/เลือกสินค้า *
-                    </label>
+              <form onSubmit={handleSubmit} className="overflow-y-auto px-6 py-6 space-y-6">
+                <div className="rounded-2xl border border-blue-100 bg-blue-50 p-4">
+                  <label htmlFor="survey-product-search" className="mb-2 block text-sm font-medium text-gray-700">
+                    ค้นหารหัสหรือชื่อสินค้า
+                  </label>
+                  <div className="relative">
+                    <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
                     <input
-                      list="survey-product-options"
+                      id="survey-product-search"
+                      name="productSearch"
                       type="text"
                       value={productSearch}
                       onChange={(e) => handleProductSelect(e.target.value)}
-                      className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                        errors.productCode ? 'border-red-500' : 'border-gray-300'
-                      }`}
-                      placeholder="พิมพ์รหัสหรือชื่อสินค้า"
+                      onFocus={() => {
+                        if (!editingSurvey && productSearch.trim() && productSearch.trim() !== selectedProductLabel.trim()) {
+                          setShowProductSuggestions(true);
+                        }
+                      }}
+                      onKeyDown={handleProductSearchKeyDown}
+                      readOnly={Boolean(editingSurvey)}
+                      autoComplete="off"
+                      aria-label="ค้นหารหัสหรือชื่อสินค้า"
+                      placeholder="พิมพ์รหัสสินค้า หรือชื่อสินค้า"
+                      className={`w-full rounded-md border px-3 py-2 pl-9 pr-9 focus:outline-none focus:ring-2 focus:ring-blue-500 ${errors.productCode ? 'border-red-500' : 'border-gray-300'} ${editingSurvey ? 'bg-gray-50' : 'bg-white'}`}
                     />
-                    <datalist id="survey-product-options">
-                      {productOptions.map((product) => (
-                        <option key={product.id} value={`${product.code} - ${product.name}`} />
-                      ))}
-                    </datalist>
-                    {errors.productCode && <p className="mt-1 text-sm text-red-600">{errors.productCode}</p>}
+                    {productSearch && !editingSurvey && (
+                      <button
+                        type="button"
+                        onClick={() => handleProductSelect('')}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                        aria-label="ล้างคำค้น"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    )}
+                    {showProductSuggestions && !editingSurvey && (
+                      <div className="absolute z-10 mt-2 max-h-72 w-full overflow-auto rounded-md border border-gray-200 bg-white shadow-lg">
+                        {shouldShowProductNoResults ? (
+                          <div className="px-4 py-3 text-sm text-gray-500">ไม่พบรายการที่ค้นหา</div>
+                        ) : (
+                          filteredProductOptions.map((product, index) => {
+                            const label = `${product.code} - ${product.name}`;
+                            return (
+                              <button
+                                key={product.id}
+                                type="button"
+                                onMouseDown={(event) => event.preventDefault()}
+                                onClick={() => handleProductSelect(label)}
+                                className={`block w-full border-b border-gray-100 px-4 py-3 text-left text-sm ${index === highlightedProductIndex ? 'bg-blue-50' : 'hover:bg-gray-50'}`}
+                              >
+                                <div className="font-medium text-gray-900">{label}</div>
+                                <div className="text-xs text-gray-500">{product.category || '-'} | {product.type || '-'} | {product.unit || '-'}</div>
+                              </button>
+                            );
+                          })
+                        )}
+                      </div>
+                    )}
                   </div>
-                  
-                  {/* Product Name */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      ชื่อสินค้า *
-                    </label>
-                    <input
-                      type="text"
-                      name="productName"
-                      value={formData.productName}
-                      onChange={handleInputChange}
-                      readOnly
-                      className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                        errors.productName ? 'border-red-500' : 'border-gray-300 bg-gray-50'
-                      }`}
-                      placeholder="เลือกสินค้าจากรายการ"
-                    />
-                    {errors.productName && <p className="mt-1 text-sm text-red-600">{errors.productName}</p>}
-                  </div>
-                  
-                  {/* Category */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      หมวดสินค้า
-                    </label>
-                    <select
-                      name="category"
-                      value={formData.category}
-                      onChange={handleInputChange}
-                      disabled
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 focus:outline-none"
-                    >
-                      <option value="">เลือกหมวดสินค้า</option>
-                      {categories.map((cat) => (
-                        <option key={cat} value={cat}>{cat}</option>
-                      ))}
-                    </select>
-                  </div>
-                  
-                  {/* Type */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      ประเภท
-                    </label>
-                    <select
-                      name="type"
-                      value={formData.type}
-                      onChange={handleInputChange}
-                      disabled
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 focus:outline-none"
-                    >
-                      <option value="">เลือกประเภท</option>
-                      {types.map((type) => (
-                        <option key={type} value={type}>{type}</option>
-                      ))}
-                    </select>
-                  </div>
-                  
-                  {/* Subtype */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      ประเภทย่อย
-                    </label>
-                    <select
-                      name="subtype"
-                      value={formData.subtype}
-                      onChange={handleInputChange}
-                      disabled
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 focus:outline-none"
-                    >
-                      <option value="">เลือกประเภทย่อย</option>
-                      {subtypes.map((subtype) => (
-                        <option key={subtype} value={subtype}>{subtype}</option>
-                      ))}
-                    </select>
-                  </div>
-                  
-                  {/* Unit */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      หน่วยนับ
-                    </label>
-                    <input
-                      type="text"
-                      name="unit"
-                      value={formData.unit}
-                      onChange={handleInputChange}
-                      readOnly
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 focus:outline-none"
-                      placeholder="เลือกสินค้าจากรายการ"
-                    />
-                  </div>
-                  
-                  {/* Requested Amount */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      จำนวนที่ขอ
-                    </label>
-                    <input
-                      type="number"
-                      name="requestedAmount"
-                      value={formData.requestedAmount}
-                      onChange={handleInputChange}
-                      min="0"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      placeholder="ระบุจำนวนที่ขอ"
-                    />
-                  </div>
-                  
-                  {/* Price Per Unit */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      ราคาต่อหน่วย (บาท)
-                    </label>
-                    <input
-                      type="number"
-                      name="pricePerUnit"
-                      value={formData.pricePerUnit}
-                      onChange={handleInputChange}
-                      min="0"
-                      step="0.01"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      placeholder="ระบุราคาต่อหน่วย"
-                    />
-                  </div>
-                  
-                  {/* Requesting Department */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      หน่วยงานที่ขอ
-                    </label>
-                    <select
-                      name="requestingDept"
-                      value={formData.requestingDept}
-                      onChange={handleInputChange}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    >
-                      <option value="">เลือกหน่วยงานที่ขอ</option>
-                      {departments.map((dept) => (
-                        <option key={dept} value={dept}>{dept}</option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      ปีงบ
-                    </label>
-                    <select
-                      name="budgetYear"
-                      value={formData.budgetYear}
-                      onChange={handleInputChange}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    >
-                      {availableBudgetYears.map((year) => (
-                        <option key={year} value={year.toString()}>{year}</option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      ครั้งที่
-                    </label>
-                    <select
-                      name="sequenceNo"
-                      value={formData.sequenceNo}
-                      onChange={handleInputChange}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    >
-                      <option value="1">ครั้งที่ 1</option>
-                      <option value="2">ครั้งที่ 2</option>
-                    </select>
-                  </div>
-                  
-                  {/* Approved Quota */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      จำนวนที่ได้รับอนุมัติ
-                    </label>
-                    <input
-                      type="number"
-                      name="approvedQuota"
-                      value={formData.approvedQuota}
-                      onChange={handleInputChange}
-                      min="0"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      placeholder="ระบุจำนวนที่ได้รับอนุมัติ"
-                    />
-                  </div>
+                  {errors.productCode && <p className="mt-2 text-sm text-red-600">{errors.productCode}</p>}
                 </div>
+
+                {(editingSurvey || formData.productName) && (
+                  <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
+                    <div className="border-b border-slate-200 px-4 py-3">
+                      <h3 className="text-sm font-semibold text-slate-700">รายการที่เลือก</h3>
+                      <p className="mt-1 text-xs text-slate-500">เลือกสินค้าแล้วค่อยกรอกจำนวน หน่วยงาน และข้อมูลประกอบในแถวรายการนี้</p>
+                    </div>
+                    <div className="overflow-x-auto">
+                      <table className="min-w-full">
+                        <thead className="bg-slate-50">
+                          <tr className="text-left text-xs font-medium uppercase tracking-wide text-slate-500">
+                            <th scope="col" className="px-4 py-3">รหัสสินค้า</th>
+                            <th scope="col" className="px-4 py-3">ชื่อสินค้า</th>
+                            <th scope="col" className="px-4 py-3">จำนวนที่ขอ</th>
+                            <th scope="col" className="px-4 py-3">หน่วย</th>
+                            <th scope="col" className="px-4 py-3">ราคาต่อหน่วย</th>
+                            <th scope="col" className="px-4 py-3">หน่วยงานที่ขอ</th>
+                            <th scope="col" className="px-4 py-3">จำนวนอนุมัติ</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          <tr className="border-t border-slate-200 align-top">
+                            <td className="px-4 py-3">
+                              <input id="survey-product-code" type="text" name="productCode" aria-label="รหัสสินค้า" value={formData.productCode} readOnly className="w-full rounded-md border border-gray-300 bg-gray-50 px-3 py-2 text-sm focus:outline-none" />
+                            </td>
+                            <td className="px-4 py-3 min-w-[240px]">
+                              <input id="survey-product-name" type="text" name="productName" aria-label="ชื่อสินค้า" value={formData.productName} readOnly className={`w-full rounded-md border px-3 py-2 text-sm focus:outline-none ${errors.productName ? 'border-red-500' : 'border-gray-300 bg-gray-50'}`} />
+                              {errors.productName && <p className="mt-1 text-sm text-red-600">{errors.productName}</p>}
+                            </td>
+                            <td className="px-4 py-3 min-w-[140px]">
+                              <input id="survey-requested-amount" type="number" name="requestedAmount" aria-label="จำนวนที่ขอ" value={formData.requestedAmount} onChange={handleInputChange} min="0" className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="จำนวน" />
+                            </td>
+                            <td className="px-4 py-3 min-w-[120px]">
+                              <input id="survey-unit" type="text" name="unit" aria-label="หน่วย" value={formData.unit} readOnly className="w-full rounded-md border border-gray-300 bg-gray-50 px-3 py-2 text-sm focus:outline-none" />
+                            </td>
+                            <td className="px-4 py-3 min-w-[150px]">
+                              <input id="survey-price-per-unit" type="number" name="pricePerUnit" aria-label="ราคาต่อหน่วย" value={formData.pricePerUnit} onChange={handleInputChange} min="0" step="0.01" className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="ราคาต่อหน่วย" />
+                            </td>
+                            <td className="px-4 py-3 min-w-[220px]">
+                              <select id="survey-requesting-dept" name="requestingDept" aria-label="หน่วยงานที่ขอ" value={formData.requestingDept} onChange={handleInputChange} className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                <option value="">เลือกหน่วยงานที่ขอ</option>
+                                {departments.map((dept) => (
+                                  <option key={dept} value={dept}>{dept}</option>
+                                ))}
+                              </select>
+                            </td>
+                            <td className="px-4 py-3 min-w-[140px]">
+                              <input id="survey-approved-quota" type="number" name="approvedQuota" aria-label="จำนวนที่อนุมัติ" value={formData.approvedQuota} onChange={handleInputChange} min="0" className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="จำนวนอนุมัติ" />
+                            </td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
+
+                    <div className="grid grid-cols-1 gap-4 border-t border-slate-200 px-4 py-4 md:grid-cols-3">
+                      <div>
+                        <label htmlFor="survey-category" className="mb-2 block text-sm font-medium text-gray-700">หมวดสินค้า</label>
+                        <input id="survey-category" type="text" name="category" value={formData.category} readOnly className="w-full rounded-md border border-gray-300 bg-gray-50 px-3 py-2 text-sm focus:outline-none" />
+                      </div>
+                      <div>
+                        <label htmlFor="survey-type" className="mb-2 block text-sm font-medium text-gray-700">ประเภท</label>
+                        <input id="survey-type" type="text" name="type" value={formData.type} readOnly className="w-full rounded-md border border-gray-300 bg-gray-50 px-3 py-2 text-sm focus:outline-none" />
+                      </div>
+                      <div>
+                        <label htmlFor="survey-subtype" className="mb-2 block text-sm font-medium text-gray-700">ประเภทย่อย</label>
+                        <input id="survey-subtype" type="text" name="subtype" value={formData.subtype} readOnly className="w-full rounded-md border border-gray-300 bg-gray-50 px-3 py-2 text-sm focus:outline-none" />
+                      </div>
+                      <div>
+                        <label htmlFor="survey-budget-year" className="mb-2 block text-sm font-medium text-gray-700">ปีงบ</label>
+                        <select id="survey-budget-year" name="budgetYear" value={formData.budgetYear} onChange={handleInputChange} className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                          {availableBudgetYears.map((year) => (
+                            <option key={year} value={year.toString()}>{year}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div>
+                        <label htmlFor="survey-sequence-no" className="mb-2 block text-sm font-medium text-gray-700">ครั้งที่</label>
+                        <select id="survey-sequence-no" name="sequenceNo" value={formData.sequenceNo} onChange={handleInputChange} className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                          <option value="1">ครั้งที่ 1</option>
+                          <option value="2">ครั้งที่ 2</option>
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+                )}
                 
                 <div className="mt-8 flex justify-end gap-3 border-t border-slate-200 pt-5">
                   <button
@@ -1461,40 +1646,111 @@ function SurveysPageContent() {
 
         {/* Bulk Add Surveys Modal */}
         {showBulkForm && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-100/80 p-4 backdrop-blur-sm">
-            <div className="w-full max-w-7xl max-h-[90vh] overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_24px_80px_rgba(15,23,42,0.18)] ring-1 ring-slate-200">
-              <div className="flex items-start justify-between border-b border-slate-200 bg-gradient-to-r from-blue-50 via-white to-slate-50 px-6 py-5">
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-100/80 p-2 backdrop-blur-sm md:p-4">
+            <div className="flex h-[96vh] w-[98vw] flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_24px_80px_rgba(15,23,42,0.18)] ring-1 ring-slate-200">
+              <div className="flex items-center justify-between border-b border-slate-200 bg-gradient-to-r from-blue-50 via-white to-slate-50 px-5 py-3">
                 <div>
-                  <h2 className="text-xl font-bold text-slate-900">เพิ่มรายการสินค้าเข้าแผนการใช้</h2>
-                  <p className="mt-1 text-sm text-slate-500">เลือกสินค้าแบบสะสมหลายรายการก่อนกดบันทึกครั้งเดียว</p>
+                  <h2 className="text-lg font-bold text-slate-900">เพิ่มรายการสินค้าเข้าแผนการใช้</h2>
                 </div>
                 <button
+                  type="button"
                   onClick={() => {
                     setShowBulkForm(false);
                     setBulkRecords([]);
                   }}
-                  className="rounded-full p-2 text-slate-500 transition-colors hover:bg-white hover:text-slate-700"
+                  className="rounded-full p-1.5 text-slate-500 transition-colors hover:bg-white hover:text-slate-700"
                 >
-                  <XIcon className="h-6 w-6" />
+                  <XIcon className="h-5 w-5" />
                 </button>
               </div>
 
-              <div className="px-6 py-6">
-                <p className="mb-4 text-sm text-slate-600">ค้นหาสินค้าด้วยรหัสสินค้า หรือชื่อสินค้า แล้วกรอกเฉพาะจำนวนที่ขอ หน่วยงานที่ขอ และจำนวนที่อนุมัติ สามารถเพิ่มหลายรายการก่อนกดบันทึกได้</p>
-                <div className="overflow-hidden rounded-xl border border-slate-200 bg-slate-50">
-                  <div className="overflow-x-auto">
+              <div className="flex min-h-0 flex-1 flex-col px-6 py-6">
+                <div className="relative z-20 mb-4 rounded-2xl border border-blue-100 bg-blue-50 p-4">
+                  <label htmlFor="survey-bulk-product-search" className="mb-2 block text-sm font-medium text-gray-700">
+                    ค้นหารหัสหรือชื่อสินค้า
+                  </label>
+                  <div className="relative">
+                    <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                    <input
+                      ref={bulkProductSearchInputRef}
+                      id="survey-bulk-product-search"
+                      name="surveyBulkProductSearch"
+                      type="text"
+                      value={bulkProductSearch}
+                      onChange={(e) => {
+                        setBulkProductSearch(e.target.value);
+                        setSelectedBulkProductLabel('');
+                        setShowBulkProductSuggestions(true);
+                        setHighlightedBulkProductIndex(-1);
+                      }}
+                      onFocus={() => {
+                        if (bulkProductSearch.trim() && bulkProductSearch.trim() !== selectedBulkProductLabel.trim()) {
+                          setShowBulkProductSuggestions(true);
+                        }
+                      }}
+                      onKeyDown={handleBulkProductSearchKeyDown}
+                      placeholder="พิมพ์รหัสสินค้า หรือชื่อสินค้า"
+                      autoComplete="off"
+                      aria-label="ค้นหารหัสหรือชื่อสินค้า"
+                      className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 pl-9 pr-9 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                    {bulkProductSearch && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setBulkProductSearch('');
+                          setSelectedBulkProductLabel('');
+                          setShowBulkProductSuggestions(false);
+                          setHighlightedBulkProductIndex(-1);
+                        }}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                        aria-label="ล้างคำค้น"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    )}
+                    {showBulkProductSuggestions && (
+                      <div
+                        ref={bulkProductSuggestionsRef}
+                        className="absolute z-50 mt-2 max-h-72 w-full overflow-auto rounded-md border border-gray-200 bg-white shadow-2xl"
+                      >
+                        {shouldShowBulkProductNoResults ? (
+                          <div className="px-4 py-3 text-sm text-gray-500">ไม่พบรายการที่ค้นหา</div>
+                        ) : (
+                          filteredBulkProductOptions.map((product, index) => {
+                            const label = `${product.code} - ${product.name}`;
+                            return (
+                              <button
+                                key={product.id}
+                                data-bulk-suggestion-index={index}
+                                type="button"
+                                onMouseDown={(event) => event.preventDefault()}
+                                onClick={() => handleBulkProductSelect(product.id, label)}
+                                className={`block w-full border-b border-gray-100 px-4 py-3 text-left text-sm ${index === highlightedBulkProductIndex ? 'bg-blue-50' : 'hover:bg-gray-50'}`}
+                              >
+                                <div className="font-medium text-gray-900">{label}</div>
+                                <div className="text-xs text-gray-500">{product.category || '-'} | {product.type || '-'} | {product.unit || '-'}</div>
+                              </button>
+                            );
+                          })
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+                <div className="min-h-0 flex-1 overflow-hidden rounded-xl border border-slate-200 bg-slate-50">
+                  <div className="h-full overflow-auto">
                     <table className="w-full">
                       <thead className="bg-slate-100">
                         <tr>
-                          <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase">ลำดับ</th>
-                          <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase">ค้นหาสินค้า</th>
-                          <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase">รหัสสินค้า</th>
-                          <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase">ชื่อสินค้า</th>
-                          <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase">จำนวนที่ขอ</th>
-                          <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase">หน่วย</th>
-                          <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase">หน่วยงานที่ขอ</th>
-                          <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase">จำนวนที่อนุมัติ</th>
-                          <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase">จัดการ</th>
+                          <th scope="col" className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase">ลำดับ</th>
+                          <th scope="col" className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase">รหัสสินค้า</th>
+                          <th scope="col" className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase">ชื่อสินค้า</th>
+                          <th scope="col" className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase">จำนวนที่ขอ</th>
+                          <th scope="col" className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase">หน่วย</th>
+                          <th scope="col" className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase">หน่วยงานที่ขอ</th>
+                          <th scope="col" className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase">จำนวนที่อนุมัติ</th>
+                          <th scope="col" className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase">จัดการ</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -1503,21 +1759,9 @@ function SurveysPageContent() {
                             <td className="px-2 py-3 text-sm text-gray-900">{index + 1}</td>
                             <td className="px-2 py-3">
                               <input
-                                type="text"
-                                list={`survey-bulk-product-options-${record.id}`}
-                                value={record.productSearch}
-                                onChange={(e) => handleBulkProductSelect(record.id, e.target.value)}
-                                placeholder="ค้นหารหัสหรือชื่อสินค้า"
-                                className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
-                              />
-                              <datalist id={`survey-bulk-product-options-${record.id}`}>
-                                {productOptions.map((product) => (
-                                  <option key={product.id} value={`${product.code} - ${product.name}`} />
-                                ))}
-                              </datalist>
-                            </td>
-                            <td className="px-2 py-3">
-                              <input
+                                id={`survey-bulk-product-code-${record.id}`}
+                                name={`bulkProductCode-${record.id}`}
+                                aria-label={`รหัสสินค้า แถว ${index + 1}`}
                                 type="text"
                                 value={record.productCode}
                                 readOnly
@@ -1527,6 +1771,9 @@ function SurveysPageContent() {
                             </td>
                             <td className="px-2 py-3">
                               <input
+                                id={`survey-bulk-product-name-${record.id}`}
+                                name={`bulkProductName-${record.id}`}
+                                aria-label={`ชื่อสินค้า แถว ${index + 1}`}
                                 type="text"
                                 value={record.productName}
                                 readOnly
@@ -1536,17 +1783,29 @@ function SurveysPageContent() {
                             </td>
                             <td className="px-2 py-3">
                               <input
+                                id={`survey-bulk-requested-amount-${record.id}`}
+                                name={`bulkRequestedAmount-${record.id}`}
+                                aria-label={`จำนวนที่ขอ แถว ${index + 1}`}
                                 type="number"
+                                required
+                                min="1"
                                 value={record.requestedAmount || ''}
                                 onChange={(e) => {
                                   updateBulkRecord(record.id, (current) => ({ ...current, requestedAmount: e.target.value }));
+                                  clearBulkValidationError(record.id, 'requestedAmount');
                                 }}
                                 placeholder="จำนวนที่ขอ"
-                                className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                                className={`w-full px-2 py-1 border rounded focus:outline-none focus:ring-2 text-sm ${bulkValidationErrors[record.id]?.requestedAmount ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 focus:ring-blue-500'}`}
                               />
+                              {bulkValidationErrors[record.id]?.requestedAmount && (
+                                <p className="mt-1 text-xs text-red-600">{bulkValidationErrors[record.id]?.requestedAmount}</p>
+                              )}
                             </td>
                             <td className="px-2 py-3">
                               <input
+                                id={`survey-bulk-unit-${record.id}`}
+                                name={`bulkUnit-${record.id}`}
+                                aria-label={`หน่วย แถว ${index + 1}`}
                                 type="text"
                                 value={record.unit || ''}
                                 readOnly
@@ -1556,20 +1815,31 @@ function SurveysPageContent() {
                             </td>
                             <td className="px-2 py-3">
                               <select
+                                id={`survey-bulk-requesting-dept-${record.id}`}
+                                name={`bulkRequestingDept-${record.id}`}
+                                aria-label={`หน่วยงานที่ขอ แถว ${index + 1}`}
+                                required
                                 value={record.requestingDept || ''}
                                 onChange={(e) => {
                                   updateBulkRecord(record.id, (current) => ({ ...current, requestingDept: e.target.value }));
+                                  clearBulkValidationError(record.id, 'requestingDept');
                                 }}
-                                className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                                className={`w-full px-2 py-1 border rounded focus:outline-none focus:ring-2 text-sm ${bulkValidationErrors[record.id]?.requestingDept ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 focus:ring-blue-500'}`}
                               >
                                 <option value="">เลือกหน่วยงาน</option>
                                 {departments.map((dept) => (
                                   <option key={dept} value={dept}>{dept}</option>
                                 ))}
                               </select>
+                              {bulkValidationErrors[record.id]?.requestingDept && (
+                                <p className="mt-1 text-xs text-red-600">{bulkValidationErrors[record.id]?.requestingDept}</p>
+                              )}
                             </td>
                             <td className="px-2 py-3">
                               <input
+                                id={`survey-bulk-approved-quota-${record.id}`}
+                                name={`bulkApprovedQuota-${record.id}`}
+                                aria-label={`จำนวนที่อนุมัติ แถว ${index + 1}`}
                                 type="number"
                                 value={record.approvedQuota || ''}
                                 onChange={(e) => {
@@ -1581,22 +1851,16 @@ function SurveysPageContent() {
                             </td>
                             <td className="px-2 py-3">
                               <div className="flex gap-1">
-                                {bulkRecords.length < 10 && (
+                                {bulkRecords.length > 0 && (
                                   <button
-                                    onClick={() => {
-                                      const nextId = bulkRecords.length > 0 ? Math.max(...bulkRecords.map((r) => r.id)) + 1 : 1;
-                                      setBulkRecords([...bulkRecords, createEmptyBulkRecord(nextId)]);
-                                    }}
-                                    className="text-green-600 hover:text-green-900 p-1"
-                                    title="เพิ่มแถวใหม่"
-                                  >
-                                    <Plus className="h-4 w-4" />
-                                  </button>
-                                )}
-                                {bulkRecords.length > 1 && (
-                                  <button
+                                    type="button"
                                     onClick={() => {
                                       setBulkRecords(bulkRecords.filter((r) => r.id !== record.id));
+                                      setBulkValidationErrors((prev) => {
+                                        const nextErrors = { ...prev };
+                                        delete nextErrors[record.id];
+                                        return nextErrors;
+                                      });
                                     }}
                                     className="text-red-600 hover:text-red-900 p-1"
                                     title="ลบแถวนี้"
@@ -1614,21 +1878,24 @@ function SurveysPageContent() {
                 </div>
               </div>
 
-              <div className="flex gap-3 border-t border-slate-200 bg-slate-50 px-6 py-5">
+              <div className="flex items-center justify-end gap-3 border-t border-slate-200 bg-slate-50 px-6 py-5">
                 <button
-                  onClick={saveBulkSurveys}
-                  className="flex-1 rounded-lg bg-blue-600 py-2.5 text-white shadow-sm transition-colors hover:bg-blue-700"
-                >
-                  บันทึกทั้งหมด ({bulkRecords.length} รายการ)
-                </button>
-                <button
+                  type="button"
                   onClick={() => {
                     setShowBulkForm(false);
                     setBulkRecords([]);
+                    setBulkValidationErrors({});
                   }}
-                  className="flex-1 rounded-lg bg-slate-500 py-2.5 text-white transition-colors hover:bg-slate-600"
+                  className="rounded-lg bg-slate-500 px-6 py-2.5 text-white transition-colors hover:bg-slate-600"
                 >
                   ยกเลิก
+                </button>
+                <button
+                  type="button"
+                  onClick={saveBulkSurveys}
+                  className="rounded-lg bg-blue-600 px-6 py-2.5 text-white shadow-sm transition-colors hover:bg-blue-700"
+                >
+                  บันทึกทั้งหมด ({bulkRecords.length} รายการ)
                 </button>
               </div>
             </div>

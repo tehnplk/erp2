@@ -515,6 +515,7 @@ function PurchasePlansPageContent() {
                   <span className="font-medium">อ้างอิงแผนการใช้</span>
                   <div className="relative">
                     <input
+                      id="purchase-plan-surveySearch"
                       type="text"
                       value={surveySearchTerm}
                       name="surveySearch"
@@ -579,7 +580,7 @@ function PurchasePlansPageContent() {
                 </label>
                 <label className="flex flex-col gap-1 text-sm text-gray-700">
                   <span className="font-medium">รายการในแผน/นอกแผน</span>
-                  <select name="inPlan" value={formData.inPlan || ''} onChange={handleInputChange} className={modalFieldClassName}>
+                  <select id="purchase-plan-inPlan" name="inPlan" value={formData.inPlan || ''} onChange={handleInputChange} className={modalFieldClassName}>
                     <option value="">เลือกประเภท</option>
                     <option value="ในแผน">ในแผน</option>
                     <option value="นอกแผน">นอกแผน</option>
@@ -587,23 +588,23 @@ function PurchasePlansPageContent() {
                 </label>
                 <label className="flex flex-col gap-1 text-sm text-gray-700">
                   <span className="font-medium">จำนวนยกยอดมา</span>
-                  <input type="number" name="carriedForwardQuantity" value={formData.carriedForwardQuantity ?? ''} onChange={handleInputChange} className={modalFieldClassName} min="0" />
+                  <input id="purchase-plan-carriedForwardQuantity" type="number" name="carriedForwardQuantity" value={formData.carriedForwardQuantity ?? ''} onChange={handleInputChange} className={modalFieldClassName} min="0" />
                 </label>
                 <label className="flex flex-col gap-1 text-sm text-gray-700">
                   <span className="font-medium">มูลค่ายกยอดมา</span>
-                  <input type="number" step="0.01" name="carriedForwardValue" value={formData.carriedForwardValue ?? ''} className={`${modalFieldClassName} bg-gray-50`} min="0" readOnly />
+                  <input id="purchase-plan-carriedForwardValue" type="number" step="0.01" name="carriedForwardValue" value={formData.carriedForwardValue ?? ''} className={`${modalFieldClassName} bg-gray-50`} min="0" readOnly />
                 </label>
                 <label className="flex flex-col gap-1 text-sm text-gray-700">
                   <span className="font-medium">รหัสสินค้า</span>
-                  <input name="productCode" value={formData.productCode || ''} className={`${modalFieldClassName} bg-gray-50`} readOnly />
+                  <input id="purchase-plan-productCode" name="productCode" value={formData.productCode || ''} className={`${modalFieldClassName} bg-gray-50`} readOnly />
                 </label>
                 <label className="flex flex-col gap-1 text-sm text-gray-700">
                   <span className="font-medium">ชื่อสินค้า</span>
-                  <input name="productName" value={formData.productName || ''} className={`${modalFieldClassName} bg-gray-50`} readOnly />
+                  <input id="purchase-plan-productName" name="productName" value={formData.productName || ''} className={`${modalFieldClassName} bg-gray-50`} readOnly />
                 </label>
                 <label className="flex flex-col gap-1 text-sm text-gray-700">
                   <span className="font-medium">หน่วย</span>
-                  <input list="purchase-plan-units" name="unit" value={formData.unit || ''} className={`${modalFieldClassName} bg-gray-50`} readOnly />
+                  <input id="purchase-plan-unit" list="purchase-plan-units" name="unit" value={formData.unit || ''} className={`${modalFieldClassName} bg-gray-50`} readOnly />
                   <datalist id="purchase-plan-units">
                     {Array.from(new Set(items.map((item) => item.unit).filter(Boolean))).map((unit) => (
                       <option key={unit} value={unit} />
@@ -612,7 +613,7 @@ function PurchasePlansPageContent() {
                 </label>
                 <label className="flex flex-col gap-1 text-sm text-gray-700">
                   <span className="font-medium">หมวดหมู่</span>
-                  <input list="purchase-plan-categories" name="category" value={formData.category || ''} className={`${modalFieldClassName} bg-gray-50`} readOnly />
+                  <input id="purchase-plan-category" list="purchase-plan-categories" name="category" value={formData.category || ''} className={`${modalFieldClassName} bg-gray-50`} readOnly />
                   <datalist id="purchase-plan-categories">
                     {categories.map((category) => (
                       <option key={category} value={category} />
@@ -621,7 +622,7 @@ function PurchasePlansPageContent() {
                 </label>
                 <label className="flex flex-col gap-1 text-sm text-gray-700">
                   <span className="font-medium">ประเภท</span>
-                  <input list="purchase-plan-types" name="productType" value={formData.productType || ''} className={`${modalFieldClassName} bg-gray-50`} readOnly />
+                  <input id="purchase-plan-productType" list="purchase-plan-types" name="productType" value={formData.productType || ''} className={`${modalFieldClassName} bg-gray-50`} readOnly />
                   <datalist id="purchase-plan-types">
                     {types.map((type) => (
                       <option key={type} value={type} />
@@ -630,7 +631,7 @@ function PurchasePlansPageContent() {
                 </label>
                 <label className="flex flex-col gap-1 text-sm text-gray-700">
                   <span className="font-medium">ประเภทย่อย</span>
-                  <input list="purchase-plan-subtypes" name="productSubtype" value={formData.productSubtype || ''} className={`${modalFieldClassName} bg-gray-50`} readOnly />
+                  <input id="purchase-plan-productSubtype" list="purchase-plan-subtypes" name="productSubtype" value={formData.productSubtype || ''} className={`${modalFieldClassName} bg-gray-50`} readOnly />
                   <datalist id="purchase-plan-subtypes">
                     {subtypes.map((subtype) => (
                       <option key={subtype} value={subtype} />
@@ -639,27 +640,27 @@ function PurchasePlansPageContent() {
                 </label>
                 <label className="flex flex-col gap-1 text-sm text-gray-700">
                   <span className="font-medium">ราคา/หน่วย</span>
-                  <input type="number" step="0.01" name="pricePerUnit" value={formData.pricePerUnit ?? ''} className={`${modalFieldClassName} bg-gray-50`} readOnly />
+                  <input id="purchase-plan-pricePerUnit" type="number" step="0.01" name="pricePerUnit" value={formData.pricePerUnit ?? ''} className={`${modalFieldClassName} bg-gray-50`} readOnly />
                 </label>
                 <label className="flex flex-col gap-1 text-sm text-gray-700">
                   <span className="font-medium">จำนวนที่ต้องการใช้ในปี</span>
-                  <input type="number" name="requiredQuantityForYear" value={formData.requiredQuantityForYear ?? ''} className={`${modalFieldClassName} bg-gray-50`} readOnly />
+                  <input id="purchase-plan-requiredQuantityForYear" type="number" name="requiredQuantityForYear" value={formData.requiredQuantityForYear ?? ''} className={`${modalFieldClassName} bg-gray-50`} readOnly />
                 </label>
                 <label className="flex flex-col gap-1 text-sm text-gray-700">
                   <span className="font-medium">มูลค่ารวมที่ต้องใช้ในปี</span>
-                  <input type="number" step="0.01" name="totalRequiredValue" value={formData.totalRequiredValue ?? ''} className={`${modalFieldClassName} bg-gray-50`} readOnly />
+                  <input id="purchase-plan-totalRequiredValue" type="number" step="0.01" name="totalRequiredValue" value={formData.totalRequiredValue ?? ''} className={`${modalFieldClassName} bg-gray-50`} readOnly />
                 </label>
                 <label className="flex flex-col gap-1 text-sm text-gray-700">
                   <span className="font-medium">จำนวนที่ต้องซื้อเพิ่มในปี</span>
-                  <input type="number" name="additionalPurchaseQty" value={formData.additionalPurchaseQty ?? ''} className={`${modalFieldClassName} bg-gray-50`} readOnly />
+                  <input id="purchase-plan-additionalPurchaseQty" type="number" name="additionalPurchaseQty" value={formData.additionalPurchaseQty ?? ''} className={`${modalFieldClassName} bg-gray-50`} readOnly />
                 </label>
                 <label className="flex flex-col gap-1 text-sm text-gray-700">
                   <span className="font-medium">มูลค่าที่ต้องซื้อเพิ่มในปี</span>
-                  <input type="number" step="0.01" name="additionalPurchaseValue" value={formData.additionalPurchaseValue ?? ''} className={`${modalFieldClassName} bg-gray-50`} readOnly />
+                  <input id="purchase-plan-additionalPurchaseValue" type="number" step="0.01" name="additionalPurchaseValue" value={formData.additionalPurchaseValue ?? ''} className={`${modalFieldClassName} bg-gray-50`} readOnly />
                 </label>
                 <label className="flex flex-col gap-1 text-sm text-gray-700">
                   <span className="font-medium">ปีงบประมาณ</span>
-                  <input list="purchase-plan-years" name="budgetYear" value={formData.budgetYear || ''} className={`${modalFieldClassName} bg-gray-50`} readOnly />
+                  <input id="purchase-plan-budgetYear" list="purchase-plan-years" name="budgetYear" value={formData.budgetYear || ''} className={`${modalFieldClassName} bg-gray-50`} readOnly />
                   <datalist id="purchase-plan-years">
                     {years.map((year) => (
                       <option key={year} value={year} />
@@ -668,7 +669,7 @@ function PurchasePlansPageContent() {
                 </label>
                 <label className="flex flex-col gap-1 text-sm text-gray-700">
                   <span className="font-medium">หน่วยงานจัดซื้อ</span>
-                  <select name="purchasingDepartment" value={formData.purchasingDepartment || ''} onChange={handleInputChange} className={modalFieldClassName}>
+                  <select id="purchase-plan-purchasingDepartment" name="purchasingDepartment" value={formData.purchasingDepartment || ''} onChange={handleInputChange} className={modalFieldClassName}>
                     <option value="">เลือกหน่วยงานจัดซื้อ</option>
                     {purchasingDepartmentOptions.map((department) => (
                       <option key={department} value={department}>{department}</option>

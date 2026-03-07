@@ -524,6 +524,9 @@ export default function WarehousePage() {
                           <td className="px-2 py-3 text-sm text-gray-900">{index + 1}</td>
                           <td className="px-2 py-3">
                             <input
+                              id={`warehouse-bulk-productCode-${index}`}
+                              name={`bulkProductCode-${index}`}
+                              aria-label={`รหัสสินค้า แถว ${index + 1}`}
                               type="text"
                               value={record.productCode || ''}
                               onChange={(e) => {
@@ -537,6 +540,9 @@ export default function WarehousePage() {
                           </td>
                           <td className="px-2 py-3">
                             <input
+                              id={`warehouse-bulk-productName-${index}`}
+                              name={`bulkProductName-${index}`}
+                              aria-label={`ชื่อสินค้า แถว ${index + 1}`}
                               type="text"
                               value={record.productName || ''}
                               onChange={(e) => {
@@ -550,6 +556,9 @@ export default function WarehousePage() {
                           </td>
                           <td className="px-2 py-3">
                             <input
+                              id={`warehouse-bulk-transactionType-${index}`}
+                              name={`bulkTransactionType-${index}`}
+                              aria-label={`ประเภทเอกสาร แถว ${index + 1}`}
                               type="text"
                               value={record.transactionType || ''}
                               onChange={(e) => {
@@ -563,6 +572,9 @@ export default function WarehousePage() {
                           </td>
                           <td className="px-2 py-3">
                             <input
+                              id={`warehouse-bulk-transactionDate-${index}`}
+                              name={`bulkTransactionDate-${index}`}
+                              aria-label={`วันที่ แถว ${index + 1}`}
                               type="date"
                               value={record.transactionDate || ''}
                               onChange={(e) => {
@@ -575,6 +587,9 @@ export default function WarehousePage() {
                           </td>
                           <td className="px-2 py-3">
                             <select
+                              id={`warehouse-bulk-category-${index}`}
+                              name={`bulkCategory-${index}`}
+                              aria-label={`หมวด แถว ${index + 1}`}
                               value={record.category || ''}
                               onChange={(e) => {
                                 const updated = [...bulkRecords];
@@ -591,6 +606,9 @@ export default function WarehousePage() {
                           </td>
                           <td className="px-2 py-3">
                             <input
+                              id={`warehouse-bulk-transactionQuantity-${index}`}
+                              name={`bulkTransactionQuantity-${index}`}
+                              aria-label={`จำนวนเคลื่อนไหว แถว ${index + 1}`}
                               type="number"
                               value={record.transactionQuantity || ''}
                               onChange={(e) => {
@@ -604,6 +622,9 @@ export default function WarehousePage() {
                           </td>
                           <td className="px-2 py-3">
                             <input
+                              id={`warehouse-bulk-remainingQuantity-${index}`}
+                              name={`bulkRemainingQuantity-${index}`}
+                              aria-label={`คงเหลือ แถว ${index + 1}`}
                               type="number"
                               value={record.remainingQuantity || ''}
                               onChange={(e) => {

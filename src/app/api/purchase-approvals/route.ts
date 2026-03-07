@@ -4,7 +4,7 @@ import { apiSuccess, apiError } from '@/lib/api-response';
 import { validateQuery, validateRequest } from '@/lib/validation/validate';
 import { purchaseApprovalQuerySchema, createPurchaseApprovalSchema } from '@/lib/validation/schemas';
 
-const purchaseApprovalSelect = `SELECT id, "approvalId", department, "recordNumber", "requestDate", "productName", "productCode", category, "productType", "productSubtype", "requestedQuantity", unit, "pricePerUnit"::float8 AS "pricePerUnit", "totalValue"::float8 AS "totalValue", "overPlanCase", requester, approver FROM public."PurchaseApproval"`;
+const purchaseApprovalSelect = `SELECT id, "approvalId", department, "budgetYear", "recordNumber", "requestDate", "productName", "productCode", category, "productType", "productSubtype", "requestedQuantity", unit, "pricePerUnit"::float8 AS "pricePerUnit", "totalValue"::float8 AS "totalValue", "overPlanCase", requester, approver, created_at, updated_at FROM public."PurchaseApproval"`;
 
 export async function GET(request: NextRequest) {
   try {
@@ -24,6 +24,7 @@ export async function GET(request: NextRequest) {
       productType,
       productSubtype,
       department,
+      budgetYear,
       page,
       pageSize
     } = queryValidation.data as any;
@@ -51,10 +52,15 @@ export async function GET(request: NextRequest) {
       params.push(department);
       whereClauses.push(`department = $${params.length}`);
     }
+    if (budgetYear) {
+      params.push(Number(budgetYear));
+      whereClauses.push(`"budgetYear" = $${params.length}`);
+    }
 
     const allowedOrderFields: Record<string, string> = {
       id: 'id',
       department: 'department',
+      budgetYear: '"budgetYear"',
       recordNumber: '"recordNumber"',
       requestDate: '"requestDate"',
       productName: '"productName"',
@@ -108,12 +114,13 @@ export async function POST(request: NextRequest) {
     }
 
     const item = await pgQuery(
-      `INSERT INTO public."PurchaseApproval" ("approvalId", department, "recordNumber", "requestDate", "productName", "productCode", category, "productType", "productSubtype", "requestedQuantity", unit, "pricePerUnit", "totalValue", "overPlanCase", requester, approver)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
-       RETURNING id, "approvalId", department, "recordNumber", "requestDate", "productName", "productCode", category, "productType", "productSubtype", "requestedQuantity", unit, "pricePerUnit"::float8 AS "pricePerUnit", "totalValue"::float8 AS "totalValue", "overPlanCase", requester, approver`,
+      `INSERT INTO public."PurchaseApproval" ("approvalId", department, "budgetYear", "recordNumber", "requestDate", "productName", "productCode", category, "productType", "productSubtype", "requestedQuantity", unit, "pricePerUnit", "totalValue", "overPlanCase", requester, approver)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
+       RETURNING id, "approvalId", department, "budgetYear", "recordNumber", "requestDate", "productName", "productCode", category, "productType", "productSubtype", "requestedQuantity", unit, "pricePerUnit"::float8 AS "pricePerUnit", "totalValue"::float8 AS "totalValue", "overPlanCase", requester, approver, created_at, updated_at`,
       [
         validation.data.approvalId || null,
         validation.data.department || null,
+        validation.data.budgetYear ?? null,
         validation.data.recordNumber || null,
         validation.data.requestDate || null,
         validation.data.productName || null,

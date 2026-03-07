@@ -19,6 +19,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     const data: Record<string, unknown> = {
       approvalId: body.approvalId ?? null,
       department: body.department ?? null,
+      budgetYear: body.budgetYear !== undefined ? (body.budgetYear === null || body.budgetYear === '' ? null : parseInt(body.budgetYear, 10)) : undefined,
       recordNumber: body.recordNumber ?? null,
       requestDate: body.requestDate ?? null,
       productName: body.productName ?? null,
@@ -38,6 +39,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     const columnMap: Record<string, string> = {
       approvalId: '"approvalId"',
       department: 'department',
+      budgetYear: '"budgetYear"',
       recordNumber: '"recordNumber"',
       requestDate: '"requestDate"',
       productName: '"productName"',
@@ -65,14 +67,15 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     });
 
     if (assignments.length === 0) {
-      const unchanged = await pgQuery('SELECT id, "approvalId", department, "recordNumber", "requestDate", "productName", "productCode", category, "productType", "productSubtype", "requestedQuantity", unit, "pricePerUnit"::float8 AS "pricePerUnit", "totalValue"::float8 AS "totalValue", "overPlanCase", requester, approver FROM public."PurchaseApproval" WHERE id = $1 LIMIT 1', [numericId]);
+      const unchanged = await pgQuery('SELECT id, "approvalId", department, "budgetYear", "recordNumber", "requestDate", "productName", "productCode", category, "productType", "productSubtype", "requestedQuantity", unit, "pricePerUnit"::float8 AS "pricePerUnit", "totalValue"::float8 AS "totalValue", "overPlanCase", requester, approver, created_at, updated_at FROM public."PurchaseApproval" WHERE id = $1 LIMIT 1', [numericId]);
       return NextResponse.json(unchanged.rows[0]);
     }
 
+    assignments.push('updated_at = CURRENT_TIMESTAMP');
     values.push(numericId);
     const updated = await pgQuery(
       `UPDATE public."PurchaseApproval" SET ${assignments.join(', ')} WHERE id = $${values.length}
-       RETURNING id, "approvalId", department, "recordNumber", "requestDate", "productName", "productCode", category, "productType", "productSubtype", "requestedQuantity", unit, "pricePerUnit"::float8 AS "pricePerUnit", "totalValue"::float8 AS "totalValue", "overPlanCase", requester, approver`,
+       RETURNING id, "approvalId", department, "budgetYear", "recordNumber", "requestDate", "productName", "productCode", category, "productType", "productSubtype", "requestedQuantity", unit, "pricePerUnit"::float8 AS "pricePerUnit", "totalValue"::float8 AS "totalValue", "overPlanCase", requester, approver, created_at, updated_at`,
       values
     );
     return NextResponse.json(updated.rows[0]);
