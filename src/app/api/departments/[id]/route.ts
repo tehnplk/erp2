@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { pgQuery } from '@/lib/pg';
+import { cacheDelByPattern } from '@/lib/redis';
 
 // GET /api/departments/[id] - Get a specific department
 export async function GET(
@@ -77,6 +78,7 @@ export async function PUT(
       [name, numericId]
     );
 
+    await cacheDelByPattern('erp:departments:list:*');
     return NextResponse.json(updatedResult.rows[0]);
   } catch (error) {
     console.error('Error updating department:', error);
@@ -113,6 +115,7 @@ export async function DELETE(
     }
 
     await pgQuery('DELETE FROM public."Department" WHERE id = $1', [numericId]);
+    await cacheDelByPattern('erp:departments:list:*');
 
     return NextResponse.json(
       { message: 'Department deleted successfully' },

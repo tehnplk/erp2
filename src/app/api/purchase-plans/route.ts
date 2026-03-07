@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server';
 import { pgQuery } from '@/lib/pg';
 import { apiSuccess, apiError } from '@/lib/api-response';
+import { cacheGet, cacheSet, cacheDelByPattern } from '@/lib/redis';
 import { validateQuery, validateRequest } from '@/lib/validation/validate';
 import { purchasePlanQuerySchema, createPurchasePlanSchema } from '@/lib/validation/schemas';
 
@@ -35,7 +36,7 @@ async function buildPurchasePlanPayload(input: PurchasePlanPayload, mode: 'creat
 
   const surveyResult = await pgQuery(
     `SELECT id, "productCode", category, type, subtype, "productName", "requestedAmount", unit, "pricePerUnit"::float8 AS "pricePerUnit", "requestingDept", "approvedQuota", budget_year AS "budgetYear", sequence_no AS "sequenceNo"
-     FROM public."Survey"
+     FROM public."UsagePlan"
      WHERE id = $1
      LIMIT 1`,
     [planId]
@@ -190,18 +191,36 @@ export async function GET(request: NextRequest) {
     const pageSizeParam = searchParams.get('pageSize');
 
     // Non-paginated mode: no page/pageSize in query -> return all matching items (for summaries)
+    const cacheKeyAll = `erp:purchase:plans:list:all:${JSON.stringify(params)}`;
     if (!pageParam && !pageSizeParam) {
+      const cachedAll = await cacheGet<any>(cacheKeyAll);
+      if (cachedAll) return apiSuccess(cachedAll.items, undefined, cachedAll.totalCount, 200);
+
       const [totalCount, items] = await Promise.all([
         pgQuery(`SELECT COUNT(*)::int AS count FROM public."PurchasePlan" ${whereSql}`, params),
         pgQuery(`${baseSelect} ${whereSql} ORDER BY ${safeOrderField} ${safeSortOrder}`, params)
       ]);
 
-      return apiSuccess(items.rows, undefined, totalCount.rows[0]?.count || 0, 200);
+      const resultAll = {
+        items: items.rows,
+        totalCount: totalCount.rows[0]?.count || 0
+      };
+
+      await cacheSet(cacheKeyAll, resultAll, 3600);
+
+      return apiSuccess(resultAll.items, undefined, resultAll.totalCount, 200);
     }
 
     // Paginated mode (used by main listing)
     const currentPage = page && typeof page === 'number' ? page : 1;
     const currentPageSize = pageSize && typeof pageSize === 'number' ? pageSize : 20;
+    
+    const cacheKey = `erp:purchase:plans:list:${JSON.stringify({ ...queryValidation.data, page: currentPage, pageSize: currentPageSize })}`;
+    const cached = await cacheGet<any>(cacheKey);
+    if (cached) {
+      return apiSuccess(cached.items, undefined, cached.totalCount, 200, { page: currentPage, pageSize: currentPageSize });
+    }
+
     const skip = (currentPage - 1) * currentPageSize;
     const paginatedParams = [...params, currentPageSize, skip];
 
@@ -211,7 +230,14 @@ export async function GET(request: NextRequest) {
       pgQuery(`${baseSelect} ${whereSql} ORDER BY ${safeOrderField} ${safeSortOrder} LIMIT $${params.length + 1} OFFSET $${params.length + 2}`, paginatedParams)
     ]);
 
-    return apiSuccess(items.rows, undefined, totalCount.rows[0]?.count || 0, 200, { page: currentPage, pageSize: currentPageSize });
+    const result = {
+      items: items.rows,
+      totalCount: totalCount.rows[0]?.count || 0
+    };
+
+    await cacheSet(cacheKey, result, 1800);
+
+    return apiSuccess(result.items, undefined, result.totalCount, 200, { page: currentPage, pageSize: currentPageSize });
   } catch (error) {
     console.error('Error fetching purchase plans:', error);
     return apiError('Failed to fetch purchase plans');
@@ -260,6 +286,8 @@ export async function POST(request: NextRequest) {
       ]
     );
     
+    await cacheDelByPattern('erp:purchase:plans:list:*');
+
     return apiSuccess(item.rows[0], 'Purchase plan created successfully', undefined, 201);
   } catch (error) {
     console.error('Error creating purchase plan:', error);

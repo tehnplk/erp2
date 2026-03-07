@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { pgQuery } from '@/lib/pg';
+import { cacheGet, cacheSet, cacheDelByPattern } from '@/lib/redis';
 import { validateQuery, validateRequest } from '@/lib/validation/validate';
 import { surveyQuerySchema, createSurveySchema } from '@/lib/validation/schemas';
 
@@ -77,42 +78,67 @@ export async function GET(request: NextRequest) {
 
     const whereSql = whereClauses.length > 0 ? `WHERE ${whereClauses.join(' AND ')}` : '';
 
+    // --- Redis Caching Logic (Non-paginated) ---
+    const cacheKey = `erp:surveys:list:${JSON.stringify({ productName, category, type, requestingDept, budgetYear, orderBy, sortOrder })}`;
+    const cached = await cacheGet<any>(cacheKey);
+    if (cached) {
+      return NextResponse.json(cached);
+    }
+
     const hasPagination = validatedPage !== undefined || validatedPageSize !== undefined;
 
     if (!hasPagination) {
       const [surveysResult, totalCountResult] = await Promise.all([
         pgQuery(
-          `SELECT id, "productCode", category, type, subtype, "productName", "requestedAmount", unit, "pricePerUnit"::float8 AS "pricePerUnit", "requestingDept", "approvedQuota", budget_year AS "budgetYear", sequence_no AS "sequenceNo", created_at AS "createdAt", updated_at AS "updatedAt" FROM public."Survey" ${whereSql} ORDER BY ${safeOrderField} ${orderDirection}`,
+          `SELECT id, "productCode", category, type, subtype, "productName", "requestedAmount", unit, "pricePerUnit"::float8 AS "pricePerUnit", "requestingDept", "approvedQuota", budget_year AS "budgetYear", sequence_no AS "sequenceNo", created_at AS "createdAt", updated_at AS "updatedAt" FROM public."UsagePlan" ${whereSql} ORDER BY ${safeOrderField} ${orderDirection}`,
           params
         ),
-        pgQuery(`SELECT COUNT(*)::int AS count FROM public."Survey" ${whereSql}`, params),
+        pgQuery(`SELECT COUNT(*)::int AS count FROM public."UsagePlan" ${whereSql}`, params),
       ]);
 
-      return NextResponse.json({
+      const result = {
         surveys: surveysResult.rows,
         totalCount: totalCountResult.rows[0]?.count || 0,
-      });
+      };
+
+      // Save to Cache
+      await cacheSet(cacheKey, result, 600);
+
+      return NextResponse.json(result);
     }
 
     const page = validatedPage ?? 1;
     const pageSize = validatedPageSize ?? 20;
     const offset = (page - 1) * pageSize;
+
+    // --- Redis Caching Logic (Paginated) ---
+    const paginatedCacheKey = `erp:surveys:list:${JSON.stringify({ ...queryValidation.data, page, pageSize })}`;
+    const cachedPaginated = await cacheGet<any>(paginatedCacheKey);
+    if (cachedPaginated) {
+      return NextResponse.json(cachedPaginated);
+    }
+
     const paginatedParams = [...params, pageSize, offset];
 
     const [surveysResult, totalCountResult] = await Promise.all([
       pgQuery(
-        `SELECT id, "productCode", category, type, subtype, "productName", "requestedAmount", unit, "pricePerUnit"::float8 AS "pricePerUnit", "requestingDept", "approvedQuota", budget_year AS "budgetYear", sequence_no AS "sequenceNo", created_at AS "createdAt", updated_at AS "updatedAt" FROM public."Survey" ${whereSql} ORDER BY ${safeOrderField} ${orderDirection} LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,
+        `SELECT id, "productCode", category, type, subtype, "productName", "requestedAmount", unit, "pricePerUnit"::float8 AS "pricePerUnit", "requestingDept", "approvedQuota", budget_year AS "budgetYear", sequence_no AS "sequenceNo", created_at AS "createdAt", updated_at AS "updatedAt" FROM public."UsagePlan" ${whereSql} ORDER BY ${safeOrderField} ${orderDirection} LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,
         paginatedParams
       ),
-      pgQuery(`SELECT COUNT(*)::int AS count FROM public."Survey" ${whereSql}`, params),
+      pgQuery(`SELECT COUNT(*)::int AS count FROM public."UsagePlan" ${whereSql}`, params),
     ]);
-    
-    return NextResponse.json({
+
+    const paginatedResult = {
       surveys: surveysResult.rows,
       totalCount: totalCountResult.rows[0]?.count || 0,
       page,
       pageSize,
-    });
+    };
+
+    // Save to Cache
+    await cacheSet(paginatedCacheKey, paginatedResult, 600);
+    
+    return NextResponse.json(paginatedResult);
   } catch (error) {
     console.error('Error fetching surveys:', error);
     return NextResponse.json(
@@ -139,7 +165,7 @@ export async function POST(request: NextRequest) {
 
     if (surveyData.budgetYear !== null && surveyData.budgetYear !== undefined && surveyData.sequenceNo !== null && surveyData.sequenceNo !== undefined) {
       const existing = await pgQuery(
-        `SELECT id FROM public."Survey" WHERE budget_year = $1 AND "requestingDept" IS NOT DISTINCT FROM $2 AND "productCode" IS NOT DISTINCT FROM $3 AND sequence_no = $4 LIMIT 1`,
+        `SELECT id FROM public."UsagePlan" WHERE budget_year = $1 AND "requestingDept" IS NOT DISTINCT FROM $2 AND "productCode" IS NOT DISTINCT FROM $3 AND sequence_no = $4 LIMIT 1`,
         [surveyData.budgetYear, surveyData.requestingDept || null, surveyData.productCode || null, surveyData.sequenceNo]
       );
 
@@ -150,7 +176,7 @@ export async function POST(request: NextRequest) {
 
     if (surveyData.budgetYear !== null && surveyData.budgetYear !== undefined) {
       const existingCountResult = await pgQuery(
-        `SELECT COUNT(*)::int AS count FROM public."Survey" WHERE budget_year = $1 AND "requestingDept" IS NOT DISTINCT FROM $2 AND "productCode" IS NOT DISTINCT FROM $3`,
+        `SELECT COUNT(*)::int AS count FROM public."UsagePlan" WHERE budget_year = $1 AND "requestingDept" IS NOT DISTINCT FROM $2 AND "productCode" IS NOT DISTINCT FROM $3`,
         [surveyData.budgetYear, surveyData.requestingDept || null, surveyData.productCode || null]
       );
       const existingCount = existingCountResult.rows[0]?.count || 0;
@@ -169,7 +195,7 @@ export async function POST(request: NextRequest) {
     }
 
     const survey = await pgQuery(
-      `INSERT INTO public."Survey" ("productCode", category, type, subtype, "productName", "requestedAmount", unit, "pricePerUnit", "requestingDept", "approvedQuota", budget_year, sequence_no)
+      `INSERT INTO public."UsagePlan" ("productCode", category, type, subtype, "productName", "requestedAmount", unit, "pricePerUnit", "requestingDept", "approvedQuota", budget_year, sequence_no)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
        RETURNING id, "productCode", category, type, subtype, "productName", "requestedAmount", unit, "pricePerUnit"::float8 AS "pricePerUnit", "requestingDept", "approvedQuota", budget_year AS "budgetYear", sequence_no AS "sequenceNo", created_at AS "createdAt", updated_at AS "updatedAt"`,
       [
@@ -187,6 +213,8 @@ export async function POST(request: NextRequest) {
         surveyData.sequenceNo ?? null,
       ]
     );
+    
+    await cacheDelByPattern('erp:surveys:list:*');
     
     return NextResponse.json(survey.rows[0], { status: 201 });
   } catch (error) {

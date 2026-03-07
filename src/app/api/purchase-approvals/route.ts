@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server';
 import { pgQuery } from '@/lib/pg';
 import { apiSuccess, apiError } from '@/lib/api-response';
+import { cacheGet, cacheSet, cacheDelByPattern } from '@/lib/redis';
 import { validateQuery, validateRequest } from '@/lib/validation/validate';
 import { purchaseApprovalQuerySchema, createPurchaseApprovalSchema } from '@/lib/validation/schemas';
 
@@ -79,24 +80,51 @@ export async function GET(request: NextRequest) {
     const pageSizeParam = searchParams.get('pageSize');
 
     if (!pageParam && !pageSizeParam) {
+      const cacheKeyAll = `erp:purchase:approvals:list:all:${JSON.stringify(queryValidation.data)}`;
+      const cachedAll = await cacheGet<any>(cacheKeyAll);
+      if (cachedAll) {
+        return apiSuccess(cachedAll.items, undefined, cachedAll.totalCount, 200);
+      }
+
       const [totalCount, items] = await Promise.all([
         pgQuery(`SELECT COUNT(*)::int AS count FROM public."PurchaseApproval" ${whereSql}`, params),
         pgQuery(`${purchaseApprovalSelect} ${whereSql} ORDER BY ${safeOrderField} ${safeSortOrder}`, params)
       ]);
 
-      return apiSuccess(items.rows, undefined, totalCount.rows[0]?.count || 0, 200);
+      const result = {
+        items: items.rows,
+        totalCount: totalCount.rows[0]?.count || 0
+      };
+
+      await cacheSet(cacheKeyAll, result, 600);
+
+      return apiSuccess(result.items, undefined, result.totalCount, 200);
     }
 
     const currentPage = page && typeof page === 'number' ? page : 1;
     const currentPageSize = pageSize && typeof pageSize === 'number' ? pageSize : 20;
     const skip = (currentPage - 1) * currentPageSize;
+    const cacheKey = `erp:purchase:approvals:list:${JSON.stringify({ ...queryValidation.data, page: currentPage, pageSize: currentPageSize })}`;
+    const cached = await cacheGet<any>(cacheKey);
+    if (cached) {
+      return apiSuccess(cached.items, undefined, cached.totalCount, 200, { page: currentPage, pageSize: currentPageSize });
+    }
 
     const [totalCount, items] = await Promise.all([
       pgQuery(`SELECT COUNT(*)::int AS count FROM public."PurchaseApproval" ${whereSql}`, params),
       pgQuery(`${purchaseApprovalSelect} ${whereSql} ORDER BY ${safeOrderField} ${safeSortOrder} LIMIT $${params.length + 1} OFFSET $${params.length + 2}`, [...params, currentPageSize, skip])
     ]);
 
-    return apiSuccess(items.rows, undefined, totalCount.rows[0]?.count || 0, 200, { page: currentPage, pageSize: currentPageSize });
+    const result = {
+      items: items.rows,
+      totalCount: totalCount.rows[0]?.count || 0,
+      page: currentPage,
+      pageSize: currentPageSize
+    };
+
+    await cacheSet(cacheKey, result, 600);
+
+    return apiSuccess(result.items, undefined, result.totalCount, 200, { page: currentPage, pageSize: currentPageSize });
   } catch (error) {
     console.error('Error fetching purchase approvals:', error);
     return apiError('Failed to fetch purchase approvals');
@@ -137,6 +165,8 @@ export async function POST(request: NextRequest) {
         validation.data.approver || null,
       ]
     );
+    
+    await cacheDelByPattern('erp:purchase:approvals:list:*');
     
     return apiSuccess(item.rows[0], 'Purchase approval created successfully', undefined, 201);
   } catch (error) {

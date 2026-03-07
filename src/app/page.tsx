@@ -15,41 +15,36 @@ const normalizeChartRows = (rows: ChartRow[]) => rows.map((row) => ({
   value: Number(row.value) || 0,
 }));
 
-export default async function Home() {
+ export default async function Home() {
   const [
     productCountResult,
     surveyCountResult,
     purchasePlanCountResult,
     approvalCountResult,
-    warehouseCountResult,
     departmentCountResult,
     surveyValueResult,
     planValueResult,
     approvalValueResult,
-    warehouseValueResult,
     productsByCategoryResult,
     surveysByDepartmentResult,
     purchasePlanStatusResult,
-    warehouseTransactionsResult,
     budgetTrendResult,
     departmentComparisonResult,
     departmentValueResult,
   ] = await Promise.all([
     pgQuery<CountRow>('SELECT COUNT(*)::int AS count FROM public."Product"'),
-    pgQuery<CountRow>('SELECT COUNT(*)::int AS count FROM public."Survey"'),
+    pgQuery<CountRow>('SELECT COUNT(*)::int AS count FROM public."UsagePlan"'),
     pgQuery<CountRow>('SELECT COUNT(*)::int AS count FROM public."PurchasePlan"'),
     pgQuery<CountRow>('SELECT COUNT(*)::int AS count FROM public."PurchaseApproval"'),
-    pgQuery<CountRow>('SELECT COUNT(*)::int AS count FROM public."Warehouse"'),
     pgQuery<CountRow>('SELECT COUNT(*)::int AS count FROM public."Department"'),
-    pgQuery<SumRow>('SELECT COALESCE(SUM(COALESCE("requestedAmount", 0) * COALESCE("pricePerUnit", 0)), 0)::float8 AS total FROM public."Survey"'),
+    pgQuery<SumRow>('SELECT COALESCE(SUM(COALESCE("requestedAmount", 0) * COALESCE("pricePerUnit", 0)), 0)::float8 AS total FROM public."UsagePlan"'),
     pgQuery<SumRow>('SELECT COALESCE(SUM(COALESCE("totalRequiredValue", 0)), 0)::float8 AS total FROM public."PurchasePlan"'),
     pgQuery<SumRow>('SELECT COALESCE(SUM(COALESCE("totalValue", 0)), 0)::float8 AS total FROM public."PurchaseApproval"'),
-    pgQuery<SumRow>('SELECT COALESCE(SUM(COALESCE("remainingValue", 0)), 0)::float8 AS total FROM public."Warehouse"'),
     pgQuery<ChartRow>(
       'SELECT category AS name, COUNT(*)::int AS value FROM public."Product" GROUP BY category ORDER BY value DESC, name ASC LIMIT 6'
     ),
     pgQuery<ChartRow>(
-      'SELECT "requestingDept" AS name, COUNT(*)::int AS value FROM public."Survey" GROUP BY "requestingDept" ORDER BY value DESC, name ASC LIMIT 6'
+      'SELECT "requestingDept" AS name, COUNT(*)::int AS value FROM public."UsagePlan" GROUP BY "requestingDept" ORDER BY value DESC, name ASC LIMIT 6'
     ),
     pgQuery<ChartRow>(
       `SELECT COALESCE("inPlan", 'ไม่ระบุ') AS name, COUNT(*)::int AS value
@@ -57,18 +52,11 @@ export default async function Home() {
        GROUP BY COALESCE("inPlan", 'ไม่ระบุ')
        ORDER BY value DESC, name ASC`
     ),
-    pgQuery<ChartRow>(
-      `SELECT COALESCE("transactionType", 'ไม่ระบุ') AS name, COUNT(*)::int AS value
-       FROM public."Warehouse"
-       GROUP BY COALESCE("transactionType", 'ไม่ระบุ')
-       ORDER BY value DESC, name ASC
-       LIMIT 6`
-    ),
     pgQuery<BudgetTrendRow>(
       `WITH survey_stats AS (
          SELECT budget_year::text AS year,
                 COALESCE(SUM(COALESCE("requestedAmount", 0) * COALESCE("pricePerUnit", 0)), 0)::float8 AS "surveyValue"
-         FROM public."Survey"
+         FROM public."UsagePlan"
          GROUP BY budget_year
        ),
        plan_stats AS (
@@ -87,7 +75,7 @@ export default async function Home() {
     pgQuery<DepartmentComparisonRow>(
       `WITH survey_counts AS (
          SELECT COALESCE("requestingDept", 'ไม่ระบุ') AS name, COUNT(*)::int AS "surveyCount"
-         FROM public."Survey"
+         FROM public."UsagePlan"
          GROUP BY COALESCE("requestingDept", 'ไม่ระบุ')
        ),
        plan_counts AS (
@@ -115,7 +103,7 @@ export default async function Home() {
       `WITH survey_values AS (
          SELECT COALESCE("requestingDept", 'ไม่ระบุ') AS name,
                 COALESCE(SUM(COALESCE("requestedAmount", 0) * COALESCE("pricePerUnit", 0)), 0)::float8 AS "surveyValue"
-         FROM public."Survey"
+         FROM public."UsagePlan"
          GROUP BY COALESCE("requestingDept", 'ไม่ระบุ')
        ),
        plan_values AS (
@@ -148,7 +136,6 @@ export default async function Home() {
     { label: 'แผนการใช้', value: surveyCountResult.rows[0]?.count || 0, color: 'bg-teal-500', icon: 'surveys' as const },
     { label: 'แผนจัดซื้อ', value: purchasePlanCountResult.rows[0]?.count || 0, color: 'bg-indigo-500', icon: 'plans' as const },
     { label: 'อนุมัติจัดซื้อ', value: approvalCountResult.rows[0]?.count || 0, color: 'bg-emerald-500', icon: 'approvals' as const },
-    { label: 'คลังสินค้า', value: warehouseCountResult.rows[0]?.count || 0, color: 'bg-red-500', icon: 'warehouse' as const },
     { label: 'แผนก', value: departmentCountResult.rows[0]?.count || 0, color: 'bg-green-500', icon: 'departments' as const },
   ];
 
@@ -156,7 +143,6 @@ export default async function Home() {
     { label: 'มูลค่าความต้องการ', value: Number(surveyValueResult.rows[0]?.total) || 0 },
     { label: 'มูลค่าแผนจัดซื้อ', value: Number(planValueResult.rows[0]?.total) || 0 },
     { label: 'มูลค่าอนุมัติจัดซื้อ', value: Number(approvalValueResult.rows[0]?.total) || 0 },
-    { label: 'มูลค่าคงเหลือคลัง', value: Number(warehouseValueResult.rows[0]?.total) || 0 },
   ];
 
   return (
@@ -169,7 +155,6 @@ export default async function Home() {
           productsByCategory={normalizeChartRows(productsByCategoryResult.rows)}
           surveysByDepartment={normalizeChartRows(surveysByDepartmentResult.rows)}
           purchasePlanStatus={normalizeChartRows(purchasePlanStatusResult.rows)}
-          warehouseTransactions={normalizeChartRows(warehouseTransactionsResult.rows)}
           budgetTrend={budgetTrendResult.rows.map((row) => ({
             year: row.year || '-',
             surveyValue: Number(row.surveyValue) || 0,

@@ -3,6 +3,7 @@ import { pgPool } from '@/lib/pg';
 import { apiConflict, apiError, apiNotFound, apiSuccess } from '@/lib/api-response';
 import { validateRequest } from '@/lib/validation/validate';
 import { createInventoryReceiptFromPurchaseApprovalSchema } from '@/lib/validation/schemas';
+import { cacheDelByPattern } from '@/lib/redis';
 
 const DEFAULT_RECEIPT_PREFIX = 'IR';
 
@@ -226,6 +227,12 @@ export async function POST(request: NextRequest) {
     );
 
     await client.query('COMMIT');
+    
+    // Invalidate caches
+    await Promise.all([
+      cacheDelByPattern('erp:inventory:receipts:pending:*'),
+      cacheDelByPattern('erp:inventory:balances:*'),
+    ]);
 
     return apiSuccess({
       receiptId: receipt.id,

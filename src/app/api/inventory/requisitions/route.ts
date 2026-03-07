@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server';
 import { pgPool, pgQuery } from '@/lib/pg';
 import { apiError, apiSuccess } from '@/lib/api-response';
+import { cacheGet, cacheSet, cacheDelByPattern } from '@/lib/redis';
 import { validateQuery, validateRequest } from '@/lib/validation/validate';
 import { createInventoryRequisitionSchema, inventoryRequisitionQuerySchema } from '@/lib/validation/schemas';
 
@@ -48,14 +49,19 @@ export async function GET(request: NextRequest) {
       return queryValidation.error;
     }
 
+    const { page = 1, pageSize = 20 } = queryValidation.data;
+    const cacheKey = `erp:inventory:requisitions:list:${JSON.stringify({ ...queryValidation.data, page, pageSize })}`;
+    const cached = await cacheGet<any>(cacheKey);
+    if (cached) {
+      return apiSuccess(cached.items, undefined, cached.totalCount, 200, { page, pageSize });
+    }
+
     const {
       requisitionNo,
       requestingDepartment,
       status,
       orderBy,
       sortOrder,
-      page = 1,
-      pageSize = 20,
     } = queryValidation.data;
 
     const whereClauses: string[] = [];
@@ -134,7 +140,15 @@ export async function GET(request: NextRequest) {
       items: lineItemsByRequisitionId.get(row.id) || [],
     }));
 
-    return apiSuccess(rowsWithItems, undefined, countResult.rows[0]?.count || 0, 200, { page, pageSize });
+    const finalResult = {
+      items: rowsWithItems,
+      totalCount: countResult.rows[0]?.count || 0
+    };
+
+    // Cache the result for 5 minutes
+    await cacheSet(cacheKey, finalResult, 300);
+
+    return apiSuccess(finalResult.items, undefined, finalResult.totalCount, 200, { page, pageSize });
   } catch (error) {
     console.error('Error fetching inventory requisitions:', error);
     return apiError('Failed to fetch inventory requisitions');
@@ -175,6 +189,8 @@ export async function POST(request: NextRequest) {
     }
 
     await client.query('COMMIT');
+
+    await cacheDelByPattern('erp:inventory:requisitions:list:*');
 
     return apiSuccess(requisition, 'Inventory requisition created successfully', undefined, 201);
   } catch (error) {

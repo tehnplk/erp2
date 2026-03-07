@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Swal from 'sweetalert2';
 import { Plus, Check, X, Pencil, Trash2 } from 'lucide-react';
 
 interface Category {
@@ -164,7 +165,17 @@ export default function CategoriesPage() {
 
   // Delete category
   const deleteCategory = async (id: number) => {
-    if (!confirm('Are you sure you want to delete this category?')) return;
+    const confirmation = await Swal.fire({
+      title: 'Delete category?',
+      text: 'Are you sure you want to delete this category?',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonText: 'Delete',
+      cancelButtonText: 'Cancel',
+      confirmButtonColor: '#d33',
+      cancelButtonColor: '#3085d6',
+    });
+    if (!confirmation.isConfirmed) return;
 
     try {
       const response = await fetch(`/api/categories/${id}`, {

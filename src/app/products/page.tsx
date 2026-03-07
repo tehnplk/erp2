@@ -77,6 +77,9 @@ export default function ProductsPage() {
   const [errors, setErrors] = useState<Record<string, string>>({});
   
   // Filter states
+  const [codeFilterInput, setCodeFilterInput] = useState('');
+  const [nameFilterInput, setNameFilterInput] = useState('');
+  const [codeFilter, setCodeFilter] = useState('');
   const [nameFilter, setNameFilter] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
   const [typeFilter, setTypeFilter] = useState('');
@@ -142,11 +145,11 @@ export default function ProductsPage() {
   // Fetch products when filters or sorting change
   useEffect(() => {
     fetchProducts();
-  }, [nameFilter, categoryFilter, typeFilter, subtypeFilter, sortBy, sortOrder, page, pageSize]);
+  }, [codeFilter, nameFilter, categoryFilter, typeFilter, subtypeFilter, sortBy, sortOrder, page, pageSize]);
 
   useEffect(() => {
     setPage(1);
-  }, [nameFilter, categoryFilter, typeFilter, subtypeFilter, sortBy, sortOrder]);
+  }, [codeFilter, nameFilter, categoryFilter, typeFilter, subtypeFilter, sortBy, sortOrder]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -250,6 +253,7 @@ export default function ProductsPage() {
       // Build query string with filters and sorting
       const params = new URLSearchParams();
       
+      if (codeFilter) params.append('code', codeFilter);
       if (nameFilter) params.append('name', nameFilter);
       if (categoryFilter) params.append('category', categoryFilter);
       if (typeFilter) params.append('type', typeFilter);
@@ -290,6 +294,23 @@ export default function ProductsPage() {
 
   const handlePageSizeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     setPageSize(parseInt(e.target.value, 10));
+    setPage(1);
+  };
+
+  const handleSearchInputKeyDown = (
+    e: React.KeyboardEvent<HTMLInputElement>,
+    filter: 'code' | 'name'
+  ) => {
+    if (e.key !== 'Enter') return;
+    e.preventDefault();
+
+    if (filter === 'code') {
+      setCodeFilter(codeFilterInput.trim());
+      setPage(1);
+      return;
+    }
+
+    setNameFilter(nameFilterInput.trim());
     setPage(1);
   };
   
@@ -382,11 +403,11 @@ export default function ProductsPage() {
         resetForm();
       } else {
         const error = await response.json();
-        alert(error.error || 'เกิดข้อผิดพลาดในการบันทึกข้อมูล');
+        await Swal.fire('เกิดข้อผิดพลาด', error.error || 'เกิดข้อผิดพลาดในการบันทึกข้อมูล', 'error');
       }
     } catch (error) {
       console.error('Error saving product:', error);
-      alert('เกิดข้อผิดพลาดในการบันทึกข้อมูล');
+      await Swal.fire('เกิดข้อผิดพลาด', 'เกิดข้อผิดพลาดในการบันทึกข้อมูล', 'error');
     }
   };
 
@@ -1206,18 +1227,30 @@ export default function ProductsPage() {
       <div className="bg-white shadow-md rounded-lg overflow-hidden mb-4">
         {/* Filter Section */}
         <div className="px-4 py-3 bg-gray-50 border-b border-gray-200">
-          <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-4">
-            <div>
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 mb-4">
+            <div className="lg:col-span-2">
+              <label className="block text-sm font-medium text-gray-700 mb-2">รหัสสินค้า</label>
+              <input
+                type="text"
+                value={codeFilterInput}
+                onChange={(e) => setCodeFilterInput(e.target.value)}
+                onKeyDown={(e) => handleSearchInputKeyDown(e, 'code')}
+                placeholder="ค้นหารหัสสินค้า..."
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+              />
+            </div>
+            <div className="lg:col-span-2">
               <label className="block text-sm font-medium text-gray-700 mb-2">ชื่อสินค้า</label>
               <input
                 type="text"
-                value={nameFilter}
-                onChange={(e) => setNameFilter(e.target.value)}
+                value={nameFilterInput}
+                onChange={(e) => setNameFilterInput(e.target.value)}
+                onKeyDown={(e) => handleSearchInputKeyDown(e, 'name')}
                 placeholder="ค้นหาชื่อสินค้า..."
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
               />
             </div>
-            <div>
+            <div className="lg:col-span-2">
               <label className="block text-sm font-medium text-gray-700 mb-2">หมวดสินค้า</label>
               <select
                 value={categoryFilter}
@@ -1225,12 +1258,12 @@ export default function ProductsPage() {
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
               >
                 <option value="">ทั้งหมด</option>
-                {categories.map((category) => (
-                  <option key={category} value={category}>{category}</option>
+                {categories.map((cat) => (
+                  <option key={cat} value={cat}>{cat}</option>
                 ))}
               </select>
             </div>
-            <div>
+            <div className="lg:col-span-2">
               <label className="block text-sm font-medium text-gray-700 mb-2">ประเภทสินค้า</label>
               <select
                 value={typeFilter}
@@ -1243,7 +1276,7 @@ export default function ProductsPage() {
                 ))}
               </select>
             </div>
-            <div>
+            <div className="lg:col-span-2">
               <label className="block text-sm font-medium text-gray-700 mb-2">ประเภทย่อย</label>
               <select
                 value={subtypeFilter}
@@ -1256,9 +1289,12 @@ export default function ProductsPage() {
                 ))}
               </select>
             </div>
-            <div className="flex items-end">
+            <div className="lg:col-span-2 flex items-end">
               <button
                 onClick={() => {
+                  setCodeFilterInput('');
+                  setNameFilterInput('');
+                  setCodeFilter('');
                   setNameFilter('');
                   setCategoryFilter('');
                   setTypeFilter('');

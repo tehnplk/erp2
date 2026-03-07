@@ -31,7 +31,9 @@ export const createProductSchema = z.object({
 export const updateProductSchema = createProductSchema.partial();
 
 export const productQuerySchema = z.object({
+  code: z.string().optional(),
   name: z.string().optional(),
+  search: z.string().optional(),
   category: z.string().optional(),
   type: z.string().optional(),
   subtype: z.string().optional(),
@@ -94,8 +96,8 @@ export const createInventoryRequisitionSchema = z.object({
   requisitionNo: z.string().optional(),
   requestDate: z.string().optional(),
   requestingDepartment: nonEmptyString,
-  requestedBy: z.string().optional(),
-  note: z.string().optional(),
+  requestedBy: z.string().nullable().optional(),
+  note: z.string().nullable().optional(),
   items: z.array(z.object({
     inventoryItemId: z.coerce.number().int().positive(),
     requestedQty: z.coerce.number().int().positive(),
@@ -113,8 +115,8 @@ export const inventoryRequisitionQuerySchema = z.object({
 });
 
 export const approveInventoryRequisitionSchema = z.object({
-  approvedBy: z.string().optional(),
-  note: z.string().optional(),
+  approvedBy: z.string().nullable().optional(),
+  note: z.string().nullable().optional(),
   items: z.array(z.object({
     requisitionItemId: z.coerce.number().int().positive(),
     approvedQty: z.coerce.number().int().min(0)
@@ -126,9 +128,9 @@ export const createInventoryIssueSchema = z.object({
   issueNo: z.string().optional(),
   issueDate: z.string().optional(),
   requestingDepartment: nonEmptyString,
-  issuedBy: z.string().optional(),
-  approvedBy: z.string().optional(),
-  note: z.string().optional(),
+  issuedBy: z.string().nullable().optional(),
+  approvedBy: z.string().nullable().optional(),
+  note: z.string().nullable().optional(),
   items: z.array(z.object({
     requisitionItemId: z.coerce.number().int().positive(),
     inventoryItemId: z.coerce.number().int().positive(),
@@ -183,50 +185,6 @@ export const categoryQuerySchema = z.object({
   ...paginationFields
 });
 
-// Warehouse schemas
-export const createWarehouseSchema = z.object({
-  stockId: z.string().nullable().optional(),
-  transactionType: z.string().nullable().optional(),
-  transactionDate: z.string().nullable().optional(),
-  category: z.string().nullable().optional(),
-  productType: z.string().nullable().optional(),
-  productSubtype: z.string().nullable().optional(),
-  productCode: z.string().nullable().optional(),
-  productName: z.string().nullable().optional(),
-  productImage: z.string().nullable().optional(),
-  unit: z.string().nullable().optional(),
-  productLot: z.string().nullable().optional(),
-  productPrice: z.string().transform((val: string) => val === null || val === undefined || val === '' ? 0 : parseFloat(val)).pipe(z.number()).optional(),
-  receivedFromCompany: z.string().nullable().optional(),
-  receiptBillNumber: z.string().nullable().optional(),
-  requestingDepartment: z.string().nullable().optional(),
-  requisitionNumber: z.string().nullable().optional(),
-  quotaAmount: z.string().transform((val: string) => val === null || val === undefined || val === '' ? null : parseInt(val)).pipe(z.number().nullable()).optional(),
-  carriedForwardQty: z.string().transform((val: string) => val === null || val === undefined || val === '' ? null : parseInt(val)).pipe(z.number().nullable()).optional(),
-  carriedForwardValue: z.string().transform((val: string) => val === null || val === undefined || val === '' ? 0 : parseFloat(val)).pipe(z.number()).optional(),
-  transactionPrice: z.string().transform((val: string) => val === null || val === undefined || val === '' ? 0 : parseFloat(val)).pipe(z.number()).optional(),
-  transactionQuantity: z.string().transform((val: string) => val === null || val === undefined || val === '' ? null : parseInt(val)).pipe(z.number().nullable()).optional(),
-  transactionValue: z.string().transform((val: string) => val === null || val === undefined || val === '' ? 0 : parseFloat(val)).pipe(z.number()).optional(),
-  remainingQuantity: z.string().transform((val: string) => val === null || val === undefined || val === '' ? null : parseInt(val)).pipe(z.number().nullable()).optional(),
-  remainingValue: z.string().transform((val: string) => val === null || val === undefined || val === '' ? 0 : parseFloat(val)).pipe(z.number()).optional(),
-  inventoryStatus: z.string().nullable().optional()
-});
-
-export const warehouseQuerySchema = z.object({
-  productName: z.string().optional(),
-  category: z.string().optional(),
-  productType: z.string().optional(),
-  productSubtype: z.string().optional(),
-  requestingDepartment: z.string().optional(),
-  orderBy: z.enum([
-    'id', 'transactionDate', 'productCode', 'productName', 
-    'transactionQuantity', 'remainingQuantity', 'category', 
-    'productType', 'productSubtype', 'requestingDepartment'
-  ]).optional(),
-  sortOrder: z.enum(['asc', 'desc']).optional(),
-  ...paginationFields
-});
-
 // Purchase Plan schemas
 export const createPurchasePlanSchema = z.object({
   productCode: z.string().optional(),
@@ -248,13 +206,15 @@ export const createPurchasePlanSchema = z.object({
   purchasingDepartment: z.string().optional()
 });
 
- export const updatePurchasePlanSchema = createPurchasePlanSchema.partial();
+export const updatePurchasePlanSchema = createPurchasePlanSchema.partial();
 
 export const purchasePlanQuerySchema = z.object({
   productName: z.string().optional(),
   category: z.string().optional(),
+  type: z.string().optional(),
   productType: z.string().optional(),
   productSubtype: z.string().optional(),
+  requestingDept: z.string().optional(),
   purchasingDepartment: z.string().optional(),
   budgetYear: z.string().optional(),
   orderBy: z.enum([
@@ -362,10 +322,7 @@ export const surveyQuerySchema = z.object({
   ...paginationFields
 });
 
-// Warehouse update schema
-export const updateWarehouseSchema = createWarehouseSchema.partial();
-
 // ID parameter validation
 export const idParamSchema = z.object({
-  id: z.string().transform((val: string) => parseInt(val)).pipe(z.number().int().positive('Invalid ID format'))
+  id: z.coerce.number().int().positive()
 });

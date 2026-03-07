@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Swal from 'sweetalert2';
 import { BadgeCheck, Phone, Store, X, Plus, Trash2, Check, Pencil, CheckCircle2, AlertCircle } from 'lucide-react';
 
 interface Seller {
@@ -104,7 +105,7 @@ export default function SellersPage() {
         if (result.success) {
           await fetchSellers(); // Refresh the list
         } else {
-          alert(result.error || 'Failed to update seller');
+          await Swal.fire('เกิดข้อผิดพลาด', result.error || 'Failed to update seller', 'error');
           return;
         }
       } else {
@@ -122,7 +123,7 @@ export default function SellersPage() {
         if (result.success) {
           await fetchSellers(); // Refresh the list
         } else {
-          alert(result.error || 'Failed to create seller');
+          await Swal.fire('เกิดข้อผิดพลาด', result.error || 'Failed to create seller', 'error');
           return;
         }
       }
@@ -130,7 +131,7 @@ export default function SellersPage() {
       resetForm();
     } catch (err) {
       console.error('Error saving seller:', err);
-      alert('Failed to save seller');
+      await Swal.fire('เกิดข้อผิดพลาด', 'Failed to save seller', 'error');
     }
   };
 
@@ -150,7 +151,18 @@ export default function SellersPage() {
   };
 
   const handleDelete = async (id: number) => {
-    if (confirm('คุณต้องการลบผู้จำหน่ายนี้หรือไม่?')) {
+    const confirmation = await Swal.fire({
+      title: 'ลบข้อมูล?',
+      text: 'คุณต้องการลบผู้จำหน่ายนี้หรือไม่?',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonText: 'ลบ',
+      cancelButtonText: 'ยกเลิก',
+      confirmButtonColor: '#d33',
+      cancelButtonColor: '#3085d6',
+    });
+
+    if (confirmation.isConfirmed) {
       try {
         const response = await fetch(`/api/sellers/${id}`, {
           method: 'DELETE',
@@ -161,11 +173,11 @@ export default function SellersPage() {
         if (result.success) {
           await fetchSellers(); // Refresh the list
         } else {
-          alert(result.error || 'Failed to delete seller');
+          await Swal.fire('เกิดข้อผิดพลาด', result.error || 'Failed to delete seller', 'error');
         }
       } catch (err) {
         console.error('Error deleting seller:', err);
-        alert('Failed to delete seller');
+        await Swal.fire('เกิดข้อผิดพลาด', 'Failed to delete seller', 'error');
       }
     }
   };

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { pgQuery } from '@/lib/pg';
+import { cacheDelByPattern } from '@/lib/redis';
 import { validateRequest } from '@/lib/validation/validate';
 import { idParamSchema, updatePurchasePlanSchema } from '@/lib/validation/schemas';
 
@@ -22,7 +23,7 @@ async function buildPurchasePlanPayload(input: PurchasePlanPayload) {
 
   const surveyResult = await pgQuery(
     `SELECT id, "productCode", category, type, subtype, "productName", "requestedAmount", unit, "pricePerUnit"::float8 AS "pricePerUnit", "requestingDept", "approvedQuota", budget_year AS "budgetYear"
-     FROM public."Survey"
+     FROM public."UsagePlan"
      WHERE id = $1
      LIMIT 1`,
     [planId]
@@ -165,6 +166,8 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
       values
     );
 
+    await cacheDelByPattern('erp:purchase:plans:list:*');
+
     return NextResponse.json(updated.rows[0]);
   } catch (error) {
     console.error('Error updating purchase plan:', error);
@@ -182,6 +185,7 @@ export async function DELETE(_request: NextRequest, { params }: { params: Promis
 
     const numericId = parsedId.data.id;
     await pgQuery('DELETE FROM public."PurchasePlan" WHERE id = $1', [numericId]);
+    await cacheDelByPattern('erp:purchase:plans:list:*');
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error('Error deleting purchase plan:', error);

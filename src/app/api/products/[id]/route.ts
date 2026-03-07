@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server';
 import { pgQuery } from '@/lib/pg';
 import { apiSuccess, apiError, apiNotFound, apiConflict } from '@/lib/api-response';
+import { cacheDelByPattern } from '@/lib/redis';
 import { validateRequest } from '@/lib/validation/validate';
 import { idParamSchema, updateProductSchema } from '@/lib/validation/schemas';
 
@@ -101,6 +102,8 @@ export async function PUT(
       values
     );
 
+    await cacheDelByPattern('erp:products:list:*');
+
     return apiSuccess(result.rows[0], 'Product updated successfully');
   } catch (error) {
     console.error('Error updating product:', error);
@@ -126,6 +129,7 @@ export async function DELETE(
     }
 
     await pgQuery(`DELETE FROM public."Product" WHERE id = $1`, [id]);
+    await cacheDelByPattern('erp:products:list:*');
     return apiSuccess(null, 'Product deleted successfully');
   } catch (error) {
     console.error('Error deleting product:', error);

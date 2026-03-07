@@ -334,7 +334,7 @@ export default function PurchaseApprovalsPage() {
     const url = editing ? `/api/purchase-approvals/${editing.id}` : '/api/purchase-approvals';
     const res = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(formData) });
     if (res.ok) { resetForm(); fetchData(); }
-    else { const err = await res.json().catch(()=>({})); alert(err.error || 'บันทึกล้มเหลว'); }
+    else { const err = await res.json().catch(()=>({})); await Swal.fire('เกิดข้อผิดพลาด', err.error || 'บันทึกล้มเหลว', 'error'); }
   };
 
   const modalFieldClassName = 'w-full border rounded px-3 py-2';

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Swal from 'sweetalert2';
 import { Plus, Check, X, Pencil, Trash2, CheckCircle2, AlertCircle, X as XIcon } from 'lucide-react';
 
 interface Department {
@@ -137,7 +138,17 @@ export default function DepartmentsPage() {
 
   // Delete department
   const deleteDepartment = async (id: number) => {
-    if (confirm('คุณแน่ใจหรือไม่ที่จะลบแผนกนี้?')) {
+    const confirmation = await Swal.fire({
+      title: 'ลบข้อมูล?',
+      text: 'คุณแน่ใจหรือไม่ที่จะลบแผนกนี้?',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonText: 'ลบ',
+      cancelButtonText: 'ยกเลิก',
+      confirmButtonColor: '#d33',
+      cancelButtonColor: '#3085d6',
+    });
+    if (confirmation.isConfirmed) {
       try {
         const response = await fetch(`/api/departments/${id}`, {
           method: 'DELETE',

@@ -3,6 +3,7 @@ import { pgQuery } from '@/lib/pg';
 import { apiError, apiSuccess } from '@/lib/api-response';
 import { validateQuery } from '@/lib/validation/validate';
 import { inventoryPendingPurchaseApprovalQuerySchema } from '@/lib/validation/schemas';
+import { cacheGet, cacheSet } from '@/lib/redis';
 
 const pendingPurchaseApprovalSelect = `
   SELECT
@@ -89,12 +90,25 @@ export async function GET(request: NextRequest) {
     const whereSql = whereClauses.length > 0 ? `WHERE ${whereClauses.join(' AND ')}` : '';
     const offset = (page - 1) * pageSize;
 
+    // --- Redis Caching Logic ---
+    const cacheKey = `erp:inventory:receipts:pending:${JSON.stringify({ ...queryValidation.data, page, pageSize })}`;
+    const cached = await cacheGet<{ items: any[]; totalCount: number }>(cacheKey);
+    if (cached) {
+      return apiSuccess(cached.items, undefined, cached.totalCount, 200, { page, pageSize });
+    }
+
     const [countResult, itemsResult] = await Promise.all([
       pgQuery(`SELECT COUNT(*)::int AS count FROM public."PurchaseApproval" pa INNER JOIN public."PurchaseApprovalInventoryLink" link ON link."purchaseApprovalId" = pa.id ${whereSql}`, params),
       pgQuery(`${pendingPurchaseApprovalSelect} ${whereSql} ORDER BY ${safeOrderField} ${safeSortOrder} LIMIT $${params.length + 1} OFFSET $${params.length + 2}`, [...params, pageSize, offset]),
     ]);
 
-    return apiSuccess(itemsResult.rows, undefined, countResult.rows[0]?.count || 0, 200, { page, pageSize });
+    const items = itemsResult.rows;
+    const totalCount = countResult.rows[0]?.count || 0;
+
+    // Save to Cache
+    await cacheSet(cacheKey, { items, totalCount }, 600);
+
+    return apiSuccess(items, undefined, totalCount, 200, { page, pageSize });
   } catch (error) {
     console.error('Error fetching pending purchase approvals for inventory receipt:', error);
     return apiError('Failed to fetch pending purchase approvals');

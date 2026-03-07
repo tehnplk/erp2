@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server';
 import { pgQuery } from '@/lib/pg';
 import { apiSuccess, apiError, apiConflict } from '@/lib/api-response';
+import { cacheGet, cacheSet, cacheDelByPattern } from '@/lib/redis';
 import { validateRequest, validateQuery } from '@/lib/validation/validate';
 import { createSellerSchema, sellerQuerySchema } from '@/lib/validation/schemas';
 
@@ -26,18 +27,38 @@ export async function GET(request: NextRequest) {
     const whereSql = whereClauses.length ? `WHERE ${whereClauses.join(' AND ')}` : '';
     const baseSelect = 'SELECT id, code, prefix, name, business, address, phone, fax, mobile FROM public."Seller"';
 
+    const cacheKeyAll = `erp:sellers:list:all:${JSON.stringify(params)}`;
     if (!page || !pageSize) {
+      const cachedAll = await cacheGet<any>(cacheKeyAll);
+      if (cachedAll) return apiSuccess(cachedAll.rows, undefined, cachedAll.rows.length);
+
       const result = await pgQuery(`${baseSelect} ${whereSql} ORDER BY id ASC`, params);
+      await cacheSet(cacheKeyAll, { rows: result.rows }, 3600);
       return apiSuccess(result.rows, undefined, result.rows.length);
     }
 
     const skip = (page - 1) * pageSize;
+
+    // --- Redis Caching Logic (Paginated) ---
+    const cacheKey = `erp:sellers:list:${JSON.stringify({ ...queryValidation.data, page, pageSize })}`;
+    const cached = await cacheGet<any>(cacheKey);
+    if (cached) {
+      return apiSuccess(cached.items, undefined, cached.totalCount, 200, { page, pageSize });
+    }
+
     const [countResult, result] = await Promise.all([
       pgQuery(`SELECT COUNT(*)::int AS count FROM public."Seller" ${whereSql}`, params),
       pgQuery(`${baseSelect} ${whereSql} ORDER BY id ASC LIMIT $${params.length + 1} OFFSET $${params.length + 2}`, [...params, pageSize, skip]),
     ]);
+
+    const finalResult = {
+      items: result.rows,
+      totalCount: countResult.rows[0]?.count || 0
+    };
+
+    await cacheSet(cacheKey, finalResult, 3600);
     
-    return apiSuccess(result.rows, undefined, countResult.rows[0]?.count || 0, 200, { page, pageSize });
+    return apiSuccess(finalResult.items, undefined, finalResult.totalCount, 200, { page, pageSize });
   } catch (error) {
     console.error('Error fetching sellers:', error);
     return apiError('Failed to fetch sellers');
@@ -78,6 +99,8 @@ export async function POST(request: NextRequest) {
         validation.data.mobile || null,
       ]
     );
+
+    await cacheDelByPattern('erp:sellers:list:*');
 
     return apiSuccess(result.rows[0], 'Seller created successfully', undefined, 201);
   } catch (error) {

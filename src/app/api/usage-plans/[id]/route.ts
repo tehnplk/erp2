@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { pgQuery } from '@/lib/pg';
+import { cacheDelByPattern } from '@/lib/redis';
 import { validateRequest } from '@/lib/validation/validate';
 import { idParamSchema, updateSurveySchema } from '@/lib/validation/schemas';
 
@@ -33,7 +34,7 @@ export async function PUT(
     }
 
     const currentSurveyResult = await pgQuery(
-      `SELECT id, "productCode", category, type, subtype, "productName", "requestedAmount", unit, "pricePerUnit"::float8 AS "pricePerUnit", "requestingDept", "approvedQuota", budget_year AS "budgetYear", sequence_no AS "sequenceNo", created_at AS "createdAt", updated_at AS "updatedAt" FROM public."Survey" WHERE id = $1 LIMIT 1`,
+      `SELECT id, "productCode", category, type, subtype, "productName", "requestedAmount", unit, "pricePerUnit"::float8 AS "pricePerUnit", "requestingDept", "approvedQuota", budget_year AS "budgetYear", sequence_no AS "sequenceNo", created_at AS "createdAt", updated_at AS "updatedAt" FROM public."UsagePlan" WHERE id = $1 LIMIT 1`,
       [numericId]
     );
     const currentSurvey = currentSurveyResult.rows[0];
@@ -63,7 +64,7 @@ export async function PUT(
       };
 
       const existingRecordsResult = await pgQuery(
-        `SELECT id, sequence_no AS "sequenceNo" FROM public."Survey" WHERE budget_year = $1 AND "requestingDept" IS NOT DISTINCT FROM $2 AND "productCode" IS NOT DISTINCT FROM $3`,
+        `SELECT id, sequence_no AS "sequenceNo" FROM public."UsagePlan" WHERE budget_year = $1 AND "requestingDept" IS NOT DISTINCT FROM $2 AND "productCode" IS NOT DISTINCT FROM $3`,
         [duplicateWhere.budgetYear, duplicateWhere.requestingDept, duplicateWhere.productCode]
       );
       const recordsExcludingCurrent = existingRecordsResult.rows.filter((survey: any) => survey.id !== numericId);
@@ -115,9 +116,11 @@ export async function PUT(
 
     values.push(numericId);
     const survey = await pgQuery(
-      `UPDATE public."Survey" SET ${assignments.join(', ')}, updated_at = NOW() WHERE id = $${values.length} RETURNING id, "productCode", category, type, subtype, "productName", "requestedAmount", unit, "pricePerUnit"::float8 AS "pricePerUnit", "requestingDept", "approvedQuota", budget_year AS "budgetYear", sequence_no AS "sequenceNo", created_at AS "createdAt", updated_at AS "updatedAt"`,
+      `UPDATE public."UsagePlan" SET ${assignments.join(', ')}, updated_at = NOW() WHERE id = $${values.length} RETURNING id, "productCode", category, type, subtype, "productName", "requestedAmount", unit, "pricePerUnit"::float8 AS "pricePerUnit", "requestingDept", "approvedQuota", budget_year AS "budgetYear", sequence_no AS "sequenceNo", created_at AS "createdAt", updated_at AS "updatedAt"`,
       values
     );
+    
+    await cacheDelByPattern('erp:surveys:list:*');
     
     return NextResponse.json(survey.rows[0]);
   } catch (error) {
@@ -146,7 +149,9 @@ export async function DELETE(
 
     const numericId = parsedId.data.id;
     
-    await pgQuery('DELETE FROM public."Survey" WHERE id = $1', [numericId]);
+    await pgQuery('DELETE FROM public."UsagePlan" WHERE id = $1', [numericId]);
+    
+    await cacheDelByPattern('erp:surveys:list:*');
     
     return NextResponse.json({ message: 'Survey deleted successfully' });
   } catch (error) {

@@ -1,11 +1,16 @@
 import { NextRequest } from 'next/server';
 import { pgPool, pgQuery } from '@/lib/pg';
+import { cacheGet, cacheSet, cacheDelByPattern } from '@/lib/redis';
 import { apiConflict, apiError, apiNotFound, apiSuccess } from '@/lib/api-response';
 import { validateRequest } from '@/lib/validation/validate';
 import { createInventoryIssueSchema } from '@/lib/validation/schemas';
 
 export async function GET() {
   try {
+    const cacheKey = 'erp:inventory:issues:list:all';
+    const cached = await cacheGet<any[]>(cacheKey);
+    if (cached) return apiSuccess(cached);
+
     const result = await pgQuery(`
       SELECT
         ii.id,
@@ -24,6 +29,8 @@ export async function GET() {
       GROUP BY ii.id
       ORDER BY ii.id DESC
     `);
+
+    await cacheSet(cacheKey, result.rows, 300); // 5 minutes
 
     return apiSuccess(result.rows);
   } catch (error) {
@@ -209,6 +216,11 @@ export async function POST(request: NextRequest) {
     );
 
     await client.query('COMMIT');
+
+    // Invalidate Redis Cache
+    await cacheDelByPattern('erp:inventory:balances:*');
+    await cacheDelByPattern('erp:inventory:issues:list:*');
+    await cacheDelByPattern('erp:inventory:requisitions:list:*');
 
     return apiSuccess({
       issueId: issue.id,

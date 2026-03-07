@@ -1,8 +1,13 @@
 import { NextResponse } from 'next/server';
 import { pgQuery } from '@/lib/pg';
+import { cacheGet, cacheSet } from '@/lib/redis';
 
 export async function GET() {
   try {
+    const cacheKey = 'erp:products:filters';
+    const cached = await cacheGet<any>(cacheKey);
+    if (cached) return NextResponse.json(cached);
+
     const [categoryRowsResult, unitRowsResult, sellerRowsResult] = await Promise.all([
       pgQuery(
         `SELECT category, type, subtype
@@ -32,7 +37,7 @@ export async function GET() {
     const units = unitRows.map((item: any) => item.unit).filter(Boolean);
     const sellerCodes = sellerRows.map((seller: any) => seller.code).filter(Boolean);
 
-    return NextResponse.json({
+    const result = {
       categories,
       types,
       subtypes,
@@ -40,7 +45,10 @@ export async function GET() {
       sellerCodes,
       categoryOptions: categoryRows,
       sellerOptions: sellerRows,
-    });
+    };
+
+    await cacheSet(cacheKey, result, 3600);
+    return NextResponse.json(result);
   } catch (error) {
     console.error('Error fetching product filter options:', error);
     return NextResponse.json(

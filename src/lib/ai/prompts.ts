@@ -52,7 +52,7 @@ model Product {
   adminNote     String?
 }
 
-model Survey {
+model UsagePlan {
   id              Int      @id @default(autoincrement())
   productCode       String?
   category        String?
@@ -165,7 +165,7 @@ RELATIONSHIP HINTS:
 - The table "Department" contains the master list of departments in the "name" column.
 - Other tables link to departments using NAME strings, not IDs:
   - "PurchasePlan"."purchasingDepartment" corresponds to "Department"."name".
-  - "Survey"."requestingDept" corresponds to "Department"."name".
+  - "UsagePlan"."requestingDept" corresponds to "Department"."name".
   - "Warehouse"."requestingDepartment" corresponds to "Department"."name".
 - To find departments with NO spending plan, you might need to LEFT JOIN "Department" with "PurchasePlan" on "Department"."name" = "PurchasePlan"."purchasingDepartment" and check for NULLs.
 `;

@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server';
 import { pgQuery } from '@/lib/pg';
 import { apiSuccess, apiError, apiConflict } from '@/lib/api-response';
+import { cacheGet, cacheSet, cacheDelByPattern } from '@/lib/redis';
 import { validateQuery, validateRequest } from '@/lib/validation/validate';
 import { productQuerySchema, createProductSchema } from '@/lib/validation/schemas';
 
@@ -15,11 +16,20 @@ export async function GET(request: NextRequest) {
       return queryValidation.error;
     }
 
-    const { name, category, type, subtype, orderBy, sortOrder, page = 1, pageSize = 20 } = queryValidation.data as any;
+    const { code, name, search, category, type, subtype, orderBy, sortOrder, page = 1, pageSize = 20 } = queryValidation.data as any;
 
     const whereClauses: string[] = [];
     const params: unknown[] = [];
 
+    if (search) {
+      params.push(`%${search}%`);
+      const searchParamIndex = params.length;
+      whereClauses.push(`(code ILIKE $${searchParamIndex} OR name ILIKE $${searchParamIndex})`);
+    }
+    if (code) {
+      params.push(`%${code}%`);
+      whereClauses.push(`code ILIKE $${params.length}`);
+    }
     if (name) {
       params.push(`%${name}%`);
       whereClauses.push(`name ILIKE $${params.length}`);
@@ -52,12 +62,26 @@ export async function GET(request: NextRequest) {
     const whereSql = whereClauses.length ? `WHERE ${whereClauses.join(' AND ')}` : '';
     const skip = (page - 1) * pageSize;
 
+    // --- Redis Caching Logic ---
+    const cacheKey = `erp:products:list:${JSON.stringify({ ...queryValidation.data, page, pageSize })}`;
+    const cached = await cacheGet<any>(cacheKey);
+    if (cached) {
+      return apiSuccess(cached.items, undefined, cached.totalCount, 200, { page, pageSize });
+    }
+
     const [totalCountResult, productsResult] = await Promise.all([
       pgQuery(`SELECT COUNT(*)::int AS count FROM public."Product" ${whereSql}`, params),
       pgQuery(`${productSelect} ${whereSql} ORDER BY ${safeOrderField} ${safeSortOrder} LIMIT $${params.length + 1} OFFSET $${params.length + 2}`, [...params, pageSize, skip]),
     ]);
 
-    return apiSuccess(productsResult.rows, undefined, totalCountResult.rows[0]?.count || 0, 200, { page, pageSize });
+    const result = {
+      items: productsResult.rows,
+      totalCount: totalCountResult.rows[0]?.count || 0
+    };
+
+    await cacheSet(cacheKey, result, 1800); // 30 minutes
+
+    return apiSuccess(result.items, undefined, result.totalCount, 200, { page, pageSize });
   } catch (error) {
     console.error('Error fetching products:', error);
     return apiError('Failed to fetch products');
@@ -99,6 +123,8 @@ export async function POST(request: NextRequest) {
         validation.data.adminNote || null,
       ]
     );
+
+    await cacheDelByPattern('erp:products:list:*');
 
     return apiSuccess(result.rows[0], 'Product created successfully', undefined, 201);
   } catch (error) {

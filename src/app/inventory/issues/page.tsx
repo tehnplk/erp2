@@ -1,4 +1,4 @@
-'use client';
+"use client";
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
@@ -52,6 +52,7 @@ export default function InventoryIssuesPage() {
   const [items, setItems] = useState<IssueRow[]>([]);
   const [requisitions, setRequisitions] = useState<RequisitionRow[]>([]);
   const [selectedRequisitionId, setSelectedRequisitionId] = useState('');
+  const [issueQuantities, setIssueQuantities] = useState<Record<number, number>>({});
   const [posting, setPosting] = useState(false);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState('');
@@ -103,6 +104,27 @@ export default function InventoryIssuesPage() {
 
   const selectedRequisition = requisitions.find((item) => String(item.id) === selectedRequisitionId);
 
+  useEffect(() => {
+    if (selectedRequisition) {
+      const initialQuantities: Record<number, number> = {};
+      selectedRequisition.items.forEach(item => {
+        const remaining = Math.max(Number(item.approvedQty || 0) - Number(item.issuedQty || 0), 0);
+        initialQuantities[item.id] = remaining;
+      });
+      setIssueQuantities(initialQuantities);
+    } else {
+      setIssueQuantities({});
+    }
+  }, [selectedRequisition]);
+
+  const handleQtyChange = (itemId: number, qty: string) => {
+    const numValue = qty ? Number(qty) : 0;
+    setIssueQuantities(prev => ({
+      ...prev,
+      [itemId]: numValue
+    }));
+  };
+
   const handlePostIssue = async () => {
     if (!selectedRequisition) {
       setMessage('กรุณาเลือก requisition ที่อนุมัติแล้ว');
@@ -112,17 +134,28 @@ export default function InventoryIssuesPage() {
     try {
       setPosting(true);
       setMessage('');
+      
       const issueItems = selectedRequisition.items
         .map((item) => ({
           requisitionItemId: item.id,
           inventoryItemId: item.inventoryItemId,
-          issuedQty: Math.max(Math.min(Number(item.approvedQty || 0) - Number(item.issuedQty || 0), Number(item.approvedQty || 0)), 0),
+          issuedQty: Math.max(0, issueQuantities[item.id] || 0),
         }))
         .filter((item) => item.issuedQty > 0);
 
       if (issueItems.length === 0) {
-        setMessage('ไม่มีรายการที่พร้อมจ่ายใน requisition นี้');
+        setMessage('ไม่มีรายการที่ระบุจำนวนพร้อมจ่ายใน requisition นี้');
         return;
+      }
+
+      // Validate quantities before sending
+      for (const item of selectedRequisition.items) {
+        const qtyToIssue = issueQuantities[item.id] || 0;
+        const remainingIssueQty = Math.max(Number(item.approvedQty || 0) - Number(item.issuedQty || 0), 0);
+        if (qtyToIssue > remainingIssueQty) {
+           setMessage(`รายการ ${item.productName || item.productCode} ระบุจำนวนจ่ายเกินยอดอนุมัติคงเหลือ`);
+           return;
+        }
       }
 
       const response = await fetch('/api/inventory/issues', {
@@ -174,48 +207,85 @@ export default function InventoryIssuesPage() {
 
         {message ? <div className="mb-4 rounded-2xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">{message}</div> : null}
 
-        <div className="mb-6 grid grid-cols-1 gap-4 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm lg:grid-cols-[1.5fr_1fr]">
-          <label className="text-sm text-slate-600">
-            เลือก requisition ที่อนุมัติแล้ว
-            <select
-              value={selectedRequisitionId}
-              onChange={(e) => setSelectedRequisitionId(e.target.value)}
-              className="mt-2 w-full rounded-xl border border-slate-300 px-3 py-2 focus:border-blue-500"
-            >
-              <option value="">เลือก requisition</option>
-              {requisitions.map((item) => (
-                <option key={item.id} value={item.id}>
-                  {item.requisitionNo} - {item.requestingDepartment} ({item.status})
-                </option>
-              ))}
-            </select>
-          </label>
-          <div className="flex items-end">
-            <button
-              type="button"
-              onClick={handlePostIssue}
-              disabled={posting || !selectedRequisitionId}
-              className="w-full rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-emerald-700 disabled:bg-slate-300"
-            >
-              {posting ? 'กำลังบันทึกการจ่าย...' : 'บันทึกจ่ายสินค้าจากคำขอเบิก'}
-            </button>
+        <div className="mb-6 rounded-3xl border border-slate-200 bg-white shadow-sm p-6 overflow-hidden">
+          <div className="grid grid-cols-1 md:grid-cols-[2fr_auto] gap-6 max-w-4xl">
+            <div className="flex flex-col justify-end">
+              <label className="text-sm font-medium text-slate-700 mb-2">
+                เลือกคำขอเบิกที่อนุมัติแล้ว
+              </label>
+              <select
+                value={selectedRequisitionId}
+                onChange={(e) => setSelectedRequisitionId(e.target.value)}
+                className="w-full rounded-xl border border-slate-300 px-4 py-2.5 focus:border-blue-500 bg-slate-50 text-slate-900"
+              >
+                <option value="">-- กรุณาเลือกคำขอเบิก --</option>
+                {requisitions.map((item) => (
+                  <option key={item.id} value={item.id}>
+                    {item.requisitionNo} - {item.requestingDepartment} ({item.status})
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="flex items-end">
+              <button
+                type="button"
+                onClick={handlePostIssue}
+                disabled={posting || !selectedRequisitionId}
+                className="w-full md:w-auto rounded-xl bg-emerald-600 px-6 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-emerald-700 disabled:bg-slate-300 whitespace-nowrap"
+              >
+                {posting ? 'กำลังบันทึก...' : 'บันทึกจ่ายสินค้า'}
+              </button>
+            </div>
           </div>
+          
           {selectedRequisition ? (
-            <div className="lg:col-span-2 rounded-2xl bg-slate-50 p-4 text-sm text-slate-700">
-              <div className="mb-2 font-medium text-slate-900">รายการที่จะจ่าย</div>
-              <div className="space-y-2">
-                {selectedRequisition.items.map((item) => {
-                  const remainingIssueQty = Math.max(Number(item.approvedQty || 0) - Number(item.issuedQty || 0), 0);
-                  return (
-                    <div key={item.id} className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2">
-                      <div>
-                        <div className="font-medium text-slate-900">{item.productCode || '-'} - {item.productName || '-'}</div>
-                        <div className="text-xs text-slate-500">อนุมัติ {formatNumber(Number(item.approvedQty || 0))} / จ่ายแล้ว {formatNumber(Number(item.issuedQty || 0))}</div>
-                      </div>
-                      <div className="text-sm font-semibold text-emerald-700">พร้อมจ่าย {formatNumber(remainingIssueQty)}</div>
-                    </div>
-                  );
-                })}
+            <div className="mt-8">
+              <h3 className="mb-4 text-base font-medium text-slate-900 flex items-center gap-2">
+                <span>รายการสินค้าเตรียมจ่าย</span>
+                <span className="rounded bg-slate-100 px-2 py-0.5 text-xs text-slate-600 shrink-0 border border-slate-200">
+                  {selectedRequisition.requisitionNo}
+                </span>
+              </h3>
+              <div className="overflow-x-auto rounded-xl border border-slate-200">
+                <table className="min-w-full divide-y divide-slate-200 text-sm">
+                  <thead className="bg-slate-50 text-left text-xs uppercase text-slate-500">
+                    <tr>
+                      <th className="px-4 py-3 font-medium">รหัส / ชื่อสินค้า</th>
+                      <th className="px-4 py-3 text-right font-medium">ยอดอนุมัติ</th>
+                      <th className="px-4 py-3 text-right font-medium">จ่ายแล้ว</th>
+                      <th className="px-4 py-3 text-right font-medium">ยอดรอจ่าย</th>
+                      <th className="px-4 py-3 text-right font-medium w-40">จ่ายครั้งนี้</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 bg-white">
+                    {selectedRequisition.items.map((item) => {
+                      const remainingIssueQty = Math.max(Number(item.approvedQty || 0) - Number(item.issuedQty || 0), 0);
+                      const isFullyIssued = remainingIssueQty === 0;
+                      return (
+                        <tr key={item.id} className={isFullyIssued ? 'bg-slate-50 opacity-60' : 'hover:bg-slate-50'}>
+                          <td className="px-4 py-3">
+                            <div className="font-medium text-slate-900">{item.productCode || '-'}</div>
+                            <div className="text-slate-500">{item.productName || '-'}</div>
+                          </td>
+                          <td className="px-4 py-3 text-right text-slate-600">{formatNumber(Number(item.approvedQty || 0))}</td>
+                          <td className="px-4 py-3 text-right text-slate-600">{formatNumber(Number(item.issuedQty || 0))}</td>
+                          <td className="px-4 py-3 text-right font-medium text-slate-900">{formatNumber(remainingIssueQty)}</td>
+                          <td className="px-4 py-3 text-right">
+                            <input
+                              type="number"
+                              min="0"
+                              max={remainingIssueQty}
+                              disabled={isFullyIssued}
+                              value={issueQuantities[item.id] !== undefined ? issueQuantities[item.id] : ''}
+                              onChange={(e) => handleQtyChange(item.id, e.target.value)}
+                              className="w-24 rounded-lg border border-slate-300 px-2 py-1.5 text-right font-medium focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:bg-slate-100"
+                            />
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
               </div>
             </div>
           ) : null}

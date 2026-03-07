@@ -6,7 +6,6 @@ import {
   ClipboardList,
   Hospital,
   Stethoscope,
-  Warehouse,
 } from 'lucide-react';
 import {
   Bar,
@@ -28,7 +27,7 @@ type OverviewStat = {
   label: string;
   value: number;
   color: string;
-  icon: 'products' | 'surveys' | 'plans' | 'approvals' | 'warehouse' | 'departments';
+  icon: 'products' | 'surveys' | 'plans' | 'approvals' | 'departments';
 };
 
 type ValueStat = {
@@ -67,7 +66,6 @@ type HomeDashboardProps = {
   productsByCategory: ChartDatum[];
   surveysByDepartment: ChartDatum[];
   purchasePlanStatus: ChartDatum[];
-  warehouseTransactions: ChartDatum[];
   budgetTrend: BudgetTrendDatum[];
   departmentComparison: DepartmentCompareDatum[];
   departmentValue: DepartmentValueDatum[];
@@ -88,7 +86,6 @@ const iconMap = {
   surveys: ClipboardList,
   plans: BarChart4,
   approvals: BadgeCheck,
-  warehouse: Warehouse,
   departments: Hospital,
 };
 
@@ -98,7 +95,6 @@ export default function HomeDashboard({
   productsByCategory,
   surveysByDepartment,
   purchasePlanStatus,
-  warehouseTransactions,
   budgetTrend,
   departmentComparison,
   departmentValue,
@@ -255,8 +251,6 @@ export default function HomeDashboard({
             </div>
           </section>
 
-
-
           <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
             <div className="mb-4">
               <h2 className="text-lg font-semibold text-slate-900">หน่วยงานที่ส่งความต้องการสูงสุด</h2>
@@ -291,24 +285,6 @@ export default function HomeDashboard({
                   <Tooltip formatter={(value) => [numberFormatter.format(Number(value)), 'รายการ']} />
                   <Legend />
                 </PieChart>
-              </ResponsiveContainer>
-            </div>
-          </section>
-
-          <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-            <div className="mb-4">
-              <h2 className="text-lg font-semibold text-slate-900">ประเภทการเคลื่อนไหวคลัง</h2>
-              <p className="text-sm text-slate-500">จำนวนรายการตามประเภท transaction ในคลังสินค้า</p>
-            </div>
-            <div className="h-80">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={warehouseTransactions} margin={{ top: 12, right: 12, left: 0, bottom: 20 }}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                  <XAxis dataKey="name" angle={-12} textAnchor="end" height={60} tick={{ fontSize: 12 }} />
-                  <YAxis tickFormatter={(value) => numberFormatter.format(Number(value))} />
-                  <Tooltip formatter={(value) => [numberFormatter.format(Number(value)), 'รายการ']} />
-                  <Bar dataKey="value" name="รายการ" fill="#7c3aed" radius={[10, 10, 0, 0]} />
-                </BarChart>
               </ResponsiveContainer>
             </div>
           </section>

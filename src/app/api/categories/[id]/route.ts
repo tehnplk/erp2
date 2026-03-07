@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { pgQuery } from '@/lib/pg';
+import { cacheDelByPattern } from '@/lib/redis';
 
 // GET /api/categories/[id] - Get category by ID
 export async function GET(
@@ -84,6 +85,8 @@ export async function PUT(
       [category, type, subtype, numericId]
     );
 
+    await cacheDelByPattern('erp:categories:list:*');
+
     return NextResponse.json({
       success: true,
       data: updatedResult.rows[0],
@@ -123,6 +126,8 @@ export async function DELETE(
     }
 
     await pgQuery('DELETE FROM public."Category" WHERE id = $1', [numericId]);
+
+    await cacheDelByPattern('erp:categories:list:*');
 
     return NextResponse.json({
       success: true,

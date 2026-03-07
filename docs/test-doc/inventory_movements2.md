@@ -1,0 +1,180 @@
+- generic [active] [ref=e1]:
+  - navigation [ref=e2]:
+    - generic [ref=e4]:
+      - link "Hospital ERP" [ref=e5] [cursor=pointer]:
+        - /url: /
+        - img [ref=e6]
+        - generic [ref=e10]: Hospital ERP
+      - generic [ref=e11]:
+        - link "หน้าหลัก" [ref=e12] [cursor=pointer]:
+          - /url: /
+          - img [ref=e13]
+          - text: หน้าหลัก
+        - link "แผนการใช้" [ref=e16] [cursor=pointer]:
+          - /url: /surveys
+          - img [ref=e17]
+          - text: แผนการใช้
+        - link "แผนจัดซื้อ" [ref=e20] [cursor=pointer]:
+          - /url: /purchase-plans
+          - img [ref=e21]
+          - text: แผนจัดซื้อ
+        - link "อนุมัติจัดซื้อ" [ref=e23] [cursor=pointer]:
+          - /url: /purchase-approvals
+          - img [ref=e24]
+          - text: อนุมัติจัดซื้อ
+        - link "ระบบคลังสินค้า" [ref=e27] [cursor=pointer]:
+          - /url: /inventory
+          - img [ref=e28]
+          - text: ระบบคลังสินค้า
+        - link "Gemini AI" [ref=e31] [cursor=pointer]:
+          - /url: /gemini
+          - img [ref=e32]
+          - text: Gemini AI
+        - button "ตั้งค่า ▾" [ref=e36]:
+          - img [ref=e37]
+          - text: ตั้งค่า
+          - generic [ref=e40]: ▾
+  - generic [ref=e43]:
+    - generic [ref=e44]:
+      - generic [ref=e45]:
+        - paragraph [ref=e46]: Inventory Movements
+        - heading "ประวัติการเคลื่อนไหวสินค้า" [level=1] [ref=e47]
+        - paragraph [ref=e48]: ตรวจสอบประวัติการรับเข้า จ่ายออก และยอดคงเหลือหลังรายการจากทะเบียนเคลื่อนไหวสินค้า
+      - link "กลับหน้าหลักระบบคลังสินค้า" [ref=e49] [cursor=pointer]:
+        - /url: /inventory
+    - table [ref=e52]:
+      - rowgroup [ref=e53]:
+        - row "วันที่ สินค้า ประเภท เข้า ออก ต้นทุน คงเหลือหลังรายการ อ้างอิง ปลายทาง/ต้นทาง" [ref=e54]:
+          - columnheader "วันที่" [ref=e55]
+          - columnheader "สินค้า" [ref=e56]
+          - columnheader "ประเภท" [ref=e57]
+          - columnheader "เข้า" [ref=e58]
+          - columnheader "ออก" [ref=e59]
+          - columnheader "ต้นทุน" [ref=e60]
+          - columnheader "คงเหลือหลังรายการ" [ref=e61]
+          - columnheader "อ้างอิง" [ref=e62]
+          - columnheader "ปลายทาง/ต้นทาง" [ref=e63]
+      - rowgroup [ref=e64]:
+        - row "7/3/2569 17:58:31 P230-000937 หมึก Printer Laser PANTUM P2500 REQUISITION_RESERVE 0 0 ฿0 5 InventoryRequisition REQ-1772881083435 กลุ่มงานบริหารทั่วไป" [ref=e65]:
+          - cell "7/3/2569 17:58:31" [ref=e66]
+          - cell "P230-000937 หมึก Printer Laser PANTUM P2500" [ref=e67]:
+            - generic [ref=e68]: P230-000937
+            - generic [ref=e69]: หมึก Printer Laser PANTUM P2500
+          - cell "REQUISITION_RESERVE" [ref=e70]
+          - cell "0" [ref=e71]
+          - cell "0" [ref=e72]
+          - cell "฿0" [ref=e73]
+          - cell "5" [ref=e74]
+          - cell "InventoryRequisition REQ-1772881083435" [ref=e75]
+          - cell "กลุ่มงานบริหารทั่วไป" [ref=e76]
+        - row "7/3/2569 17:46:24 P230-000440 กระดาษเทอร์มอล ขนาด 80*80 มม. REQUISITION_UNRESERVE 0 0 ฿0 199 InventoryRequisition REQ-1772879277656 กลุ่มงานบริหารทั่วไป" [ref=e77]:
+          - cell "7/3/2569 17:46:24" [ref=e78]
+          - cell "P230-000440 กระดาษเทอร์มอล ขนาด 80*80 มม." [ref=e79]:
+            - generic [ref=e80]: P230-000440
+            - generic [ref=e81]: กระดาษเทอร์มอล ขนาด 80*80 มม.
+          - cell "REQUISITION_UNRESERVE" [ref=e82]
+          - cell "0" [ref=e83]
+          - cell "0" [ref=e84]
+          - cell "฿0" [ref=e85]
+          - cell "199" [ref=e86]
+          - cell "InventoryRequisition REQ-1772879277656" [ref=e87]
+          - cell "กลุ่มงานบริหารทั่วไป" [ref=e88]
+        - row "7/3/2569 17:46:04 P230-000440 กระดาษเทอร์มอล ขนาด 80*80 มม. REQUISITION_RESERVE 0 0 ฿0 199 InventoryRequisition REQ-1772879277656 กลุ่มงานบริหารทั่วไป" [ref=e89]:
+          - cell "7/3/2569 17:46:04" [ref=e90]
+          - cell "P230-000440 กระดาษเทอร์มอล ขนาด 80*80 มม." [ref=e91]:
+            - generic [ref=e92]: P230-000440
+            - generic [ref=e93]: กระดาษเทอร์มอล ขนาด 80*80 มม.
+          - cell "REQUISITION_RESERVE" [ref=e94]
+          - cell "0" [ref=e95]
+          - cell "0" [ref=e96]
+          - cell "฿0" [ref=e97]
+          - cell "199" [ref=e98]
+          - cell "InventoryRequisition REQ-1772879277656" [ref=e99]
+          - cell "กลุ่มงานบริหารทั่วไป" [ref=e100]
+        - row "7/3/2569 11:04:06 P230-001114 หมึก Printer Laser FUJI-XEROX CT202877 สีดำ PURCHASE_APPROVAL_RECEIPT 10 0 ฿9,800 10 InventoryReceipt IR-1772881446558 กลุ่มงานบริหารทั่วไป" [ref=e101]:
+          - cell "7/3/2569 11:04:06" [ref=e102]
+          - cell "P230-001114 หมึก Printer Laser FUJI-XEROX CT202877 สีดำ" [ref=e103]:
+            - generic [ref=e104]: P230-001114
+            - generic [ref=e105]: หมึก Printer Laser FUJI-XEROX CT202877 สีดำ
+          - cell "PURCHASE_APPROVAL_RECEIPT" [ref=e106]
+          - cell "10" [ref=e107]
+          - cell "0" [ref=e108]
+          - cell "฿9,800" [ref=e109]
+          - cell "10" [ref=e110]
+          - cell "InventoryReceipt IR-1772881446558" [ref=e111]
+          - cell "กลุ่มงานบริหารทั่วไป" [ref=e112]
+        - row "7/3/2569 11:00:26 P230-000937 หมึก Printer Laser PANTUM P2500 ISSUE_APPROVED 0 1 ฿850 4 InventoryIssue ISS-1772881226714 กลุ่มงานบริหารทั่วไป" [ref=e113]:
+          - cell "7/3/2569 11:00:26" [ref=e114]
+          - cell "P230-000937 หมึก Printer Laser PANTUM P2500" [ref=e115]:
+            - generic [ref=e116]: P230-000937
+            - generic [ref=e117]: หมึก Printer Laser PANTUM P2500
+          - cell "ISSUE_APPROVED" [ref=e118]
+          - cell "0" [ref=e119]
+          - cell "1" [ref=e120]
+          - cell "฿850" [ref=e121]
+          - cell "4" [ref=e122]
+          - cell "InventoryIssue ISS-1772881226714" [ref=e123]
+          - cell "กลุ่มงานบริหารทั่วไป" [ref=e124]
+        - row "7/3/2569 10:53:32 P230-000937 หมึก Printer Laser PANTUM P2500 PURCHASE_APPROVAL_RECEIPT 5 0 ฿4,250 5 InventoryReceipt IR-1772880812451 กลุ่มงานบริหารทั่วไป" [ref=e125]:
+          - cell "7/3/2569 10:53:32" [ref=e126]
+          - cell "P230-000937 หมึก Printer Laser PANTUM P2500" [ref=e127]:
+            - generic [ref=e128]: P230-000937
+            - generic [ref=e129]: หมึก Printer Laser PANTUM P2500
+          - cell "PURCHASE_APPROVAL_RECEIPT" [ref=e130]
+          - cell "5" [ref=e131]
+          - cell "0" [ref=e132]
+          - cell "฿4,250" [ref=e133]
+          - cell "5" [ref=e134]
+          - cell "InventoryReceipt IR-1772880812451" [ref=e135]
+          - cell "กลุ่มงานบริหารทั่วไป" [ref=e136]
+        - row "7/3/2569 10:28:17 P230-001093 หมึก Printer Laser TN-2560 PURCHASE_APPROVAL_RECEIPT 5 0 ฿6,950 5 InventoryReceipt IR-1772879297100 กลุ่มงานบริหารทั่วไป" [ref=e137]:
+          - cell "7/3/2569 10:28:17" [ref=e138]
+          - cell "P230-001093 หมึก Printer Laser TN-2560" [ref=e139]:
+            - generic [ref=e140]: P230-001093
+            - generic [ref=e141]: หมึก Printer Laser TN-2560
+          - cell "PURCHASE_APPROVAL_RECEIPT" [ref=e142]
+          - cell "5" [ref=e143]
+          - cell "0" [ref=e144]
+          - cell "฿6,950" [ref=e145]
+          - cell "5" [ref=e146]
+          - cell "InventoryReceipt IR-1772879297100" [ref=e147]
+          - cell "กลุ่มงานบริหารทั่วไป" [ref=e148]
+        - row "7/3/2569 10:20:55 P230-000440 กระดาษเทอร์มอล ขนาด 80*80 มม. ISSUE_APPROVED 0 1 ฿60 199 InventoryIssue ISS-1772878855829 กลุ่มงานบริหารทั่วไป" [ref=e149]:
+          - cell "7/3/2569 10:20:55" [ref=e150]
+          - cell "P230-000440 กระดาษเทอร์มอล ขนาด 80*80 มม." [ref=e151]:
+            - generic [ref=e152]: P230-000440
+            - generic [ref=e153]: กระดาษเทอร์มอล ขนาด 80*80 มม.
+          - cell "ISSUE_APPROVED" [ref=e154]
+          - cell "0" [ref=e155]
+          - cell "1" [ref=e156]
+          - cell "฿60" [ref=e157]
+          - cell "199" [ref=e158]
+          - cell "InventoryIssue ISS-1772878855829" [ref=e159]
+          - cell "กลุ่มงานบริหารทั่วไป" [ref=e160]
+        - row "7/3/2569 10:19:22 P230-000440 กระดาษเทอร์มอล ขนาด 80*80 มม. PURCHASE_APPROVAL_RECEIPT 200 0 ฿12,000 200 InventoryReceipt IR-1772878762146 กลุ่มงานบริหารทั่วไป" [ref=e161]:
+          - cell "7/3/2569 10:19:22" [ref=e162]
+          - cell "P230-000440 กระดาษเทอร์มอล ขนาด 80*80 มม." [ref=e163]:
+            - generic [ref=e164]: P230-000440
+            - generic [ref=e165]: กระดาษเทอร์มอล ขนาด 80*80 มม.
+          - cell "PURCHASE_APPROVAL_RECEIPT" [ref=e166]
+          - cell "200" [ref=e167]
+          - cell "0" [ref=e168]
+          - cell "฿12,000" [ref=e169]
+          - cell "200" [ref=e170]
+          - cell "InventoryReceipt IR-1772878762146" [ref=e171]
+          - cell "กลุ่มงานบริหารทั่วไป" [ref=e172]
+        - row "7/3/2569 09:47:53 P230-000438 กระดาษเทอร์มอล สำหรับเครื่อง EDC ขนาด 57*40 มม. PURCHASE_APPROVAL_RECEIPT 100 0 ฿3,500 100 InventoryReceipt IR-1772876873516 กลุ่มงานบริหารทั่วไป" [ref=e173]:
+          - cell "7/3/2569 09:47:53" [ref=e174]
+          - cell "P230-000438 กระดาษเทอร์มอล สำหรับเครื่อง EDC ขนาด 57*40 มม." [ref=e175]:
+            - generic [ref=e176]: P230-000438
+            - generic [ref=e177]: กระดาษเทอร์มอล สำหรับเครื่อง EDC ขนาด 57*40 มม.
+          - cell "PURCHASE_APPROVAL_RECEIPT" [ref=e178]
+          - cell "100" [ref=e179]
+          - cell "0" [ref=e180]
+          - cell "฿3,500" [ref=e181]
+          - cell "100" [ref=e182]
+          - cell "InventoryReceipt IR-1772876873516" [ref=e183]
+          - cell "กลุ่มงานบริหารทั่วไป" [ref=e184]
+  - button "Open Next.js Dev Tools" [ref=e191] [cursor=pointer]:
+    - img [ref=e192]
+  - alert [ref=e185]

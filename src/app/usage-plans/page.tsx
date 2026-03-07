@@ -5,6 +5,8 @@ import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import Swal from 'sweetalert2';
 import { Upload, Plus, CheckCircle2, AlertCircle, X as XIcon, ChevronUp, ChevronDown, ArrowUpDown, Pencil, Trash2, Search, X } from 'lucide-react';
 
+const PRODUCT_SUGGESTION_LIMIT = 12;
+
 const getCurrentBudgetYear = () => {
   const now = new Date();
   const year = now.getFullYear();
@@ -90,6 +92,15 @@ function SurveysPageContent() {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const initialProductNameFilter = searchParams.get('productName') || '';
+  const initialCategoryFilter = searchParams.get('category') || '';
+  const initialTypeFilter = searchParams.get('type') || '';
+  const initialRequestingDeptFilter = searchParams.get('requestingDept') || '';
+  const initialBudgetYearFilter = searchParams.get('budgetYear') || getCurrentBudgetYear().toString();
+  const initialSortField = searchParams.get('orderBy') || 'id';
+  const initialSortOrder = (searchParams.get('sortOrder') === 'asc' ? 'asc' : 'desc') as 'asc' | 'desc';
+  const initialPage = Math.max(1, parseInt(searchParams.get('page') || '1', 10) || 1);
+  const initialPageSize = Math.max(1, parseInt(searchParams.get('pageSize') || '20', 10) || 20);
   const [surveys, setSurveys] = useState<Survey[]>([]);
   const [summarySurveys, setSummarySurveys] = useState<Survey[]>([]);
   const [totalCount, setTotalCount] = useState(0);
@@ -140,20 +151,21 @@ function SurveysPageContent() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const bulkProductSearchInputRef = useRef<HTMLInputElement>(null);
   const bulkProductSuggestionsRef = useRef<HTMLDivElement>(null);
+  const hasSyncedSearchParamsRef = useRef(false);
   
   // Validation state
   const [errors, setErrors] = useState<Record<string, string>>({});
-  const [productNameFilter, setProductNameFilter] = useState('');
-  const [categoryFilter, setCategoryFilter] = useState('');
-  const [typeFilter, setTypeFilter] = useState('');
-  const [requestingDeptFilter, setRequestingDeptFilter] = useState('');
-  const [budgetYearFilter, setBudgetYearFilter] = useState(getCurrentBudgetYear().toString());
+  const [productNameFilter, setProductNameFilter] = useState(initialProductNameFilter);
+  const [categoryFilter, setCategoryFilter] = useState(initialCategoryFilter);
+  const [typeFilter, setTypeFilter] = useState(initialTypeFilter);
+  const [requestingDeptFilter, setRequestingDeptFilter] = useState(initialRequestingDeptFilter);
+  const [budgetYearFilter, setBudgetYearFilter] = useState(initialBudgetYearFilter);
   
   // Sort states
-  const [sortField, setSortField] = useState('id');
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
-  const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(20);
+  const [sortField, setSortField] = useState(initialSortField);
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>(initialSortOrder);
+  const [page, setPage] = useState(initialPage);
+  const [pageSize, setPageSize] = useState(initialPageSize);
   
   // Filter options
   const [categories, setCategories] = useState<string[]>([]);
@@ -171,11 +183,20 @@ function SurveysPageContent() {
   const [highlightedBulkProductIndex, setHighlightedBulkProductIndex] = useState(-1);
   const [selectedBulkProductLabel, setSelectedBulkProductLabel] = useState('');
   const [bulkValidationErrors, setBulkValidationErrors] = useState<Record<number, { requestedAmount?: string; requestingDept?: string }>>({});
+  const bulkProductSearchAbortRef = useRef<AbortController | null>(null);
+  const dataRequestIdRef = useRef(0);
+  const summaryRequestIdRef = useRef(0);
+  const hasMountedSummaryRef = useRef(false);
 
   const fallbackBudgetYears = Array.from({ length: 6 }, (_, index) => getCurrentBudgetYear() - index);
   const availableBudgetYears = Array.from(new Set([...budgetYears, ...fallbackBudgetYears])).sort((a, b) => b - a);
 
   useEffect(() => {
+    if (!hasSyncedSearchParamsRef.current) {
+      hasSyncedSearchParamsRef.current = true;
+      return;
+    }
+
     const nextProductName = searchParams.get('productName') || '';
     const nextCategory = searchParams.get('category') || '';
     const nextType = searchParams.get('type') || '';
@@ -216,8 +237,63 @@ function SurveysPageContent() {
 
   useEffect(() => {
     fetchFilterOptions();
-    fetchProductOptions();
   }, []);
+
+  useEffect(() => {
+    if (!showBulkForm) {
+      return;
+    }
+
+    const searchValue = bulkProductSearch.trim();
+    if (searchValue.length === 0) {
+      setProductOptions([]);
+      setShowBulkProductSuggestions(false);
+      setHighlightedBulkProductIndex(-1);
+      bulkProductSearchAbortRef.current?.abort();
+      bulkProductSearchAbortRef.current = null;
+      return;
+    }
+
+    const timeoutId = window.setTimeout(async () => {
+      try {
+        bulkProductSearchAbortRef.current?.abort();
+        const controller = new AbortController();
+        bulkProductSearchAbortRef.current = controller;
+
+        const params = new URLSearchParams({
+          page: '1',
+          pageSize: PRODUCT_SUGGESTION_LIMIT.toString(),
+          orderBy: 'code',
+          sortOrder: 'asc',
+          search: searchValue,
+        });
+
+        const response = await fetch(`/api/products?${params.toString()}`, {
+          signal: controller.signal,
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to search products');
+        }
+
+        const data = await response.json();
+        setProductOptions((data.data || []) as ProductOption[]);
+        setShowBulkProductSuggestions(true);
+        setHighlightedBulkProductIndex(-1);
+      } catch (error) {
+        if ((error as Error).name === 'AbortError') {
+          return;
+        }
+        console.error('Error searching bulk product options:', error);
+        setProductOptions([]);
+      }
+    }, 250);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+      bulkProductSearchAbortRef.current?.abort();
+    };
+  }, [bulkProductSearch, showBulkForm]);
 
   useEffect(() => {
     if (!showBulkForm) {
@@ -253,12 +329,20 @@ function SurveysPageContent() {
   // Fetch summary data when filters change (independent of pagination)
   useEffect(() => {
     fetchSummarySurveys();
-    setPage(1);
+  }, [productNameFilter, categoryFilter, typeFilter, requestingDeptFilter, budgetYearFilter, sortField, sortOrder]);
+
+  useEffect(() => {
+    if (!hasMountedSummaryRef.current) {
+      hasMountedSummaryRef.current = true;
+      return;
+    }
+
+    setPage((prev) => (prev === 1 ? prev : 1));
   }, [productNameFilter, categoryFilter, typeFilter, requestingDeptFilter, budgetYearFilter, sortField, sortOrder]);
 
   const fetchFilterOptions = async () => {
     try {
-      const response = await fetch('/api/surveys/filters');
+      const response = await fetch('/api/usage-plans/filters');
       if (response.ok) {
         const data = await response.json();
         setCategories(data.categories);
@@ -315,14 +399,7 @@ function SurveysPageContent() {
     && productSearch.trim() !== selectedProductLabel.trim()
     && filteredProductOptions.length === 0;
 
-  const filteredBulkProductOptions = bulkProductSearch.trim().length === 0
-    ? productOptions.slice(0, 12)
-    : productOptions.filter((product) => {
-        const searchValue = bulkProductSearch.trim().toLowerCase();
-        return [product.code, product.name]
-          .filter(Boolean)
-          .some((value) => String(value).toLowerCase().includes(searchValue));
-      }).slice(0, 12);
+  const filteredBulkProductOptions = productOptions.slice(0, PRODUCT_SUGGESTION_LIMIT);
 
   const shouldShowBulkProductNoResults = showBulkProductSuggestions
     && bulkProductSearch.trim().length > 0
@@ -358,20 +435,6 @@ function SurveysPageContent() {
     }
   };
 
-  const fetchProductOptions = async () => {
-    try {
-      const response = await fetch('/api/products?page=1&pageSize=200');
-      if (!response.ok) {
-        throw new Error('Failed to fetch products');
-      }
-
-      const data = await response.json();
-      setProductOptions(data.data || []);
-    } catch (error) {
-      console.error('Error fetching product options:', error);
-    }
-  };
-
   const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
   const pageStart = totalCount === 0 ? 0 : (page - 1) * pageSize + 1;
   const pageEnd = totalCount === 0 ? 0 : Math.min(totalCount, pageStart + (surveys.length || 0) - 1);
@@ -400,6 +463,7 @@ function SurveysPageContent() {
   };
 
   const fetchSurveys = async () => {
+    const requestId = ++dataRequestIdRef.current;
     try {
       setLoading(true);
       const params = new URLSearchParams();
@@ -414,9 +478,12 @@ function SurveysPageContent() {
       params.append('page', page.toString());
       params.append('pageSize', pageSize.toString());
       
-      const response = await fetch(`/api/surveys?${params.toString()}`);
+      const response = await fetch(`/api/usage-plans?${params.toString()}`);
       if (response.ok) {
         const data = await response.json();
+        if (requestId !== dataRequestIdRef.current) {
+          return;
+        }
         setSurveys(data.surveys);
         setTotalCount(data.totalCount || 0);
         if (data.page && data.page !== page) {
@@ -429,12 +496,15 @@ function SurveysPageContent() {
     } catch (error) {
       console.error('Error fetching surveys:', error);
     } finally {
-      setLoading(false);
+      if (requestId === dataRequestIdRef.current) {
+        setLoading(false);
+      }
     }
   };
 
   // Fetch full filtered dataset for summary (not paginated)
   const fetchSummarySurveys = async () => {
+    const requestId = ++summaryRequestIdRef.current;
     try {
       const params = new URLSearchParams();
 
@@ -445,9 +515,12 @@ function SurveysPageContent() {
       if (sortField) params.append('orderBy', sortField);
       if (sortOrder) params.append('sortOrder', sortOrder);
 
-      const response = await fetch(`/api/surveys?${params.toString()}`);
+      const response = await fetch(`/api/usage-plans?${params.toString()}`);
       if (response.ok) {
         const data = await response.json();
+        if (requestId !== summaryRequestIdRef.current) {
+          return;
+        }
         setSummarySurveys(data.surveys || []);
       }
     } catch (error) {
@@ -544,7 +617,7 @@ function SurveysPageContent() {
     }
     
     try {
-      const url = editingSurvey ? `/api/surveys/${editingSurvey.id}` : '/api/surveys';
+      const url = editingSurvey ? `/api/usage-plans/${editingSurvey.id}` : '/api/usage-plans';
       const method = editingSurvey ? 'PUT' : 'POST';
       
       const response = await fetch(url, {
@@ -628,7 +701,7 @@ function SurveysPageContent() {
 
     if (result.isConfirmed) {
       try {
-        const response = await fetch(`/api/surveys/${survey.id}`, {
+        const response = await fetch(`/api/usage-plans/${survey.id}`, {
           method: 'DELETE',
         });
 
@@ -719,7 +792,7 @@ function SurveysPageContent() {
       const formData = new FormData();
       formData.append('file', file);
 
-      const res = await fetch('/api/surveys/import', {
+      const res = await fetch('/api/usage-plans/import', {
         method: 'POST',
         body: formData,
       });
@@ -774,7 +847,7 @@ function SurveysPageContent() {
   // Save inline edit
   const saveInlineEdit = async (id: number) => {
     try {
-      const response = await fetch(`/api/surveys/${id}`, {
+      const response = await fetch(`/api/usage-plans/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -976,7 +1049,7 @@ function SurveysPageContent() {
       }
 
       const promises = validRecords.map(record =>
-        fetch('/api/surveys', {
+        fetch('/api/usage-plans', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -1756,8 +1829,8 @@ function SurveysPageContent() {
                       <tbody>
                         {bulkRecords.map((record, index) => (
                           <tr key={record.id} className="border-b border-slate-200 bg-white">
-                            <td className="px-2 py-3 text-sm text-gray-900">{index + 1}</td>
-                            <td className="px-2 py-3">
+                            <td className="w-12 px-2 py-3 text-sm text-gray-900">{index + 1}</td>
+                            <td className="w-36 px-2 py-3">
                               <input
                                 id={`survey-bulk-product-code-${record.id}`}
                                 name={`bulkProductCode-${record.id}`}
@@ -1769,7 +1842,7 @@ function SurveysPageContent() {
                                 className="w-full px-2 py-1 border border-gray-300 rounded bg-gray-100 text-sm"
                               />
                             </td>
-                            <td className="px-2 py-3">
+                            <td className="min-w-[24rem] px-2 py-3">
                               <input
                                 id={`survey-bulk-product-name-${record.id}`}
                                 name={`bulkProductName-${record.id}`}
@@ -1778,10 +1851,11 @@ function SurveysPageContent() {
                                 value={record.productName}
                                 readOnly
                                 placeholder="ชื่อสินค้า"
+                                title={record.productName || ''}
                                 className="w-full px-2 py-1 border border-gray-300 rounded bg-gray-100 text-sm"
                               />
                             </td>
-                            <td className="px-2 py-3">
+                            <td className="w-32 px-2 py-3">
                               <input
                                 id={`survey-bulk-requested-amount-${record.id}`}
                                 name={`bulkRequestedAmount-${record.id}`}
@@ -1801,7 +1875,7 @@ function SurveysPageContent() {
                                 <p className="mt-1 text-xs text-red-600">{bulkValidationErrors[record.id]?.requestedAmount}</p>
                               )}
                             </td>
-                            <td className="px-2 py-3">
+                            <td className="w-24 px-2 py-3">
                               <input
                                 id={`survey-bulk-unit-${record.id}`}
                                 name={`bulkUnit-${record.id}`}
@@ -1813,7 +1887,7 @@ function SurveysPageContent() {
                                 className="w-full px-2 py-1 border border-gray-300 rounded bg-gray-100 text-sm"
                               />
                             </td>
-                            <td className="px-2 py-3">
+                            <td className="min-w-[14rem] px-2 py-3">
                               <select
                                 id={`survey-bulk-requesting-dept-${record.id}`}
                                 name={`bulkRequestingDept-${record.id}`}
@@ -1835,7 +1909,7 @@ function SurveysPageContent() {
                                 <p className="mt-1 text-xs text-red-600">{bulkValidationErrors[record.id]?.requestingDept}</p>
                               )}
                             </td>
-                            <td className="px-2 py-3">
+                            <td className="w-32 px-2 py-3">
                               <input
                                 id={`survey-bulk-approved-quota-${record.id}`}
                                 name={`bulkApprovedQuota-${record.id}`}
@@ -1849,7 +1923,7 @@ function SurveysPageContent() {
                                 className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
                               />
                             </td>
-                            <td className="px-2 py-3">
+                            <td className="w-16 px-2 py-3">
                               <div className="flex gap-1">
                                 {bulkRecords.length > 0 && (
                                   <button

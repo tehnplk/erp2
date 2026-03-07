@@ -4,11 +4,11 @@ import { pgQuery } from '@/lib/pg';
 export async function GET(request: NextRequest) {
   try {
     const [categories, types, subtypes, departments, budgetYears] = await Promise.all([
-      pgQuery('SELECT DISTINCT category FROM public."Survey" WHERE category IS NOT NULL ORDER BY category ASC'),
-      pgQuery('SELECT DISTINCT type FROM public."Survey" WHERE type IS NOT NULL ORDER BY type ASC'),
-      pgQuery('SELECT DISTINCT subtype FROM public."Survey" WHERE subtype IS NOT NULL ORDER BY subtype ASC'),
-      pgQuery('SELECT DISTINCT "requestingDept" AS "requestingDept" FROM public."Survey" WHERE "requestingDept" IS NOT NULL ORDER BY "requestingDept" ASC'),
-      pgQuery('SELECT DISTINCT budget_year AS "budgetYear" FROM public."Survey" WHERE budget_year IS NOT NULL ORDER BY budget_year DESC')
+      pgQuery('SELECT DISTINCT category FROM public."UsagePlan" WHERE category IS NOT NULL ORDER BY category ASC'),
+      pgQuery('SELECT DISTINCT type FROM public."UsagePlan" WHERE type IS NOT NULL ORDER BY type ASC'),
+      pgQuery('SELECT DISTINCT subtype FROM public."UsagePlan" WHERE subtype IS NOT NULL ORDER BY subtype ASC'),
+      pgQuery('SELECT DISTINCT "requestingDept" AS "requestingDept" FROM public."UsagePlan" WHERE "requestingDept" IS NOT NULL ORDER BY "requestingDept" ASC'),
+      pgQuery('SELECT DISTINCT budget_year AS "budgetYear" FROM public."UsagePlan" WHERE budget_year IS NOT NULL ORDER BY budget_year DESC')
     ]);
 
     return NextResponse.json({

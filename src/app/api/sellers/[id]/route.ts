@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server';
 import { pgQuery } from '@/lib/pg';
 import { apiSuccess, apiError, apiNotFound } from '@/lib/api-response';
+import { cacheDelByPattern } from '@/lib/redis';
 import { validateRequest } from '@/lib/validation/validate';
 import { idParamSchema, updateSellerSchema } from '@/lib/validation/schemas';
 
@@ -96,6 +97,8 @@ export async function PUT(
       values
     );
 
+    await cacheDelByPattern('erp:sellers:list:*');
+
     return apiSuccess(updatedResult.rows[0], 'Seller updated successfully');
   } catch (error) {
     console.error('Error updating seller:', error);
@@ -124,6 +127,7 @@ export async function DELETE(
     }
 
     await pgQuery('DELETE FROM public."Seller" WHERE id = $1', [id]);
+    await cacheDelByPattern('erp:sellers:list:*');
 
     return apiSuccess(null, 'Seller deleted successfully');
   } catch (error) {

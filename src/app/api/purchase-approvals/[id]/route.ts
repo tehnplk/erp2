@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { pgQuery } from '@/lib/pg';
+import { cacheDelByPattern } from '@/lib/redis';
 
 export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -78,6 +79,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
        RETURNING id, "approvalId", department, "budgetYear", "recordNumber", "requestDate", "productName", "productCode", category, "productType", "productSubtype", "requestedQuantity", unit, "pricePerUnit"::float8 AS "pricePerUnit", "totalValue"::float8 AS "totalValue", "overPlanCase", requester, approver, created_at, updated_at`,
       values
     );
+    await cacheDelByPattern('erp:purchase:approvals:list:*');
     return NextResponse.json(updated.rows[0]);
   } catch (error) {
     console.error('Error updating purchase approval:', error);
@@ -95,6 +97,7 @@ export async function DELETE(_request: NextRequest, { params }: { params: Promis
     }
 
     await pgQuery('DELETE FROM public."PurchaseApproval" WHERE id = $1', [numericId]);
+    await cacheDelByPattern('erp:purchase:approvals:list:*');
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error('Error deleting purchase approval:', error);
