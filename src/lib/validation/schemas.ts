@@ -40,6 +40,102 @@ export const productQuerySchema = z.object({
   ...paginationFields
 });
 
+// Inventory schemas
+export const inventoryPendingPurchaseApprovalQuerySchema = z.object({
+  productName: z.string().optional(),
+  department: z.string().optional(),
+  budgetYear: z.string().optional(),
+  status: z.enum(['PENDING', 'PARTIAL', 'RECEIVED', 'CANCELLED']).optional(),
+  orderBy: z.enum(['id', 'productCode', 'productName', 'department', 'budgetYear', 'requestedQuantity', 'receivedQty']).optional(),
+  sortOrder: z.enum(['asc', 'desc']).optional(),
+  ...paginationFields
+});
+
+export const createInventoryReceiptFromPurchaseApprovalSchema = z.object({
+  purchaseApprovalId: z.coerce.number().int().positive(),
+  warehouseId: z.coerce.number().int().positive(),
+  locationId: z.coerce.number().int().positive().nullable().optional(),
+  qty: z.coerce.number().int().positive(),
+  unitCost: z.union([z.string(), z.number(), z.null(), z.undefined()]).transform((val) => val === null || val === undefined || val === '' ? null : Number(val)).pipe(z.number().min(0).nullable()).optional(),
+  vendorName: z.string().optional(),
+  receiptDate: z.string().optional(),
+  receiptNo: z.string().optional(),
+  lotNo: z.string().optional(),
+  expiryDate: z.string().optional(),
+  note: z.string().optional(),
+  createdBy: z.string().optional()
+});
+
+export const inventoryBalanceQuerySchema = z.object({
+  productName: z.string().optional(),
+  productCode: z.string().optional(),
+  category: z.string().optional(),
+  productType: z.string().optional(),
+  warehouseId: z.coerce.number().int().positive().optional(),
+  lowStockOnly: z.enum(['true', 'false']).optional(),
+  orderBy: z.enum(['id', 'productCode', 'productName', 'category', 'productType', 'onHandQty', 'availableQty', 'avgCost']).optional(),
+  sortOrder: z.enum(['asc', 'desc']).optional(),
+  ...paginationFields
+});
+
+export const inventoryMovementQuerySchema = z.object({
+  inventoryItemId: z.coerce.number().int().positive().optional(),
+  productCode: z.string().optional(),
+  movementType: z.string().optional(),
+  referenceType: z.string().optional(),
+  dateFrom: z.string().optional(),
+  dateTo: z.string().optional(),
+  orderBy: z.enum(['id', 'movementDate', 'movementType', 'productCode', 'productName', 'qtyIn', 'qtyOut']).optional(),
+  sortOrder: z.enum(['asc', 'desc']).optional(),
+  ...paginationFields
+});
+
+export const createInventoryRequisitionSchema = z.object({
+  requisitionNo: z.string().optional(),
+  requestDate: z.string().optional(),
+  requestingDepartment: nonEmptyString,
+  requestedBy: z.string().optional(),
+  note: z.string().optional(),
+  items: z.array(z.object({
+    inventoryItemId: z.coerce.number().int().positive(),
+    requestedQty: z.coerce.number().int().positive(),
+    note: z.string().optional()
+  })).min(1)
+});
+
+export const inventoryRequisitionQuerySchema = z.object({
+  requisitionNo: z.string().optional(),
+  requestingDepartment: z.string().optional(),
+  status: z.enum(['DRAFT', 'SUBMITTED', 'PARTIALLY_APPROVED', 'APPROVED', 'REJECTED', 'PARTIALLY_ISSUED', 'ISSUED', 'CANCELLED']).optional(),
+  orderBy: z.enum(['id', 'requisitionNo', 'requestDate', 'requestingDepartment', 'status']).optional(),
+  sortOrder: z.enum(['asc', 'desc']).optional(),
+  ...paginationFields
+});
+
+export const approveInventoryRequisitionSchema = z.object({
+  approvedBy: z.string().optional(),
+  note: z.string().optional(),
+  items: z.array(z.object({
+    requisitionItemId: z.coerce.number().int().positive(),
+    approvedQty: z.coerce.number().int().min(0)
+  })).min(1)
+});
+
+export const createInventoryIssueSchema = z.object({
+  requisitionId: z.coerce.number().int().positive(),
+  issueNo: z.string().optional(),
+  issueDate: z.string().optional(),
+  requestingDepartment: nonEmptyString,
+  issuedBy: z.string().optional(),
+  approvedBy: z.string().optional(),
+  note: z.string().optional(),
+  items: z.array(z.object({
+    requisitionItemId: z.coerce.number().int().positive(),
+    inventoryItemId: z.coerce.number().int().positive(),
+    issuedQty: z.coerce.number().int().positive()
+  })).min(1)
+});
+
 // Seller schemas
 export const createSellerSchema = z.object({
   code: nonEmptyString,
