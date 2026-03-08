@@ -948,53 +948,63 @@ export default function PurchaseApprovalsPage() {
       </div>
 
       <div className="bg-white shadow-md rounded-lg overflow-hidden">
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
-            <tr>
-              <th onClick={()=>handleSort('approvalId')} className={getHeaderClass('approvalId')}>เลขอนุมัติ</th>
-              <th onClick={()=>handleSort('department')} className={getHeaderClass('department')}>หน่วยงาน</th>
-              <th onClick={()=>handleSort('budgetYear')} className={getHeaderClass('budgetYear')}>ปีงบ</th>
-              <th onClick={()=>handleSort('productName')} className={getHeaderClass('productName')}>ชื่อสินค้า</th>
-              <th onClick={()=>handleSort('requestedQuantity')} className={getHeaderClass('requestedQuantity')}>จำนวน</th>
-              <th onClick={()=>handleSort('pricePerUnit')} className={getHeaderClass('pricePerUnit')}>ราคา/หน่วย</th>
-              <th onClick={()=>handleSort('totalValue')} className={getHeaderClass('totalValue')}>มูลค่ารวม</th>
-              <th className="px-3 py-3 text-left text-[10px] font-medium text-gray-500 uppercase tracking-wider w-24">Action</th>
-            </tr>
-          </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
-            {items.map((row) => (
-              <tr key={row.id}>
-                <td className="px-3 py-2 text-xs">{row.approvalId}</td>
-                <td className="px-3 py-2 text-xs">{row.department}</td>
-                <td className="px-3 py-2 text-xs">{row.budgetYear || '-'}</td>
-                <td className="px-3 py-2 text-xs">
-                  <div className="whitespace-normal break-words" title={row.productName}>
-                    {row.productName}
-                  </div>
-                </td>
-                <td className="px-3 py-2 text-xs">{row.requestedQuantity ?? '-'}</td>
-                <td className="px-3 py-2 text-xs">{row.pricePerUnit ? Number(row.pricePerUnit).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '-'}</td>
-                <td className="px-3 py-2 text-xs">{row.totalValue ? Number(row.totalValue).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '-'}</td>
-                <td className="px-3 py-2 text-xs font-medium w-24">
-                  <button
-                    onClick={() => handleEdit(row)}
-                    className="text-indigo-600 hover:text-indigo-900 mr-2 cursor-pointer"
-                    title="แก้ไข"
-                  >
-                    <Pencil className="h-5 w-5" />
-                  </button>
-                  <button
-                    onClick={() => handleDelete(row.id)}
-                    className="text-red-600 hover:text-red-900 cursor-pointer"
-                    title="ลบ"
-                  >
-                    <Trash2 className="h-5 w-5" />
-                  </button>
-                </td>
+        {loading ? (
+          <div className="flex justify-center items-center py-12">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+          </div>
+        ) : items.length === 0 ? (
+          <div className="text-center py-12">
+            <p className="text-gray-500">ไม่พบข้อมูล</p>
+          </div>
+        ) : (
+          <table className="min-w-full divide-y divide-gray-200">
+            <thead className="bg-gray-50">
+              <tr>
+                <th onClick={()=>handleSort('approvalId')} className={getHeaderClass('approvalId')}>เลขอนุมัติ</th>
+                <th onClick={()=>handleSort('department')} className={getHeaderClass('department')}>หน่วยงาน</th>
+                <th onClick={()=>handleSort('budgetYear')} className={getHeaderClass('budgetYear')}>ปีงบ</th>
+                <th onClick={()=>handleSort('productName')} className={getHeaderClass('productName')}>ชื่อสินค้า</th>
+                <th onClick={()=>handleSort('requestedQuantity')} className={getHeaderClass('requestedQuantity')}>จำนวน</th>
+                <th onClick={()=>handleSort('pricePerUnit')} className={getHeaderClass('pricePerUnit')}>ราคา/หน่วย</th>
+                <th onClick={()=>handleSort('totalValue')} className={getHeaderClass('totalValue')}>มูลค่ารวม</th>
+                <th className="px-3 py-3 text-left text-[10px] font-medium text-gray-500 uppercase tracking-wider w-24">Action</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200">
+              {items.map((row) => (
+                <tr key={row.id}>
+                  <td className="px-3 py-2 text-xs">{row.approvalId}</td>
+                  <td className="px-3 py-2 text-xs">{row.department}</td>
+                  <td className="px-3 py-2 text-xs">{row.budgetYear || '-'}</td>
+                  <td className="px-3 py-2 text-xs">
+                    <div className="whitespace-normal break-words" title={row.productName}>
+                      {row.productName}
+                    </div>
+                  </td>
+                  <td className="px-3 py-2 text-xs">{row.requestedQuantity ?? '-'}</td>
+                  <td className="px-3 py-2 text-xs">{row.pricePerUnit ? Number(row.pricePerUnit).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '-'}</td>
+                  <td className="px-3 py-2 text-xs">{row.totalValue ? Number(row.totalValue).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '-'}</td>
+                  <td className="px-3 py-2 text-xs font-medium w-24">
+                    <button
+                      onClick={() => handleEdit(row)}
+                      className="text-indigo-600 hover:text-indigo-900 mr-2 cursor-pointer"
+                      title="แก้ไข"
+                    >
+                      <Pencil className="h-5 w-5" />
+                    </button>
+                    <button
+                      onClick={() => handleDelete(row.id)}
+                      className="text-red-600 hover:text-red-900 cursor-pointer"
+                      title="ลบ"
+                    >
+                      <Trash2 className="h-5 w-5" />
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
       </div>
     </div>
   );
