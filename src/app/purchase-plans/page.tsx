@@ -71,6 +71,12 @@ interface BulkPurchasePlanRecord {
   purchasingDepartment: string;
 }
 
+interface CategoryOption {
+  category: string;
+  type: string;
+  subtype: string | null;
+}
+
 function PurchasePlansPageContent() {
   const router = useRouter();
   const pathname = usePathname();
@@ -134,6 +140,7 @@ function PurchasePlansPageContent() {
   const [categories, setCategories] = useState<string[]>([]);
   const [types, setTypes] = useState<string[]>([]);
   const [subtypes, setSubtypes] = useState<string[]>([]);
+  const [categoryOptions, setCategoryOptions] = useState<CategoryOption[]>([]);
   const [departments, setDepartments] = useState<string[]>([]);
   const [years, setYears] = useState<string[]>([]);
   const availableBudgetYears = Array.from(new Set([
@@ -203,6 +210,49 @@ function PurchasePlansPageContent() {
     fetchData();
   }, [productNameFilter, categoryFilter, typeFilter, subtypeFilter, requestingDeptFilter, budgetYearFilter, sortBy, sortOrder, page, pageSize]);
 
+  const availableTypes = useMemo(() => {
+    if (!categoryFilter) {
+      return types;
+    }
+
+    return Array.from(
+      new Set(
+        categoryOptions
+          .filter((option) => option.category === categoryFilter)
+          .map((option) => option.type)
+          .filter(Boolean)
+      )
+    );
+  }, [categoryFilter, categoryOptions, types]);
+
+  const availableSubtypes = useMemo(() => {
+    return Array.from(
+      new Set(
+        categoryOptions
+          .filter((option) => {
+            const categoryMatched = categoryFilter ? option.category === categoryFilter : true;
+            const typeMatched = typeFilter ? option.type === typeFilter : true;
+            return categoryMatched && typeMatched;
+          })
+          .map((option) => option.subtype)
+          .filter(Boolean)
+      )
+    ) as string[];
+  }, [categoryFilter, typeFilter, categoryOptions]);
+
+  useEffect(() => {
+    if (typeFilter && !availableTypes.includes(typeFilter)) {
+      setTypeFilter('');
+      setSubtypeFilter('');
+    }
+  }, [availableTypes, typeFilter]);
+
+  useEffect(() => {
+    if (subtypeFilter && !availableSubtypes.includes(subtypeFilter)) {
+      setSubtypeFilter('');
+    }
+  }, [availableSubtypes, subtypeFilter]);
+
   useEffect(() => {
     fetchSummaryData();
   }, [productNameFilter, categoryFilter, typeFilter, subtypeFilter, requestingDeptFilter, budgetYearFilter, sortBy, sortOrder]);
@@ -228,16 +278,16 @@ function PurchasePlansPageContent() {
     const nextPage = Math.max(1, parseInt(searchParams.get('page') || '1', 10) || 1);
     const nextPageSize = Math.max(1, parseInt(searchParams.get('pageSize') || '20', 10) || 20);
 
-    setProductNameFilter((prev) => prev === nextProductName ? prev : nextProductName);
-    setCategoryFilter((prev) => prev === nextCategory ? prev : nextCategory);
-    setTypeFilter((prev) => prev === nextType ? prev : nextType);
-    setSubtypeFilter((prev) => prev === nextSubtype ? prev : nextSubtype);
-    setRequestingDeptFilter((prev) => prev === nextRequestingDept ? prev : nextRequestingDept);
-    setBudgetYearFilter((prev) => prev === nextBudgetYear ? prev : nextBudgetYear);
-    setSortBy((prev) => prev === nextSortBy ? prev : nextSortBy);
-    setSortOrder((prev) => prev === nextSortOrder ? prev : nextSortOrder);
-    setPage((prev) => prev === nextPage ? prev : nextPage);
-    setPageSize((prev) => prev === nextPageSize ? prev : nextPageSize);
+    setProductNameFilter((prev) => (prev === nextProductName ? prev : nextProductName));
+    setCategoryFilter((prev) => (prev === nextCategory ? prev : nextCategory));
+    setTypeFilter((prev) => (prev === nextType ? prev : nextType));
+    setSubtypeFilter((prev) => (prev === nextSubtype ? prev : nextSubtype));
+    setRequestingDeptFilter((prev) => (prev === nextRequestingDept ? prev : nextRequestingDept));
+    setBudgetYearFilter((prev) => (prev === nextBudgetYear ? prev : nextBudgetYear));
+    setSortBy((prev) => (prev === nextSortBy ? prev : nextSortBy));
+    setSortOrder((prev) => (prev === nextSortOrder ? prev : nextSortOrder));
+    setPage((prev) => (prev === nextPage ? prev : nextPage));
+    setPageSize((prev) => (prev === nextPageSize ? prev : nextPageSize));
   }, [searchParams]);
 
   useEffect(() => {
@@ -256,6 +306,7 @@ function PurchasePlansPageContent() {
 
     const nextUrl = params.toString() ? `${pathname}?${params.toString()}` : pathname;
     const currentUrl = searchParams.toString() ? `${pathname}?${searchParams.toString()}` : pathname;
+
     if (nextUrl !== currentUrl) {
       router.replace(nextUrl, { scroll: false });
     }
@@ -270,6 +321,7 @@ function PurchasePlansPageContent() {
         setCategories(data.categories || []);
         setTypes(data.productTypes || []);
         setSubtypes(data.productSubtypes || []);
+        setCategoryOptions(data.categoryOptions || []);
         setDepartments(data.departments || []);
         setYears(data.budgetYears || []);
       }
@@ -398,7 +450,7 @@ function PurchasePlansPageContent() {
     else { setSortBy(column); setSortOrder('asc'); }
   };
 
-  const getHeaderClass = (col: string) => `px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 ${col === sortBy ? 'bg-gray-100' : ''}`;
+  const getHeaderClass = (col: string) => `px-3 py-3 text-left text-[10px] font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 ${col === sortBy ? 'bg-gray-100' : ''}`;
 
   const createEmptyBulkRecord = (id: number): BulkPurchasePlanRecord => ({
     id,
@@ -1017,27 +1069,27 @@ function PurchasePlansPageContent() {
                     <table className="w-full">
                       <thead className="bg-slate-100">
                         <tr>
-                          <th className="w-12 px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase">ลำดับ</th>
-                          <th className="w-36 px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase">รหัสสินค้า</th>
-                          <th className="min-w-[20rem] px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase">ชื่อสินค้า</th>
-                          <th className="w-28 px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase">ประเภท</th>
-                          <th className="w-28 px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase">ยกยอดมา</th>
-                          <th className="w-28 px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase">มูลค่ายกยอด</th>
-                          <th className="w-28 px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase">ต้องใช้/ปี</th>
-                          <th className="w-28 px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase">ซื้อเพิ่ม</th>
-                          <th className="w-32 px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase">หน่วยงานจัดซื้อ</th>
-                          <th className="w-24 px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase">จัดการ</th>
+                          <th className="w-12 px-2 py-2 text-left text-[10px] font-medium text-gray-500 uppercase">ลำดับ</th>
+                          <th className="w-36 px-2 py-2 text-left text-[10px] font-medium text-gray-500 uppercase">รหัสสินค้า</th>
+                          <th className="min-w-[20rem] px-2 py-2 text-left text-[10px] font-medium text-gray-500 uppercase">ชื่อสินค้า</th>
+                          <th className="w-28 px-2 py-2 text-left text-[10px] font-medium text-gray-500 uppercase">ประเภท</th>
+                          <th className="w-28 px-2 py-2 text-left text-[10px] font-medium text-gray-500 uppercase">ยกยอดมา</th>
+                          <th className="w-28 px-2 py-2 text-left text-[10px] font-medium text-gray-500 uppercase">มูลค่ายกยอด</th>
+                          <th className="w-28 px-2 py-2 text-left text-[10px] font-medium text-gray-500 uppercase">ต้องใช้/ปี</th>
+                          <th className="w-28 px-2 py-2 text-left text-[10px] font-medium text-gray-500 uppercase">ซื้อเพิ่ม</th>
+                          <th className="w-32 px-2 py-2 text-left text-[10px] font-medium text-gray-500 uppercase">หน่วยงานจัดซื้อ</th>
+                          <th className="w-24 px-2 py-2 text-left text-[10px] font-medium text-gray-500 uppercase">จัดการ</th>
                         </tr>
                       </thead>
                       <tbody>
                         {bulkRecords.map((record, index) => (
                           <tr key={record.id} className="border-b border-slate-200 bg-white align-top">
-                            <td className="w-12 px-2 py-3 text-sm text-gray-900">{index + 1}</td>
+                            <td className="w-12 px-2 py-3 text-xs text-gray-900">{index + 1}</td>
                             <td className="w-36 px-2 py-3">
-                              <input value={record.productCode} readOnly className="w-full rounded border border-gray-300 bg-gray-100 px-2 py-1 text-sm" />
+                              <input value={record.productCode} readOnly className="w-full rounded border border-gray-300 bg-gray-100 px-2 py-1 text-xs" />
                             </td>
                             <td className="min-w-[20rem] px-2 py-3">
-                              <input value={record.productName} readOnly title={record.productName} className="w-full rounded border border-gray-300 bg-gray-100 px-2 py-1 text-sm" />
+                              <input value={record.productName} readOnly title={record.productName} className="w-full rounded border border-gray-300 bg-gray-100 px-2 py-1 text-xs" />
                             </td>
                             <td className="w-28 px-2 py-3">
                               <select
@@ -1046,13 +1098,13 @@ function PurchasePlansPageContent() {
                                   handleBulkFieldChange(record.id, 'inPlan', e.target.value);
                                   clearBulkValidationError(record.id, 'inPlan');
                                 }}
-                                className={`w-full rounded border px-2 py-1 text-sm ${bulkValidationErrors[record.id]?.inPlan ? 'border-red-500' : 'border-gray-300'}`}
+                                className={`w-full rounded border px-2 py-1 text-xs ${bulkValidationErrors[record.id]?.inPlan ? 'border-red-500' : 'border-gray-300'}`}
                               >
                                 <option value="">เลือกประเภท</option>
                                 <option value="ในแผน">ในแผน</option>
                                 <option value="นอกแผน">นอกแผน</option>
                               </select>
-                              {bulkValidationErrors[record.id]?.inPlan && <p className="mt-1 text-xs text-red-600">{bulkValidationErrors[record.id]?.inPlan}</p>}
+                              {bulkValidationErrors[record.id]?.inPlan && <p className="mt-1 text-[10px] text-red-600">{bulkValidationErrors[record.id]?.inPlan}</p>}
                             </td>
                             <td className="w-28 px-2 py-3">
                               <input
@@ -1063,18 +1115,18 @@ function PurchasePlansPageContent() {
                                   handleBulkFieldChange(record.id, 'carriedForwardQuantity', e.target.value);
                                   clearBulkValidationError(record.id, 'carriedForwardQuantity');
                                 }}
-                                className={`w-full rounded border px-2 py-1 text-sm ${bulkValidationErrors[record.id]?.carriedForwardQuantity ? 'border-red-500' : 'border-gray-300'}`}
+                                className={`w-full rounded border px-2 py-1 text-xs ${bulkValidationErrors[record.id]?.carriedForwardQuantity ? 'border-red-500' : 'border-gray-300'}`}
                               />
-                              {bulkValidationErrors[record.id]?.carriedForwardQuantity && <p className="mt-1 text-xs text-red-600">{bulkValidationErrors[record.id]?.carriedForwardQuantity}</p>}
+                              {bulkValidationErrors[record.id]?.carriedForwardQuantity && <p className="mt-1 text-[10px] text-red-600">{bulkValidationErrors[record.id]?.carriedForwardQuantity}</p>}
                             </td>
                             <td className="w-28 px-2 py-3">
-                              <input value={record.carriedForwardValue} readOnly className="w-full rounded border border-gray-300 bg-gray-100 px-2 py-1 text-sm" />
+                              <input value={record.carriedForwardValue} readOnly className="w-full rounded border border-gray-300 bg-gray-100 px-2 py-1 text-xs" />
                             </td>
                             <td className="w-28 px-2 py-3">
-                              <input value={record.requiredQuantityForYear} readOnly className="w-full rounded border border-gray-300 bg-gray-100 px-2 py-1 text-sm" />
+                              <input value={record.requiredQuantityForYear} readOnly className="w-full rounded border border-gray-300 bg-gray-100 px-2 py-1 text-xs" />
                             </td>
                             <td className="w-28 px-2 py-3">
-                              <input value={record.additionalPurchaseQty} readOnly className="w-full rounded border border-gray-300 bg-gray-100 px-2 py-1 text-sm" />
+                              <input value={record.additionalPurchaseQty} readOnly className="w-full rounded border border-gray-300 bg-gray-100 px-2 py-1 text-xs" />
                             </td>
                             <td className="w-32 px-2 py-3">
                               <select
@@ -1083,14 +1135,14 @@ function PurchasePlansPageContent() {
                                   handleBulkFieldChange(record.id, 'purchasingDepartment', e.target.value);
                                   clearBulkValidationError(record.id, 'purchasingDepartment');
                                 }}
-                                className={`w-full rounded border px-2 py-1 text-sm ${bulkValidationErrors[record.id]?.purchasingDepartment ? 'border-red-500' : 'border-gray-300'}`}
+                                className={`w-full rounded border px-2 py-1 text-xs ${bulkValidationErrors[record.id]?.purchasingDepartment ? 'border-red-500' : 'border-gray-300'}`}
                               >
                                 <option value="">เลือกหน่วยงาน</option>
                                 {departments.map((department) => (
                                   <option key={department} value={department}>{department}</option>
                                 ))}
                               </select>
-                              {bulkValidationErrors[record.id]?.purchasingDepartment && <p className="mt-1 text-xs text-red-600">{bulkValidationErrors[record.id]?.purchasingDepartment}</p>}
+                              {bulkValidationErrors[record.id]?.purchasingDepartment && <p className="mt-1 text-[10px] text-red-600">{bulkValidationErrors[record.id]?.purchasingDepartment}</p>}
                             </td>
                             <td className="w-24 px-2 py-3">
                               <button
@@ -1138,17 +1190,17 @@ function PurchasePlansPageContent() {
               {departments.map(x => <option key={x} value={x}>{x}</option>)}
             </select>
             <input placeholder="ชื่อสินค้า" value={productNameFilter} onChange={(e)=>setProductNameFilter(e.target.value)} className="w-full rounded-md border-gray-300 shadow-sm text-sm px-3 py-2" />
-            <select value={categoryFilter} onChange={(e)=>setCategoryFilter(e.target.value)} className="w-full rounded-md border-gray-300 shadow-sm text-sm px-3 py-2">
+            <select value={categoryFilter} onChange={(e)=>{ setCategoryFilter(e.target.value); setTypeFilter(''); setSubtypeFilter(''); }} className="w-full rounded-md border-gray-300 shadow-sm text-sm px-3 py-2">
               <option value="">หมวด</option>
               {categories.map(x => <option key={x} value={x}>{x}</option>)}
             </select>
-            <select value={typeFilter} onChange={(e)=>setTypeFilter(e.target.value)} className="w-full rounded-md border-gray-300 shadow-sm text-sm px-3 py-2">
+            <select value={typeFilter} onChange={(e)=>{ setTypeFilter(e.target.value); setSubtypeFilter(''); }} className="w-full rounded-md border-gray-300 shadow-sm text-sm px-3 py-2">
               <option value="">ประเภท</option>
-              {types.map(x => <option key={x} value={x}>{x}</option>)}
+              {availableTypes.map(x => <option key={x} value={x}>{x}</option>)}
             </select>
             <select value={subtypeFilter} onChange={(e)=>setSubtypeFilter(e.target.value)} className="w-full rounded-md border-gray-300 shadow-sm text-sm px-3 py-2">
               <option value="">ประเภทย่อย</option>
-              {subtypes.map(x => <option key={x} value={x}>{x}</option>)}
+              {availableSubtypes.map(x => <option key={x} value={x}>{x}</option>)}
             </select>
           </div>
        </div>
@@ -1242,26 +1294,26 @@ function PurchasePlansPageContent() {
                 <th onClick={()=>handleSort('requiredQuantityForYear')} className={getHeaderClass('requiredQuantityForYear')}>ต้องการ/ปี</th>
                 <th onClick={()=>handleSort('totalRequiredValue')} className={getHeaderClass('totalRequiredValue')}>มูลค่ารวม</th>
                 <th onClick={()=>handleSort('budgetYear')} className={getHeaderClass('budgetYear')}>ปีงบ</th>
-                <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-24">Action</th>
+                <th className="px-3 py-3 text-left text-[10px] font-medium text-gray-500 uppercase tracking-wider w-24">Action</th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
               {items.map((row) => (
                 <tr key={row.id}>
-                  <td className="px-3 py-2 text-sm">{row.productCode}</td>
-                  <td className="px-3 py-2 text-sm">
+                  <td className="px-3 py-2 text-xs">{row.productCode}</td>
+                  <td className="px-3 py-2 text-xs">
                     <div className="whitespace-normal break-words" title={row.productName}>
                       {row.productName}
                     </div>
                   </td>
-                  <td className="px-3 py-2 text-sm">{row.category}</td>
-                  <td className="px-3 py-2 text-sm">{row.productType}</td>
-                  <td className="px-3 py-2 text-sm">{row.unit}</td>
-                  <td className="px-3 py-2 text-sm">{row.pricePerUnit ? Number(row.pricePerUnit).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '-'}</td>
-                  <td className="px-3 py-2 text-sm">{row.requiredQuantityForYear ?? '-'}</td>
-                  <td className="px-3 py-2 text-sm">{row.totalRequiredValue ? Number(row.totalRequiredValue).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '-'}</td>
-                  <td className="px-3 py-2 text-sm">{row.budgetYear}</td>
-                  <td className="px-3 py-2 text-sm font-medium w-24">
+                  <td className="px-3 py-2 text-xs">{row.category}</td>
+                  <td className="px-3 py-2 text-xs">{row.productType}</td>
+                  <td className="px-3 py-2 text-xs">{row.unit}</td>
+                  <td className="px-3 py-2 text-xs">{row.pricePerUnit ? Number(row.pricePerUnit).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '-'}</td>
+                  <td className="px-3 py-2 text-xs">{row.requiredQuantityForYear ?? '-'}</td>
+                  <td className="px-3 py-2 text-xs">{row.totalRequiredValue ? Number(row.totalRequiredValue).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '-'}</td>
+                  <td className="px-3 py-2 text-xs">{row.budgetYear}</td>
+                  <td className="px-3 py-2 text-xs font-medium w-24">
                     <button
                       onClick={() => handleEdit(row)}
                       className="text-indigo-600 hover:text-indigo-900 mr-2 cursor-pointer"

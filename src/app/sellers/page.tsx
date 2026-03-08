@@ -542,23 +542,23 @@ export default function SellersPage() {
             <table className="w-full">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">รหัส</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ชื่อผู้จำหน่าย</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ประเภทธุรกิจ</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">เบอร์โทร</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">มือถือ</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ACTION</th>
+                  <th className="px-6 py-3 text-left text-[10px] font-medium text-gray-500 uppercase tracking-wider">รหัส</th>
+                  <th className="px-6 py-3 text-left text-[10px] font-medium text-gray-500 uppercase tracking-wider">ชื่อผู้จำหน่าย</th>
+                  <th className="px-6 py-3 text-left text-[10px] font-medium text-gray-500 uppercase tracking-wider">ประเภทธุรกิจ</th>
+                  <th className="px-6 py-3 text-left text-[10px] font-medium text-gray-500 uppercase tracking-wider">เบอร์โทร</th>
+                  <th className="px-6 py-3 text-left text-[10px] font-medium text-gray-500 uppercase tracking-wider">มือถือ</th>
+                  <th className="px-6 py-3 text-left text-[10px] font-medium text-gray-500 uppercase tracking-wider">ACTION</th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
                 {addingNew && (
                   <tr className="bg-blue-50/60">
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                    <td className="px-6 py-4 whitespace-nowrap text-xs font-medium text-gray-900">
                       <input
                         type="text"
                         value={formData.code}
                         onChange={(e) => setFormData({ ...formData, code: e.target.value })}
-                        className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full px-2 py-1 border border-gray-300 rounded text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
                         placeholder="รหัส"
                       />
                     </td>
@@ -569,54 +569,54 @@ export default function SellersPage() {
                             type="text"
                             value={formData.prefix}
                             onChange={(e) => setFormData({ ...formData, prefix: e.target.value })}
-                            className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            className="w-full px-2 py-1 border border-gray-300 rounded text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
                             placeholder="คำนำหน้า"
                           />
                           <input
                             type="text"
                             value={formData.name}
                             onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                            className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            className="w-full px-2 py-1 border border-gray-300 rounded text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
                             placeholder="ชื่อผู้จำหน่าย"
                           />
                         </div>
                         <textarea
                           value={formData.address}
                           onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                          className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm resize-none"
+                          className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 text-xs resize-none"
                           rows={2}
                           placeholder="ที่อยู่"
                         />
                       </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    <td className="px-6 py-4 whitespace-nowrap text-xs text-gray-500">
                       <input
                         type="text"
                         value={formData.business}
                         onChange={(e) => setFormData({ ...formData, business: e.target.value })}
-                        className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full px-2 py-1 border border-gray-300 rounded text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
                         placeholder="ประเภทธุรกิจ"
                       />
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    <td className="px-6 py-4 whitespace-nowrap text-xs text-gray-500">
                       <input
                         type="tel"
                         value={formData.phone}
                         onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                        className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full px-2 py-1 border border-gray-300 rounded text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
                         placeholder="เบอร์โทร"
                       />
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    <td className="px-6 py-4 whitespace-nowrap text-xs text-gray-500">
                       <input
                         type="tel"
                         value={formData.mobile}
                         onChange={(e) => setFormData({ ...formData, mobile: e.target.value })}
-                        className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full px-2 py-1 border border-gray-300 rounded text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
                         placeholder="มือถือ"
                       />
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium w-32">
+                    <td className="px-6 py-4 whitespace-nowrap text-xs font-medium w-32">
                       <div className="flex gap-1">
                         <button
                           onClick={saveNewRecord}
@@ -638,29 +638,29 @@ export default function SellersPage() {
                 )}
                 {paginatedSellers.map((seller) => (
                   <tr key={seller.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                    <td className="px-6 py-4 whitespace-nowrap text-xs font-medium text-gray-900">
                       {seller.code}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div>
-                        <div className="text-sm font-medium text-gray-900">
+                        <div className="text-xs font-medium text-gray-900">
                           {editingId === seller.id ? (
                             <input
                               type="text"
                               value={editData.name}
                               onChange={(e) => setEditData({ ...editData, name: e.target.value })}
-                              className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                              className="w-full px-2 py-1 border border-gray-300 rounded text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
                             />
                           ) : (
                             `${seller.prefix || ''} ${seller.name}`.trim()
                           )}
                         </div>
-                        <div className="text-sm text-gray-500">
+                        <div className="text-xs text-gray-500">
                           {editingId === seller.id ? (
                             <textarea
                               value={editData.address || ''}
                               onChange={(e) => setEditData({ ...editData, address: e.target.value })}
-                              className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm resize-none"
+                              className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 text-xs resize-none"
                               rows={2}
                             />
                           ) : (
@@ -669,43 +669,43 @@ export default function SellersPage() {
                         </div>
                       </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    <td className="px-6 py-4 whitespace-nowrap text-xs text-gray-500">
                       {editingId === seller.id ? (
                         <input
                           type="text"
                           value={editData.business || ''}
                           onChange={(e) => setEditData({ ...editData, business: e.target.value })}
-                          className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          className="w-full px-2 py-1 border border-gray-300 rounded text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
                         />
                       ) : (
                         seller.business
                       )}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    <td className="px-6 py-4 whitespace-nowrap text-xs text-gray-500">
                       {editingId === seller.id ? (
                         <input
                           type="tel"
                           value={editData.phone || ''}
                           onChange={(e) => setEditData({ ...editData, phone: e.target.value })}
-                          className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          className="w-full px-2 py-1 border border-gray-300 rounded text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
                         />
                       ) : (
                         seller.phone
                       )}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    <td className="px-6 py-4 whitespace-nowrap text-xs text-gray-500">
                       {editingId === seller.id ? (
                         <input
                           type="tel"
                           value={editData.mobile || ''}
                           onChange={(e) => setEditData({ ...editData, mobile: e.target.value })}
-                          className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          className="w-full px-2 py-1 border border-gray-300 rounded text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
                         />
                       ) : (
                         seller.mobile
                       )}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium w-32">
+                    <td className="px-6 py-4 whitespace-nowrap text-xs font-medium w-32">
                       {editingId === seller.id ? (
                         <div className="flex gap-1">
                           <button
@@ -777,21 +777,21 @@ export default function SellersPage() {
                   <table className="w-full">
                     <thead className="bg-gray-100">
                       <tr>
-                        <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase">ลำดับ</th>
-                        <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase">รหัส</th>
-                        <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase">คำนำหน้า</th>
-                        <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase">ชื่อผู้จำหน่าย</th>
-                        <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase">ประเภทธุรกิจ</th>
-                        <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase">ที่อยู่</th>
-                        <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase">เบอร์โทร</th>
-                        <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase">มือถือ</th>
-                        <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase">จัดการ</th>
+                        <th className="px-2 py-2 text-left text-[10px] font-medium text-gray-500 uppercase">ลำดับ</th>
+                        <th className="px-2 py-2 text-left text-[10px] font-medium text-gray-500 uppercase">รหัส</th>
+                        <th className="px-2 py-2 text-left text-[10px] font-medium text-gray-500 uppercase">คำนำหน้า</th>
+                        <th className="px-2 py-2 text-left text-[10px] font-medium text-gray-500 uppercase">ชื่อผู้จำหน่าย</th>
+                        <th className="px-2 py-2 text-left text-[10px] font-medium text-gray-500 uppercase">ประเภทธุรกิจ</th>
+                        <th className="px-2 py-2 text-left text-[10px] font-medium text-gray-500 uppercase">ที่อยู่</th>
+                        <th className="px-2 py-2 text-left text-[10px] font-medium text-gray-500 uppercase">เบอร์โทร</th>
+                        <th className="px-2 py-2 text-left text-[10px] font-medium text-gray-500 uppercase">มือถือ</th>
+                        <th className="px-2 py-2 text-left text-[10px] font-medium text-gray-500 uppercase">จัดการ</th>
                       </tr>
                     </thead>
                     <tbody>
                       {bulkRecords.map((record, index) => (
                         <tr key={record.id} className="border-b border-gray-200">
-                          <td className="px-2 py-3 text-sm text-gray-900">{index + 1}</td>
+                          <td className="px-2 py-3 text-xs text-gray-900">{index + 1}</td>
                           <td className="px-2 py-3">
                             <input
                               type="text"
@@ -802,7 +802,7 @@ export default function SellersPage() {
                                 setBulkRecords(updated);
                               }}
                               placeholder="รหัส"
-                              className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                              className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 text-xs"
                             />
                           </td>
                           <td className="px-2 py-3">
@@ -815,7 +815,7 @@ export default function SellersPage() {
                                 setBulkRecords(updated);
                               }}
                               placeholder="คำนำหน้า"
-                              className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                              className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 text-xs"
                             />
                           </td>
                           <td className="px-2 py-3">
@@ -828,7 +828,7 @@ export default function SellersPage() {
                                 setBulkRecords(updated);
                               }}
                               placeholder="ชื่อผู้จำหน่าย"
-                              className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                              className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 text-xs"
                             />
                           </td>
                           <td className="px-2 py-3">
@@ -841,7 +841,7 @@ export default function SellersPage() {
                                 setBulkRecords(updated);
                               }}
                               placeholder="ประเภทธุรกิจ"
-                              className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                              className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 text-xs"
                             />
                           </td>
                           <td className="px-2 py-3">
@@ -853,7 +853,7 @@ export default function SellersPage() {
                                 setBulkRecords(updated);
                               }}
                               placeholder="ที่อยู่"
-                              className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm resize-none"
+                              className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 text-xs resize-none"
                               rows={2}
                             />
                           </td>
@@ -867,7 +867,7 @@ export default function SellersPage() {
                                 setBulkRecords(updated);
                               }}
                               placeholder="เบอร์โทร"
-                              className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                              className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 text-xs"
                             />
                           </td>
                           <td className="px-2 py-3">
@@ -880,7 +880,7 @@ export default function SellersPage() {
                                 setBulkRecords(updated);
                               }}
                               placeholder="มือถือ"
-                              className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                              className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 text-xs"
                             />
                           </td>
                           <td className="px-2 py-3">

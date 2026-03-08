@@ -750,19 +750,19 @@ export default function CategoriesPage() {
           <table className="w-full table-auto">
             <thead className="bg-gray-50">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-[10px] font-medium text-gray-500 uppercase tracking-wider">
                   รหัส
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-[10px] font-medium text-gray-500 uppercase tracking-wider">
                   หมวดหมู่
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-[10px] font-medium text-gray-500 uppercase tracking-wider">
                   ประเภท
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-[10px] font-medium text-gray-500 uppercase tracking-wider">
                   ประเภทย่อย
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-[10px] font-medium text-gray-500 uppercase tracking-wider">
                   ACTION
                 </th>
               </tr>
@@ -770,35 +770,35 @@ export default function CategoriesPage() {
             <tbody className="bg-white divide-y divide-gray-200">
               {addingNew && (
                 <tr className="bg-blue-50/60">
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">ใหม่</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm">
+                  <td className="px-6 py-4 whitespace-nowrap text-xs text-gray-500">ใหม่</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-xs">
                     <input
                       type="text"
                       value={newRecordData.category}
                       onChange={(e) => setNewRecordData({ ...newRecordData, category: e.target.value })}
-                      className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-2 py-1 border border-gray-300 rounded text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
                       placeholder="หมวดหมู่"
                     />
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm">
+                  <td className="px-6 py-4 whitespace-nowrap text-xs">
                     <input
                       type="text"
                       value={newRecordData.type}
                       onChange={(e) => setNewRecordData({ ...newRecordData, type: e.target.value })}
-                      className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-2 py-1 border border-gray-300 rounded text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
                       placeholder="ประเภท"
                     />
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm">
+                  <td className="px-6 py-4 whitespace-nowrap text-xs">
                     <input
                       type="text"
                       value={newRecordData.subtype}
                       onChange={(e) => setNewRecordData({ ...newRecordData, subtype: e.target.value })}
-                      className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-2 py-1 border border-gray-300 rounded text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
                       placeholder="ประเภทย่อย"
                     />
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium w-32">
+                  <td className="px-6 py-4 whitespace-nowrap text-xs font-medium w-32">
                     <div className="flex gap-1">
                       <button
                         onClick={saveNewRecord}
@@ -820,46 +820,46 @@ export default function CategoriesPage() {
               )}
               {paginatedCategories.map((cat) => (
                 <tr key={cat.id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                  <td className="px-6 py-4 whitespace-nowrap text-xs text-gray-900">
                     {cat.id}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm">
+                  <td className="px-6 py-4 whitespace-nowrap text-xs">
                     {editingId === cat.id ? (
                       <input
                         type="text"
                         value={editData.category}
                         onChange={(e) => setEditData({ ...editData, category: e.target.value })}
-                        className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full px-2 py-1 border border-gray-300 rounded text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
                       />
                     ) : (
                       cat.category
                     )}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm">
+                  <td className="px-6 py-4 whitespace-nowrap text-xs">
                     {editingId === cat.id ? (
                       <input
                         type="text"
                         value={editData.type}
                         onChange={(e) => setEditData({ ...editData, type: e.target.value })}
-                        className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full px-2 py-1 border border-gray-300 rounded text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
                       />
                     ) : (
                       cat.type
                     )}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm">
+                  <td className="px-6 py-4 whitespace-nowrap text-xs">
                     {editingId === cat.id ? (
                       <input
                         type="text"
                         value={editData.subtype}
                         onChange={(e) => setEditData({ ...editData, subtype: e.target.value })}
-                        className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full px-2 py-1 border border-gray-300 rounded text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
                       />
                     ) : (
                       cat.subtype
                     )}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium w-32">
+                  <td className="px-6 py-4 whitespace-nowrap text-xs font-medium w-32">
                     {editingId === cat.id ? (
                       <div className="flex gap-1">
                         <button

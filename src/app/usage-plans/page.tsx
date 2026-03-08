@@ -88,6 +88,12 @@ interface SurveyFormData {
   sequenceNo: string;
 }
 
+interface CategoryOption {
+  category: string;
+  type: string;
+  subtype: string | null;
+}
+
 function SurveysPageContent() {
   const router = useRouter();
   const pathname = usePathname();
@@ -95,6 +101,7 @@ function SurveysPageContent() {
   const initialProductNameFilter = searchParams.get('productName') || '';
   const initialCategoryFilter = searchParams.get('category') || '';
   const initialTypeFilter = searchParams.get('type') || '';
+  const initialSubtypeFilter = searchParams.get('subtype') || '';
   const initialRequestingDeptFilter = searchParams.get('requestingDept') || '';
   const initialBudgetYearFilter = searchParams.get('budgetYear') || getCurrentBudgetYear().toString();
   const initialSortField = searchParams.get('orderBy') || 'id';
@@ -161,6 +168,7 @@ function SurveysPageContent() {
   const [productNameFilter, setProductNameFilter] = useState(initialProductNameFilter);
   const [categoryFilter, setCategoryFilter] = useState(initialCategoryFilter);
   const [typeFilter, setTypeFilter] = useState(initialTypeFilter);
+  const [subtypeFilter, setSubtypeFilter] = useState(initialSubtypeFilter);
   const [requestingDeptFilter, setRequestingDeptFilter] = useState(initialRequestingDeptFilter);
   const [budgetYearFilter, setBudgetYearFilter] = useState(initialBudgetYearFilter);
   
@@ -174,6 +182,7 @@ function SurveysPageContent() {
   const [categories, setCategories] = useState<string[]>([]);
   const [types, setTypes] = useState<string[]>([]);
   const [subtypes, setSubtypes] = useState<string[]>([]);
+  const [categoryOptions, setCategoryOptions] = useState<CategoryOption[]>([]);
   const [departments, setDepartments] = useState<string[]>([]);
   const [budgetYears, setBudgetYears] = useState<number[]>([]);
   const [productOptions, setProductOptions] = useState<ProductOption[]>([]);
@@ -192,7 +201,55 @@ function SurveysPageContent() {
   const hasMountedSummaryRef = useRef(false);
 
   const fallbackBudgetYears = Array.from({ length: 6 }, (_, index) => getCurrentBudgetYear() - index);
-  const availableBudgetYears = Array.from(new Set([...budgetYears, ...fallbackBudgetYears])).sort((a, b) => b - a);
+  const availableBudgetYears = useMemo(() => {
+    return Array.from(new Set([
+      ...budgetYears,
+      getCurrentBudgetYear()
+    ])).sort((a, b) => b - a);
+  }, [budgetYears]);
+
+  const availableTypes = useMemo(() => {
+    if (!categoryFilter) {
+      return types;
+    }
+
+    return Array.from(
+      new Set(
+        categoryOptions
+          .filter((option) => option.category === categoryFilter)
+          .map((option) => option.type)
+          .filter(Boolean)
+      )
+    );
+  }, [categoryFilter, categoryOptions, types]);
+
+  const availableSubtypes = useMemo(() => {
+    return Array.from(
+      new Set(
+        categoryOptions
+          .filter((option) => {
+            const categoryMatched = categoryFilter ? option.category === categoryFilter : true;
+            const typeMatched = typeFilter ? option.type === typeFilter : true;
+            return categoryMatched && typeMatched;
+          })
+          .map((option) => option.subtype)
+          .filter(Boolean)
+      )
+    ) as string[];
+  }, [categoryFilter, typeFilter, categoryOptions]);
+
+  useEffect(() => {
+    if (typeFilter && !availableTypes.includes(typeFilter)) {
+      setTypeFilter('');
+      setSubtypeFilter('');
+    }
+  }, [availableTypes, typeFilter]);
+
+  useEffect(() => {
+    if (subtypeFilter && !availableSubtypes.includes(subtypeFilter)) {
+      setSubtypeFilter('');
+    }
+  }, [availableSubtypes, subtypeFilter]);
 
   useEffect(() => {
     if (!hasSyncedSearchParamsRef.current) {
@@ -203,6 +260,7 @@ function SurveysPageContent() {
     const nextProductName = searchParams.get('productName') || '';
     const nextCategory = searchParams.get('category') || '';
     const nextType = searchParams.get('type') || '';
+    const nextSubtype = searchParams.get('subtype') || '';
     const nextRequestingDept = searchParams.get('requestingDept') || '';
     const nextBudgetYear = searchParams.get('budgetYear') || getCurrentBudgetYear().toString();
     const nextSortField = searchParams.get('orderBy') || 'id';
@@ -213,6 +271,7 @@ function SurveysPageContent() {
     setProductNameFilter((prev) => prev === nextProductName ? prev : nextProductName);
     setCategoryFilter((prev) => prev === nextCategory ? prev : nextCategory);
     setTypeFilter((prev) => prev === nextType ? prev : nextType);
+    setSubtypeFilter((prev) => prev === nextSubtype ? prev : nextSubtype);
     setRequestingDeptFilter((prev) => prev === nextRequestingDept ? prev : nextRequestingDept);
     setBudgetYearFilter((prev) => prev === nextBudgetYear ? prev : nextBudgetYear);
     setSortField((prev) => prev === nextSortField ? prev : nextSortField);
@@ -227,6 +286,7 @@ function SurveysPageContent() {
     if (productNameFilter) params.set('productName', productNameFilter);
     if (categoryFilter) params.set('category', categoryFilter);
     if (typeFilter) params.set('type', typeFilter);
+    if (subtypeFilter) params.set('subtype', subtypeFilter);
     if (requestingDeptFilter) params.set('requestingDept', requestingDeptFilter);
     if (budgetYearFilter) params.set('budgetYear', budgetYearFilter);
     if (sortField && sortField !== 'id') params.set('orderBy', sortField);
@@ -236,7 +296,7 @@ function SurveysPageContent() {
 
     const nextUrl = params.toString() ? `${pathname}?${params.toString()}` : pathname;
     router.replace(nextUrl, { scroll: false });
-  }, [pathname, router, productNameFilter, categoryFilter, typeFilter, requestingDeptFilter, budgetYearFilter, sortField, sortOrder, page, pageSize]);
+  }, [pathname, router, productNameFilter, categoryFilter, typeFilter, subtypeFilter, requestingDeptFilter, budgetYearFilter, sortField, sortOrder, page, pageSize]);
 
   useEffect(() => {
     fetchFilterOptions();
@@ -327,12 +387,12 @@ function SurveysPageContent() {
   // Fetch surveys when filters, sorting or pagination change (current page only)
   useEffect(() => {
     fetchSurveys();
-  }, [productNameFilter, categoryFilter, typeFilter, requestingDeptFilter, budgetYearFilter, sortField, sortOrder, page, pageSize]);
+  }, [productNameFilter, categoryFilter, typeFilter, subtypeFilter, requestingDeptFilter, budgetYearFilter, sortField, sortOrder, page, pageSize]);
 
   // Fetch summary data when filters change (independent of pagination)
   useEffect(() => {
     fetchSummarySurveys();
-  }, [productNameFilter, categoryFilter, typeFilter, requestingDeptFilter, budgetYearFilter, sortField, sortOrder]);
+  }, [productNameFilter, categoryFilter, typeFilter, subtypeFilter, requestingDeptFilter, budgetYearFilter, sortField, sortOrder]);
 
   useEffect(() => {
     if (!hasMountedSummaryRef.current) {
@@ -341,7 +401,7 @@ function SurveysPageContent() {
     }
 
     setPage((prev) => (prev === 1 ? prev : 1));
-  }, [productNameFilter, categoryFilter, typeFilter, requestingDeptFilter, budgetYearFilter, sortField, sortOrder]);
+  }, [productNameFilter, categoryFilter, typeFilter, subtypeFilter, requestingDeptFilter, budgetYearFilter, sortField, sortOrder]);
 
   const fetchFilterOptions = async () => {
     try {
@@ -351,6 +411,7 @@ function SurveysPageContent() {
         setCategories(data.categories);
         setTypes(data.types);
         setSubtypes(data.subtypes);
+        setCategoryOptions(data.categoryOptions || []);
         setDepartments(data.departments);
         setBudgetYears((data.budgetYears || []).sort((a: number, b: number) => b - a));
       }
@@ -474,6 +535,7 @@ function SurveysPageContent() {
       if (productNameFilter) params.append('productName', productNameFilter);
       if (categoryFilter) params.append('category', categoryFilter);
       if (typeFilter) params.append('type', typeFilter);
+      if (subtypeFilter) params.append('subtype', subtypeFilter);
       if (requestingDeptFilter) params.append('requestingDept', requestingDeptFilter);
       if (budgetYearFilter) params.append('budgetYear', budgetYearFilter);
       if (sortField) params.append('orderBy', sortField);
@@ -514,6 +576,7 @@ function SurveysPageContent() {
       if (productNameFilter) params.append('productName', productNameFilter);
       if (categoryFilter) params.append('category', categoryFilter);
       if (typeFilter) params.append('type', typeFilter);
+      if (subtypeFilter) params.append('subtype', subtypeFilter);
       if (requestingDeptFilter) params.append('requestingDept', requestingDeptFilter);
       if (sortField) params.append('orderBy', sortField);
       if (sortOrder) params.append('sortOrder', sortOrder);
@@ -1149,7 +1212,7 @@ function SurveysPageContent() {
   };
 
   const getHeaderClass = (field: string) => {
-    return `px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 ${
+    return `px-6 py-3 text-left text-[10px] font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 ${
       sortField === field ? 'bg-gray-100' : ''
     }`;
   };
@@ -1158,6 +1221,7 @@ function SurveysPageContent() {
     setProductNameFilter('');
     setCategoryFilter('');
     setTypeFilter('');
+    setSubtypeFilter('');
     setRequestingDeptFilter('');
     setBudgetYearFilter(getCurrentBudgetYear().toString());
   };
@@ -1209,7 +1273,7 @@ function SurveysPageContent() {
               type="button"
               onClick={handleImportClick}
               disabled={importing}
-              className={`bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 transition-colors flex items-center space-x-2 ${importing ? 'opacity-70 cursor-not-allowed' : ''}`}
+              className={`flex items-center gap-2 rounded-lg bg-green-600 px-5 py-2.5 text-sm font-medium text-white shadow-sm transition-colors hover:bg-green-700 ${importing ? 'opacity-70 cursor-not-allowed' : ''}`}
             >
               <Upload className="h-5 w-5" />
               <span>{importing ? 'กำลังนำเข้า...' : 'นำเข้า Excel'}</span>
@@ -1220,10 +1284,11 @@ function SurveysPageContent() {
                 setShowBulkForm(true);
                 setBulkRecords([]);
               }}
-              className="bg-blue-600 text-white p-3 rounded-full hover:bg-blue-700 transition-colors shadow-lg"
+              className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-blue-700"
               title="เพิ่มความต้องการใหม่"
             >
-              <Plus className="h-6 w-6" />
+              <Plus className="h-5 w-5" />
+              <span>เพิ่มรายการ</span>
             </button>
           </div>
         </div>
@@ -1232,7 +1297,6 @@ function SurveysPageContent() {
           <div className="px-4 py-3 bg-gray-50 border-b border-gray-200">
             <div className="grid grid-cols-1 md:grid-cols-6 gap-4 mb-4">
             <div>
-              <label htmlFor="surveys-filter-budget-year" className="block text-sm font-medium text-gray-700 mb-2">ปีงบ</label>
               <select
                 id="surveys-filter-budget-year"
                 name="budgetYearFilter"
@@ -1240,6 +1304,7 @@ function SurveysPageContent() {
                 onChange={(e) => setBudgetYearFilter(e.target.value)}
                 className="w-full rounded-md border-gray-300 shadow-sm text-sm px-3 py-2"
               >
+                <option value="">ปีงบ</option>
                 {availableBudgetYears.map((year) => (
                   <option key={year} value={year.toString()}>{year}</option>
                 ))}
@@ -1247,7 +1312,6 @@ function SurveysPageContent() {
             </div>
 
             <div>
-              <label htmlFor="surveys-filter-requesting-dept" className="block text-sm font-medium text-gray-700 mb-2">หน่วยงานที่ขอ</label>
               <select
                 id="surveys-filter-requesting-dept"
                 name="requestingDeptFilter"
@@ -1255,7 +1319,7 @@ function SurveysPageContent() {
                 onChange={(e) => setRequestingDeptFilter(e.target.value)}
                 className="w-full rounded-md border-gray-300 shadow-sm text-sm px-3 py-2"
               >
-                <option value="">ทั้งหมด</option>
+                <option value="">หน่วยงานที่ขอ</option>
                 {departments.map((dept) => (
                   <option key={dept} value={dept}>{dept}</option>
                 ))}
@@ -1263,7 +1327,6 @@ function SurveysPageContent() {
             </div>
 
             <div>
-              <label htmlFor="surveys-filter-product-name" className="block text-sm font-medium text-gray-700 mb-2">ชื่อสินค้า</label>
               <input
                 id="surveys-filter-product-name"
                 name="productNameFilter"
@@ -1271,20 +1334,23 @@ function SurveysPageContent() {
                 value={productNameFilter}
                 onChange={(e) => setProductNameFilter(e.target.value)}
                 className="w-full rounded-md border-gray-300 shadow-sm text-sm px-3 py-2"
-                placeholder="ค้นหาชื่อสินค้า"
+                placeholder="ชื่อสินค้า"
               />
             </div>
             
             <div>
-              <label htmlFor="surveys-filter-category" className="block text-sm font-medium text-gray-700 mb-2">หมวดสินค้า</label>
               <select
                 id="surveys-filter-category"
                 name="categoryFilter"
                 value={categoryFilter}
-                onChange={(e) => setCategoryFilter(e.target.value)}
+                onChange={(e) => {
+                  setCategoryFilter(e.target.value);
+                  setTypeFilter('');
+                  setSubtypeFilter('');
+                }}
                 className="w-full rounded-md border-gray-300 shadow-sm text-sm px-3 py-2"
               >
-                <option value="">ทั้งหมด</option>
+                <option value="">หมวด</option>
                 {categories.map((cat) => (
                   <option key={cat} value={cat}>{cat}</option>
                 ))}
@@ -1292,17 +1358,34 @@ function SurveysPageContent() {
             </div>
             
             <div>
-              <label htmlFor="surveys-filter-type" className="block text-sm font-medium text-gray-700 mb-2">ประเภท</label>
               <select
                 id="surveys-filter-type"
                 name="typeFilter"
                 value={typeFilter}
-                onChange={(e) => setTypeFilter(e.target.value)}
+                onChange={(e) => {
+                  setTypeFilter(e.target.value);
+                  setSubtypeFilter('');
+                }}
                 className="w-full rounded-md border-gray-300 shadow-sm text-sm px-3 py-2"
               >
-                <option value="">ทั้งหมด</option>
-                {types.map((type) => (
+                <option value="">ประเภท</option>
+                {availableTypes.map((type) => (
                   <option key={type} value={type}>{type}</option>
+                ))}
+              </select>
+            </div>
+            
+            <div>
+              <select
+                id="surveys-filter-subtype"
+                name="subtypeFilter"
+                value={subtypeFilter}
+                onChange={(e) => setSubtypeFilter(e.target.value)}
+                className="w-full rounded-md border-gray-300 shadow-sm text-sm px-3 py-2"
+              >
+                <option value="">ประเภทย่อย</option>
+                {availableSubtypes.map((subtype) => (
+                  <option key={subtype} value={subtype}>{subtype}</option>
                 ))}
               </select>
             </div>
@@ -1421,7 +1504,7 @@ function SurveysPageContent() {
                     <th onClick={() => handleSort('approvedQuota')} className={getHeaderClass('approvedQuota')}>
                       จำนวนที่อนุมัติ {getSortIcon('approvedQuota')}
                     </th>
-                    <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-24">
+                    <th className="px-3 py-3 text-left text-[10px] font-medium text-gray-500 uppercase tracking-wider w-24">
                       Action
                     </th>
                   </tr>
@@ -1429,25 +1512,25 @@ function SurveysPageContent() {
                 <tbody className="bg-white divide-y divide-gray-200">
                   {surveys.map((survey) => (
                     <tr key={survey.id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      <td className="px-6 py-4 whitespace-nowrap text-xs text-gray-900">
                         {survey.budgetYear || '-'}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      <td className="px-6 py-4 whitespace-nowrap text-xs text-gray-900">
                         {survey.sequenceNo || '-'}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      <td className="px-6 py-4 whitespace-nowrap text-xs text-gray-900">
                         {survey.productCode}
                       </td>
-                      <td className="px-6 py-4 text-sm text-gray-900 break-words max-w-xs">
+                      <td className="px-6 py-4 text-xs text-gray-900 break-words max-w-xs">
                         {survey.productName}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      <td className="px-6 py-4 whitespace-nowrap text-xs text-gray-900">
                         {survey.category}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      <td className="px-6 py-4 whitespace-nowrap text-xs text-gray-900">
                         {survey.type}
                       </td>
-                      <td className={`px-6 py-4 whitespace-nowrap text-sm text-gray-900 ${editingId !== survey.id || editingField === 'requestedAmount' ? inlineEditableCellClassName : ''}`}>
+                      <td className={`px-6 py-4 whitespace-nowrap text-xs text-gray-900 ${editingId !== survey.id || editingField === 'requestedAmount' ? inlineEditableCellClassName : ''}`}>
                         {editingId === survey.id && editingField === 'requestedAmount' ? (
                           <div className="flex items-center gap-2">
                             <input
@@ -1460,9 +1543,9 @@ function SurveysPageContent() {
                               onChange={(e) => updateInlineField('requestedAmount', e.target.value)}
                               onBlur={(e) => handleInlineEditorBlur(e, survey.id)}
                               autoFocus
-                              className="w-24 rounded border border-gray-300 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                              className="w-24 rounded border border-gray-300 px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
                             />
-                            <span className="text-xs text-gray-500">{survey.unit || ''}</span>
+                            <span className="text-[10px] text-gray-500">{survey.unit || ''}</span>
                           </div>
                         ) : (
                           <button
@@ -1474,12 +1557,12 @@ function SurveysPageContent() {
                           </button>
                         )}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      <td className="px-6 py-4 whitespace-nowrap text-xs text-gray-900">
                         <>฿{survey.pricePerUnit?.toLocaleString() || '0'}</>
                       </td>
                       <td
                         ref={editingId === survey.id && editingField === 'requestingDept' ? inlineEditContainerRef : null}
-                        className={`px-6 py-4 whitespace-nowrap text-sm text-gray-900 ${editingId !== survey.id || editingField === 'requestingDept' ? inlineEditableCellClassName : ''}`}
+                        className={`px-6 py-4 whitespace-nowrap text-xs text-gray-900 ${editingId !== survey.id || editingField === 'requestingDept' ? inlineEditableCellClassName : ''}`}
                       >
                         {editingId === survey.id && editingField === 'requestingDept' ? (
                           <select
@@ -1490,7 +1573,7 @@ function SurveysPageContent() {
                             onChange={(e) => setEditData((prev) => ({ ...prev, requestingDept: e.target.value }))}
                             onBlur={(e) => handleInlineEditorBlur(e, survey.id)}
                             autoFocus
-                            className="w-40 rounded border border-gray-300 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            className="w-40 rounded border border-gray-300 px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
                           >
                             <option value="">เลือกหน่วยงาน</option>
                             {departments.map((dept) => (
@@ -1507,7 +1590,7 @@ function SurveysPageContent() {
                           </button>
                         )}
                       </td>
-                      <td className={`px-6 py-4 whitespace-nowrap text-sm text-gray-900 ${editingId !== survey.id || editingField === 'approvedQuota' ? inlineEditableCellClassName : ''}`}>
+                      <td className={`px-6 py-4 whitespace-nowrap text-xs text-gray-900 ${editingId !== survey.id || editingField === 'approvedQuota' ? inlineEditableCellClassName : ''}`}>
                         {editingId === survey.id && editingField === 'approvedQuota' ? (
                           <input
                             id={`survey-inline-approved-quota-${survey.id}`}
@@ -1519,7 +1602,7 @@ function SurveysPageContent() {
                             onChange={(e) => updateInlineField('approvedQuota', e.target.value)}
                             onBlur={(e) => handleInlineEditorBlur(e, survey.id)}
                             autoFocus
-                            className="w-24 rounded border border-gray-300 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            className="w-24 rounded border border-gray-300 px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
                           />
                         ) : (
                           <button
@@ -1531,7 +1614,7 @@ function SurveysPageContent() {
                           </button>
                         )}
                       </td>
-                      <td className="px-3 py-4 whitespace-nowrap text-sm font-medium w-24">
+                      <td className="px-3 py-4 whitespace-nowrap text-xs font-medium w-24">
                         <div className="flex items-center gap-2">
                           {editingId === survey.id ? (
                             <>

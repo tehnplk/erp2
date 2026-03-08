@@ -8,22 +8,26 @@ export async function GET() {
     const cached = await cacheGet<any>(cacheKey);
     if (cached) return NextResponse.json(cached);
 
-    // Get distinct values for each filter field
-    const [departmentsResult, categoriesResult, productTypesResult, productSubtypesResult, requestersResult, approversResult, budgetYearsResult] = await Promise.all([
+    const [categoryRowsResult, departmentsResult, requestersResult, approversResult, budgetYearsResult] = await Promise.all([
+      pgQuery(
+        `SELECT category, type, subtype
+         FROM public."Category"
+         ORDER BY category ASC, type ASC, subtype ASC`
+      ),
       pgQuery('SELECT DISTINCT department FROM public."PurchaseApproval" ORDER BY department ASC'),
-      pgQuery('SELECT DISTINCT category FROM public."PurchaseApproval" ORDER BY category ASC'),
-      pgQuery('SELECT DISTINCT "productType" FROM public."PurchaseApproval" ORDER BY "productType" ASC'),
-      pgQuery('SELECT DISTINCT "productSubtype" FROM public."PurchaseApproval" ORDER BY "productSubtype" ASC'),
       pgQuery('SELECT DISTINCT requester FROM public."PurchaseApproval" WHERE requester IS NOT NULL ORDER BY requester ASC'),
       pgQuery('SELECT DISTINCT approver FROM public."PurchaseApproval" WHERE approver IS NOT NULL ORDER BY approver ASC'),
       pgQuery('SELECT DISTINCT "budgetYear" FROM public."PurchaseApproval" WHERE "budgetYear" IS NOT NULL ORDER BY "budgetYear" DESC'),
     ]);
 
+    const categoryRows = categoryRowsResult.rows;
+
     const result = {
       departments: departmentsResult.rows.map((item: any) => item.department).filter(Boolean),
-      categories: categoriesResult.rows.map((item: any) => item.category).filter(Boolean),
-      productTypes: productTypesResult.rows.map((item: any) => item.productType).filter(Boolean),
-      productSubtypes: productSubtypesResult.rows.map((item: any) => item.productSubtype).filter(Boolean),
+      categories: Array.from(new Set(categoryRows.map((item: any) => item.category).filter(Boolean))),
+      productTypes: Array.from(new Set(categoryRows.map((item: any) => item.type).filter(Boolean))),
+      productSubtypes: Array.from(new Set(categoryRows.map((item: any) => item.subtype).filter(Boolean))),
+      categoryOptions: categoryRows,
       requesters: requestersResult.rows.map((item: any) => item.requester).filter(Boolean),
       approvers: approversResult.rows.map((item: any) => item.approver).filter(Boolean),
       budgetYears: budgetYearsResult.rows.map((item: any) => String(item.budgetYear)).filter(Boolean)

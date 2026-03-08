@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import Swal from 'sweetalert2';
 import { Check, X, Pencil, Trash2, ChevronUp, ChevronDown, ArrowUpDown } from 'lucide-react';
@@ -236,6 +236,49 @@ export default function ProductsPage() {
     }
   };
 
+  const availableFilterTypes = useMemo(() => {
+    if (!categoryFilter) {
+      return types;
+    }
+
+    return Array.from(
+      new Set(
+        categoryOptions
+          .filter((option) => option.category === categoryFilter)
+          .map((option) => option.type)
+          .filter(Boolean)
+      )
+    );
+  }, [categoryFilter, categoryOptions, types]);
+
+  const availableFilterSubtypes = useMemo(() => {
+    return Array.from(
+      new Set(
+        categoryOptions
+          .filter((option) => {
+            const categoryMatched = categoryFilter ? option.category === categoryFilter : true;
+            const typeMatched = typeFilter ? option.type === typeFilter : true;
+            return categoryMatched && typeMatched;
+          })
+          .map((option) => option.subtype)
+          .filter(Boolean)
+      )
+    ) as string[];
+  }, [categoryFilter, typeFilter, categoryOptions]);
+
+  useEffect(() => {
+    if (typeFilter && !availableFilterTypes.includes(typeFilter)) {
+      setTypeFilter('');
+      setSubtypeFilter('');
+    }
+  }, [availableFilterTypes, typeFilter]);
+
+  useEffect(() => {
+    if (subtypeFilter && !availableFilterSubtypes.includes(subtypeFilter)) {
+      setSubtypeFilter('');
+    }
+  }, [availableFilterSubtypes, subtypeFilter]);
+
   const filteredTypeOptions = formData.category
     ? Array.from(
         new Set(
@@ -379,8 +422,10 @@ export default function ProductsPage() {
   };
   
   // Function to get header class
-  const getHeaderClass = (column: string) => {
-    return `px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 ${column === sortBy ? 'bg-gray-100' : ''}`;
+  const getHeaderClass = (field: string) => {
+    return `px-3 py-3 text-left text-[10px] font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 ${
+      sortBy === field ? 'bg-gray-100' : ''
+    }`;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -1039,24 +1084,24 @@ export default function ProductsPage() {
                   <table className="w-full">
                     <thead className="bg-gray-100">
                       <tr>
-                        <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase">ลำดับ</th>
-                        <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase">รหัสสินค้า</th>
-                        <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase">ชื่อสินค้า</th>
-                        <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase">หมวดหมู่</th>
-                        <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase">ประเภท</th>
-                        <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase">ชนิดย่อย</th>
-                        <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase">หน่วย</th>
-                        <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase">ราคาทุน</th>
-                        <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase">ราคาขาย</th>
-                        <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase">คงคลัง</th>
-                        <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase">มูลค่า</th>
-                        <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase">จัดการ</th>
+                        <th className="px-2 py-2 text-left text-[10px] font-medium text-gray-500 uppercase">ลำดับ</th>
+                        <th className="px-2 py-2 text-left text-[10px] font-medium text-gray-500 uppercase">รหัสสินค้า</th>
+                        <th className="px-2 py-2 text-left text-[10px] font-medium text-gray-500 uppercase">ชื่อสินค้า</th>
+                        <th className="px-2 py-2 text-left text-[10px] font-medium text-gray-500 uppercase">หมวดหมู่</th>
+                        <th className="px-2 py-2 text-left text-[10px] font-medium text-gray-500 uppercase">ประเภท</th>
+                        <th className="px-2 py-2 text-left text-[10px] font-medium text-gray-500 uppercase">ชนิดย่อย</th>
+                        <th className="px-2 py-2 text-left text-[10px] font-medium text-gray-500 uppercase">หน่วย</th>
+                        <th className="px-2 py-2 text-left text-[10px] font-medium text-gray-500 uppercase">ราคาทุน</th>
+                        <th className="px-2 py-2 text-left text-[10px] font-medium text-gray-500 uppercase">ราคาขาย</th>
+                        <th className="px-2 py-2 text-left text-[10px] font-medium text-gray-500 uppercase">คงคลัง</th>
+                        <th className="px-2 py-2 text-left text-[10px] font-medium text-gray-500 uppercase">มูลค่า</th>
+                        <th className="px-2 py-2 text-left text-[10px] font-medium text-gray-500 uppercase">จัดการ</th>
                       </tr>
                     </thead>
                     <tbody>
                       {bulkRecords.map((record, index) => (
                         <tr key={record.id} className="border-b border-gray-200">
-                          <td className="px-2 py-3 text-sm text-gray-900">{index + 1}</td>
+                          <td className="px-2 py-3 text-xs text-gray-900">{index + 1}</td>
                           <td className="px-2 py-3">
                             <input
                               type="text"
@@ -1067,7 +1112,7 @@ export default function ProductsPage() {
                                 setBulkRecords(updated);
                               }}
                               placeholder="รหัสสินค้า"
-                              className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                              className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 text-xs"
                             />
                           </td>
                           <td className="px-2 py-3">
@@ -1080,7 +1125,7 @@ export default function ProductsPage() {
                                 setBulkRecords(updated);
                               }}
                               placeholder="ชื่อสินค้า"
-                              className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                              className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 text-xs"
                             />
                           </td>
                           <td className="px-2 py-3">
@@ -1093,7 +1138,7 @@ export default function ProductsPage() {
                                 setBulkRecords(updated);
                               }}
                               placeholder="หมวดหมู่"
-                              className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                              className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 text-xs"
                             />
                           </td>
                           <td className="px-2 py-3">
@@ -1106,7 +1151,7 @@ export default function ProductsPage() {
                                 setBulkRecords(updated);
                               }}
                               placeholder="ประเภท"
-                              className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                              className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 text-xs"
                             />
                           </td>
                           <td className="px-2 py-3">
@@ -1119,7 +1164,7 @@ export default function ProductsPage() {
                                 setBulkRecords(updated);
                               }}
                               placeholder="ชนิดย่อย"
-                              className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                              className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 text-xs"
                             />
                           </td>
                           <td className="px-2 py-3">
@@ -1261,7 +1306,6 @@ export default function ProductsPage() {
         <div className="px-4 py-3 bg-gray-50 border-b border-gray-200">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 mb-4">
             <div className="lg:col-span-2">
-              <label className="block text-sm font-medium text-gray-700 mb-2">รหัสสินค้า</label>
               <input
                 type="text"
                 value={codeFilter}
@@ -1274,7 +1318,6 @@ export default function ProductsPage() {
               />
             </div>
             <div className="lg:col-span-2">
-              <label className="block text-sm font-medium text-gray-700 mb-2">ชื่อสินค้า</label>
               <input
                 type="text"
                 value={nameFilter}
@@ -1287,40 +1330,44 @@ export default function ProductsPage() {
               />
             </div>
             <div className="lg:col-span-2">
-              <label className="block text-sm font-medium text-gray-700 mb-2">หมวดสินค้า</label>
               <select
                 value={categoryFilter}
-                onChange={(e) => setCategoryFilter(e.target.value)}
+                onChange={(e) => {
+                  setCategoryFilter(e.target.value);
+                  setTypeFilter('');
+                  setSubtypeFilter('');
+                }}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
               >
-                <option value="">ทั้งหมด</option>
+                <option value="">หมวดสินค้า</option>
                 {categories.map((cat) => (
                   <option key={cat} value={cat}>{cat}</option>
                 ))}
               </select>
             </div>
             <div className="lg:col-span-2">
-              <label className="block text-sm font-medium text-gray-700 mb-2">ประเภทสินค้า</label>
               <select
                 value={typeFilter}
-                onChange={(e) => setTypeFilter(e.target.value)}
+                onChange={(e) => {
+                  setTypeFilter(e.target.value);
+                  setSubtypeFilter('');
+                }}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
               >
-                <option value="">ทั้งหมด</option>
-                {types.map((type) => (
+                <option value="">ประเภทสินค้า</option>
+                {availableFilterTypes.map((type) => (
                   <option key={type} value={type}>{type}</option>
                 ))}
               </select>
             </div>
             <div className="lg:col-span-2">
-              <label className="block text-sm font-medium text-gray-700 mb-2">ประเภทย่อย</label>
               <select
                 value={subtypeFilter}
                 onChange={(e) => setSubtypeFilter(e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
               >
-                <option value="">ทั้งหมด</option>
-                {subtypes.map((subtype) => (
+                <option value="">ประเภทย่อย</option>
+                {availableFilterSubtypes.map((subtype) => (
                   <option key={subtype} value={subtype}>{subtype}</option>
                 ))}
               </select>
@@ -1439,10 +1486,10 @@ export default function ProductsPage() {
               <th onClick={() => handleSort('stockValue')} className={getHeaderClass('stockValue')}>
                 มูลค่ายกมา {getSortIcon('stockValue')}
               </th>
-              <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-20">
+              <th className="px-3 py-3 text-left text-[10px] font-medium text-gray-500 uppercase tracking-wider w-20">
                 สถานะ
               </th>
-              <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-24">
+              <th className="px-3 py-3 text-left text-[10px] font-medium text-gray-500 uppercase tracking-wider w-24">
                 Action
               </th>
             </tr>
@@ -1450,34 +1497,34 @@ export default function ProductsPage() {
           <tbody className="bg-white divide-y divide-gray-200">
             {(products || []).map((product) => (
               <tr key={product.id}>
-                <td className="px-3 py-4 whitespace-nowrap text-sm font-medium text-gray-900 w-24">
+                <td className="px-3 py-4 whitespace-nowrap text-xs font-medium text-gray-900 w-24">
                   {product.code}
                 </td>
-                <td className="px-3 py-4 text-sm text-gray-900 max-w-xs break-words">{product.name}</td>
-                <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-900">{product.category}</td>
-                <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-500 w-28">
+                <td className="px-3 py-4 text-xs text-gray-900 max-w-xs break-words">{product.name}</td>
+                <td className="px-3 py-4 whitespace-nowrap text-xs text-gray-900">{product.category}</td>
+                <td className="px-3 py-4 whitespace-nowrap text-xs text-gray-500 w-28">
                   {product.type || '-'}
                 </td>
-                <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-500 w-28">
+                <td className="px-3 py-4 whitespace-nowrap text-xs text-gray-500 w-28">
                   {product.subtype || '-'}
                 </td>
-                <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-500 w-20">
+                <td className="px-3 py-4 whitespace-nowrap text-xs text-gray-500 w-20">
                   {product.unit || '-'}
                 </td>
-                <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-500 w-24">
+                <td className="px-3 py-4 whitespace-nowrap text-xs text-gray-500 w-24">
                   {product.costPrice ? `฿${Number(product.costPrice).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '-'}
                 </td>
-                <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-500 w-24">
+                <td className="px-3 py-4 whitespace-nowrap text-xs text-gray-500 w-24">
                   {product.sellPrice ? `฿${Number(product.sellPrice).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '-'}
                 </td>
-                <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-500 w-20">
+                <td className="px-3 py-4 whitespace-nowrap text-xs text-gray-500 w-20">
                   {product.stockBalance || 0}
                 </td>
-                <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-500 w-24">
+                <td className="px-3 py-4 whitespace-nowrap text-xs text-gray-500 w-24">
                   {product.stockValue ? `฿${Number(product.stockValue).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '-'}
                 </td>
                 <td className="px-3 py-4 whitespace-nowrap w-20">
-                  <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                  <span className={`px-2 inline-flex text-[10px] leading-4 font-semibold rounded-full ${
                     product.flagActivate ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
                   }`}>
                     {product.flagActivate ? (
@@ -1487,7 +1534,7 @@ export default function ProductsPage() {
                     )}
                   </span>
                 </td>
-                <td className="px-3 py-4 whitespace-nowrap text-sm font-medium w-24">
+                <td className="px-3 py-4 whitespace-nowrap text-xs font-medium w-24">
                   <button
                     onClick={() => handleEdit(product)}
                     className="text-indigo-600 hover:text-indigo-900 mr-2 cursor-pointer"

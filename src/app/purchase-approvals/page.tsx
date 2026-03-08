@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import Swal from 'sweetalert2';
 import { Pencil, Search, Trash2, X } from 'lucide-react';
 
@@ -67,6 +67,12 @@ interface PurchasePlanOption {
   budgetYear?: string | number | null;
   requiredQuantityForYear?: number | null;
   purchasingDepartment?: string | null;
+}
+
+interface CategoryOption {
+  category: string;
+  type: string;
+  subtype: string | null;
 }
 
 export default function PurchaseApprovalsPage() {
@@ -144,6 +150,7 @@ export default function PurchaseApprovalsPage() {
   const [categories, setCategories] = useState<string[]>([]);
   const [types, setTypes] = useState<string[]>([]);
   const [subtypes, setSubtypes] = useState<string[]>([]);
+  const [categoryOptions, setCategoryOptions] = useState<CategoryOption[]>([]);
   const [departments, setDepartments] = useState<string[]>([]);
   const [requesters, setRequesters] = useState<string[]>([]);
   const [approvers, setApprovers] = useState<string[]>([]);
@@ -152,6 +159,49 @@ export default function PurchaseApprovalsPage() {
     ...years,
     ...Array.from({ length: 6 }, (_, index) => String(getCurrentBudgetYear() - index)),
   ])).sort((a, b) => Number(b) - Number(a));
+
+  const availableTypes = useMemo(() => {
+    if (!categoryFilter) {
+      return types;
+    }
+
+    return Array.from(
+      new Set(
+        categoryOptions
+          .filter((option) => option.category === categoryFilter)
+          .map((option) => option.type)
+          .filter(Boolean)
+      )
+    );
+  }, [categoryFilter, categoryOptions, types]);
+
+  const availableSubtypes = useMemo(() => {
+    return Array.from(
+      new Set(
+        categoryOptions
+          .filter((option) => {
+            const categoryMatched = categoryFilter ? option.category === categoryFilter : true;
+            const typeMatched = typeFilter ? option.type === typeFilter : true;
+            return categoryMatched && typeMatched;
+          })
+          .map((option) => option.subtype)
+          .filter(Boolean)
+      )
+    ) as string[];
+  }, [categoryFilter, typeFilter, categoryOptions]);
+
+  useEffect(() => {
+    if (typeFilter && !availableTypes.includes(typeFilter)) {
+      setTypeFilter('');
+      setSubtypeFilter('');
+    }
+  }, [availableTypes, typeFilter]);
+
+  useEffect(() => {
+    if (subtypeFilter && !availableSubtypes.includes(subtypeFilter)) {
+      setSubtypeFilter('');
+    }
+  }, [availableSubtypes, subtypeFilter]);
 
   useEffect(() => { fetchData(); }, [nameFilter, categoryFilter, typeFilter, subtypeFilter, departmentFilter, budgetYearFilter, sortBy, sortOrder, page, pageSize]);
 
@@ -226,6 +276,7 @@ export default function PurchaseApprovalsPage() {
         setCategories(data.categories || []);
         setTypes(data.productTypes || []);
         setSubtypes(data.productSubtypes || []);
+        setCategoryOptions(data.categoryOptions || []);
         setDepartments(data.departments || []);
         setRequesters(data.requesters || []);
         setApprovers(data.approvers || []);
@@ -306,7 +357,7 @@ export default function PurchaseApprovalsPage() {
     else { setSortBy(column); setSortOrder('asc'); }
   };
 
-  const getHeaderClass = (col: string) => `px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 ${col === sortBy ? 'bg-gray-100' : ''}`;
+  const getHeaderClass = (col: string) => `px-3 py-3 text-left text-[10px] font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 ${col === sortBy ? 'bg-gray-100' : ''}`;
 
   const handleEdit = (row: any) => {
     setEditing(row);
@@ -813,17 +864,17 @@ export default function PurchaseApprovalsPage() {
         <div className="px-4 py-3 bg-gray-50 border-b border-gray-200">
           <div className="grid grid-cols-1 md:grid-cols-6 gap-4 mb-4">
             <input placeholder="ชื่อสินค้า" value={nameFilter} onChange={(e)=>setNameFilter(e.target.value)} className="w-full rounded-md border-gray-300 shadow-sm text-sm px-3 py-2" />
-            <select value={categoryFilter} onChange={(e)=>setCategoryFilter(e.target.value)} className="w-full rounded-md border-gray-300 shadow-sm text-sm px-3 py-2">
+            <select value={categoryFilter} onChange={(e)=>{ setCategoryFilter(e.target.value); setTypeFilter(''); setSubtypeFilter(''); }} className="w-full rounded-md border-gray-300 shadow-sm text-sm px-3 py-2">
               <option value="">หมวด</option>
               {categories.map(x => <option key={x} value={x}>{x}</option>)}
             </select>
-            <select value={typeFilter} onChange={(e)=>setTypeFilter(e.target.value)} className="w-full rounded-md border-gray-300 shadow-sm text-sm px-3 py-2">
+            <select value={typeFilter} onChange={(e)=>{ setTypeFilter(e.target.value); setSubtypeFilter(''); }} className="w-full rounded-md border-gray-300 shadow-sm text-sm px-3 py-2">
               <option value="">ประเภท</option>
-              {types.map(x => <option key={x} value={x}>{x}</option>)}
+              {availableTypes.map(x => <option key={x} value={x}>{x}</option>)}
             </select>
             <select value={subtypeFilter} onChange={(e)=>setSubtypeFilter(e.target.value)} className="w-full rounded-md border-gray-300 shadow-sm text-sm px-3 py-2">
               <option value="">ประเภทย่อย</option>
-              {subtypes.map(x => <option key={x} value={x}>{x}</option>)}
+              {availableSubtypes.map(x => <option key={x} value={x}>{x}</option>)}
             </select>
             <select value={departmentFilter} onChange={(e)=>setDepartmentFilter(e.target.value)} className="w-full rounded-md border-gray-300 shadow-sm text-sm px-3 py-2">
               <option value="">หน่วยงาน</option>
@@ -907,24 +958,24 @@ export default function PurchaseApprovalsPage() {
               <th onClick={()=>handleSort('requestedQuantity')} className={getHeaderClass('requestedQuantity')}>จำนวน</th>
               <th onClick={()=>handleSort('pricePerUnit')} className={getHeaderClass('pricePerUnit')}>ราคา/หน่วย</th>
               <th onClick={()=>handleSort('totalValue')} className={getHeaderClass('totalValue')}>มูลค่ารวม</th>
-              <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-24">Action</th>
+              <th className="px-3 py-3 text-left text-[10px] font-medium text-gray-500 uppercase tracking-wider w-24">Action</th>
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
             {items.map((row) => (
               <tr key={row.id}>
-                <td className="px-3 py-2 text-sm">{row.approvalId}</td>
-                <td className="px-3 py-2 text-sm">{row.department}</td>
-                <td className="px-3 py-2 text-sm">{row.budgetYear || '-'}</td>
-                <td className="px-3 py-2 text-sm">
+                <td className="px-3 py-2 text-xs">{row.approvalId}</td>
+                <td className="px-3 py-2 text-xs">{row.department}</td>
+                <td className="px-3 py-2 text-xs">{row.budgetYear || '-'}</td>
+                <td className="px-3 py-2 text-xs">
                   <div className="whitespace-normal break-words" title={row.productName}>
                     {row.productName}
                   </div>
                 </td>
-                <td className="px-3 py-2 text-sm">{row.requestedQuantity ?? '-'}</td>
-                <td className="px-3 py-2 text-sm">{row.pricePerUnit ? Number(row.pricePerUnit).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '-'}</td>
-                <td className="px-3 py-2 text-sm">{row.totalValue ? Number(row.totalValue).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '-'}</td>
-                <td className="px-3 py-2 text-sm font-medium w-24">
+                <td className="px-3 py-2 text-xs">{row.requestedQuantity ?? '-'}</td>
+                <td className="px-3 py-2 text-xs">{row.pricePerUnit ? Number(row.pricePerUnit).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '-'}</td>
+                <td className="px-3 py-2 text-xs">{row.totalValue ? Number(row.totalValue).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '-'}</td>
+                <td className="px-3 py-2 text-xs font-medium w-24">
                   <button
                     onClick={() => handleEdit(row)}
                     className="text-indigo-600 hover:text-indigo-900 mr-2 cursor-pointer"

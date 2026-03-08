@@ -431,15 +431,15 @@ export default function DepartmentsPage() {
                 <table className="w-full">
                   <thead className="bg-gray-100">
                     <tr>
-                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">ลำดับ</th>
-                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">ชื่อแผนก</th>
-                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">จัดการ</th>
+                      <th className="px-4 py-2 text-left text-[10px] font-medium text-gray-500 uppercase">ลำดับ</th>
+                      <th className="px-4 py-2 text-left text-[10px] font-medium text-gray-500 uppercase">ชื่อแผนก</th>
+                      <th className="px-4 py-2 text-left text-[10px] font-medium text-gray-500 uppercase">จัดการ</th>
                     </tr>
                   </thead>
                   <tbody>
                     {bulkRecords.map((record, index) => (
                       <tr key={record.id} className="border-b border-gray-200">
-                        <td className="px-4 py-3 text-sm text-gray-900">{index + 1}</td>
+                        <td className="px-4 py-3 text-xs text-gray-900">{index + 1}</td>
                         <td className="px-4 py-3">
                           <input
                             type="text"
@@ -450,7 +450,7 @@ export default function DepartmentsPage() {
                               setBulkRecords(updated);
                             }}
                             placeholder="ชื่อแผนก"
-                            className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            className="w-full px-2 py-1 border border-gray-300 rounded text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
                           />
                         </td>
                         <td className="px-4 py-3">
