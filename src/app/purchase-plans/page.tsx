@@ -1128,37 +1128,31 @@ function PurchasePlansPageContent() {
 
       <div className="bg-white shadow-md rounded-lg overflow-hidden mb-4">
         <div className="px-4 py-3 bg-gray-50 border-b border-gray-200">
-          {filtersLoading ? (
-            <div className="flex justify-center items-center py-8">
-              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-6 gap-4 mb-4">
-              <select value={budgetYearFilter} onChange={(e)=>setBudgetYearFilter(e.target.value)} className="w-full rounded-md border-gray-300 shadow-sm text-sm px-3 py-2">
-                <option value="">ปีงบ</option>
-                {availableBudgetYears.map(x => <option key={x} value={x}>{x}</option>)}
-              </select>
-              <select value={requestingDeptFilter} onChange={(e)=>setRequestingDeptFilter(e.target.value)} className="w-full rounded-md border-gray-300 shadow-sm text-sm px-3 py-2">
-                <option value="">หน่วยงาน</option>
-                {departments.map(x => <option key={x} value={x}>{x}</option>)}
-              </select>
-              <input placeholder="ชื่อสินค้า" value={productNameFilter} onChange={(e)=>setProductNameFilter(e.target.value)} className="w-full rounded-md border-gray-300 shadow-sm text-sm px-3 py-2" />
-              <select value={categoryFilter} onChange={(e)=>setCategoryFilter(e.target.value)} className="w-full rounded-md border-gray-300 shadow-sm text-sm px-3 py-2">
-                <option value="">หมวด</option>
-                {categories.map(x => <option key={x} value={x}>{x}</option>)}
-              </select>
-              <select value={typeFilter} onChange={(e)=>setTypeFilter(e.target.value)} className="w-full rounded-md border-gray-300 shadow-sm text-sm px-3 py-2">
-                <option value="">ประเภท</option>
-                {types.map(x => <option key={x} value={x}>{x}</option>)}
-              </select>
-              <select value={subtypeFilter} onChange={(e)=>setSubtypeFilter(e.target.value)} className="w-full rounded-md border-gray-300 shadow-sm text-sm px-3 py-2">
-                <option value="">ประเภทย่อย</option>
-                {subtypes.map(x => <option key={x} value={x}>{x}</option>)}
-              </select>
-            </div>
-          )}
-        </div>
-      </div>
+          <div className="grid grid-cols-1 md:grid-cols-6 gap-4 mb-4">
+            <select value={budgetYearFilter} onChange={(e)=>setBudgetYearFilter(e.target.value)} className="w-full rounded-md border-gray-300 shadow-sm text-sm px-3 py-2">
+              <option value="">ปีงบ</option>
+              {availableBudgetYears.map(x => <option key={x} value={x}>{x}</option>)}
+            </select>
+            <select value={requestingDeptFilter} onChange={(e)=>setRequestingDeptFilter(e.target.value)} className="w-full rounded-md border-gray-300 shadow-sm text-sm px-3 py-2">
+              <option value="">หน่วยงาน</option>
+              {departments.map(x => <option key={x} value={x}>{x}</option>)}
+            </select>
+            <input placeholder="ชื่อสินค้า" value={productNameFilter} onChange={(e)=>setProductNameFilter(e.target.value)} className="w-full rounded-md border-gray-300 shadow-sm text-sm px-3 py-2" />
+            <select value={categoryFilter} onChange={(e)=>setCategoryFilter(e.target.value)} className="w-full rounded-md border-gray-300 shadow-sm text-sm px-3 py-2">
+              <option value="">หมวด</option>
+              {categories.map(x => <option key={x} value={x}>{x}</option>)}
+            </select>
+            <select value={typeFilter} onChange={(e)=>setTypeFilter(e.target.value)} className="w-full rounded-md border-gray-300 shadow-sm text-sm px-3 py-2">
+              <option value="">ประเภท</option>
+              {types.map(x => <option key={x} value={x}>{x}</option>)}
+            </select>
+            <select value={subtypeFilter} onChange={(e)=>setSubtypeFilter(e.target.value)} className="w-full rounded-md border-gray-300 shadow-sm text-sm px-3 py-2">
+              <option value="">ประเภทย่อย</option>
+              {subtypes.map(x => <option key={x} value={x}>{x}</option>)}
+            </select>
+          </div>
+       </div>
+     </div>
 
       {/* Summary Section (based on filtered dataset, not pagination) */}
       <div className="bg-white shadow-md rounded-lg overflow-hidden mb-4">

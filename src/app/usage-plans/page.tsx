@@ -1190,7 +1190,7 @@ function SurveysPageContent() {
         )}
 
         {/* Header */}
-        <div className="flex justify-between items-center mb-8">
+        <div className="flex items-center justify-between gap-4 mb-4">
           <div>
             <h1 className="text-3xl font-bold text-gray-900">ข้อมูลความต้องการ</h1>
 
@@ -1228,8 +1228,9 @@ function SurveysPageContent() {
           </div>
         </div>
         {/* Filter Section */}
-        <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+        <div className="bg-white shadow-md rounded-lg overflow-hidden mb-4">
+          <div className="px-4 py-3 bg-gray-50 border-b border-gray-200">
+            <div className="grid grid-cols-1 md:grid-cols-6 gap-4 mb-4">
             <div>
               <label htmlFor="surveys-filter-budget-year" className="block text-sm font-medium text-gray-700 mb-2">ปีงบ</label>
               <select
@@ -1237,7 +1238,7 @@ function SurveysPageContent() {
                 name="budgetYearFilter"
                 value={budgetYearFilter}
                 onChange={(e) => setBudgetYearFilter(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full rounded-md border-gray-300 shadow-sm text-sm px-3 py-2"
               >
                 {availableBudgetYears.map((year) => (
                   <option key={year} value={year.toString()}>{year}</option>
@@ -1252,7 +1253,7 @@ function SurveysPageContent() {
                 name="requestingDeptFilter"
                 value={requestingDeptFilter}
                 onChange={(e) => setRequestingDeptFilter(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full rounded-md border-gray-300 shadow-sm text-sm px-3 py-2"
               >
                 <option value="">ทั้งหมด</option>
                 {departments.map((dept) => (
@@ -1269,7 +1270,7 @@ function SurveysPageContent() {
                 type="text"
                 value={productNameFilter}
                 onChange={(e) => setProductNameFilter(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full rounded-md border-gray-300 shadow-sm text-sm px-3 py-2"
                 placeholder="ค้นหาชื่อสินค้า"
               />
             </div>
@@ -1281,7 +1282,7 @@ function SurveysPageContent() {
                 name="categoryFilter"
                 value={categoryFilter}
                 onChange={(e) => setCategoryFilter(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full rounded-md border-gray-300 shadow-sm text-sm px-3 py-2"
               >
                 <option value="">ทั้งหมด</option>
                 {categories.map((cat) => (
@@ -1297,13 +1298,14 @@ function SurveysPageContent() {
                 name="typeFilter"
                 value={typeFilter}
                 onChange={(e) => setTypeFilter(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full rounded-md border-gray-300 shadow-sm text-sm px-3 py-2"
               >
                 <option value="">ทั้งหมด</option>
                 {types.map((type) => (
                   <option key={type} value={type}>{type}</option>
                 ))}
               </select>
+            </div>
             </div>
           </div>
         </div>
