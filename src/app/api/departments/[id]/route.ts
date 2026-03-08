@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { pgQuery } from '@/lib/pg';
-import { cacheDelByPattern } from '@/lib/redis';
+import { cacheDel, cacheGet, cacheSet, cacheDelByPattern } from '@/lib/redis';
 
 // GET /api/departments/[id] - Get a specific department
 export async function GET(
@@ -18,6 +18,12 @@ export async function GET(
       );
     }
 
+    const cacheKey = `erp:departments:detail:${numericId}`;
+    const cached = await cacheGet<any>(cacheKey);
+    if (cached) {
+      return NextResponse.json(cached);
+    }
+
     const result = await pgQuery('SELECT id, name FROM public."Department" WHERE id = $1 LIMIT 1', [numericId]);
     const department = result.rows[0];
 
@@ -27,6 +33,8 @@ export async function GET(
         { status: 404 }
       );
     }
+
+    await cacheSet(cacheKey, department, 3600);
 
     return NextResponse.json(department);
   } catch (error) {
@@ -79,6 +87,7 @@ export async function PUT(
     );
 
     await cacheDelByPattern('erp:departments:list:*');
+    await cacheDel(`erp:departments:detail:${numericId}`);
     return NextResponse.json(updatedResult.rows[0]);
   } catch (error) {
     console.error('Error updating department:', error);
@@ -116,6 +125,7 @@ export async function DELETE(
 
     await pgQuery('DELETE FROM public."Department" WHERE id = $1', [numericId]);
     await cacheDelByPattern('erp:departments:list:*');
+    await cacheDel(`erp:departments:detail:${numericId}`);
 
     return NextResponse.json(
       { message: 'Department deleted successfully' },

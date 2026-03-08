@@ -1,6 +1,6 @@
 'use client';
 
-import { Suspense, useState, useEffect, useRef } from 'react';
+import { Suspense, useState, useEffect, useRef, useMemo } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import Swal from 'sweetalert2';
 import { Upload, Plus, CheckCircle2, AlertCircle, X as XIcon, ChevronUp, ChevronDown, ArrowUpDown, Pencil, Trash2, Search, X } from 'lucide-react';
@@ -123,6 +123,8 @@ function SurveysPageContent() {
     sequenceNo: '1'
   });
   const [editingId, setEditingId] = useState<number | null>(null);
+  const [editingField, setEditingField] = useState<'requestedAmount' | 'requestingDept' | 'approvedQuota' | null>(null);
+  const [isInlineSaving, setIsInlineSaving] = useState(false);
   const [editData, setEditData] = useState({
     productCode: '',
     category: '',
@@ -151,6 +153,7 @@ function SurveysPageContent() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const bulkProductSearchInputRef = useRef<HTMLInputElement>(null);
   const bulkProductSuggestionsRef = useRef<HTMLDivElement>(null);
+  const inlineEditContainerRef = useRef<HTMLTableCellElement | null>(null);
   const hasSyncedSearchParamsRef = useRef(false);
   
   // Validation state
@@ -587,7 +590,7 @@ function SurveysPageContent() {
     }));
   };
 
-  const updateInlineField = (field: 'requestedAmount' | 'pricePerUnit' | 'approvedQuota', value: string) => {
+  const updateInlineField = (field: 'requestedAmount' | 'approvedQuota', value: string) => {
     setEditData((prev) => ({
       ...prev,
       [field]: value,
@@ -634,12 +637,6 @@ function SurveysPageContent() {
       
       if (response.ok) {
         const savedSurvey = await response.json();
-        await Swal.fire({
-          title: 'สำเร็จ!',
-          text: editingSurvey ? 'แก้ไขข้อมูลเรียบร้อยแล้ว' : 'เพิ่มข้อมูลเรียบร้อยแล้ว',
-          icon: 'success',
-          confirmButtonText: 'ตกลง'
-        });
         
         closeForm();
         resetToNewestFirst();
@@ -826,8 +823,9 @@ function SurveysPageContent() {
   };
 
   // Start inline editing
-  const startInlineEdit = (survey: Survey) => {
+  const startInlineEdit = (survey: Survey, field: 'requestedAmount' | 'requestingDept' | 'approvedQuota') => {
     setEditingId(survey.id);
+    setEditingField(field);
     setEditData({
       productCode: survey.productCode || '',
       category: survey.category || '',
@@ -845,8 +843,22 @@ function SurveysPageContent() {
   };
 
   // Save inline edit
+  const resetInlineEdit = () => {
+    setEditingId(null);
+    setEditingField(null);
+    setIsInlineSaving(false);
+    setEditData({
+      productCode: '', category: '', type: '', subtype: '', productName: '', requestedAmount: '', unit: '', pricePerUnit: '', requestingDept: '', approvedQuota: '', budgetYear: getCurrentBudgetYear().toString(), sequenceNo: '1'
+    });
+  };
+
   const saveInlineEdit = async (id: number) => {
+    if (isInlineSaving) {
+      return;
+    }
+
     try {
+      setIsInlineSaving(true);
       const response = await fetch(`/api/usage-plans/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
@@ -858,21 +870,10 @@ function SurveysPageContent() {
       });
 
       if (response.ok) {
-        setEditingId(null);
-        setEditData({
-          productCode: '', category: '', type: '', subtype: '', productName: '', requestedAmount: '', unit: '', pricePerUnit: '', requestingDept: '', approvedQuota: '', budgetYear: getCurrentBudgetYear().toString(), sequenceNo: '1'
-        });
+        resetInlineEdit();
         resetToNewestFirst();
         await fetchSurveys();
         await fetchSummarySurveys();
-
-        setToast({
-          message: 'บันทึกข้อมูลสำเร็จ!',
-          type: 'success',
-          visible: true
-        });
-
-        hideToastLater();
       } else {
         const errorData = await response.json().catch(() => null);
         setToast({
@@ -882,6 +883,7 @@ function SurveysPageContent() {
         });
 
         hideToastLater();
+        setIsInlineSaving(false);
       }
     } catch (error) {
       console.error('Error updating survey:', error);
@@ -893,16 +895,28 @@ function SurveysPageContent() {
       });
 
       hideToastLater();
+      setIsInlineSaving(false);
     }
   };
 
   // Cancel inline edit
   const cancelInlineEdit = () => {
-    setEditingId(null);
-    setEditData({
-      productCode: '', category: '', type: '', subtype: '', productName: '', requestedAmount: '', unit: '', pricePerUnit: '', requestingDept: '', approvedQuota: '', budgetYear: getCurrentBudgetYear().toString(), sequenceNo: '1'
-    });
+    resetInlineEdit();
   };
+
+  const handleInlineEditorBlur = (event: React.FocusEvent<HTMLElement>, surveyId: number) => {
+    const nextFocusedElement = event.relatedTarget as Node | null;
+    if (nextFocusedElement && inlineEditContainerRef.current?.contains(nextFocusedElement)) {
+      return;
+    }
+
+    void saveInlineEdit(surveyId);
+  };
+
+  const inlineEditableCellClassName = useMemo(
+    () => 'rounded transition-colors hover:bg-blue-50 focus-within:bg-blue-50',
+    []
+  );
 
   const createEmptyBulkRecord = (id: number): BulkSurveyRecord => ({
     id,
@@ -1431,8 +1445,8 @@ function SurveysPageContent() {
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                         {survey.type}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {editingId === survey.id ? (
+                      <td className={`px-6 py-4 whitespace-nowrap text-sm text-gray-900 ${editingId !== survey.id || editingField === 'requestedAmount' ? inlineEditableCellClassName : ''}`}>
+                        {editingId === survey.id && editingField === 'requestedAmount' ? (
                           <div className="flex items-center gap-2">
                             <input
                               id={`survey-inline-requested-amount-${survey.id}`}
@@ -1442,27 +1456,38 @@ function SurveysPageContent() {
                               min="0"
                               value={editData.requestedAmount}
                               onChange={(e) => updateInlineField('requestedAmount', e.target.value)}
+                              onBlur={(e) => handleInlineEditorBlur(e, survey.id)}
+                              autoFocus
                               className="w-24 rounded border border-gray-300 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                             />
                             <span className="text-xs text-gray-500">{survey.unit || ''}</span>
                           </div>
                         ) : (
-                          <>
+                          <button
+                            type="button"
+                            onClick={() => startInlineEdit(survey, 'requestedAmount')}
+                            className="w-full text-left cursor-text"
+                          >
                             {survey.requestedAmount?.toLocaleString() || ''} {survey.unit}
-                          </>
+                          </button>
                         )}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                         <>฿{survey.pricePerUnit?.toLocaleString() || '0'}</>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {editingId === survey.id ? (
+                      <td
+                        ref={editingId === survey.id && editingField === 'requestingDept' ? inlineEditContainerRef : null}
+                        className={`px-6 py-4 whitespace-nowrap text-sm text-gray-900 ${editingId !== survey.id || editingField === 'requestingDept' ? inlineEditableCellClassName : ''}`}
+                      >
+                        {editingId === survey.id && editingField === 'requestingDept' ? (
                           <select
                             id={`survey-inline-requesting-dept-${survey.id}`}
                             name={`inlineRequestingDept-${survey.id}`}
                             aria-label={`หน่วยงานที่ขอ รายการ ${survey.id}`}
                             value={editData.requestingDept}
                             onChange={(e) => setEditData((prev) => ({ ...prev, requestingDept: e.target.value }))}
+                            onBlur={(e) => handleInlineEditorBlur(e, survey.id)}
+                            autoFocus
                             className="w-40 rounded border border-gray-300 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                           >
                             <option value="">เลือกหน่วยงาน</option>
@@ -1471,11 +1496,17 @@ function SurveysPageContent() {
                             ))}
                           </select>
                         ) : (
-                          survey.requestingDept
+                          <button
+                            type="button"
+                            onClick={() => startInlineEdit(survey, 'requestingDept')}
+                            className="w-full text-left cursor-text"
+                          >
+                            {survey.requestingDept || '-'}
+                          </button>
                         )}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {editingId === survey.id ? (
+                      <td className={`px-6 py-4 whitespace-nowrap text-sm text-gray-900 ${editingId !== survey.id || editingField === 'approvedQuota' ? inlineEditableCellClassName : ''}`}>
+                        {editingId === survey.id && editingField === 'approvedQuota' ? (
                           <input
                             id={`survey-inline-approved-quota-${survey.id}`}
                             name={`inlineApprovedQuota-${survey.id}`}
@@ -1484,10 +1515,18 @@ function SurveysPageContent() {
                             min="0"
                             value={editData.approvedQuota}
                             onChange={(e) => updateInlineField('approvedQuota', e.target.value)}
+                            onBlur={(e) => handleInlineEditorBlur(e, survey.id)}
+                            autoFocus
                             className="w-24 rounded border border-gray-300 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                           />
                         ) : (
-                          <>{survey.approvedQuota?.toLocaleString() || '-'}</>
+                          <button
+                            type="button"
+                            onClick={() => startInlineEdit(survey, 'approvedQuota')}
+                            className="w-full text-left cursor-text"
+                          >
+                            {survey.approvedQuota?.toLocaleString() || '-'}
+                          </button>
                         )}
                       </td>
                       <td className="px-3 py-4 whitespace-nowrap text-sm font-medium w-24">
@@ -1496,7 +1535,7 @@ function SurveysPageContent() {
                             <>
                               <button
                                 type="button"
-                                onClick={() => saveInlineEdit(survey.id)}
+                                onClick={() => void saveInlineEdit(survey.id)}
                                 className="text-green-600 hover:text-green-800 cursor-pointer"
                                 title="บันทึก"
                               >
@@ -1512,23 +1551,25 @@ function SurveysPageContent() {
                               </button>
                             </>
                           ) : (
-                            <button
-                              type="button"
-                              onClick={() => startInlineEdit(survey)}
-                              className="text-indigo-600 hover:text-indigo-900 cursor-pointer"
-                              title="แก้ไข"
-                            >
-                              <Pencil className="h-5 w-5" />
-                            </button>
+                            <>
+                              <button
+                                type="button"
+                                onClick={() => startInlineEdit(survey, 'requestedAmount')}
+                                className="text-indigo-600 hover:text-indigo-900 cursor-pointer"
+                                title="แก้ไข"
+                              >
+                                <Pencil className="h-5 w-5" />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleDelete(survey)}
+                                className="text-red-600 hover:text-red-900 cursor-pointer"
+                                title="ลบ"
+                              >
+                                <Trash2 className="h-5 w-5" />
+                              </button>
+                            </>
                           )}
-                          <button
-                            type="button"
-                            onClick={() => handleDelete(survey)}
-                            className="text-red-600 hover:text-red-900 cursor-pointer"
-                            title="ลบ"
-                          >
-                            <Trash2 className="h-5 w-5" />
-                          </button>
                         </div>
                       </td>
                     </tr>

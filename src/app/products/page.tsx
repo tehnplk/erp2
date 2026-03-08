@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import Swal from 'sweetalert2';
 import { Check, X, Pencil, Trash2, ChevronUp, ChevronDown, ArrowUpDown } from 'lucide-react';
 
@@ -52,6 +53,18 @@ interface ProductFormData {
 const PAGE_SIZE_OPTIONS = [10, 20, 50];
 
 export default function ProductsPage() {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const initialCodeFilter = searchParams.get('code') || '';
+  const initialNameFilter = searchParams.get('name') || '';
+  const initialCategoryFilter = searchParams.get('category') || '';
+  const initialTypeFilter = searchParams.get('type') || '';
+  const initialSubtypeFilter = searchParams.get('subtype') || '';
+  const initialSortBy = searchParams.get('orderBy') || 'code';
+  const initialSortOrder = (searchParams.get('sortOrder') === 'desc' ? 'desc' : 'asc') as 'asc' | 'desc';
+  const initialPage = Math.max(1, parseInt(searchParams.get('page') || '1', 10) || 1);
+  const initialPageSize = Math.max(1, parseInt(searchParams.get('pageSize') || '20', 10) || 20);
   const [products, setProducts] = useState<Product[]>([]);
   const [totalCount, setTotalCount] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -77,19 +90,17 @@ export default function ProductsPage() {
   const [errors, setErrors] = useState<Record<string, string>>({});
   
   // Filter states
-  const [codeFilterInput, setCodeFilterInput] = useState('');
-  const [nameFilterInput, setNameFilterInput] = useState('');
-  const [codeFilter, setCodeFilter] = useState('');
-  const [nameFilter, setNameFilter] = useState('');
-  const [categoryFilter, setCategoryFilter] = useState('');
-  const [typeFilter, setTypeFilter] = useState('');
-  const [subtypeFilter, setSubtypeFilter] = useState('');
+  const [codeFilter, setCodeFilter] = useState(initialCodeFilter);
+  const [nameFilter, setNameFilter] = useState(initialNameFilter);
+  const [categoryFilter, setCategoryFilter] = useState(initialCategoryFilter);
+  const [typeFilter, setTypeFilter] = useState(initialTypeFilter);
+  const [subtypeFilter, setSubtypeFilter] = useState(initialSubtypeFilter);
   
   // Sorting states
-  const [sortBy, setSortBy] = useState('code');
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
-  const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(20);
+  const [sortBy, setSortBy] = useState(initialSortBy);
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>(initialSortOrder);
+  const [page, setPage] = useState(initialPage);
+  const [pageSize, setPageSize] = useState(initialPageSize);
 
   // Toast state for notifications
   const [toast, setToast] = useState<{
@@ -133,11 +144,6 @@ export default function ProductsPage() {
   const [sellerOptions, setSellerOptions] = useState<SellerOption[]>([]);
   const [categoryOptions, setCategoryOptions] = useState<CategoryOption[]>([]);
 
-  // Initialize data on component mount
-  useEffect(() => {
-    fetchProducts();
-  }, []);
-
   useEffect(() => {
     fetchFilterOptions();
   }, []);
@@ -150,6 +156,49 @@ export default function ProductsPage() {
   useEffect(() => {
     setPage(1);
   }, [codeFilter, nameFilter, categoryFilter, typeFilter, subtypeFilter, sortBy, sortOrder]);
+
+  useEffect(() => {
+    const nextCode = searchParams.get('code') || '';
+    const nextName = searchParams.get('name') || '';
+    const nextCategory = searchParams.get('category') || '';
+    const nextType = searchParams.get('type') || '';
+    const nextSubtype = searchParams.get('subtype') || '';
+    const nextSortBy = searchParams.get('orderBy') || 'code';
+    const nextSortOrder = (searchParams.get('sortOrder') === 'desc' ? 'desc' : 'asc') as 'asc' | 'desc';
+    const nextPage = Math.max(1, parseInt(searchParams.get('page') || '1', 10) || 1);
+    const nextPageSize = Math.max(1, parseInt(searchParams.get('pageSize') || '20', 10) || 20);
+
+    setCodeFilter((prev) => (prev === nextCode ? prev : nextCode));
+    setNameFilter((prev) => (prev === nextName ? prev : nextName));
+    setCategoryFilter((prev) => (prev === nextCategory ? prev : nextCategory));
+    setTypeFilter((prev) => (prev === nextType ? prev : nextType));
+    setSubtypeFilter((prev) => (prev === nextSubtype ? prev : nextSubtype));
+    setSortBy((prev) => (prev === nextSortBy ? prev : nextSortBy));
+    setSortOrder((prev) => (prev === nextSortOrder ? prev : nextSortOrder));
+    setPage((prev) => (prev === nextPage ? prev : nextPage));
+    setPageSize((prev) => (prev === nextPageSize ? prev : nextPageSize));
+  }, [searchParams]);
+
+  useEffect(() => {
+    const params = new URLSearchParams();
+
+    if (codeFilter) params.set('code', codeFilter);
+    if (nameFilter) params.set('name', nameFilter);
+    if (categoryFilter) params.set('category', categoryFilter);
+    if (typeFilter) params.set('type', typeFilter);
+    if (subtypeFilter) params.set('subtype', subtypeFilter);
+    if (sortBy !== 'code') params.set('orderBy', sortBy);
+    if (sortOrder !== 'asc') params.set('sortOrder', sortOrder);
+    if (page > 1) params.set('page', page.toString());
+    if (pageSize !== 20) params.set('pageSize', pageSize.toString());
+
+    const nextUrl = params.toString() ? `${pathname}?${params.toString()}` : pathname;
+    const currentUrl = searchParams.toString() ? `${pathname}?${searchParams.toString()}` : pathname;
+
+    if (nextUrl !== currentUrl) {
+      router.replace(nextUrl, { scroll: false });
+    }
+  }, [pathname, router, searchParams, codeFilter, nameFilter, categoryFilter, typeFilter, subtypeFilter, sortBy, sortOrder, page, pageSize]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -297,23 +346,6 @@ export default function ProductsPage() {
     setPage(1);
   };
 
-  const handleSearchInputKeyDown = (
-    e: React.KeyboardEvent<HTMLInputElement>,
-    filter: 'code' | 'name'
-  ) => {
-    if (e.key !== 'Enter') return;
-    e.preventDefault();
-
-    if (filter === 'code') {
-      setCodeFilter(codeFilterInput.trim());
-      setPage(1);
-      return;
-    }
-
-    setNameFilter(nameFilterInput.trim());
-    setPage(1);
-  };
-  
   // Sorting function
   const handleSort = (column: string) => {
     if (sortBy === column) {
@@ -1232,9 +1264,11 @@ export default function ProductsPage() {
               <label className="block text-sm font-medium text-gray-700 mb-2">รหัสสินค้า</label>
               <input
                 type="text"
-                value={codeFilterInput}
-                onChange={(e) => setCodeFilterInput(e.target.value)}
-                onKeyDown={(e) => handleSearchInputKeyDown(e, 'code')}
+                value={codeFilter}
+                onChange={(e) => {
+                  setCodeFilter(e.target.value);
+                  setPage(1);
+                }}
                 placeholder="ค้นหารหัสสินค้า..."
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
               />
@@ -1243,9 +1277,11 @@ export default function ProductsPage() {
               <label className="block text-sm font-medium text-gray-700 mb-2">ชื่อสินค้า</label>
               <input
                 type="text"
-                value={nameFilterInput}
-                onChange={(e) => setNameFilterInput(e.target.value)}
-                onKeyDown={(e) => handleSearchInputKeyDown(e, 'name')}
+                value={nameFilter}
+                onChange={(e) => {
+                  setNameFilter(e.target.value);
+                  setPage(1);
+                }}
                 placeholder="ค้นหาชื่อสินค้า..."
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
               />
@@ -1292,13 +1328,14 @@ export default function ProductsPage() {
             <div className="lg:col-span-2 flex items-end">
               <button
                 onClick={() => {
-                  setCodeFilterInput('');
-                  setNameFilterInput('');
                   setCodeFilter('');
                   setNameFilter('');
                   setCategoryFilter('');
                   setTypeFilter('');
                   setSubtypeFilter('');
+                  setPage(1);
+                  setSortBy('code');
+                  setSortOrder('asc');
                 }}
                 className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
               >
@@ -1375,11 +1412,11 @@ export default function ProductsPage() {
               <th onClick={() => handleSort('code')} className={getHeaderClass('code')}>
                 รหัสสินค้า {getSortIcon('code')}
               </th>
-              <th onClick={() => handleSort('category')} className={getHeaderClass('category')}>
-                หมวดสินค้า {getSortIcon('category')}
-              </th>
               <th onClick={() => handleSort('name')} className={getHeaderClass('name')}>
                 ชื่อสินค้า {getSortIcon('name')}
+              </th>
+              <th onClick={() => handleSort('category')} className={getHeaderClass('category')}>
+                หมวดสินค้า {getSortIcon('category')}
               </th>
               <th onClick={() => handleSort('type')} className={getHeaderClass('type')}>
                 ประเภทสินค้า {getSortIcon('type')}
@@ -1416,14 +1453,8 @@ export default function ProductsPage() {
                 <td className="px-3 py-4 whitespace-nowrap text-sm font-medium text-gray-900 w-24">
                   {product.code}
                 </td>
-                <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-500 w-28">
-                  {product.category}
-                </td>
-                <td className="px-4 py-4 text-sm text-gray-900">
-                  <div className="whitespace-normal break-words" title={product.name}>
-                    {product.name}
-                  </div>
-                </td>
+                <td className="px-3 py-4 text-sm text-gray-900 max-w-xs break-words">{product.name}</td>
+                <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-900">{product.category}</td>
                 <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-500 w-28">
                   {product.type || '-'}
                 </td>

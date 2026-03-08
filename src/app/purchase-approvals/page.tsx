@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Swal from 'sweetalert2';
 import { Pencil, Search, Trash2, X } from 'lucide-react';
 
@@ -86,6 +86,17 @@ export default function PurchaseApprovalsPage() {
   const [highlightedPlanIndex, setHighlightedPlanIndex] = useState(-1);
   const [showMemo, setShowMemo] = useState(false);
   const [memoPreview, setMemoPreview] = useState(false);
+  const [toast, setToast] = useState<{
+    message: string;
+    type: 'success' | 'error';
+    visible: boolean;
+  }>({
+    message: '',
+    type: 'success',
+    visible: false,
+  });
+  const planSuggestionsRef = useRef<HTMLDivElement>(null);
+  const approvalIdInputRef = useRef<HTMLInputElement>(null);
   const [memoText, setMemoText] = useState(
     `บันทึกข้อความ\n` +
     `ส่วนราชการ  โรงพยาบาลวังทอง   อำเภอวังทอง จังหวัดพิษณุโลก   โทร..............................\n` +
@@ -168,6 +179,26 @@ export default function PurchaseApprovalsPage() {
       };
     });
   }, [formData.requestedQuantity, formData.pricePerUnit]);
+
+  useEffect(() => {
+    if (!showPlanSuggestions || highlightedPlanIndex < 0) {
+      return;
+    }
+
+    const suggestionContainer = planSuggestionsRef.current;
+    if (!suggestionContainer) {
+      return;
+    }
+
+    const highlightedElement = suggestionContainer.querySelector<HTMLElement>(`[data-plan-suggestion-index="${highlightedPlanIndex}"]`);
+    highlightedElement?.scrollIntoView({ block: 'nearest' });
+  }, [highlightedPlanIndex, showPlanSuggestions]);
+
+  const hideToastLater = () => {
+    window.setTimeout(() => {
+      setToast((prev) => ({ ...prev, visible: false }));
+    }, 3000);
+  };
 
   const fetchPurchasePlanOptions = async () => {
     try {
@@ -332,8 +363,32 @@ export default function PurchaseApprovalsPage() {
     e.preventDefault();
     const method = editing ? 'PUT' : 'POST';
     const url = editing ? `/api/purchase-approvals/${editing.id}` : '/api/purchase-approvals';
-    const res = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(formData) });
-    if (res.ok) { resetForm(); fetchData(); }
+    const payload = {
+      ...formData,
+      requestedQuantity:
+        formData.requestedQuantity === null || formData.requestedQuantity === undefined
+          ? undefined
+          : String(formData.requestedQuantity),
+      pricePerUnit:
+        formData.pricePerUnit === null || formData.pricePerUnit === undefined
+          ? undefined
+          : String(formData.pricePerUnit),
+      totalValue:
+        formData.totalValue === null || formData.totalValue === undefined
+          ? undefined
+          : String(formData.totalValue),
+    };
+    const res = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+    if (res.ok) {
+      resetForm();
+      fetchData();
+      setToast({
+        message: editing ? 'แก้ไขข้อมูลเรียบร้อยแล้ว' : 'เพิ่มข้อมูลเรียบร้อยแล้ว',
+        type: 'success',
+        visible: true,
+      });
+      hideToastLater();
+    }
     else { const err = await res.json().catch(()=>({})); await Swal.fire('เกิดข้อผิดพลาด', err.error || 'บันทึกล้มเหลว', 'error'); }
   };
 
@@ -367,6 +422,10 @@ export default function PurchaseApprovalsPage() {
       requestedQuantity: plan.requiredQuantityForYear != null ? Number(plan.requiredQuantityForYear) : prev.requestedQuantity ?? null,
       department: plan.purchasingDepartment || prev.department || '',
     }));
+
+    window.requestAnimationFrame(() => {
+      approvalIdInputRef.current?.focus();
+    });
   };
 
   const handlePlanSearchChange = (value: string) => {
@@ -456,6 +515,22 @@ export default function PurchaseApprovalsPage() {
 
   return (
     <div className="container mx-auto px-4 py-8">
+      {toast.visible && (
+        <div className={`fixed right-4 top-4 z-50 rounded-lg px-4 py-3 text-white shadow-lg transition-all duration-300 ${toast.type === 'success' ? 'bg-green-500' : 'bg-red-500'}`}>
+          <div className="flex items-center gap-2">
+            <span>{toast.message}</span>
+            <button
+              type="button"
+              onClick={() => setToast((prev) => ({ ...prev, visible: false }))}
+              className="hover:opacity-75"
+              aria-label="ปิดการแจ้งเตือน"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+      )}
+
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold text-gray-800">ขออนุมัติจัดซื้อ</h1>
         <div className="flex gap-2">
@@ -540,6 +615,7 @@ export default function PurchaseApprovalsPage() {
             </div>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {!editing && (
                 <div className="md:col-span-3 rounded-lg border border-blue-100 bg-blue-50 p-4">
                   <label className="flex flex-col gap-2 text-sm text-gray-700">
                     <div className="relative">
@@ -558,10 +634,9 @@ export default function PurchaseApprovalsPage() {
                         placeholder="พิมพ์รหัสสินค้า หรือชื่อสินค้า"
                         autoComplete="off"
                         aria-label="ค้นหารหัสหรือชื่อสินค้าจากแผนจัดซื้อ"
-                        className={`${modalFieldClassName} pl-9 pr-9 ${editing ? 'bg-gray-50' : ''}`}
-                        readOnly={Boolean(editing)}
+                        className={`${modalFieldClassName} pl-9 pr-9`}
                       />
-                      {planSearchTerm && !editing && (
+                      {planSearchTerm && (
                         <button
                           type="button"
                           onClick={() => handlePlanSearchChange('')}
@@ -571,8 +646,8 @@ export default function PurchaseApprovalsPage() {
                           <X className="h-4 w-4" />
                         </button>
                       )}
-                      {showPlanSuggestions && !editing && (
-                        <div className="absolute z-10 mt-2 max-h-72 w-full overflow-auto rounded-md border border-gray-200 bg-white shadow-lg">
+                      {showPlanSuggestions && (
+                        <div ref={planSuggestionsRef} className="absolute z-10 mt-2 max-h-72 w-full overflow-auto rounded-md border border-gray-200 bg-white shadow-lg">
                           {plansLoading ? (
                             <div className="px-4 py-3 text-sm text-gray-500">กำลังโหลดข้อมูลแผนจัดซื้อ...</div>
                           ) : shouldShowNoResults ? (
@@ -581,7 +656,9 @@ export default function PurchaseApprovalsPage() {
                             filteredPlanOptions.map((plan, index) => (
                               <button
                                 key={`${plan.id}-${plan.productCode || plan.productName || index}`}
+                                data-plan-suggestion-index={index}
                                 type="button"
+                                onMouseDown={(event) => event.preventDefault()}
                                 onClick={() => applyPurchasePlanSelection(plan)}
                                 onMouseEnter={() => setHighlightedPlanIndex(index)}
                                 className={`block w-full px-4 py-3 text-left text-sm ${highlightedPlanIndex === index ? 'bg-blue-50' : 'hover:bg-gray-50'}`}
@@ -598,9 +675,10 @@ export default function PurchaseApprovalsPage() {
                     </div>
                   </label>
                 </div>
+                )}
                 <label className="flex flex-col gap-1 text-sm text-gray-700">
                   <span className="font-medium">รหัสอนุมัติ</span>
-                  <input id="purchase-approval-approvalId" name="approvalId" value={formData.approvalId || ''} onChange={handleInputChange} className={modalFieldClassName} />
+                  <input ref={approvalIdInputRef} id="purchase-approval-approvalId" name="approvalId" value={formData.approvalId || ''} onChange={handleInputChange} className={modalFieldClassName} />
                 </label>
                 <label className="flex flex-col gap-1 text-sm text-gray-700">
                   <span className="font-medium">หน่วยงาน</span>

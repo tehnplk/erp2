@@ -3,6 +3,7 @@ import { pgQuery } from '@/lib/pg';
 import { apiError, apiSuccess } from '@/lib/api-response';
 import { validateQuery } from '@/lib/validation/validate';
 import { inventoryMovementQuerySchema } from '@/lib/validation/schemas';
+import { cacheGet, cacheSet } from '@/lib/redis';
 
 const inventoryMovementSelect = `
   SELECT
@@ -99,12 +100,25 @@ export async function GET(request: NextRequest) {
     const whereSql = whereClauses.length > 0 ? `WHERE ${whereClauses.join(' AND ')}` : '';
     const offset = (page - 1) * pageSize;
 
+    const cacheKey = `erp:inventory:movements:${JSON.stringify({ ...queryValidation.data, page, pageSize })}`;
+    const cached = await cacheGet<{ items: any[]; totalCount: number }>(cacheKey);
+    if (cached) {
+      return apiSuccess(cached.items, undefined, cached.totalCount, 200, { page, pageSize });
+    }
+
     const [countResult, itemsResult] = await Promise.all([
       pgQuery(`SELECT COUNT(*)::int AS count FROM public."InventoryMovement" im INNER JOIN public."InventoryItem" ii ON ii.id = im."inventoryItemId" ${whereSql}`, params),
       pgQuery(`${inventoryMovementSelect} ${whereSql} ORDER BY ${safeOrderField} ${safeSortOrder} LIMIT $${params.length + 1} OFFSET $${params.length + 2}`, [...params, pageSize, offset]),
     ]);
 
-    return apiSuccess(itemsResult.rows, undefined, countResult.rows[0]?.count || 0, 200, { page, pageSize });
+    const result = {
+      items: itemsResult.rows,
+      totalCount: countResult.rows[0]?.count || 0,
+    };
+
+    await cacheSet(cacheKey, result, 300);
+
+    return apiSuccess(result.items, undefined, result.totalCount, 200, { page, pageSize });
   } catch (error) {
     console.error('Error fetching inventory movements:', error);
     return apiError('Failed to fetch inventory movements');

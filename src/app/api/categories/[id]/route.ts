@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { pgQuery } from '@/lib/pg';
-import { cacheDelByPattern } from '@/lib/redis';
+import { cacheDel, cacheGet, cacheSet, cacheDelByPattern } from '@/lib/redis';
 
 // GET /api/categories/[id] - Get category by ID
 export async function GET(
@@ -18,6 +18,15 @@ export async function GET(
       );
     }
 
+    const cacheKey = `erp:categories:detail:${numericId}`;
+    const cached = await cacheGet<any>(cacheKey);
+    if (cached) {
+      return NextResponse.json({
+        success: true,
+        data: cached
+      });
+    }
+
     const result = await pgQuery(
       'SELECT id, category, type, subtype FROM public."Category" WHERE id = $1 LIMIT 1',
       [numericId]
@@ -30,6 +39,8 @@ export async function GET(
         { status: 404 }
       );
     }
+
+    await cacheSet(cacheKey, category, 3600);
 
     return NextResponse.json({
       success: true,
@@ -86,6 +97,7 @@ export async function PUT(
     );
 
     await cacheDelByPattern('erp:categories:list:*');
+    await cacheDel(`erp:categories:detail:${numericId}`);
 
     return NextResponse.json({
       success: true,
@@ -128,6 +140,7 @@ export async function DELETE(
     await pgQuery('DELETE FROM public."Category" WHERE id = $1', [numericId]);
 
     await cacheDelByPattern('erp:categories:list:*');
+    await cacheDel(`erp:categories:detail:${numericId}`);
 
     return NextResponse.json({
       success: true,

@@ -1,6 +1,6 @@
 'use client';
 
-import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import Swal from 'sweetalert2';
 import { Pencil, Trash2, X } from 'lucide-react';
@@ -106,6 +106,15 @@ function PurchasePlansPageContent() {
   const isEditing = Boolean(editing);
   const [bulkRecords, setBulkRecords] = useState<BulkPurchasePlanRecord[]>([]);
   const [bulkValidationErrors, setBulkValidationErrors] = useState<Record<number, { inPlan?: string; carriedForwardQuantity?: string; purchasingDepartment?: string }>>({});
+  const [toast, setToast] = useState<{
+    message: string;
+    type: 'success' | 'error';
+    visible: boolean;
+  }>({
+    message: '',
+    type: 'success',
+    visible: false,
+  });
 
   // filters
   const [productNameFilter, setProductNameFilter] = useState(initialProductNameFilter);
@@ -439,6 +448,12 @@ function PurchasePlansPageContent() {
     });
   };
 
+  const hideToastLater = () => {
+    window.setTimeout(() => {
+      setToast((prev) => ({ ...prev, visible: false }));
+    }, 3000);
+  };
+
   const closeBulkForm = () => {
     setEditing(null);
     setFormData({});
@@ -448,6 +463,16 @@ function PurchasePlansPageContent() {
     setBulkRecords([]);
     setBulkValidationErrors({});
     setShowForm(false);
+  };
+
+  const openCreateForm = () => {
+    setEditing(null);
+    setFormData({});
+    setBulkValidationErrors({});
+    setSurveySearchTerm('');
+    setShowSurveySuggestions(false);
+    setHighlightedSurveyIndex(-1);
+    setShowForm(true);
   };
 
   const handleEdit = (row: any) => {
@@ -719,7 +744,12 @@ function PurchasePlansPageContent() {
       setBulkValidationErrors(nextValidationErrors);
 
       if (validRecords.length === 0) {
-        await Swal.fire('ข้อมูลไม่ครบถ้วน', bulkRecords.length > 0 ? 'กรุณากรอกข้อมูลที่จำเป็นให้ครบถ้วน' : 'กรุณาเลือกสินค้าอย่างน้อย 1 รายการ', 'warning');
+        setToast({
+          message: bulkRecords.length > 0 ? 'กรุณากรอกข้อมูลที่จำเป็นให้ครบถ้วน' : 'กรุณาเลือกสินค้าอย่างน้อย 1 รายการ',
+          type: 'error',
+          visible: true,
+        });
+        hideToastLater();
         return;
       }
 
@@ -756,7 +786,12 @@ function PurchasePlansPageContent() {
       if (successful > 0) {
         closeBulkForm();
         await Promise.all([fetchData(), fetchSummaryData()]);
-        await Swal.fire('บันทึกสำเร็จ', `บันทึกสำเร็จ ${successful} รายการ${failed > 0 ? `, ไม่สำเร็จ ${failed} รายการ` : ''}`, 'success');
+        setToast({
+          message: `บันทึกสำเร็จ ${successful} รายการ${failed > 0 ? `, ไม่สำเร็จ ${failed} รายการ` : ''}`,
+          type: 'success',
+          visible: true,
+        });
+        hideToastLater();
       }
 
       if (failed > 0 && successful === 0) {
@@ -773,7 +808,16 @@ function PurchasePlansPageContent() {
     const method = editing ? 'PUT' : 'POST';
     const url = editing ? `/api/purchase-plans/${editing.id}` : '/api/purchase-plans';
     const res = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(formData) });
-    if (res.ok) { resetForm(); fetchData(); }
+    if (res.ok) {
+      resetForm();
+      fetchData();
+      setToast({
+        message: editing ? 'แก้ไขข้อมูลเรียบร้อยแล้ว' : 'เพิ่มข้อมูลเรียบร้อยแล้ว',
+        type: 'success',
+        visible: true,
+      });
+      hideToastLater();
+    }
     else { const err = await res.json().catch(()=>({})); await Swal.fire('เกิดข้อผิดพลาด', err.error || 'บันทึกล้มเหลว', 'error'); }
   };
 
@@ -789,19 +833,26 @@ function PurchasePlansPageContent() {
 
   return (
     <div className="container mx-auto px-4 py-8">
+      {toast.visible && (
+        <div className={`fixed right-4 top-4 z-50 rounded-lg px-4 py-3 text-white shadow-lg transition-all duration-300 ${toast.type === 'success' ? 'bg-green-500' : 'bg-red-500'}`}>
+          <div className="flex items-center gap-2">
+            <span>{toast.message}</span>
+            <button
+              type="button"
+              onClick={() => setToast((prev) => ({ ...prev, visible: false }))}
+              className="hover:opacity-75"
+              aria-label="ปิดการแจ้งเตือน"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+      )}
+
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold text-gray-800">แผนการจัดซื้อ</h1>
+        <h1 className="text-3xl font-bold text-gray-800">แผนจัดซื้อ</h1>
         <button
-          onClick={() => {
-            setEditing(null);
-            setFormData({});
-            setBulkRecords([]);
-            setBulkValidationErrors({});
-            setSurveySearchTerm('');
-            setShowSurveySuggestions(false);
-            setHighlightedSurveyIndex(-1);
-            setShowForm(true);
-          }}
+          onClick={openCreateForm}
           className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
         >
           เพิ่มรายการ
@@ -1243,9 +1294,5 @@ function PurchasePlansPageContent() {
 }
 
 export default function PurchasePlansPage() {
-  return (
-    <Suspense fallback={<div className="min-h-screen bg-gray-50" />}>
-      <PurchasePlansPageContent />
-    </Suspense>
-  );
+  return <PurchasePlansPageContent />;
 }
