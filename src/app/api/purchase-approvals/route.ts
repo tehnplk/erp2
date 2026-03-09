@@ -5,7 +5,7 @@ import { cacheGet, cacheSet, cacheDelByPattern } from '@/lib/redis';
 import { validateQuery, validateRequest } from '@/lib/validation/validate';
 import { purchaseApprovalQuerySchema, createPurchaseApprovalSchema } from '@/lib/validation/schemas';
 
-const purchaseApprovalSelect = `SELECT id, "approvalId", department, "budgetYear", "recordNumber", "requestDate", "productName", "productCode", category, "productType", "productSubtype", "requestedQuantity", unit, "pricePerUnit"::float8 AS "pricePerUnit", "totalValue"::float8 AS "totalValue", "overPlanCase", requester, approver, created_at, updated_at FROM public."PurchaseApproval"`;
+const purchaseApprovalSelect = `SELECT id, approval_id, department, budget_year, record_number, request_date, product_name, product_code, category, product_type, product_subtype, requested_quantity, unit, price_per_unit::float8 AS price_per_unit, total_value::float8 AS total_value, over_plan_case, requester, approver, created_at, updated_at FROM public.purchase_approval`;
 
 export async function GET(request: NextRequest) {
   try {
@@ -18,14 +18,14 @@ export async function GET(request: NextRequest) {
     }
     
     const {
-      orderBy,
-      sortOrder,
-      productName,
+      order_by,
+      sort_order,
+      product_name,
       category,
-      productType,
-      productSubtype,
+      product_type,
+      product_subtype,
       department,
-      budgetYear,
+      budget_year,
       page,
       pageSize
     } = queryValidation.data as any;
@@ -33,47 +33,47 @@ export async function GET(request: NextRequest) {
     const whereClauses: string[] = [];
     const params: unknown[] = [];
 
-    if (productName) {
-      params.push(`%${productName}%`);
-      whereClauses.push(`"productName" ILIKE $${params.length}`);
+    if (product_name) {
+      params.push(`%${product_name}%`);
+      whereClauses.push(`product_name ILIKE $${params.length}`);
     }
     if (category) {
       params.push(category);
       whereClauses.push(`category = $${params.length}`);
     }
-    if (productType) {
-      params.push(productType);
-      whereClauses.push(`"productType" = $${params.length}`);
+    if (product_type) {
+      params.push(product_type);
+      whereClauses.push(`product_type = $${params.length}`);
     }
-    if (productSubtype) {
-      params.push(productSubtype);
-      whereClauses.push(`"productSubtype" = $${params.length}`);
+    if (product_subtype) {
+      params.push(product_subtype);
+      whereClauses.push(`product_subtype = $${params.length}`);
     }
     if (department) {
       params.push(department);
       whereClauses.push(`department = $${params.length}`);
     }
-    if (budgetYear) {
-      params.push(Number(budgetYear));
-      whereClauses.push(`"budgetYear" = $${params.length}`);
+    if (budget_year) {
+      params.push(Number(budget_year));
+      whereClauses.push(`budget_year = $${params.length}`);
     }
 
     const allowedOrderFields: Record<string, string> = {
       id: 'id',
       department: 'department',
-      budgetYear: '"budgetYear"',
-      recordNumber: '"recordNumber"',
-      requestDate: '"requestDate"',
-      productName: '"productName"',
-      productCode: '"productCode"',
+      budget_year: 'budget_year',
+      record_number: 'record_number',
+      request_date: 'request_date',
+      product_name: 'product_name',
+      product_code: 'product_code',
       category: 'category',
-      productType: '"productType"',
-      productSubtype: '"productSubtype"',
+      product_type: 'product_type',
+      product_subtype: 'product_subtype',
       requester: 'requester',
       approver: 'approver',
     };
-    const safeOrderField = allowedOrderFields[orderBy || 'id'] || 'id';
-    const safeSortOrder = sortOrder === 'asc' ? 'ASC' : 'DESC';
+    const safeOrderField = allowedOrderFields[order_by || 'id'] || 'id';
+    const safeSortOrder = sort_order === 'asc' ? 'ASC' : 'DESC';
     const whereSql = whereClauses.length ? `WHERE ${whereClauses.join(' AND ')}` : '';
 
     const pageParam = searchParams.get('page');
@@ -87,7 +87,7 @@ export async function GET(request: NextRequest) {
       }
 
       const [totalCount, items] = await Promise.all([
-        pgQuery(`SELECT COUNT(*)::int AS count FROM public."PurchaseApproval" ${whereSql}`, params),
+        pgQuery(`SELECT COUNT(*)::int AS count FROM public.purchase_approval ${whereSql}`, params),
         pgQuery(`${purchaseApprovalSelect} ${whereSql} ORDER BY ${safeOrderField} ${safeSortOrder}`, params)
       ]);
 
@@ -111,7 +111,7 @@ export async function GET(request: NextRequest) {
     }
 
     const [totalCount, items] = await Promise.all([
-      pgQuery(`SELECT COUNT(*)::int AS count FROM public."PurchaseApproval" ${whereSql}`, params),
+      pgQuery(`SELECT COUNT(*)::int AS count FROM public.purchase_approval ${whereSql}`, params),
       pgQuery(`${purchaseApprovalSelect} ${whereSql} ORDER BY ${safeOrderField} ${safeSortOrder} LIMIT $${params.length + 1} OFFSET $${params.length + 2}`, [...params, currentPageSize, skip])
     ]);
 
@@ -142,25 +142,25 @@ export async function POST(request: NextRequest) {
     }
 
     const item = await pgQuery(
-      `INSERT INTO public."PurchaseApproval" ("approvalId", department, "budgetYear", "recordNumber", "requestDate", "productName", "productCode", category, "productType", "productSubtype", "requestedQuantity", unit, "pricePerUnit", "totalValue", "overPlanCase", requester, approver)
+      `INSERT INTO public.purchase_approval (approval_id, department, budget_year, record_number, request_date, product_name, product_code, category, product_type, product_subtype, requested_quantity, unit, price_per_unit, total_value, over_plan_case, requester, approver)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
-       RETURNING id, "approvalId", department, "budgetYear", "recordNumber", "requestDate", "productName", "productCode", category, "productType", "productSubtype", "requestedQuantity", unit, "pricePerUnit"::float8 AS "pricePerUnit", "totalValue"::float8 AS "totalValue", "overPlanCase", requester, approver, created_at, updated_at`,
+       RETURNING id, approval_id, department, budget_year, record_number, request_date, product_name, product_code, category, product_type, product_subtype, requested_quantity, unit, price_per_unit::float8 AS price_per_unit, total_value::float8 AS total_value, over_plan_case, requester, approver, created_at, updated_at`,
       [
-        validation.data.approvalId || null,
+        validation.data.approval_id || null,
         validation.data.department || null,
-        validation.data.budgetYear ?? null,
-        validation.data.recordNumber || null,
-        validation.data.requestDate || null,
-        validation.data.productName || null,
-        validation.data.productCode || null,
+        validation.data.budget_year ?? null,
+        validation.data.record_number || null,
+        validation.data.request_date || null,
+        validation.data.product_name || null,
+        validation.data.product_code || null,
         validation.data.category || null,
-        validation.data.productType || null,
-        validation.data.productSubtype || null,
-        validation.data.requestedQuantity ?? null,
+        validation.data.product_type || null,
+        validation.data.product_subtype || null,
+        validation.data.requested_quantity ?? null,
         validation.data.unit || null,
-        validation.data.pricePerUnit ?? 0,
-        validation.data.totalValue ?? 0,
-        validation.data.overPlanCase || null,
+        validation.data.price_per_unit ?? 0,
+        validation.data.total_value ?? 0,
+        validation.data.over_plan_case || null,
         validation.data.requester || null,
         validation.data.approver || null,
       ]

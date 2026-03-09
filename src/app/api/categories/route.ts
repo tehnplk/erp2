@@ -34,7 +34,7 @@ export async function GET(request: NextRequest) {
     }
 
     const whereSql = whereClauses.length ? `WHERE ${whereClauses.join(' AND ')}` : '';
-    const baseSelect = 'SELECT id, category, type, subtype FROM public."Category"';
+    const baseSelect = 'SELECT id, category, type, subtype FROM public.category';
     const cacheKeyAll = `erp:categories:list:all:${JSON.stringify(params)}`;
     if (!page || !pageSize) {
       const cachedAll = await cacheGet<any>(cacheKeyAll);
@@ -55,7 +55,7 @@ export async function GET(request: NextRequest) {
     }
 
     const [totalCountResult, categoriesResult] = await Promise.all([
-      pgQuery(`SELECT COUNT(*)::int AS count FROM public."Category" ${whereSql}`, params),
+      pgQuery(`SELECT COUNT(*)::int AS count FROM public.category ${whereSql}`, params),
       pgQuery(`${baseSelect} ${whereSql} ORDER BY id ASC LIMIT $${params.length + 1} OFFSET $${params.length + 2}`, [...params, pageSize, skip]),
     ]);
 
@@ -84,7 +84,7 @@ export async function POST(request: NextRequest) {
     }
 
     const result = await pgQuery(
-      `INSERT INTO public."Category" (category, type, subtype)
+      `INSERT INTO public.category (category, type, subtype)
        VALUES ($1, $2, $3)
        RETURNING id, category, type, subtype`,
       [validation.data.category, validation.data.type, validation.data.subtype]

@@ -13,14 +13,14 @@ type Product = {
   type: string;
   subtype: string;
   unit: string;
-  costPrice?: number | null;
-  sellPrice?: number | null;
-  stockBalance?: number | null;
-  stockValue?: number | null;
-  sellerCode?: string | null;
+  cost_price?: number | null;
+  sell_price?: number | null;
+  stock_balance?: number | null;
+  stock_value?: number | null;
+  seller_code?: string | null;
   image?: string | null;
-  flagActivate?: boolean;
-  adminNote?: string | null;
+  flag_activate?: boolean;
+  admin_note?: string | null;
 };
 
 interface CategoryOption {
@@ -41,13 +41,13 @@ interface ProductFormData {
   type: string;
   subtype: string;
   unit: string;
-  costPrice?: number;
-  sellPrice?: number;
-  stockBalance?: number;
-  stockValue?: number;
-  sellerCode?: string;
+  cost_price?: number;
+  sell_price?: number;
+  stock_balance?: number;
+  stock_value?: number;
+  seller_code?: string;
   image?: string;
-  adminNote?: string;
+  admin_note?: string;
 }
 
 const PAGE_SIZE_OPTIONS = [10, 20, 50];
@@ -61,8 +61,8 @@ export default function ProductsPage() {
   const initialCategoryFilter = searchParams.get('category') || '';
   const initialTypeFilter = searchParams.get('type') || '';
   const initialSubtypeFilter = searchParams.get('subtype') || '';
-  const initialSortBy = searchParams.get('orderBy') || 'code';
-  const initialSortOrder = (searchParams.get('sortOrder') === 'desc' ? 'desc' : 'asc') as 'asc' | 'desc';
+  const initialSortBy = searchParams.get('order_by') || 'code';
+  const initialSortOrder = (searchParams.get('sort_order') === 'desc' ? 'desc' : 'asc') as 'asc' | 'desc';
   const initialPage = Math.max(1, parseInt(searchParams.get('page') || '1', 10) || 1);
   const initialPageSize = Math.max(1, parseInt(searchParams.get('pageSize') || '20', 10) || 20);
   const [products, setProducts] = useState<Product[]>([]);
@@ -77,13 +77,13 @@ export default function ProductsPage() {
     type: '',
     subtype: '',
     unit: '',
-    costPrice: undefined,
-    sellPrice: undefined,
-    stockBalance: undefined,
-    stockValue: undefined,
-    sellerCode: '',
+    cost_price: undefined,
+    sell_price: undefined,
+    stock_balance: undefined,
+    stock_value: undefined,
+    seller_code: '',
     image: '',
-    adminNote: ''
+    admin_note: ''
   });
   
   // Validation state
@@ -122,13 +122,13 @@ export default function ProductsPage() {
     type: '',
     subtype: '',
     unit: '',
-    costPrice: undefined,
-    sellPrice: undefined,
-    stockBalance: undefined,
-    stockValue: undefined,
-    sellerCode: '',
+    cost_price: undefined,
+    sell_price: undefined,
+    stock_balance: undefined,
+    stock_value: undefined,
+    seller_code: '',
     image: '',
-    adminNote: ''
+    admin_note: ''
   });
 
   // Bulk add state
@@ -163,8 +163,8 @@ export default function ProductsPage() {
     const nextCategory = searchParams.get('category') || '';
     const nextType = searchParams.get('type') || '';
     const nextSubtype = searchParams.get('subtype') || '';
-    const nextSortBy = searchParams.get('orderBy') || 'code';
-    const nextSortOrder = (searchParams.get('sortOrder') === 'desc' ? 'desc' : 'asc') as 'asc' | 'desc';
+    const nextSortBy = searchParams.get('order_by') || 'code';
+    const nextSortOrder = (searchParams.get('sort_order') === 'desc' ? 'desc' : 'asc') as 'asc' | 'desc';
     const nextPage = Math.max(1, parseInt(searchParams.get('page') || '1', 10) || 1);
     const nextPageSize = Math.max(1, parseInt(searchParams.get('pageSize') || '20', 10) || 20);
 
@@ -187,8 +187,8 @@ export default function ProductsPage() {
     if (categoryFilter) params.set('category', categoryFilter);
     if (typeFilter) params.set('type', typeFilter);
     if (subtypeFilter) params.set('subtype', subtypeFilter);
-    if (sortBy !== 'code') params.set('orderBy', sortBy);
-    if (sortOrder !== 'asc') params.set('sortOrder', sortOrder);
+    if (sortBy !== 'code') params.set('order_by', sortBy);
+    if (sortOrder !== 'asc') params.set('sort_order', sortOrder);
     if (page > 1) params.set('page', page.toString());
     if (pageSize !== 20) params.set('pageSize', pageSize.toString());
 
@@ -204,8 +204,8 @@ export default function ProductsPage() {
     const { name, value } = e.target;
     setFormData(prev => ({
       ...prev,
-      [name]: name.includes('Price') || name.includes('Value') ? (value ? parseFloat(value) : undefined) :
-               name === 'stockBalance' ? (value ? parseInt(value) : undefined) : value
+      [name]: name.includes('price') || name.includes('value') ? (value ? parseFloat(value) : undefined) :
+               name === 'stock_balance' ? (value ? parseInt(value) : undefined) : value
     }));
 
     // Clear error when user starts typing
@@ -227,9 +227,9 @@ export default function ProductsPage() {
         setTypes(data.types || []);
         setSubtypes(data.subtypes || []);
         setUnits(data.units || []);
-        setSellerCodes(data.sellerCodes || []);
-        setSellerOptions(data.sellerOptions || []);
-        setCategoryOptions(data.categoryOptions || []);
+        setSellerCodes(data.seller_codes || []);
+        setSellerOptions(data.seller_options || []);
+        setCategoryOptions(data.category_options || []);
       }
     } catch (error) {
       console.error('Error fetching filter options:', error);
@@ -352,8 +352,8 @@ export default function ProductsPage() {
       if (subtypeFilter) params.append('subtype', subtypeFilter);
       
       // Add sorting parameters
-      params.append('orderBy', sortBy);
-      params.append('sortOrder', sortOrder);
+      params.append('order_by', sortBy);
+      params.append('sort_order', sortOrder);
       params.append('page', page.toString());
       params.append('pageSize', pageSize.toString());
       
@@ -497,13 +497,13 @@ export default function ProductsPage() {
       type: product.type || '',
       subtype: product.subtype || '',
       unit: product.unit || '',
-      costPrice: product.costPrice ? Number(product.costPrice) : undefined,
-      sellPrice: product.sellPrice ? Number(product.sellPrice) : undefined,
-      stockBalance: product.stockBalance || undefined,
-      stockValue: product.stockValue ? Number(product.stockValue) : undefined,
-      sellerCode: product.sellerCode || '',
+      cost_price: product.cost_price ? Number(product.cost_price) : undefined,
+      sell_price: product.sell_price ? Number(product.sell_price) : undefined,
+      stock_balance: product.stock_balance || undefined,
+      stock_value: product.stock_value ? Number(product.stock_value) : undefined,
+      seller_code: product.seller_code || '',
       image: product.image || '',
-      adminNote: product.adminNote || ''
+      admin_note: product.admin_note || ''
     });
     setShowForm(true);
   };
@@ -563,13 +563,13 @@ export default function ProductsPage() {
       type: '',
       subtype: '',
       unit: '',
-      costPrice: undefined,
-      sellPrice: undefined,
-      stockBalance: undefined,
-      stockValue: undefined,
-      sellerCode: '',
+      cost_price: undefined,
+      sell_price: undefined,
+      stock_balance: undefined,
+      stock_value: undefined,
+      seller_code: '',
       image: '',
-      adminNote: ''
+      admin_note: ''
     });
     setErrors({});
     setShowForm(false);
@@ -589,13 +589,13 @@ export default function ProductsPage() {
       type: product.type || '',
       subtype: product.subtype || '',
       unit: product.unit || '',
-      costPrice: product.costPrice ? Number(product.costPrice) : undefined,
-      sellPrice: product.sellPrice ? Number(product.sellPrice) : undefined,
-      stockBalance: product.stockBalance || undefined,
-      stockValue: product.stockValue ? Number(product.stockValue) : undefined,
-      sellerCode: product.sellerCode || '',
+      cost_price: product.cost_price ? Number(product.cost_price) : undefined,
+      sell_price: product.sell_price ? Number(product.sell_price) : undefined,
+      stock_balance: product.stock_balance || undefined,
+      stock_value: product.stock_value ? Number(product.stock_value) : undefined,
+      seller_code: product.seller_code || '',
       image: product.image || '',
-      adminNote: product.adminNote || ''
+      admin_note: product.admin_note || ''
     });
   };
 
@@ -611,8 +611,8 @@ export default function ProductsPage() {
         setEditingId(null);
         setEditData({
           code: '', category: '', name: '', type: '', subtype: '', unit: '',
-          costPrice: undefined, sellPrice: undefined, stockBalance: undefined,
-          stockValue: undefined, sellerCode: '', image: '', adminNote: ''
+          cost_price: undefined, sell_price: undefined, stock_balance: undefined,
+          stock_value: undefined, seller_code: '', image: '', admin_note: ''
         });
         fetchProducts();
 
@@ -655,8 +655,8 @@ export default function ProductsPage() {
     setEditingId(null);
     setEditData({
       code: '', category: '', name: '', type: '', subtype: '', unit: '',
-      costPrice: undefined, sellPrice: undefined, stockBalance: undefined,
-      stockValue: undefined, sellerCode: '', image: '', adminNote: ''
+      cost_price: undefined, sell_price: undefined, stock_balance: undefined,
+      stock_value: undefined, seller_code: '', image: '', admin_note: ''
     });
   };
 
@@ -697,13 +697,13 @@ export default function ProductsPage() {
             type: record.type.trim(),
             subtype: record.subtype.trim(),
             unit: record.unit.trim(),
-            costPrice: record.costPrice,
-            sellPrice: record.sellPrice,
-            stockBalance: record.stockBalance,
-            stockValue: record.stockValue,
-            sellerCode: record.sellerCode || '',
+            cost_price: record.cost_price,
+            sell_price: record.sell_price,
+            stock_balance: record.stock_balance,
+            stock_value: record.stock_value,
+            seller_code: record.seller_code || '',
             image: record.image || '',
-            adminNote: record.adminNote || ''
+            admin_note: record.admin_note || ''
           })
         })
       );
@@ -942,8 +942,8 @@ export default function ProductsPage() {
                         <input
                           type="number"
                           step="0.01"
-                          name="costPrice"
-                          value={formData.costPrice || ''}
+                          name="cost_price"
+                          value={formData.cost_price || ''}
                           onChange={handleInputChange}
                           className={modalInputClassName}
                         />
@@ -953,8 +953,8 @@ export default function ProductsPage() {
                         <input
                           type="number"
                           step="0.01"
-                          name="sellPrice"
-                          value={formData.sellPrice || ''}
+                          name="sell_price"
+                          value={formData.sell_price || ''}
                           onChange={handleInputChange}
                           className={modalInputClassName}
                         />
@@ -963,8 +963,8 @@ export default function ProductsPage() {
                         <label className="block text-sm font-medium text-gray-700">จำนวนคงคลัง</label>
                         <input
                           type="number"
-                          name="stockBalance"
-                          value={formData.stockBalance || ''}
+                          name="stock_balance"
+                          value={formData.stock_balance || ''}
                           onChange={handleInputChange}
                           className={modalInputClassName}
                         />
@@ -974,8 +974,8 @@ export default function ProductsPage() {
                         <input
                           type="number"
                           step="0.01"
-                          name="stockValue"
-                          value={formData.stockValue || ''}
+                          name="stock_value"
+                          value={formData.stock_value || ''}
                           onChange={handleInputChange}
                           className={modalInputClassName}
                         />
@@ -996,8 +996,8 @@ export default function ProductsPage() {
                         <input
                           list="product-seller-codes"
                           type="text"
-                          name="sellerCode"
-                          value={formData.sellerCode}
+                          name="seller_code"
+                          value={formData.seller_code}
                           onChange={handleInputChange}
                           className={modalInputClassName}
                         />
@@ -1027,8 +1027,8 @@ export default function ProductsPage() {
                       <div>
                         <label className="block text-sm font-medium text-gray-700">หมายเหตุ</label>
                         <textarea
-                          name="adminNote"
-                          value={formData.adminNote}
+                          name="admin_note"
+                          value={formData.admin_note}
                           onChange={handleInputChange}
                           rows={8}
                           className={`${modalInputClassName} min-h-[220px] resize-y`}
@@ -1184,10 +1184,10 @@ export default function ProductsPage() {
                             <input
                               type="number"
                               step="0.01"
-                              value={record.costPrice || ''}
+                              value={record.cost_price || ''}
                               onChange={(e) => {
                                 const updated = [...bulkRecords];
-                                updated[index].costPrice = e.target.value ? parseFloat(e.target.value) : undefined;
+                                updated[index].cost_price = e.target.value ? parseFloat(e.target.value) : undefined;
                                 setBulkRecords(updated);
                               }}
                               placeholder="ราคาทุน"
@@ -1198,10 +1198,10 @@ export default function ProductsPage() {
                             <input
                               type="number"
                               step="0.01"
-                              value={record.sellPrice || ''}
+                              value={record.sell_price || ''}
                               onChange={(e) => {
                                 const updated = [...bulkRecords];
-                                updated[index].sellPrice = e.target.value ? parseFloat(e.target.value) : undefined;
+                                updated[index].sell_price = e.target.value ? parseFloat(e.target.value) : undefined;
                                 setBulkRecords(updated);
                               }}
                               placeholder="ราคาขาย"
@@ -1211,10 +1211,10 @@ export default function ProductsPage() {
                           <td className="px-2 py-3">
                             <input
                               type="number"
-                              value={record.stockBalance || ''}
+                              value={record.stock_balance || ''}
                               onChange={(e) => {
                                 const updated = [...bulkRecords];
-                                updated[index].stockBalance = e.target.value ? parseInt(e.target.value) : undefined;
+                                updated[index].stock_balance = e.target.value ? parseInt(e.target.value) : undefined;
                                 setBulkRecords(updated);
                               }}
                               placeholder="คงคลัง"
@@ -1225,10 +1225,10 @@ export default function ProductsPage() {
                             <input
                               type="number"
                               step="0.01"
-                              value={record.stockValue || ''}
+                              value={record.stock_value || ''}
                               onChange={(e) => {
                                 const updated = [...bulkRecords];
-                                updated[index].stockValue = e.target.value ? parseFloat(e.target.value) : undefined;
+                                updated[index].stock_value = e.target.value ? parseFloat(e.target.value) : undefined;
                                 setBulkRecords(updated);
                               }}
                               placeholder="มูลค่า"
@@ -1243,8 +1243,8 @@ export default function ProductsPage() {
                                     const newRecord = {
                                       id: Math.max(...bulkRecords.map(r => r.id)) + 1,
                                       code: '', name: '', category: '', type: '', subtype: '', unit: '',
-                                      costPrice: undefined, sellPrice: undefined, stockBalance: undefined,
-                                      stockValue: undefined, sellerCode: '', image: '', adminNote: ''
+                                      cost_price: undefined, sell_price: undefined, stock_balance: undefined,
+                                      stock_value: undefined, seller_code: '', image: '', admin_note: ''
                                     };
                                     setBulkRecords([...bulkRecords, newRecord]);
                                   }}
@@ -1404,7 +1404,7 @@ export default function ProductsPage() {
               <div className="text-sm">
                 <span className="text-gray-500">มูลค่ายกมาทั้งหมด: </span>
                 <span className="font-semibold text-gray-900">
-                  ฿{(products || []).reduce((total, product) => total + (product.stockValue ? Number(product.stockValue) : 0), 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  ฿{(products || []).reduce((total, product) => total + (product.stock_value ? Number(product.stock_value) : 0), 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </span>
               </div>
             </div>
@@ -1474,17 +1474,17 @@ export default function ProductsPage() {
               <th onClick={() => handleSort('unit')} className={getHeaderClass('unit')}>
                 หน่วยนับ {getSortIcon('unit')}
               </th>
-              <th onClick={() => handleSort('costPrice')} className={getHeaderClass('costPrice')}>
-                ราคาทุนต่อหน่วย {getSortIcon('costPrice')}
+              <th onClick={() => handleSort('cost_price')} className={getHeaderClass('cost_price')}>
+                ราคาทุนต่อหน่วย {getSortIcon('cost_price')}
               </th>
-              <th onClick={() => handleSort('sellPrice')} className={getHeaderClass('sellPrice')}>
-                ราคาขายต่อหน่วย {getSortIcon('sellPrice')}
+              <th onClick={() => handleSort('sell_price')} className={getHeaderClass('sell_price')}>
+                ราคาขายต่อหน่วย {getSortIcon('sell_price')}
               </th>
-              <th onClick={() => handleSort('stockBalance')} className={getHeaderClass('stockBalance')}>
-                ยอดยกมา {getSortIcon('stockBalance')}
+              <th onClick={() => handleSort('stock_balance')} className={getHeaderClass('stock_balance')}>
+                ยอดยกมา {getSortIcon('stock_balance')}
               </th>
-              <th onClick={() => handleSort('stockValue')} className={getHeaderClass('stockValue')}>
-                มูลค่ายกมา {getSortIcon('stockValue')}
+              <th onClick={() => handleSort('stock_value')} className={getHeaderClass('stock_value')}>
+                มูลค่ายกมา {getSortIcon('stock_value')}
               </th>
               <th className="px-3 py-3 text-left text-[10px] font-medium text-gray-500 uppercase tracking-wider w-20">
                 สถานะ
@@ -1512,22 +1512,22 @@ export default function ProductsPage() {
                   {product.unit || '-'}
                 </td>
                 <td className="px-3 py-4 whitespace-nowrap text-xs text-gray-500 w-24">
-                  {product.costPrice ? `฿${Number(product.costPrice).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '-'}
+                  {product.cost_price ? `฿${Number(product.cost_price).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '-'}
                 </td>
                 <td className="px-3 py-4 whitespace-nowrap text-xs text-gray-500 w-24">
-                  {product.sellPrice ? `฿${Number(product.sellPrice).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '-'}
+                  {product.sell_price ? `฿${Number(product.sell_price).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '-'}
                 </td>
                 <td className="px-3 py-4 whitespace-nowrap text-xs text-gray-500 w-20">
-                  {product.stockBalance || 0}
+                  {product.stock_balance || 0}
                 </td>
                 <td className="px-3 py-4 whitespace-nowrap text-xs text-gray-500 w-24">
-                  {product.stockValue ? `฿${Number(product.stockValue).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '-'}
+                  {product.stock_value ? `฿${Number(product.stock_value).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '-'}
                 </td>
                 <td className="px-3 py-4 whitespace-nowrap w-20">
                   <span className={`px-2 inline-flex text-[10px] leading-4 font-semibold rounded-full ${
-                    product.flagActivate ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                    product.flag_activate ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
                   }`}>
-                    {product.flagActivate ? (
+                    {product.flag_activate ? (
                       <Check className="h-4 w-4" />
                     ) : (
                       <X className="h-4 w-4" />

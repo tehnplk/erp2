@@ -10,9 +10,9 @@ export async function GET() {
 
     // Get distinct values for each filter field
     const [categoriesResult, typesResult, subtypesResult] = await Promise.all([
-      pgQuery('SELECT DISTINCT category FROM public."Category" ORDER BY category ASC'),
-      pgQuery('SELECT DISTINCT type FROM public."Category" ORDER BY type ASC'),
-      pgQuery('SELECT DISTINCT subtype FROM public."Category" ORDER BY subtype ASC'),
+      pgQuery('SELECT DISTINCT category FROM public.category ORDER BY category ASC'),
+      pgQuery('SELECT DISTINCT type FROM public.category ORDER BY type ASC'),
+      pgQuery('SELECT DISTINCT subtype FROM public.category ORDER BY subtype ASC'),
     ]);
 
     const result = {

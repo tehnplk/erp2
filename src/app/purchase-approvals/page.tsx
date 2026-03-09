@@ -30,21 +30,21 @@ const formatNumberWithComma = (value?: number | null, fractionDigits = 0) => {
 };
 
 interface PurchaseApprovalFormData {
-  approvalId?: string;
+  approval_id?: string;
   department?: string;
-  budgetYear?: string;
-  recordNumber?: string;
-  requestDate?: string;
-  productName?: string;
-  productCode?: string;
+  budget_year?: string;
+  record_number?: string;
+  request_date?: string;
+  product_name?: string;
+  product_code?: string;
   category?: string;
-  productType?: string;
-  productSubtype?: string;
-  requestedQuantity?: number | null;
+  product_type?: string;
+  product_subtype?: string;
+  requested_quantity?: number | null;
   unit?: string;
-  pricePerUnit?: number;
-  totalValue?: number;
-  overPlanCase?: string;
+  price_per_unit?: number;
+  total_value?: number;
+  over_plan_case?: string;
   requester?: string;
   approver?: string;
 }
@@ -57,16 +57,16 @@ interface PurchaseApprovalItem extends PurchaseApprovalFormData {
 
 interface PurchasePlanOption {
   id: number;
-  productCode?: string | null;
-  productName?: string | null;
+  product_code?: string | null;
+  product_name?: string | null;
   category?: string | null;
-  productType?: string | null;
-  productSubtype?: string | null;
+  product_type?: string | null;
+  product_subtype?: string | null;
   unit?: string | null;
-  pricePerUnit?: number | null;
-  budgetYear?: string | number | null;
-  requiredQuantityForYear?: number | null;
-  purchasingDepartment?: string | null;
+  price_per_unit?: number | null;
+  budget_year?: string | number | null;
+  required_quantity_for_year?: number | null;
+  purchasing_department?: string | null;
 }
 
 interface CategoryOption {
@@ -215,20 +215,20 @@ export default function PurchaseApprovalsPage() {
 
   useEffect(() => {
     setFormData((prev) => {
-      const quantity = prev.requestedQuantity ?? 0;
-      const price = prev.pricePerUnit ?? 0;
+      const quantity = prev.requested_quantity ?? 0;
+      const price = prev.price_per_unit ?? 0;
       const nextTotal = Number((quantity * price).toFixed(2));
 
-      if ((prev.totalValue ?? 0) === nextTotal) {
+      if ((prev.total_value ?? 0) === nextTotal) {
         return prev;
       }
 
       return {
         ...prev,
-        totalValue: nextTotal,
+        total_value: nextTotal,
       };
     });
-  }, [formData.requestedQuantity, formData.pricePerUnit]);
+  }, [formData.requested_quantity, formData.price_per_unit]);
 
   useEffect(() => {
     if (!showPlanSuggestions || highlightedPlanIndex < 0) {
@@ -253,13 +253,13 @@ export default function PurchaseApprovalsPage() {
   const fetchPurchasePlanOptions = async () => {
     try {
       setPlansLoading(true);
-      const res = await fetch('/api/purchase-plans?orderBy=id&sortOrder=desc');
+      const res = await fetch('/api/purchase-plans?order_by=id&sort_order=desc');
       if (!res.ok) {
         throw new Error('fetch purchase plans failed');
       }
 
       const data = await res.json();
-      setPurchasePlanOptions(data.data || []);
+      setPurchasePlanOptions(data.data || data.items || []);
     } catch (e) {
       console.error(e);
     } finally {
@@ -274,13 +274,13 @@ export default function PurchaseApprovalsPage() {
       if (res.ok) {
         const data = await res.json();
         setCategories(data.categories || []);
-        setTypes(data.productTypes || []);
-        setSubtypes(data.productSubtypes || []);
-        setCategoryOptions(data.categoryOptions || []);
+        setTypes(data.product_types || []);
+        setSubtypes(data.product_subtypes || []);
+        setCategoryOptions(data.category_options || []);
         setDepartments(data.departments || []);
         setRequesters(data.requesters || []);
         setApprovers(data.approvers || []);
-        setYears(data.budgetYears || []);
+        setYears(data.budget_years || []);
       }
     } catch (e) { console.error(e); }
     finally { setFiltersLoading(false); }
@@ -305,21 +305,21 @@ export default function PurchaseApprovalsPage() {
     try {
       setLoading(true);
       const params = new URLSearchParams();
-      if (nameFilter) params.append('productName', nameFilter);
+      if (nameFilter) params.append('product_name', nameFilter);
       if (categoryFilter) params.append('category', categoryFilter);
-      if (typeFilter) params.append('productType', typeFilter);
-      if (subtypeFilter) params.append('productSubtype', subtypeFilter);
+      if (typeFilter) params.append('product_type', typeFilter);
+      if (subtypeFilter) params.append('product_subtype', subtypeFilter);
       if (departmentFilter) params.append('department', departmentFilter);
-      if (budgetYearFilter) params.append('budgetYear', budgetYearFilter);
-      params.append('orderBy', sortBy);
-      params.append('sortOrder', sortOrder);
+      if (budgetYearFilter) params.append('budget_year', budgetYearFilter);
+      params.append('order_by', sortBy);
+      params.append('sort_order', sortOrder);
       params.append('page', page.toString());
       params.append('pageSize', pageSize.toString());
 
       const res = await fetch(`/api/purchase-approvals?${params.toString()}`);
       if (!res.ok) throw new Error('fetch failed');
       const data = await res.json();
-      setItems(data.data || []);
+      setItems(data.data || data.items || []);
       setTotalCount(data.totalCount || 0);
       if (data.page && data.page !== page) {
         setPage(data.page);
@@ -334,19 +334,19 @@ export default function PurchaseApprovalsPage() {
   const fetchSummaryData = async () => {
     try {
       const params = new URLSearchParams();
-      if (nameFilter) params.append('productName', nameFilter);
+      if (nameFilter) params.append('product_name', nameFilter);
       if (categoryFilter) params.append('category', categoryFilter);
-      if (typeFilter) params.append('productType', typeFilter);
-      if (subtypeFilter) params.append('productSubtype', subtypeFilter);
+      if (typeFilter) params.append('product_type', typeFilter);
+      if (subtypeFilter) params.append('product_subtype', subtypeFilter);
       if (departmentFilter) params.append('department', departmentFilter);
-      if (budgetYearFilter) params.append('budgetYear', budgetYearFilter);
-      params.append('orderBy', sortBy);
-      params.append('sortOrder', sortOrder);
+      if (budgetYearFilter) params.append('budget_year', budgetYearFilter);
+      params.append('order_by', sortBy);
+      params.append('sort_order', sortOrder);
 
       const res = await fetch(`/api/purchase-approvals?${params.toString()}`);
       if (!res.ok) return;
       const data = await res.json();
-      setSummaryItems(data.data || []);
+      setSummaryItems(data.data || data.items || []);
     } catch (e) {
       console.error(e);
     }
@@ -361,27 +361,27 @@ export default function PurchaseApprovalsPage() {
 
   const handleEdit = (row: any) => {
     setEditing(row);
-    const selectedLabel = [row.productCode, row.productName].filter(Boolean).join(' - ');
+    const selectedLabel = [row.product_code, row.product_name].filter(Boolean).join(' - ');
     setPlanSearchTerm(selectedLabel);
     setSelectedPlanLabel(selectedLabel);
     setShowPlanSuggestions(false);
     setHighlightedPlanIndex(-1);
     setFormData({
-      approvalId: row.approvalId || '',
+      approval_id: row.approval_id || '',
       department: row.department || '',
-      budgetYear: row.budgetYear ? String(row.budgetYear) : '',
-      recordNumber: row.recordNumber || '',
-      requestDate: row.requestDate || '',
-      productName: row.productName || '',
-      productCode: row.productCode || '',
+      budget_year: row.budget_year ? String(row.budget_year) : '',
+      record_number: row.record_number || '',
+      request_date: row.request_date || '',
+      product_name: row.product_name || '',
+      product_code: row.product_code || '',
       category: row.category || '',
-      productType: row.productType || '',
-      productSubtype: row.productSubtype || '',
-      requestedQuantity: row.requestedQuantity ?? null,
+      product_type: row.product_type || '',
+      product_subtype: row.product_subtype || '',
+      requested_quantity: row.requested_quantity ?? null,
       unit: row.unit || '',
-      pricePerUnit: row.pricePerUnit ? Number(row.pricePerUnit) : undefined,
-      totalValue: row.totalValue ? Number(row.totalValue) : undefined,
-      overPlanCase: row.overPlanCase || '',
+      price_per_unit: row.price_per_unit ? Number(row.price_per_unit) : undefined,
+      total_value: row.total_value ? Number(row.total_value) : undefined,
+      over_plan_case: row.over_plan_case || '',
       requester: row.requester || '',
       approver: row.approver || '',
     });
@@ -390,7 +390,7 @@ export default function PurchaseApprovalsPage() {
 
   const resetForm = () => {
     setEditing(null);
-    setFormData({ budgetYear: String(getCurrentBudgetYear()), requestDate: getTodayDateInputValue() });
+    setFormData({ budget_year: String(getCurrentBudgetYear()), request_date: getTodayDateInputValue() });
     setPlanSearchTerm('');
     setSelectedPlanLabel('');
     setShowPlanSuggestions(false);
@@ -402,9 +402,9 @@ export default function PurchaseApprovalsPage() {
     const { name, value } = e.target;
     setFormData(prev => ({
       ...prev,
-      [name]: ['pricePerUnit','totalValue'].includes(name)
+      [name]: ['price_per_unit','total_value'].includes(name)
         ? (value ? parseFloat(value) : undefined)
-        : ['requestedQuantity'].includes(name)
+        : ['requested_quantity'].includes(name)
         ? (value ? parseInt(value) : null)
         : value
     }));
@@ -416,18 +416,18 @@ export default function PurchaseApprovalsPage() {
     const url = editing ? `/api/purchase-approvals/${editing.id}` : '/api/purchase-approvals';
     const payload = {
       ...formData,
-      requestedQuantity:
-        formData.requestedQuantity === null || formData.requestedQuantity === undefined
+      requested_quantity:
+        formData.requested_quantity === null || formData.requested_quantity === undefined
           ? undefined
-          : String(formData.requestedQuantity),
-      pricePerUnit:
-        formData.pricePerUnit === null || formData.pricePerUnit === undefined
+          : String(formData.requested_quantity),
+      price_per_unit:
+        formData.price_per_unit === null || formData.price_per_unit === undefined
           ? undefined
-          : String(formData.pricePerUnit),
-      totalValue:
-        formData.totalValue === null || formData.totalValue === undefined
+          : String(formData.price_per_unit),
+      total_value:
+        formData.total_value === null || formData.total_value === undefined
           ? undefined
-          : String(formData.totalValue),
+          : String(formData.total_value),
     };
     const res = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
     if (res.ok) {
@@ -449,29 +449,29 @@ export default function PurchaseApprovalsPage() {
     ? purchasePlanOptions.slice(0, 12)
     : purchasePlanOptions.filter((option) => {
         const searchValue = planSearchTerm.trim().toLowerCase();
-        return [option.productCode, option.productName]
+        return [option.product_code, option.product_name]
           .filter(Boolean)
           .some((value) => String(value).toLowerCase().includes(searchValue));
       }).slice(0, 12);
 
   const applyPurchasePlanSelection = (plan: PurchasePlanOption) => {
-    const selectedLabel = [plan.productCode, plan.productName].filter(Boolean).join(' - ');
+    const selectedLabel = [plan.product_code, plan.product_name].filter(Boolean).join(' - ');
     setPlanSearchTerm(selectedLabel);
     setSelectedPlanLabel(selectedLabel);
     setShowPlanSuggestions(false);
     setHighlightedPlanIndex(-1);
     setFormData((prev) => ({
       ...prev,
-      productCode: plan.productCode || '',
-      productName: plan.productName || '',
+      product_code: plan.product_code || '',
+      product_name: plan.product_name || '',
       category: plan.category || '',
-      productType: plan.productType || '',
-      productSubtype: plan.productSubtype || '',
+      product_type: plan.product_type || '',
+      product_subtype: plan.product_subtype || '',
       unit: plan.unit || '',
-      pricePerUnit: plan.pricePerUnit != null ? Number(plan.pricePerUnit) : undefined,
-      budgetYear: plan.budgetYear != null ? String(plan.budgetYear) : prev.budgetYear || String(getCurrentBudgetYear()),
-      requestedQuantity: plan.requiredQuantityForYear != null ? Number(plan.requiredQuantityForYear) : prev.requestedQuantity ?? null,
-      department: plan.purchasingDepartment || prev.department || '',
+      price_per_unit: plan.price_per_unit != null ? Number(plan.price_per_unit) : undefined,
+      budget_year: plan.budget_year != null ? String(plan.budget_year) : prev.budget_year || String(getCurrentBudgetYear()),
+      requested_quantity: plan.required_quantity_for_year != null ? Number(plan.required_quantity_for_year) : prev.requested_quantity ?? null,
+      department: plan.purchasing_department || prev.department || '',
     }));
 
     window.requestAnimationFrame(() => {
@@ -491,15 +491,15 @@ export default function PurchaseApprovalsPage() {
     if (!value.trim()) {
       setFormData((prev) => ({
         ...prev,
-        productCode: '',
-        productName: '',
+        product_code: '',
+        product_name: '',
         category: '',
-        productType: '',
-        productSubtype: '',
+        product_type: '',
+        product_subtype: '',
         unit: '',
-        pricePerUnit: undefined,
-        requestedQuantity: null,
-        totalValue: 0,
+        price_per_unit: undefined,
+        requested_quantity: null,
+        total_value: 0,
       }));
     }
   };
@@ -535,7 +535,7 @@ export default function PurchaseApprovalsPage() {
 
   const openCreateForm = () => {
     setEditing(null);
-    setFormData({ budgetYear: String(getCurrentBudgetYear()), requestDate: getTodayDateInputValue() });
+    setFormData({ budget_year: String(getCurrentBudgetYear()), request_date: getTodayDateInputValue() });
     setPlanSearchTerm('');
     setSelectedPlanLabel('');
     setShowPlanSuggestions(false);
@@ -706,7 +706,7 @@ export default function PurchaseApprovalsPage() {
                           ) : (
                             filteredPlanOptions.map((plan, index) => (
                               <button
-                                key={`${plan.id}-${plan.productCode || plan.productName || index}`}
+                                key={`${plan.id}-${plan.product_code || plan.product_name || index}`}
                                 data-plan-suggestion-index={index}
                                 type="button"
                                 onMouseDown={(event) => event.preventDefault()}
@@ -714,9 +714,9 @@ export default function PurchaseApprovalsPage() {
                                 onMouseEnter={() => setHighlightedPlanIndex(index)}
                                 className={`block w-full px-4 py-3 text-left text-sm ${highlightedPlanIndex === index ? 'bg-blue-50' : 'hover:bg-gray-50'}`}
                               >
-                                <div className="font-medium text-gray-900">{plan.productCode || '-'} - {plan.productName || 'ไม่ระบุชื่อสินค้า'}</div>
+                                <div className="font-medium text-gray-900">{plan.product_code || '-'} - {plan.product_name || 'ไม่ระบุชื่อสินค้า'}</div>
                                 <div className="mt-1 text-xs text-gray-500">
-                                  หน่วยงาน: {plan.purchasingDepartment || '-'} | ปีงบ: {plan.budgetYear || '-'} | ราคา/หน่วย: {(Number(plan.pricePerUnit) || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                  หน่วยงาน: {plan.purchasing_department || '-'} | ปีงบ: {plan.budget_year || '-'} | ราคา/หน่วย: {(Number(plan.price_per_unit) || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                 </div>
                               </button>
                             ))
@@ -729,7 +729,7 @@ export default function PurchaseApprovalsPage() {
                 )}
                 <label className="flex flex-col gap-1 text-sm text-gray-700">
                   <span className="font-medium">รหัสอนุมัติ</span>
-                  <input ref={approvalIdInputRef} id="purchase-approval-approvalId" name="approvalId" value={formData.approvalId || ''} onChange={handleInputChange} className={modalFieldClassName} />
+                  <input ref={approvalIdInputRef} id="purchase-approval-approvalId" name="approval_id" value={formData.approval_id || ''} onChange={handleInputChange} className={modalFieldClassName} />
                 </label>
                 <label className="flex flex-col gap-1 text-sm text-gray-700">
                   <span className="font-medium">หน่วยงาน</span>
@@ -742,7 +742,7 @@ export default function PurchaseApprovalsPage() {
                 </label>
                 <label className="flex flex-col gap-1 text-sm text-gray-700">
                   <span className="font-medium">ปีงบประมาณ</span>
-                  <select id="purchase-approval-budgetYear" name="budgetYear" value={formData.budgetYear || ''} onChange={handleInputChange} className={modalFieldClassName}>
+                  <select id="purchase-approval-budgetYear" name="budget_year" value={formData.budget_year || ''} onChange={handleInputChange} className={modalFieldClassName}>
                     <option value="">เลือกปีงบประมาณ</option>
                     {availableBudgetYears.map((year) => (
                       <option key={year} value={year}>{year}</option>
@@ -752,21 +752,21 @@ export default function PurchaseApprovalsPage() {
                 <div className="md:col-span-3 grid grid-cols-1 gap-4 md:grid-cols-6">
                   <label className="flex flex-col gap-1 text-sm text-gray-700 md:col-span-4">
                     <span className="font-medium">เลขที่บันทึก</span>
-                    <input id="purchase-approval-recordNumber" name="recordNumber" value={formData.recordNumber || ''} onChange={handleInputChange} className={modalFieldClassName} />
+                    <input id="purchase-approval-recordNumber" name="record_number" value={formData.record_number || ''} onChange={handleInputChange} className={modalFieldClassName} />
                   </label>
                   <label className="flex flex-col gap-1 text-sm text-gray-700 md:col-span-2">
                     <span className="font-medium">วันที่ขอ</span>
-                    <input id="purchase-approval-requestDate" type="date" name="requestDate" value={formData.requestDate || ''} onChange={handleInputChange} className={modalFieldClassName} />
+                    <input id="purchase-approval-requestDate" type="date" name="request_date" value={formData.request_date || ''} onChange={handleInputChange} className={modalFieldClassName} />
                   </label>
                 </div>
                 <div className="md:col-span-3 grid grid-cols-1 gap-4 md:grid-cols-3">
                   <label className="flex flex-col gap-1 text-sm text-gray-700">
                     <span className="font-medium">รหัสสินค้า</span>
-                    <input id="purchase-approval-productCode" name="productCode" value={formData.productCode || ''} onChange={handleInputChange} className={`${modalFieldClassName} bg-gray-50`} readOnly />
+                    <input id="purchase-approval-productCode" name="product_code" value={formData.product_code || ''} onChange={handleInputChange} className={`${modalFieldClassName} bg-gray-50`} readOnly />
                   </label>
                   <label className="flex flex-col gap-1 text-sm text-gray-700 md:col-span-2">
                     <span className="font-medium">ชื่อสินค้า</span>
-                    <input id="purchase-approval-productName" name="productName" value={formData.productName || ''} onChange={handleInputChange} className={`${modalFieldClassName} bg-gray-50`} readOnly />
+                    <input id="purchase-approval-productName" name="product_name" value={formData.product_name || ''} onChange={handleInputChange} className={`${modalFieldClassName} bg-gray-50`} readOnly />
                   </label>
                 </div>
                 <div className="md:col-span-3 grid grid-cols-1 gap-4 md:grid-cols-3">
@@ -781,7 +781,7 @@ export default function PurchaseApprovalsPage() {
                   </label>
                   <label className="flex flex-col gap-1 text-sm text-gray-700">
                     <span className="font-medium">ประเภท</span>
-                    <input id="purchase-approval-type" list="purchase-approval-types" name="productType" value={formData.productType || ''} onChange={handleInputChange} className={`${modalFieldClassName} bg-gray-50`} readOnly />
+                    <input id="purchase-approval-type" list="purchase-approval-types" name="product_type" value={formData.product_type || ''} onChange={handleInputChange} className={`${modalFieldClassName} bg-gray-50`} readOnly />
                     <datalist id="purchase-approval-types">
                       {types.map((type) => (
                         <option key={type} value={type} />
@@ -790,7 +790,7 @@ export default function PurchaseApprovalsPage() {
                   </label>
                   <label className="flex flex-col gap-1 text-sm text-gray-700">
                     <span className="font-medium">ประเภทย่อย</span>
-                    <input id="purchase-approval-subtype" list="purchase-approval-subtypes" name="productSubtype" value={formData.productSubtype || ''} onChange={handleInputChange} className={`${modalFieldClassName} bg-gray-50`} readOnly />
+                    <input id="purchase-approval-subtype" list="purchase-approval-subtypes" name="product_subtype" value={formData.product_subtype || ''} onChange={handleInputChange} className={`${modalFieldClassName} bg-gray-50`} readOnly />
                     <datalist id="purchase-approval-subtypes">
                       {subtypes.map((subtype) => (
                         <option key={subtype} value={subtype} />
@@ -801,7 +801,7 @@ export default function PurchaseApprovalsPage() {
                 <div className="md:col-span-3 grid grid-cols-1 gap-4 md:grid-cols-4">
                   <label className="flex flex-col gap-1 text-sm text-gray-700">
                     <span className="font-medium">ปริมาณที่ขอ</span>
-                    <input id="purchase-approval-requestedQuantity" type="text" inputMode="numeric" name="requestedQuantity" value={formatNumberWithComma(formData.requestedQuantity, 0)} onChange={handleInputChange} className={`${modalFieldClassName} bg-gray-50`} readOnly />
+                    <input id="purchase-approval-requestedQuantity" type="text" inputMode="numeric" name="requested_quantity" value={formatNumberWithComma(formData.requested_quantity, 0)} onChange={handleInputChange} className={`${modalFieldClassName} bg-gray-50`} readOnly />
                   </label>
                   <label className="flex flex-col gap-1 text-sm text-gray-700">
                     <span className="font-medium">หน่วย</span>
@@ -809,16 +809,16 @@ export default function PurchaseApprovalsPage() {
                   </label>
                   <label className="flex flex-col gap-1 text-sm text-gray-700">
                     <span className="font-medium">ราคา/หน่วย</span>
-                    <input id="purchase-approval-pricePerUnit" type="text" inputMode="decimal" name="pricePerUnit" value={formatNumberWithComma(formData.pricePerUnit, 2)} onChange={handleInputChange} className={`${modalFieldClassName} bg-gray-50`} readOnly />
+                    <input id="purchase-approval-pricePerUnit" type="text" inputMode="decimal" name="price_per_unit" value={formatNumberWithComma(formData.price_per_unit, 2)} onChange={handleInputChange} className={`${modalFieldClassName} bg-gray-50`} readOnly />
                   </label>
                   <label className="flex flex-col gap-1 text-sm text-gray-700">
                     <span className="font-medium">มูลค่ารวม</span>
-                    <input id="purchase-approval-totalValue" type="text" inputMode="decimal" name="totalValue" value={formatNumberWithComma(formData.totalValue, 2)} className={`${modalFieldClassName} bg-gray-50`} readOnly />
+                    <input id="purchase-approval-totalValue" type="text" inputMode="decimal" name="total_value" value={formatNumberWithComma(formData.total_value, 2)} className={`${modalFieldClassName} bg-gray-50`} readOnly />
                   </label>
                 </div>
                 <label className="flex flex-col gap-1 text-sm text-gray-700 md:col-span-3">
                   <span className="font-medium">กรณีเกินแผน</span>
-                  <input id="purchase-approval-overPlanCase" name="overPlanCase" value={formData.overPlanCase || ''} onChange={handleInputChange} className={modalFieldClassName} />
+                  <input id="purchase-approval-overPlanCase" name="over_plan_case" value={formData.over_plan_case || ''} onChange={handleInputChange} className={modalFieldClassName} />
                 </label>
                 <div className="md:col-span-3 grid grid-cols-1 gap-4 md:grid-cols-2">
                   <label className="flex flex-col gap-1 text-sm text-gray-700">
@@ -896,10 +896,10 @@ export default function PurchaseApprovalsPage() {
             <h3 className="text-lg font-medium text-gray-900">สรุปมูลค่าการขออนุมัติจัดซื้อ</h3>
             <div className="flex flex-wrap items-center gap-6 text-sm">
               <div>
-                <span className="text-gray-500">มูลค่ารวม (totalValue): </span>
+                <span className="text-gray-500">มูลค่ารวม (total_value): </span>
                 <span className="font-semibold text-gray-900">
                   ฿{summaryItems
-                    .reduce((sum, row) => sum + (Number(row.totalValue) || 0), 0)
+                    .reduce((sum, row) => sum + (Number(row.total_value) || 0), 0)
                     .toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </span>
               </div>
@@ -960,30 +960,30 @@ export default function PurchaseApprovalsPage() {
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
-                <th onClick={()=>handleSort('approvalId')} className={getHeaderClass('approvalId')}>เลขอนุมัติ</th>
+                <th onClick={()=>handleSort('approval_id')} className={getHeaderClass('approval_id')}>เลขอนุมัติ</th>
                 <th onClick={()=>handleSort('department')} className={getHeaderClass('department')}>หน่วยงาน</th>
-                <th onClick={()=>handleSort('budgetYear')} className={getHeaderClass('budgetYear')}>ปีงบ</th>
-                <th onClick={()=>handleSort('productName')} className={getHeaderClass('productName')}>ชื่อสินค้า</th>
-                <th onClick={()=>handleSort('requestedQuantity')} className={getHeaderClass('requestedQuantity')}>จำนวน</th>
-                <th onClick={()=>handleSort('pricePerUnit')} className={getHeaderClass('pricePerUnit')}>ราคา/หน่วย</th>
-                <th onClick={()=>handleSort('totalValue')} className={getHeaderClass('totalValue')}>มูลค่ารวม</th>
+                <th onClick={()=>handleSort('budget_year')} className={getHeaderClass('budget_year')}>ปีงบ</th>
+                <th onClick={()=>handleSort('product_name')} className={getHeaderClass('product_name')}>ชื่อสินค้า</th>
+                <th onClick={()=>handleSort('requested_quantity')} className={getHeaderClass('requested_quantity')}>จำนวน</th>
+                <th onClick={()=>handleSort('price_per_unit')} className={getHeaderClass('price_per_unit')}>ราคา/หน่วย</th>
+                <th onClick={()=>handleSort('total_value')} className={getHeaderClass('total_value')}>มูลค่ารวม</th>
                 <th className="px-3 py-3 text-left text-[10px] font-medium text-gray-500 uppercase tracking-wider w-24">Action</th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
               {items.map((row) => (
                 <tr key={row.id}>
-                  <td className="px-3 py-2 text-xs">{row.approvalId}</td>
+                  <td className="px-3 py-2 text-xs">{row.approval_id}</td>
                   <td className="px-3 py-2 text-xs">{row.department}</td>
-                  <td className="px-3 py-2 text-xs">{row.budgetYear || '-'}</td>
+                  <td className="px-3 py-2 text-xs">{row.budget_year || '-'}</td>
                   <td className="px-3 py-2 text-xs">
-                    <div className="whitespace-normal break-words" title={row.productName}>
-                      {row.productName}
+                    <div className="whitespace-normal break-words" title={row.product_name}>
+                      {row.product_name}
                     </div>
                   </td>
-                  <td className="px-3 py-2 text-xs">{row.requestedQuantity ?? '-'}</td>
-                  <td className="px-3 py-2 text-xs">{row.pricePerUnit ? Number(row.pricePerUnit).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '-'}</td>
-                  <td className="px-3 py-2 text-xs">{row.totalValue ? Number(row.totalValue).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '-'}</td>
+                  <td className="px-3 py-2 text-xs">{row.requested_quantity ?? '-'}</td>
+                  <td className="px-3 py-2 text-xs">{row.price_per_unit ? Number(row.price_per_unit).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '-'}</td>
+                  <td className="px-3 py-2 text-xs">{row.total_value ? Number(row.total_value).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '-'}</td>
                   <td className="px-3 py-2 text-xs font-medium w-24">
                     <button
                       onClick={() => handleEdit(row)}

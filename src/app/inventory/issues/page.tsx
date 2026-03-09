@@ -5,37 +5,37 @@ import Link from 'next/link';
 
 type RequisitionItemRow = {
   id: number;
-  requisitionId: number;
-  inventoryItemId: number;
-  requestedQty: number;
-  approvedQty: number;
-  issuedQty: number;
-  lineStatus: string;
+  requisition_id: number;
+  inventory_item_id: number;
+  requested_qty: number;
+  approved_qty: number;
+  issued_qty: number;
+  line_status: string;
   note: string | null;
-  productCode: string | null;
-  productName: string | null;
-  availableQty: number;
+  product_code: string | null;
+  product_name: string | null;
+  available_qty: number;
 };
 
 type RequisitionRow = {
   id: number;
-  requisitionNo: string;
-  requestDate: string;
-  requestingDepartment: string;
+  requisition_no: string;
+  request_date: string;
+  requesting_department: string;
   status: string;
   items: RequisitionItemRow[];
 };
 
 type IssueRow = {
   id: number;
-  issueNo: string;
-  issueDate: string;
-  requisitionId: number;
-  requestingDepartment: string;
+  issue_no: string;
+  issue_date: string;
+  requisition_id: number;
+  requesting_department: string;
   status: string;
-  issuedBy: string | null;
-  approvedBy: string | null;
-  issuedQtyTotal: number;
+  issued_by: string | null;
+  approved_by: string | null;
+  issued_qty_total: number;
 };
 
 type ApiResponse<T> = {
@@ -51,8 +51,8 @@ function formatNumber(value: number) {
 export default function InventoryIssuesPage() {
   const [items, setItems] = useState<IssueRow[]>([]);
   const [requisitions, setRequisitions] = useState<RequisitionRow[]>([]);
-  const [selectedRequisitionId, setSelectedRequisitionId] = useState('');
-  const [issueQuantities, setIssueQuantities] = useState<Record<number, number>>({});
+  const [selected_requisition_id, setSelectedRequisitionId] = useState('');
+  const [issue_quantities, setIssueQuantities] = useState<Record<number, number>>({});
   const [posting, setPosting] = useState(false);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState('');
@@ -81,7 +81,7 @@ export default function InventoryIssuesPage() {
   useEffect(() => {
     const fetchApprovedRequisitions = async () => {
       try {
-        const response = await fetch('/api/inventory/requisitions?page=1&pageSize=100');
+        const response = await fetch('/api/inventory/requisitions?page=1&page_size=100');
         const payload: ApiResponse<RequisitionRow[]> = await response.json();
         if (!response.ok || !payload.success) {
           throw new Error(payload.error || 'โหลด requisition ไม่สำเร็จ');
@@ -96,19 +96,19 @@ export default function InventoryIssuesPage() {
   }, []);
 
   useEffect(() => {
-    const requisitionId = new URLSearchParams(window.location.search).get('requisitionId');
-    if (requisitionId) {
-      setSelectedRequisitionId(requisitionId);
+    const requisition_id = new URLSearchParams(window.location.search).get('requisition_id');
+    if (requisition_id) {
+      setSelectedRequisitionId(requisition_id);
     }
   }, []);
 
-  const selectedRequisition = requisitions.find((item) => String(item.id) === selectedRequisitionId);
+  const selectedRequisition = requisitions.find((item) => String(item.id) === selected_requisition_id);
 
   useEffect(() => {
     if (selectedRequisition) {
       const initialQuantities: Record<number, number> = {};
       selectedRequisition.items.forEach(item => {
-        const remaining = Math.max(Number(item.approvedQty || 0) - Number(item.issuedQty || 0), 0);
+        const remaining = Math.max(Number(item.approved_qty || 0) - Number(item.issued_qty || 0), 0);
         initialQuantities[item.id] = remaining;
       });
       setIssueQuantities(initialQuantities);
@@ -137,11 +137,11 @@ export default function InventoryIssuesPage() {
       
       const issueItems = selectedRequisition.items
         .map((item) => ({
-          requisitionItemId: item.id,
-          inventoryItemId: item.inventoryItemId,
-          issuedQty: Math.max(0, issueQuantities[item.id] || 0),
+          requisition_item_id: item.id,
+          inventory_item_id: item.inventory_item_id,
+          issued_qty: Math.max(0, issue_quantities[item.id] || 0),
         }))
-        .filter((item) => item.issuedQty > 0);
+        .filter((item) => item.issued_qty > 0);
 
       if (issueItems.length === 0) {
         setMessage('ไม่มีรายการที่ระบุจำนวนพร้อมจ่ายใน requisition นี้');
@@ -150,10 +150,10 @@ export default function InventoryIssuesPage() {
 
       // Validate quantities before sending
       for (const item of selectedRequisition.items) {
-        const qtyToIssue = issueQuantities[item.id] || 0;
-        const remainingIssueQty = Math.max(Number(item.approvedQty || 0) - Number(item.issuedQty || 0), 0);
+        const qtyToIssue = issue_quantities[item.id] || 0;
+        const remainingIssueQty = Math.max(Number(item.approved_qty || 0) - Number(item.issued_qty || 0), 0);
         if (qtyToIssue > remainingIssueQty) {
-           setMessage(`รายการ ${item.productName || item.productCode} ระบุจำนวนจ่ายเกินยอดอนุมัติคงเหลือ`);
+           setMessage(`รายการ ${item.product_name || item.product_code} ระบุจำนวนจ่ายเกินยอดอนุมัติคงเหลือ`);
            return;
         }
       }
@@ -162,10 +162,10 @@ export default function InventoryIssuesPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          requisitionId: selectedRequisition.id,
-          requestingDepartment: selectedRequisition.requestingDepartment,
-          issuedBy: 'warehouse-admin',
-          approvedBy: 'warehouse-admin',
+          requisition_id: selectedRequisition.id,
+          requesting_department: selectedRequisition.requesting_department,
+          issued_by: 'warehouse-admin',
+          approved_by: 'warehouse-admin',
           items: issueItems,
         }),
       });
@@ -175,7 +175,7 @@ export default function InventoryIssuesPage() {
         throw new Error(payload.error || 'จ่ายสินค้าไม่สำเร็จ');
       }
 
-      setMessage(`บันทึกการจ่ายจาก ${selectedRequisition.requisitionNo} สำเร็จ`);
+      setMessage(`บันทึกการจ่ายจาก ${selectedRequisition.requisition_no} สำเร็จ`);
       setSelectedRequisitionId('');
 
       const refreshResponse = await fetch('/api/inventory/issues');
@@ -214,14 +214,14 @@ export default function InventoryIssuesPage() {
                 เลือกคำขอเบิกที่อนุมัติแล้ว
               </label>
               <select
-                value={selectedRequisitionId}
+                value={selected_requisition_id}
                 onChange={(e) => setSelectedRequisitionId(e.target.value)}
                 className="w-full rounded-xl border border-slate-300 px-4 py-2.5 focus:border-blue-500 bg-slate-50 text-slate-900"
               >
                 <option value="">-- กรุณาเลือกคำขอเบิก --</option>
                 {requisitions.map((item) => (
                   <option key={item.id} value={item.id}>
-                    {item.requisitionNo} - {item.requestingDepartment} ({item.status})
+                    {item.requisition_no} - {item.requesting_department} ({item.status})
                   </option>
                 ))}
               </select>
@@ -230,7 +230,7 @@ export default function InventoryIssuesPage() {
               <button
                 type="button"
                 onClick={handlePostIssue}
-                disabled={posting || !selectedRequisitionId}
+                disabled={posting || !selected_requisition_id}
                 className="w-full md:w-auto rounded-xl bg-emerald-600 px-6 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-emerald-700 disabled:bg-slate-300 whitespace-nowrap"
               >
                 {posting ? 'กำลังบันทึก...' : 'บันทึกจ่ายสินค้า'}
@@ -243,7 +243,7 @@ export default function InventoryIssuesPage() {
               <h3 className="mb-4 text-base font-medium text-slate-900 flex items-center gap-2">
                 <span>รายการสินค้าเตรียมจ่าย</span>
                 <span className="rounded bg-slate-100 px-2 py-0.5 text-xs text-slate-600 shrink-0 border border-slate-200">
-                  {selectedRequisition.requisitionNo}
+                  {selectedRequisition.requisition_no}
                 </span>
               </h3>
               <div className="overflow-x-auto rounded-xl border border-slate-200">
@@ -259,16 +259,16 @@ export default function InventoryIssuesPage() {
                   </thead>
                   <tbody className="divide-y divide-slate-100 bg-white">
                     {selectedRequisition.items.map((item) => {
-                      const remainingIssueQty = Math.max(Number(item.approvedQty || 0) - Number(item.issuedQty || 0), 0);
+                      const remainingIssueQty = Math.max(Number(item.approved_qty || 0) - Number(item.issued_qty || 0), 0);
                       const isFullyIssued = remainingIssueQty === 0;
                       return (
                         <tr key={item.id} className={isFullyIssued ? 'bg-slate-50 opacity-60' : 'hover:bg-slate-50'}>
                           <td className="px-4 py-3">
-                            <div className="font-medium text-slate-900">{item.productCode || '-'}</div>
-                            <div className="text-slate-500">{item.productName || '-'}</div>
+                            <div className="font-medium text-slate-900">{item.product_code || '-'}</div>
+                            <div className="text-slate-500">{item.product_name || '-'}</div>
                           </td>
-                          <td className="px-4 py-3 text-right text-slate-600">{formatNumber(Number(item.approvedQty || 0))}</td>
-                          <td className="px-4 py-3 text-right text-slate-600">{formatNumber(Number(item.issuedQty || 0))}</td>
+                          <td className="px-4 py-3 text-right text-slate-600">{formatNumber(Number(item.approved_qty || 0))}</td>
+                          <td className="px-4 py-3 text-right text-slate-600">{formatNumber(Number(item.issued_qty || 0))}</td>
                           <td className="px-4 py-3 text-right font-medium text-slate-900">{formatNumber(remainingIssueQty)}</td>
                           <td className="px-4 py-3 text-right">
                             <input
@@ -276,7 +276,7 @@ export default function InventoryIssuesPage() {
                               min="0"
                               max={remainingIssueQty}
                               disabled={isFullyIssued}
-                              value={issueQuantities[item.id] !== undefined ? issueQuantities[item.id] : ''}
+                              value={issue_quantities[item.id] !== undefined ? issue_quantities[item.id] : ''}
                               onChange={(e) => handleQtyChange(item.id, e.target.value)}
                               className="w-24 rounded-lg border border-slate-300 px-2 py-1.5 text-right font-medium focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:bg-slate-100"
                             />
@@ -317,13 +317,13 @@ export default function InventoryIssuesPage() {
                 ) : (
                   items.map((item) => (
                     <tr key={item.id} className="hover:bg-slate-50">
-                      <td className="px-4 py-3 font-medium text-slate-900">{item.issueNo}</td>
-                      <td className="px-4 py-3 text-slate-600">{item.issueDate ? new Date(item.issueDate).toLocaleString('th-TH') : '-'}</td>
-                      <td className="px-4 py-3 text-slate-700">{item.requisitionId}</td>
-                      <td className="px-4 py-3 text-slate-700">{item.requestingDepartment}</td>
+                      <td className="px-4 py-3 font-medium text-slate-900">{item.issue_no}</td>
+                      <td className="px-4 py-3 text-slate-600">{item.issue_date ? new Date(item.issue_date).toLocaleString('th-TH') : '-'}</td>
+                      <td className="px-4 py-3 text-slate-700">{item.requisition_id}</td>
+                      <td className="px-4 py-3 text-slate-700">{item.requesting_department}</td>
                       <td className="px-4 py-3"><span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-medium text-emerald-800">{item.status}</span></td>
-                      <td className="px-4 py-3 text-slate-600">{item.issuedBy || '-'}</td>
-                      <td className="px-4 py-3 text-right font-semibold text-slate-900">{formatNumber(Number(item.issuedQtyTotal || 0))}</td>
+                      <td className="px-4 py-3 text-slate-600">{item.issued_by || '-'}</td>
+                      <td className="px-4 py-3 text-right font-semibold text-slate-900">{formatNumber(Number(item.issued_qty_total || 0))}</td>
                     </tr>
                   ))
                 )}

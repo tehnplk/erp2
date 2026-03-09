@@ -25,7 +25,7 @@ export async function GET(request: NextRequest) {
     }
 
     const whereSql = whereClauses.length ? `WHERE ${whereClauses.join(' AND ')}` : '';
-    const baseSelect = 'SELECT id, name FROM public."Department"';
+    const baseSelect = 'SELECT id, name FROM public.department';
 
     const cacheKeyAll = `erp:departments:list:all:${JSON.stringify(params)}`;
     if (!page || !pageSize) {
@@ -47,7 +47,7 @@ export async function GET(request: NextRequest) {
     }
 
     const [countResult, result] = await Promise.all([
-      pgQuery(`SELECT COUNT(*)::int AS count FROM public."Department" ${whereSql}`, params),
+      pgQuery(`SELECT COUNT(*)::int AS count FROM public.department ${whereSql}`, params),
       pgQuery(`${baseSelect} ${whereSql} ORDER BY id ASC LIMIT $${params.length + 1} OFFSET $${params.length + 2}`, [...params, pageSize, skip]),
     ]);
     
@@ -77,7 +77,7 @@ export async function POST(request: NextRequest) {
     }
 
     const result = await pgQuery(
-      `INSERT INTO public."Department" (name)
+      `INSERT INTO public.department (name)
        VALUES ($1)
        RETURNING id, name`,
       [validation.data.name]

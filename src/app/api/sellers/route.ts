@@ -25,7 +25,7 @@ export async function GET(request: NextRequest) {
     }
 
     const whereSql = whereClauses.length ? `WHERE ${whereClauses.join(' AND ')}` : '';
-    const baseSelect = 'SELECT id, code, prefix, name, business, address, phone, fax, mobile FROM public."Seller"';
+    const baseSelect = 'SELECT id, code, prefix, name, business, address, phone, fax, mobile FROM public.seller';
 
     const cacheKeyAll = `erp:sellers:list:all:${JSON.stringify(params)}`;
     if (!page || !pageSize) {
@@ -47,7 +47,7 @@ export async function GET(request: NextRequest) {
     }
 
     const [countResult, result] = await Promise.all([
-      pgQuery(`SELECT COUNT(*)::int AS count FROM public."Seller" ${whereSql}`, params),
+      pgQuery(`SELECT COUNT(*)::int AS count FROM public.seller ${whereSql}`, params),
       pgQuery(`${baseSelect} ${whereSql} ORDER BY id ASC LIMIT $${params.length + 1} OFFSET $${params.length + 2}`, [...params, pageSize, skip]),
     ]);
 
@@ -79,13 +79,13 @@ export async function POST(request: NextRequest) {
     const { code } = validation.data as any;
 
     // Check if seller with this code already exists
-    const existingResult = await pgQuery('SELECT id FROM public."Seller" WHERE code = $1 LIMIT 1', [code]);
+    const existingResult = await pgQuery('SELECT id FROM public.seller WHERE code = $1 LIMIT 1', [code]);
     if (existingResult.rows.length > 0) {
       return apiConflict('Seller with this code already exists');
     }
 
     const result = await pgQuery(
-      `INSERT INTO public."Seller" (code, prefix, name, business, address, phone, fax, mobile)
+      `INSERT INTO public.seller (code, prefix, name, business, address, phone, fax, mobile)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
        RETURNING id, code, prefix, name, business, address, phone, fax, mobile`,
       [

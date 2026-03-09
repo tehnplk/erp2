@@ -5,7 +5,7 @@ import { cacheDelByPattern } from '@/lib/redis';
 import { validateRequest } from '@/lib/validation/validate';
 import { idParamSchema, updateProductSchema } from '@/lib/validation/schemas';
 
-const productSelect = `SELECT id, code, category, name, type, subtype, unit, "costPrice"::float8 AS "costPrice", "sellPrice"::float8 AS "sellPrice", "stockBalance", "stockValue"::float8 AS "stockValue", "sellerCode", image, "flagActivate", "adminNote" FROM public."Product"`;
+const productSelect = `SELECT id, code, category, name, type, subtype, unit, cost_price::float8 AS cost_price, sell_price::float8 AS sell_price, stock_balance, stock_value::float8 AS stock_value, seller_code, image, flag_activate, admin_note FROM public.product`;
 
 export async function GET(
   request: NextRequest,
@@ -51,7 +51,7 @@ export async function PUT(
       return validation.error;
     }
 
-    const existingProductResult = await pgQuery(`SELECT id, code FROM public."Product" WHERE id = $1 LIMIT 1`, [id]);
+    const existingProductResult = await pgQuery(`SELECT id, code FROM public.product WHERE id = $1 LIMIT 1`, [id]);
     const existingProduct = existingProductResult.rows[0];
     if (!existingProduct) {
       return apiNotFound('Product');
@@ -59,7 +59,7 @@ export async function PUT(
 
     const { code } = validation.data as any;
     if (code && code !== existingProduct.code) {
-      const duplicateCodeResult = await pgQuery(`SELECT id FROM public."Product" WHERE code = $1 LIMIT 1`, [code]);
+      const duplicateCodeResult = await pgQuery(`SELECT id FROM public.product WHERE code = $1 LIMIT 1`, [code]);
       if (duplicateCodeResult.rows.length > 0) {
         return apiConflict('Product with this code already exists');
       }
@@ -72,13 +72,13 @@ export async function PUT(
       type: 'type',
       subtype: 'subtype',
       unit: 'unit',
-      costPrice: '"costPrice"',
-      sellPrice: '"sellPrice"',
-      stockBalance: '"stockBalance"',
-      stockValue: '"stockValue"',
-      sellerCode: '"sellerCode"',
+      cost_price: 'cost_price',
+      sell_price: 'sell_price',
+      stock_balance: 'stock_balance',
+      stock_value: 'stock_value',
+      seller_code: 'seller_code',
       image: 'image',
-      adminNote: '"adminNote"',
+      admin_note: 'admin_note',
     };
 
     const assignments: string[] = [];
@@ -98,7 +98,7 @@ export async function PUT(
 
     values.push(id);
     const result = await pgQuery(
-      `UPDATE public."Product" SET ${assignments.join(', ')} WHERE id = $${values.length} RETURNING id, code, category, name, type, subtype, unit, "costPrice"::float8 AS "costPrice", "sellPrice"::float8 AS "sellPrice", "stockBalance", "stockValue"::float8 AS "stockValue", "sellerCode", image, "flagActivate", "adminNote"`,
+      `UPDATE public.product SET ${assignments.join(', ')} WHERE id = $${values.length} RETURNING id, code, category, name, type, subtype, unit, cost_price::float8 AS cost_price, sell_price::float8 AS sell_price, stock_balance, stock_value::float8 AS stock_value, seller_code, image, flag_activate, admin_note`,
       values
     );
 
@@ -123,12 +123,12 @@ export async function DELETE(
     }
 
     const { id } = idValidation.data;
-    const productResult = await pgQuery(`SELECT id FROM public."Product" WHERE id = $1 LIMIT 1`, [id]);
+    const productResult = await pgQuery(`SELECT id FROM public.product WHERE id = $1 LIMIT 1`, [id]);
     if (productResult.rows.length === 0) {
       return apiNotFound('Product');
     }
 
-    await pgQuery(`DELETE FROM public."Product" WHERE id = $1`, [id]);
+    await pgQuery(`DELETE FROM public.product WHERE id = $1`, [id]);
     await cacheDelByPattern('erp:products:list:*');
     return apiSuccess(null, 'Product deleted successfully');
   } catch (error) {

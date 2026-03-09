@@ -34,7 +34,7 @@ export async function PUT(
     }
 
     const currentSurveyResult = await pgQuery(
-      `SELECT id, "productCode", category, type, subtype, "productName", "requestedAmount", unit, "pricePerUnit"::float8 AS "pricePerUnit", "requestingDept", "approvedQuota", budget_year AS "budgetYear", sequence_no AS "sequenceNo", created_at AS "createdAt", updated_at AS "updatedAt" FROM public."UsagePlan" WHERE id = $1 LIMIT 1`,
+      `SELECT id, product_code, category, type, subtype, product_name, requested_amount, unit, price_per_unit::float8 AS price_per_unit, requesting_dept, approved_quota, budget_year, sequence_no, created_at, updated_at FROM public.usage_plan WHERE id = $1 LIMIT 1`,
       [numericId]
     );
     const currentSurvey = currentSurveyResult.rows[0];
@@ -48,29 +48,29 @@ export async function PUT(
       ...(validation.data as any),
     };
 
-    if (nextData.budgetYear === null || nextData.budgetYear === undefined) {
-      nextData.budgetYear = currentSurvey.budgetYear ?? 2569;
+    if (nextData.budget_year === null || nextData.budget_year === undefined) {
+      nextData.budget_year = currentSurvey.budget_year ?? 2569;
     }
 
-    if (nextData.sequenceNo === null || nextData.sequenceNo === undefined) {
-      nextData.sequenceNo = currentSurvey.sequenceNo ?? 1;
+    if (nextData.sequence_no === null || nextData.sequence_no === undefined) {
+      nextData.sequence_no = currentSurvey.sequence_no ?? 1;
     }
 
-    if (nextData.budgetYear !== null && nextData.budgetYear !== undefined) {
+    if (nextData.budget_year !== null && nextData.budget_year !== undefined) {
       const duplicateWhere: any = {
-        budgetYear: nextData.budgetYear,
-        requestingDept: nextData.requestingDept || null,
-        productCode: nextData.productCode || null,
+        budget_year: nextData.budget_year,
+        requesting_dept: nextData.requesting_dept || null,
+        product_code: nextData.product_code || null,
       };
 
       const existingRecordsResult = await pgQuery(
-        `SELECT id, sequence_no AS "sequenceNo" FROM public."UsagePlan" WHERE budget_year = $1 AND "requestingDept" IS NOT DISTINCT FROM $2 AND "productCode" IS NOT DISTINCT FROM $3`,
-        [duplicateWhere.budgetYear, duplicateWhere.requestingDept, duplicateWhere.productCode]
+        `SELECT id, sequence_no FROM public.usage_plan WHERE budget_year = $1 AND requesting_dept IS NOT DISTINCT FROM $2 AND product_code IS NOT DISTINCT FROM $3`,
+        [duplicateWhere.budget_year, duplicateWhere.requesting_dept, duplicateWhere.product_code]
       );
       const recordsExcludingCurrent = existingRecordsResult.rows.filter((survey: any) => survey.id !== numericId);
 
-      if (nextData.sequenceNo !== null && nextData.sequenceNo !== undefined) {
-        const duplicatedSequence = recordsExcludingCurrent.some((survey: any) => survey.sequenceNo === nextData.sequenceNo);
+      if (nextData.sequence_no !== null && nextData.sequence_no !== undefined) {
+        const duplicatedSequence = recordsExcludingCurrent.some((survey: any) => survey.sequence_no === nextData.sequence_no);
         if (duplicatedSequence) {
           return buildSurveyConstraintError();
         }
@@ -83,24 +83,24 @@ export async function PUT(
     
     const payload = {
       ...(validation.data as any),
-      budgetYear: nextData.budgetYear,
-      sequenceNo: nextData.sequenceNo,
+      budget_year: nextData.budget_year,
+      sequence_no: nextData.sequence_no,
     };
     const assignments: string[] = [];
     const values: unknown[] = [];
     const columnMap: Record<string, string> = {
-      productCode: '"productCode"',
+      product_code: 'product_code',
       category: 'category',
       type: 'type',
       subtype: 'subtype',
-      productName: '"productName"',
-      requestedAmount: '"requestedAmount"',
+      product_name: 'product_name',
+      requested_amount: 'requested_amount',
       unit: 'unit',
-      pricePerUnit: '"pricePerUnit"',
-      requestingDept: '"requestingDept"',
-      approvedQuota: '"approvedQuota"',
-      budgetYear: 'budget_year',
-      sequenceNo: 'sequence_no',
+      price_per_unit: 'price_per_unit',
+      requesting_dept: 'requesting_dept',
+      approved_quota: 'approved_quota',
+      budget_year: 'budget_year',
+      sequence_no: 'sequence_no',
     };
 
     Object.entries(payload).forEach(([key, value]) => {
@@ -116,7 +116,7 @@ export async function PUT(
 
     values.push(numericId);
     const survey = await pgQuery(
-      `UPDATE public."UsagePlan" SET ${assignments.join(', ')}, updated_at = NOW() WHERE id = $${values.length} RETURNING id, "productCode", category, type, subtype, "productName", "requestedAmount", unit, "pricePerUnit"::float8 AS "pricePerUnit", "requestingDept", "approvedQuota", budget_year AS "budgetYear", sequence_no AS "sequenceNo", created_at AS "createdAt", updated_at AS "updatedAt"`,
+      `UPDATE public.usage_plan SET ${assignments.join(', ')}, updated_at = NOW() WHERE id = $${values.length} RETURNING id, product_code, category, type, subtype, product_name, requested_amount, unit, price_per_unit::float8 AS price_per_unit, requesting_dept, approved_quota, budget_year, sequence_no, created_at, updated_at`,
       values
     );
     
@@ -149,7 +149,7 @@ export async function DELETE(
 
     const numericId = parsedId.data.id;
     
-    await pgQuery('DELETE FROM public."UsagePlan" WHERE id = $1', [numericId]);
+    await pgQuery('DELETE FROM public.usage_plan WHERE id = $1', [numericId]);
     
     await cacheDelByPattern('erp:surveys:list:*');
     

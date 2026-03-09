@@ -21,7 +21,7 @@ export async function GET(
     const { id } = idValidation.data;
 
     const result = await pgQuery(
-      'SELECT id, code, prefix, name, business, address, phone, fax, mobile FROM public."Seller" WHERE id = $1 LIMIT 1',
+      'SELECT id, code, prefix, name, business, address, phone, fax, mobile FROM public.seller WHERE id = $1 LIMIT 1',
       [id]
     );
     const seller = result.rows[0];
@@ -60,7 +60,7 @@ export async function PUT(
       return validation.error;
     }
 
-    const existingResult = await pgQuery('SELECT id FROM public."Seller" WHERE id = $1 LIMIT 1', [id]);
+    const existingResult = await pgQuery('SELECT id FROM public.seller WHERE id = $1 LIMIT 1', [id]);
     if (existingResult.rows.length === 0) {
       return apiNotFound('Seller');
     }
@@ -86,13 +86,13 @@ export async function PUT(
     });
 
     if (assignments.length === 0) {
-      const unchangedResult = await pgQuery('SELECT id, code, prefix, name, business, address, phone, fax, mobile FROM public."Seller" WHERE id = $1 LIMIT 1', [id]);
+      const unchangedResult = await pgQuery('SELECT id, code, prefix, name, business, address, phone, fax, mobile FROM public.seller WHERE id = $1 LIMIT 1', [id]);
       return apiSuccess(unchangedResult.rows[0], 'Seller updated successfully');
     }
 
     values.push(id);
     const updatedResult = await pgQuery(
-      `UPDATE public."Seller" SET ${assignments.join(', ')} WHERE id = $${values.length}
+      `UPDATE public.seller SET ${assignments.join(', ')} WHERE id = $${values.length}
        RETURNING id, code, prefix, name, business, address, phone, fax, mobile`,
       values
     );
@@ -121,12 +121,12 @@ export async function DELETE(
     
     const { id } = idValidation.data;
 
-    const existingResult = await pgQuery('SELECT id FROM public."Seller" WHERE id = $1 LIMIT 1', [id]);
+    const existingResult = await pgQuery('SELECT id FROM public.seller WHERE id = $1 LIMIT 1', [id]);
     if (existingResult.rows.length === 0) {
       return apiNotFound('Seller');
     }
 
-    await pgQuery('DELETE FROM public."Seller" WHERE id = $1', [id]);
+    await pgQuery('DELETE FROM public.seller WHERE id = $1', [id]);
     await cacheDelByPattern('erp:sellers:list:*');
 
     return apiSuccess(null, 'Seller deleted successfully');

@@ -6,38 +6,38 @@ import Swal from 'sweetalert2';
 
 type RequisitionRow = {
   id: number;
-  requisitionNo: string;
-  requestDate: string;
-  requestingDepartment: string;
+  requisition_no: string;
+  request_date: string;
+  requesting_department: string;
   status: string;
-  requestedBy: string | null;
-  approvedBy: string | null;
-  requestedQtyTotal: number;
-  approvedQtyTotal: number;
-  issuedQtyTotal: number;
+  requested_by: string | null;
+  approved_by: string | null;
+  requested_qty_total: number;
+  approved_qty_total: number;
+  issued_qty_total: number;
   items: RequisitionItemRow[];
 };
 
 type RequisitionItemRow = {
   id: number;
-  requisitionId: number;
-  inventoryItemId: number;
-  requestedQty: number;
-  approvedQty: number;
-  issuedQty: number;
-  lineStatus: string;
+  requisition_id: number;
+  inventory_item_id: number;
+  requested_qty: number;
+  approved_qty: number;
+  issued_qty: number;
+  line_status: string;
   note: string | null;
-  productCode: string | null;
-  productName: string | null;
-  availableQty: number;
+  product_code: string | null;
+  product_name: string | null;
+  available_qty: number;
 };
 
 type BalanceOption = {
-  inventoryItemId: number;
-  productCode: string;
-  productName: string;
-  availableQty: number;
-  avgCost: number;
+  inventory_item_id: number;
+  product_code: string;
+  product_name: string;
+  available_qty: number;
+  avg_cost: number;
 };
 
 type ApiResponse<T> = {
@@ -52,56 +52,56 @@ function formatNumber(value: number) {
 
 export default function InventoryRequisitionsPage() {
   const [items, setItems] = useState<RequisitionRow[]>([]);
-  const [balanceOptions, setBalanceOptions] = useState<BalanceOption[]>([]);
+  const [balance_options, setBalanceOptions] = useState<BalanceOption[]>([]);
   const [department, setDepartment] = useState('กลุ่มงานบริหารทั่วไป');
-  const [requestedBy, setRequestedBy] = useState('');
-  const [selectedItemId, setSelectedItemId] = useState('');
-  const [requestedQty, setRequestedQty] = useState('1');
+  const [requested_by, setRequestedBy] = useState('');
+  const [selected_item_id, setSelectedItemId] = useState('');
+  const [requested_qty, setRequestedQty] = useState('1');
   const [submitting, setSubmitting] = useState(false);
-  const [approvingId, setApprovingId] = useState<number | null>(null);
-  const [expandedRequisitionId, setExpandedRequisitionId] = useState<number | null>(null);
+  const [approving_id, setApprovingId] = useState<number | null>(null);
+  const [expanded_requisition_id, setExpandedRequisitionId] = useState<number | null>(null);
   const [message, setMessage] = useState('');
   const [isError, setIsError] = useState(false);
   const [loading, setLoading] = useState(true);
 
-  const [cancellingId, setCancellingId] = useState<number | null>(null);
+  const [cancelling_id, setCancellingId] = useState<number | null>(null);
 
-  const [cart, setCart] = useState<{ inventoryItemId: number; productCode: string; productName: string; requestedQty: number }[]>([]);
+  const [cart, setCart] = useState<{ inventory_item_id: number; product_code: string; product_name: string; requested_qty: number }[]>([]);
 
   const selectedOption = useMemo(
-    () => balanceOptions.find((item) => String(item.inventoryItemId) === selectedItemId),
-    [balanceOptions, selectedItemId]
+    () => balance_options.find((item) => String(item.inventory_item_id) === selected_item_id),
+    [balance_options, selected_item_id]
   );
 
   const handleAddToCart = () => {
-    if (!selectedItemId || !selectedOption) {
+    if (!selected_item_id || !selectedOption) {
       setIsError(true);
       setMessage('กรุณาเลือกสินค้า');
       return;
     }
-    const qty = Number(requestedQty);
+    const qty = Number(requested_qty);
     if (qty <= 0) {
       setIsError(true);
       setMessage('กรุณาระบุจำนวนที่ถูกต้อง');
       return;
     }
 
-    if (qty > selectedOption.availableQty) {
+    if (qty > selectedOption.available_qty) {
       setIsError(true);
-      setMessage(`จำนวนที่ขอ (${formatNumber(qty)}) เกินกว่าจำนวนคงเหลือ (${formatNumber(selectedOption.availableQty)})`);
+      setMessage(`จำนวนที่ขอ (${formatNumber(qty)}) เกินกว่าจำนวนคงเหลือ (${formatNumber(selectedOption.available_qty)})`);
       return;
     }
 
     // Check if item already in cart
-    const existing = cart.find(c => c.inventoryItemId === selectedOption.inventoryItemId);
+    const existing = cart.find(c => c.inventory_item_id === selectedOption.inventory_item_id);
     if (existing) {
-      setCart(cart.map(c => c.inventoryItemId === selectedOption.inventoryItemId ? { ...c, requestedQty: c.requestedQty + qty } : c));
+      setCart(cart.map(c => c.inventory_item_id === selectedOption.inventory_item_id ? { ...c, requested_qty: c.requested_qty + qty } : c));
     } else {
       setCart([...cart, {
-        inventoryItemId: selectedOption.inventoryItemId,
-        productCode: selectedOption.productCode,
-        productName: selectedOption.productName,
-        requestedQty: qty
+        inventory_item_id: selectedOption.inventory_item_id,
+        product_code: selectedOption.product_code,
+        product_name: selectedOption.product_name,
+        requested_qty: qty
       }]);
     }
     
@@ -111,13 +111,13 @@ export default function InventoryRequisitionsPage() {
   };
 
   const handleRemoveFromCart = (id: number) => {
-    setCart(cart.filter(c => c.inventoryItemId !== id));
+    setCart(cart.filter(c => c.inventory_item_id !== id));
   };
 
   const fetchRequisitions = async () => {
     try {
       setLoading(true);
-      const response = await fetch('/api/inventory/requisitions?page=1&pageSize=100');
+      const response = await fetch('/api/inventory/requisitions?page=1&page_size=100');
       const payload: ApiResponse<RequisitionRow[]> = await response.json();
       if (!response.ok || !payload.success) {
         throw new Error(payload.error || 'โหลด requisition ไม่สำเร็จ');
@@ -135,7 +135,7 @@ export default function InventoryRequisitionsPage() {
   const handleCancel = async (item: RequisitionRow) => {
     const confirmation = await Swal.fire({
       title: 'ยืนยันการยกเลิก?',
-      text: `ต้องการยกเลิกคำขอเบิก ${item.requisitionNo} ใช่หรือไม่?`,
+      text: `ต้องการยกเลิกคำขอเบิก ${item.requisition_no} ใช่หรือไม่?`,
       icon: 'warning',
       showCancelButton: true,
       confirmButtonText: 'ยืนยัน',
@@ -149,11 +149,11 @@ export default function InventoryRequisitionsPage() {
       setCancellingId(item.id);
       setIsError(false);
       setMessage('');
-      const response = await fetch(`/api/inventory/requisitions/cancel?requisitionId=${item.id}`, {
+      const response = await fetch(`/api/inventory/requisitions/cancel?requisition_id=${item.id}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          cancelledBy: requestedBy || undefined,
+          cancelled_by: requested_by || undefined,
         }),
       });
 
@@ -162,7 +162,7 @@ export default function InventoryRequisitionsPage() {
         throw new Error(payload.error || 'ยกเลิก requisition ไม่สำเร็จ');
       }
 
-      setMessage(`ยกเลิก ${item.requisitionNo} สำเร็จ`);
+      setMessage(`ยกเลิก ${item.requisition_no} สำเร็จ`);
       setIsError(false);
       await fetchRequisitions();
       await fetchBalances();
@@ -183,14 +183,14 @@ export default function InventoryRequisitionsPage() {
       setApprovingId(item.id);
       setIsError(false);
       setMessage('');
-      const response = await fetch(`/api/inventory/requisitions/approve?requisitionId=${item.id}`, {
+      const response = await fetch(`/api/inventory/requisitions/approve?requisition_id=${item.id}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          approvedBy: requestedBy || undefined,
+          approved_by: requested_by || undefined,
           items: item.items.map((line) => ({
-            requisitionItemId: line.id,
-            approvedQty: Math.min(Number(line.requestedQty || 0), Number(line.availableQty || 0)),
+            requisition_item_id: line.id,
+            approved_qty: Math.min(Number(line.requested_qty || 0), Number(line.available_qty || 0)),
           })),
         }),
       });
@@ -200,7 +200,7 @@ export default function InventoryRequisitionsPage() {
         throw new Error(payload.error || 'อนุมัติ requisition ไม่สำเร็จ');
       }
 
-      setMessage(`อนุมัติ ${item.requisitionNo} สำเร็จ`);
+      setMessage(`อนุมัติ ${item.requisition_no} สำเร็จ`);
       setIsError(false);
       await fetchRequisitions();
       await fetchBalances();
@@ -214,18 +214,18 @@ export default function InventoryRequisitionsPage() {
 
   const fetchBalances = async () => {
     try {
-      const response = await fetch('/api/inventory/balances?page=1&pageSize=200');
+      const response = await fetch('/api/inventory/balances?page=1&page_size=200');
       const payload = await response.json();
       if (!response.ok || !payload.success) {
         throw new Error(payload.error || 'โหลด stock options ไม่สำเร็จ');
       }
       setBalanceOptions(
         (payload.data || []).map((item: any) => ({
-          inventoryItemId: item.inventoryItemId,
-          productCode: item.productCode,
-          productName: item.productName,
-          availableQty: Number(item.availableQty || 0),
-          avgCost: Number(item.avgCost || 0),
+          inventory_item_id: item.inventory_item_id,
+          product_code: item.product_code,
+          product_name: item.product_name,
+          available_qty: Number(item.available_qty || 0),
+          avg_cost: Number(item.avg_cost || 0),
         }))
       );
     } catch (error) {
@@ -253,11 +253,11 @@ export default function InventoryRequisitionsPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          requestingDepartment: department,
-          requestedBy: requestedBy || undefined,
+          requesting_department: department,
+          requested_by: requested_by || undefined,
           items: cart.map(item => ({
-            inventoryItemId: item.inventoryItemId,
-            requestedQty: item.requestedQty,
+            inventory_item_id: item.inventory_item_id,
+            requested_qty: item.requested_qty,
           })),
         }),
       });
@@ -303,25 +303,25 @@ export default function InventoryRequisitionsPage() {
             </label>
             <label className="text-sm font-medium text-slate-700">
               ผู้ขอ
-              <input value={requestedBy} onChange={(e) => setRequestedBy(e.target.value)} className="mt-2 w-full rounded-xl border border-slate-300 px-3 py-2 focus:border-blue-500 focus:ring-1 focus:ring-blue-500" />
+              <input value={requested_by} onChange={(e) => setRequestedBy(e.target.value)} className="mt-2 w-full rounded-xl border border-slate-300 px-3 py-2 focus:border-blue-500 focus:ring-1 focus:ring-blue-500" />
             </label>
           </div>
 
           <div className="grid grid-cols-1 gap-4 rounded-2xl bg-slate-50 p-4 lg:grid-cols-5">
             <div className="lg:col-span-2">
               <label className="text-sm font-medium text-slate-700">สินค้าที่ต้องการเบิก</label>
-              <select value={selectedItemId} onChange={(e) => setSelectedItemId(e.target.value)} className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 focus:border-blue-500">
+              <select value={selected_item_id} onChange={(e) => setSelectedItemId(e.target.value)} className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 focus:border-blue-500">
                 <option value="">เลือกสินค้า</option>
-                {balanceOptions.map((item) => (
-                  <option key={item.inventoryItemId} value={item.inventoryItemId}>
-                    {item.productCode} - {item.productName} (พร้อมใช้ {formatNumber(item.availableQty)})
+                {balance_options.map((item) => (
+                  <option key={item.inventory_item_id} value={item.inventory_item_id}>
+                    {item.product_code} - {item.product_name} (พร้อมใช้ {formatNumber(item.available_qty)})
                   </option>
                 ))}
               </select>
             </div>
             <div>
               <label className="text-sm font-medium text-slate-700">จำนวน</label>
-              <input value={requestedQty} onChange={(e) => setRequestedQty(e.target.value)} type="number" min="1" className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 focus:border-blue-500" />
+              <input value={requested_qty} onChange={(e) => setRequestedQty(e.target.value)} type="number" min="1" className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 focus:border-blue-500" />
             </div>
             <div className="flex items-end">
               <button type="button" onClick={handleAddToCart} className="w-full rounded-xl bg-slate-800 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-slate-900">
@@ -331,7 +331,7 @@ export default function InventoryRequisitionsPage() {
             <div className="flex items-end">
                 <div className="text-xs text-slate-500">
                     {selectedOption && (
-                        <span>พร้อมใช้: {formatNumber(selectedOption.availableQty)}</span>
+                        <span>พร้อมใช้: {formatNumber(selectedOption.available_qty)}</span>
                     )}
                 </div>
             </div>
@@ -350,14 +350,14 @@ export default function InventoryRequisitionsPage() {
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {cart.map((item) => (
-                    <tr key={item.inventoryItemId}>
+                    <tr key={item.inventory_item_id}>
                       <td className="px-4 py-3">
-                        <div className="font-medium text-slate-900">{item.productCode}</div>
-                        <div className="text-xs text-slate-500">{item.productName}</div>
+                        <div className="font-medium text-slate-900">{item.product_code}</div>
+                        <div className="text-xs text-slate-500">{item.product_name}</div>
                       </td>
-                      <td className="px-4 py-3 text-right font-medium">{formatNumber(item.requestedQty)}</td>
+                      <td className="px-4 py-3 text-right font-medium">{formatNumber(item.requested_qty)}</td>
                       <td className="px-4 py-3 text-right">
-                        <button type="button" onClick={() => handleRemoveFromCart(item.inventoryItemId)} className="text-red-600 hover:text-red-800">ลบ</button>
+                        <button type="button" onClick={() => handleRemoveFromCart(item.inventory_item_id)} className="text-red-600 hover:text-red-800">ลบ</button>
                       </td>
                     </tr>
                   ))}
@@ -410,19 +410,19 @@ export default function InventoryRequisitionsPage() {
                   </tr>
                 ) : (
                   items.flatMap((item) => {
-                    const isExpanded = expandedRequisitionId === item.id;
+                    const isExpanded = expanded_requisition_id === item.id;
                     const canApprove = ['DRAFT', 'SUBMITTED', 'PARTIALLY_APPROVED'].includes(item.status);
                     const canCancel = !['ISSUED', 'CANCELLED', 'REJECTED'].includes(item.status);
 
                     return [
                       <tr key={`row-${item.id}`} className="hover:bg-slate-50">
-                        <td className="px-4 py-3 font-medium text-slate-900">{item.requisitionNo}</td>
-                        <td className="px-4 py-3 text-slate-600">{item.requestDate ? new Date(item.requestDate).toLocaleString('th-TH') : '-'}</td>
-                        <td className="px-4 py-3 text-slate-700">{item.requestingDepartment}</td>
+                        <td className="px-4 py-3 font-medium text-slate-900">{item.requisition_no}</td>
+                        <td className="px-4 py-3 text-slate-600">{item.request_date ? new Date(item.request_date).toLocaleString('th-TH') : '-'}</td>
+                        <td className="px-4 py-3 text-slate-700">{item.requesting_department}</td>
                         <td className="px-4 py-3"><span className="rounded-full bg-violet-100 px-3 py-1 text-xs font-medium text-violet-800">{item.status}</span></td>
-                        <td className="px-4 py-3 text-right text-slate-700">{formatNumber(Number(item.requestedQtyTotal || 0))}</td>
-                        <td className="px-4 py-3 text-right text-slate-700">{formatNumber(Number(item.approvedQtyTotal || 0))}</td>
-                        <td className="px-4 py-3 text-right font-semibold text-emerald-700">{formatNumber(Number(item.issuedQtyTotal || 0))}</td>
+                        <td className="px-4 py-3 text-right text-slate-700">{formatNumber(Number(item.requested_qty_total || 0))}</td>
+                        <td className="px-4 py-3 text-right text-slate-700">{formatNumber(Number(item.approved_qty_total || 0))}</td>
+                        <td className="px-4 py-3 text-right font-semibold text-emerald-700">{formatNumber(Number(item.issued_qty_total || 0))}</td>
                         <td className="px-4 py-3 text-right">
                           <div className="flex justify-end gap-2">
                             <button
@@ -436,24 +436,24 @@ export default function InventoryRequisitionsPage() {
                               <button
                                 type="button"
                                 onClick={() => handleApprove(item)}
-                                disabled={approvingId === item.id}
+                                disabled={approving_id === item.id}
                                 className="rounded-xl bg-emerald-600 px-3 py-2 text-xs font-medium text-white shadow-sm transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-slate-300"
                               >
-                                {approvingId === item.id ? 'กำลังอนุมัติ...' : 'อนุมัติ'}
+                                {approving_id === item.id ? 'กำลังอนุมัติ...' : 'อนุมัติ'}
                               </button>
                             )}
                             {canCancel && (
                               <button
                                 type="button"
                                 onClick={() => handleCancel(item)}
-                                disabled={cancellingId === item.id}
+                                disabled={cancelling_id === item.id}
                                 className="rounded-xl border border-red-200 bg-red-50 text-red-600 px-3 py-2 text-xs font-medium shadow-sm transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50"
                               >
-                                {cancellingId === item.id ? 'กำลังยกเลิก...' : 'ยกเลิก'}
+                                {cancelling_id === item.id ? 'กำลังยกเลิก...' : 'ยกเลิก'}
                               </button>
                             )}
                             <Link
-                              href={`/inventory/issues?requisitionId=${item.id}`}
+                              href={`/inventory/issues?requisition_id=${item.id}`}
                               className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-medium text-slate-700 shadow-sm hover:bg-slate-100"
                             >
                               ไปหน้าจ่าย
@@ -483,14 +483,14 @@ export default function InventoryRequisitionsPage() {
                                         {item.items.map((line) => (
                                           <tr key={line.id} className="border-b border-slate-100 last:border-b-0">
                                             <td className="px-3 py-2 text-slate-700">
-                                              <div className="font-medium text-slate-900">{line.productCode || '-'}</div>
-                                              <div>{line.productName || '-'}</div>
+                                              <div className="font-medium text-slate-900">{line.product_code || '-'}</div>
+                                              <div>{line.product_name || '-'}</div>
                                             </td>
-                                            <td className="px-3 py-2 text-right">{formatNumber(Number(line.requestedQty || 0))}</td>
-                                            <td className="px-3 py-2 text-right">{formatNumber(Number(line.approvedQty || 0))}</td>
-                                            <td className="px-3 py-2 text-right">{formatNumber(Number(line.issuedQty || 0))}</td>
-                                            <td className="px-3 py-2 text-right">{formatNumber(Number(line.availableQty || 0))}</td>
-                                            <td className="px-3 py-2 text-slate-600">{line.lineStatus}</td>
+                                            <td className="px-3 py-2 text-right">{formatNumber(Number(line.requested_qty || 0))}</td>
+                                            <td className="px-3 py-2 text-right">{formatNumber(Number(line.approved_qty || 0))}</td>
+                                            <td className="px-3 py-2 text-right">{formatNumber(Number(line.issued_qty || 0))}</td>
+                                            <td className="px-3 py-2 text-right">{formatNumber(Number(line.available_qty || 0))}</td>
+                                            <td className="px-3 py-2 text-slate-600">{line.line_status}</td>
                                           </tr>
                                         ))}
                                       </tbody>

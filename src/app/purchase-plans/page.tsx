@@ -16,59 +16,59 @@ const getCurrentBudgetYear = () => {
 
 interface SurveyOption {
   id: number;
-  productCode: string | null;
+  product_code: string | null;
   category: string | null;
   type: string | null;
   subtype: string | null;
-  productName: string | null;
-  requestedAmount: number | null;
+  product_name: string | null;
+  requested_amount: number | null;
   unit: string | null;
-  pricePerUnit: number;
-  requestingDept: string | null;
-  approvedQuota: number | null;
-  budgetYear: number | null;
-  sequenceNo: number | null;
+  price_per_unit: number;
+  requesting_dept: string | null;
+  approved_quota: number | null;
+  budget_year: number | null;
+  sequence_no: number | null;
 }
 
 interface PurchasePlanFormData {
-  productCode?: string;
+  product_code?: string;
   category?: string;
-  productName?: string;
-  productType?: string;
-  productSubtype?: string;
+  product_name?: string;
+  product_type?: string;
+  product_subtype?: string;
   unit?: string;
-  pricePerUnit?: number;
-  budgetYear?: string;
-  planId?: number | null;
-  inPlan?: string;
-  carriedForwardQuantity?: number | null;
-  carriedForwardValue?: number;
-  requiredQuantityForYear?: number | null;
-  totalRequiredValue?: number;
-  additionalPurchaseQty?: number | null;
-  additionalPurchaseValue?: number;
-  purchasingDepartment?: string;
+  price_per_unit?: number;
+  budget_year?: string;
+  plan_id?: number | null;
+  in_plan?: string;
+  carried_forward_quantity?: number | null;
+  carried_forward_value?: number;
+  required_quantity_for_year?: number | null;
+  total_required_value?: number;
+  additional_purchase_qty?: number | null;
+  additional_purchase_value?: number;
+  purchasing_department?: string;
 }
 
 interface BulkPurchasePlanRecord {
   id: number;
-  productCode: string;
+  product_code: string;
   category: string;
-  productName: string;
-  productType: string;
-  productSubtype: string;
+  product_name: string;
+  product_type: string;
+  product_subtype: string;
   unit: string;
-  pricePerUnit: string;
-  budgetYear: string;
-  planId: number | null;
-  inPlan: string;
-  carriedForwardQuantity: string;
-  carriedForwardValue: string;
-  requiredQuantityForYear: string;
-  totalRequiredValue: string;
-  additionalPurchaseQty: string;
-  additionalPurchaseValue: string;
-  purchasingDepartment: string;
+  price_per_unit: string;
+  budget_year: string;
+  plan_id: number | null;
+  in_plan: string;
+  carried_forward_quantity: string;
+  carried_forward_value: string;
+  required_quantity_for_year: string;
+  total_required_value: string;
+  additional_purchase_qty: string;
+  additional_purchase_value: string;
+  purchasing_department: string;
 }
 
 interface CategoryOption {
@@ -81,14 +81,14 @@ function PurchasePlansPageContent() {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const initialProductNameFilter = searchParams.get('productName') || '';
+  const initialProductNameFilter = searchParams.get('product_name') || '';
   const initialCategoryFilter = searchParams.get('category') || '';
   const initialTypeFilter = searchParams.get('type') || '';
-  const initialSubtypeFilter = searchParams.get('productSubtype') || '';
-  const initialRequestingDeptFilter = searchParams.get('requestingDept') || '';
-  const initialBudgetYearFilter = searchParams.get('budgetYear') || '';
-  const initialSortBy = searchParams.get('orderBy') || 'id';
-  const initialSortOrder = (searchParams.get('sortOrder') === 'asc' ? 'asc' : 'desc') as 'asc' | 'desc';
+  const initialSubtypeFilter = searchParams.get('product_subtype') || '';
+  const initialRequestingDeptFilter = searchParams.get('requesting_dept') || '';
+  const initialBudgetYearFilter = searchParams.get('budget_year') || '';
+  const initialSortBy = searchParams.get('order_by') || 'id';
+  const initialSortOrder = (searchParams.get('sort_order') === 'asc' ? 'asc' : 'desc') as 'asc' | 'desc';
   const initialPage = Math.max(1, parseInt(searchParams.get('page') || '1', 10) || 1);
   const initialPageSize = Math.max(1, parseInt(searchParams.get('pageSize') || '20', 10) || 20);
   const [items, setItems] = useState<any[]>([]);
@@ -267,14 +267,14 @@ function PurchasePlansPageContent() {
   }, [productNameFilter, categoryFilter, typeFilter, subtypeFilter, requestingDeptFilter, budgetYearFilter, sortBy, sortOrder]);
 
   useEffect(() => {
-    const nextProductName = searchParams.get('productName') || '';
+    const nextProductName = searchParams.get('product_name') || '';
     const nextCategory = searchParams.get('category') || '';
     const nextType = searchParams.get('type') || '';
-    const nextSubtype = searchParams.get('productSubtype') || '';
-    const nextRequestingDept = searchParams.get('requestingDept') || '';
-    const nextBudgetYear = searchParams.get('budgetYear') || '';
-    const nextSortBy = searchParams.get('orderBy') || 'id';
-    const nextSortOrder = (searchParams.get('sortOrder') === 'asc' ? 'asc' : 'desc') as 'asc' | 'desc';
+    const nextSubtype = searchParams.get('product_subtype') || '';
+    const nextRequestingDept = searchParams.get('requesting_dept') || '';
+    const nextBudgetYear = searchParams.get('budget_year') || '';
+    const nextSortBy = searchParams.get('order_by') || 'id';
+    const nextSortOrder = (searchParams.get('sort_order') === 'asc' ? 'asc' : 'desc') as 'asc' | 'desc';
     const nextPage = Math.max(1, parseInt(searchParams.get('page') || '1', 10) || 1);
     const nextPageSize = Math.max(1, parseInt(searchParams.get('pageSize') || '20', 10) || 20);
 
@@ -293,14 +293,14 @@ function PurchasePlansPageContent() {
   useEffect(() => {
     const params = new URLSearchParams();
 
-    if (productNameFilter) params.set('productName', productNameFilter);
+    if (productNameFilter) params.set('product_name', productNameFilter);
     if (categoryFilter) params.set('category', categoryFilter);
     if (typeFilter) params.set('type', typeFilter);
-    if (subtypeFilter) params.set('productSubtype', subtypeFilter);
-    if (requestingDeptFilter) params.set('requestingDept', requestingDeptFilter);
-    if (budgetYearFilter) params.set('budgetYear', budgetYearFilter);
-    if (sortBy && sortBy !== 'id') params.set('orderBy', sortBy);
-    if (sortOrder !== 'desc') params.set('sortOrder', sortOrder);
+    if (subtypeFilter) params.set('product_subtype', subtypeFilter);
+    if (requestingDeptFilter) params.set('requesting_dept', requestingDeptFilter);
+    if (budgetYearFilter) params.set('budget_year', budgetYearFilter);
+    if (sortBy && sortBy !== 'id') params.set('order_by', sortBy);
+    if (sortOrder !== 'desc') params.set('sort_order', sortOrder);
     if (page > 1) params.set('page', page.toString());
     if (pageSize !== 20) params.set('pageSize', pageSize.toString());
 
@@ -319,11 +319,11 @@ function PurchasePlansPageContent() {
       if (res.ok) {
         const data = await res.json();
         setCategories(data.categories || []);
-        setTypes(data.productTypes || []);
-        setSubtypes(data.productSubtypes || []);
-        setCategoryOptions(data.categoryOptions || []);
+        setTypes(data.product_types || []);
+        setSubtypes(data.product_subtypes || []);
+        setCategoryOptions(data.category_options || []);
         setDepartments(data.departments || []);
-        setYears(data.budgetYears || []);
+        setYears(data.budget_years || []);
       }
     } catch (e) {
       console.error(e);
@@ -335,8 +335,8 @@ function PurchasePlansPageContent() {
   const fetchSurveyOptions = async () => {
     try {
       const params = new URLSearchParams();
-      params.append('orderBy', 'id');
-      params.append('sortOrder', 'desc');
+      params.append('order_by', 'id');
+      params.append('sort_order', 'desc');
       const res = await fetch(`/api/usage-plans?${params.toString()}`);
       if (!res.ok) throw new Error('fetch surveys failed');
       const data = await res.json();
@@ -366,14 +366,14 @@ function PurchasePlansPageContent() {
     try {
       setLoading(true);
       const params = new URLSearchParams();
-      if (productNameFilter) params.append('productName', productNameFilter);
+      if (productNameFilter) params.append('product_name', productNameFilter);
       if (categoryFilter) params.append('category', categoryFilter);
       if (typeFilter) params.append('type', typeFilter);
-      if (subtypeFilter) params.append('productSubtype', subtypeFilter);
-      if (requestingDeptFilter) params.append('requestingDept', requestingDeptFilter);
-      if (budgetYearFilter) params.append('budgetYear', budgetYearFilter);
-      params.append('orderBy', sortBy);
-      params.append('sortOrder', sortOrder);
+      if (subtypeFilter) params.append('product_subtype', subtypeFilter);
+      if (requestingDeptFilter) params.append('requesting_dept', requestingDeptFilter);
+      if (budgetYearFilter) params.append('budget_year', budgetYearFilter);
+      params.append('order_by', sortBy);
+      params.append('sort_order', sortOrder);
       params.append('page', page.toString());
       params.append('pageSize', pageSize.toString());
 
@@ -417,14 +417,14 @@ function PurchasePlansPageContent() {
     const requestId = ++summaryRequestIdRef.current;
     try {
       const params = new URLSearchParams();
-      if (productNameFilter) params.append('productName', productNameFilter);
+      if (productNameFilter) params.append('product_name', productNameFilter);
       if (categoryFilter) params.append('category', categoryFilter);
       if (typeFilter) params.append('type', typeFilter);
-      if (subtypeFilter) params.append('productSubtype', subtypeFilter);
-      if (requestingDeptFilter) params.append('requestingDept', requestingDeptFilter);
-      if (budgetYearFilter) params.append('budgetYear', budgetYearFilter);
-      params.append('orderBy', sortBy);
-      params.append('sortOrder', sortOrder);
+      if (subtypeFilter) params.append('product_subtype', subtypeFilter);
+      if (requestingDeptFilter) params.append('requesting_dept', requestingDeptFilter);
+      if (budgetYearFilter) params.append('budget_year', budgetYearFilter);
+      params.append('order_by', sortBy);
+      params.append('sort_order', sortOrder);
 
       const res = await fetch(`/api/purchase-plans?${params.toString()}`);
       if (!res.ok) return;
@@ -454,23 +454,23 @@ function PurchasePlansPageContent() {
 
   const createEmptyBulkRecord = (id: number): BulkPurchasePlanRecord => ({
     id,
-    productCode: '',
+    product_code: '',
     category: '',
-    productName: '',
-    productType: '',
-    productSubtype: '',
+    product_name: '',
+    product_type: '',
+    product_subtype: '',
     unit: '',
-    pricePerUnit: '',
-    budgetYear: getCurrentBudgetYear().toString(),
-    planId: null,
-    inPlan: '',
-    carriedForwardQuantity: '',
-    carriedForwardValue: '',
-    requiredQuantityForYear: '',
-    totalRequiredValue: '',
-    additionalPurchaseQty: '',
-    additionalPurchaseValue: '',
-    purchasingDepartment: '',
+    price_per_unit: '',
+    budget_year: getCurrentBudgetYear().toString(),
+    plan_id: null,
+    in_plan: '',
+    carried_forward_quantity: '',
+    carried_forward_value: '',
+    required_quantity_for_year: '',
+    total_required_value: '',
+    additional_purchase_qty: '',
+    additional_purchase_value: '',
+    purchasing_department: '',
   });
 
   const updateBulkRecord = (id: number, updater: (record: BulkPurchasePlanRecord) => BulkPurchasePlanRecord) => {
@@ -530,35 +530,35 @@ function PurchasePlansPageContent() {
   const handleEdit = (row: any) => {
     setEditing(row);
     setFormData({
-      productCode: row.productCode || '',
+      product_code: row.product_code || '',
       category: row.category || '',
-      productName: row.productName || '',
-      productType: row.productType || '',
-      productSubtype: row.productSubtype || '',
+      product_name: row.product_name || '',
+      product_type: row.product_type || '',
+      product_subtype: row.product_subtype || '',
       unit: row.unit || '',
-      pricePerUnit: row.pricePerUnit ? Number(row.pricePerUnit) : undefined,
-      budgetYear: row.budgetYear || '',
-      planId: row.planId ?? null,
-      inPlan: row.inPlan || '',
-      carriedForwardQuantity: row.carriedForwardQuantity ?? null,
-      carriedForwardValue: row.carriedForwardValue ? Number(row.carriedForwardValue) : undefined,
-      requiredQuantityForYear: row.requiredQuantityForYear ?? null,
-      totalRequiredValue: row.totalRequiredValue ? Number(row.totalRequiredValue) : undefined,
-      additionalPurchaseQty: row.additionalPurchaseQty ?? null,
-      additionalPurchaseValue: row.additionalPurchaseValue ? Number(row.additionalPurchaseValue) : undefined,
-      purchasingDepartment: row.purchasingDepartment || '',
+      price_per_unit: row.price_per_unit ? Number(row.price_per_unit) : undefined,
+      budget_year: row.budget_year || '',
+      plan_id: row.plan_id ?? null,
+      in_plan: row.in_plan || '',
+      carried_forward_quantity: row.carried_forward_quantity ?? null,
+      carried_forward_value: row.carried_forward_value ? Number(row.carried_forward_value) : undefined,
+      required_quantity_for_year: row.required_quantity_for_year ?? null,
+      total_required_value: row.total_required_value ? Number(row.total_required_value) : undefined,
+      additional_purchase_qty: row.additional_purchase_qty ?? null,
+      additional_purchase_value: row.additional_purchase_value ? Number(row.additional_purchase_value) : undefined,
+      purchasing_department: row.purchasing_department || '',
     });
     setSurveySearchTerm(
-      row.productCode || row.productName
-        ? `${row.productCode || '-'} | ${row.productName || '-'}`
+      row.product_code || row.product_name
+        ? `${row.product_code || '-'} | ${row.product_name || '-'}`
         : ''
     );
     setShowForm(true);
   };
 
-  const purchasingDepartmentOptions = Array.from(new Set([...(formData.purchasingDepartment ? [formData.purchasingDepartment] : []), ...departments].filter(Boolean)));
-  const selectedSearchLabel = formData.productCode || formData.productName
-    ? `${formData.productCode || '-'} | ${formData.productName || '-'}`
+  const purchasingDepartmentOptions = Array.from(new Set([...(formData.purchasing_department ? [formData.purchasing_department] : []), ...departments].filter(Boolean)));
+  const selectedSearchLabel = formData.product_code || formData.product_name
+    ? `${formData.product_code || '-'} | ${formData.product_name || '-'}`
     : '';
   const isSurveySearchDirty = surveySearchTerm.trim() !== '' && surveySearchTerm !== selectedSearchLabel;
   const filteredSurveyOptions = useMemo(() => {
@@ -570,9 +570,9 @@ function PurchasePlansPageContent() {
     const seenSurveyKeys = new Set<string>();
 
     return surveyOptions
-      .filter((survey) => `${survey.productCode || ''} ${survey.productName || ''}`.toLowerCase().includes(normalizedSurveySearchTerm))
+      .filter((survey) => `${survey.product_code || ''} ${survey.product_name || ''}`.toLowerCase().includes(normalizedSurveySearchTerm))
       .filter((survey) => {
-        const key = `${survey.productCode || ''}::${survey.productName || ''}`.toLowerCase();
+        const key = `${survey.product_code || ''}::${survey.product_name || ''}`.toLowerCase();
         if (seenSurveyKeys.has(key)) {
           return false;
         }
@@ -591,37 +591,37 @@ function PurchasePlansPageContent() {
       return;
     }
 
-    const selectedLabel = `${survey.productCode || '-'} | ${survey.productName || '-'}`;
+    const selectedLabel = `${survey.product_code || '-'} | ${survey.product_name || '-'}`;
     setFormData((prev) => ({
       ...prev,
-      planId: survey.id,
-      productCode: survey.productCode || '',
+      plan_id: survey.id,
+      product_code: survey.product_code || '',
       category: survey.category || '',
-      productName: survey.productName || '',
-      productType: survey.type || '',
-      productSubtype: survey.subtype || '',
+      product_name: survey.product_name || '',
+      product_type: survey.type || '',
+      product_subtype: survey.subtype || '',
       unit: survey.unit || '',
-      pricePerUnit: survey.pricePerUnit ? Number(survey.pricePerUnit) : undefined,
-      budgetYear: survey.budgetYear !== null && survey.budgetYear !== undefined ? String(survey.budgetYear) : getCurrentBudgetYear().toString(),
-      requiredQuantityForYear: survey.requestedAmount ?? null,
-      totalRequiredValue: Number(((survey.approvedQuota ?? 0) * (survey.pricePerUnit ?? 0)).toFixed(2)),
-      additionalPurchaseQty: survey.requestedAmount ?? null,
-      additionalPurchaseValue: Number(((survey.requestedAmount ?? 0) * (survey.pricePerUnit ?? 0)).toFixed(2)),
+      price_per_unit: survey.price_per_unit ? Number(survey.price_per_unit) : undefined,
+      budget_year: survey.budget_year !== null && survey.budget_year !== undefined ? String(survey.budget_year) : getCurrentBudgetYear().toString(),
+      required_quantity_for_year: survey.requested_amount ?? null,
+      total_required_value: Number(((survey.approved_quota ?? 0) * (survey.price_per_unit ?? 0)).toFixed(2)),
+      additional_purchase_qty: survey.requested_amount ?? null,
+      additional_purchase_value: Number(((survey.requested_amount ?? 0) * (survey.price_per_unit ?? 0)).toFixed(2)),
     }));
     setSurveySearchTerm(selectedLabel);
     setShowSurveySuggestions(false);
     setHighlightedSurveyIndex(-1);
 
     setBulkRecords((prev) => {
-      const hasExistingRecord = prev.some((record) => record.planId === survey.id || record.productCode === (survey.productCode || ''));
+      const hasExistingRecord = prev.some((record) => record.plan_id === survey.id || record.product_code === (survey.product_code || ''));
       if (hasExistingRecord) {
         return prev;
       }
 
       const nextId = prev.length > 0 ? Math.max(...prev.map((record) => record.id)) + 1 : 1;
-      const approvedQuota = survey.approvedQuota ?? 0;
-      const requestedAmount = survey.requestedAmount ?? 0;
-      const pricePerUnit = Number(survey.pricePerUnit) || 0;
+      const approvedQuota = survey.approved_quota ?? 0;
+      const requestedAmount = survey.requested_amount ?? 0;
+      const pricePerUnit = Number(survey.price_per_unit) || 0;
       const totalRequiredValue = Number((approvedQuota * pricePerUnit).toFixed(2));
       const additionalPurchaseValue = Number((requestedAmount * pricePerUnit).toFixed(2));
 
@@ -629,23 +629,23 @@ function PurchasePlansPageContent() {
         ...prev,
         {
           id: nextId,
-          productCode: survey.productCode || '',
+          product_code: survey.product_code || '',
           category: survey.category || '',
-          productName: survey.productName || '',
-          productType: survey.type || '',
-          productSubtype: survey.subtype || '',
+          product_name: survey.product_name || '',
+          product_type: survey.type || '',
+          product_subtype: survey.subtype || '',
           unit: survey.unit || '',
-          pricePerUnit: pricePerUnit ? pricePerUnit.toString() : '',
-          budgetYear: survey.budgetYear !== null && survey.budgetYear !== undefined ? String(survey.budgetYear) : getCurrentBudgetYear().toString(),
-          planId: survey.id,
-          inPlan: 'ในแผน',
-          carriedForwardQuantity: '',
-          carriedForwardValue: '0',
-          requiredQuantityForYear: requestedAmount ? requestedAmount.toString() : '0',
-          totalRequiredValue: totalRequiredValue ? totalRequiredValue.toString() : '0',
-          additionalPurchaseQty: requestedAmount ? requestedAmount.toString() : '0',
-          additionalPurchaseValue: additionalPurchaseValue ? additionalPurchaseValue.toString() : '0',
-          purchasingDepartment: survey.requestingDept || '',
+          price_per_unit: pricePerUnit ? pricePerUnit.toString() : '',
+          budget_year: survey.budget_year !== null && survey.budget_year !== undefined ? String(survey.budget_year) : getCurrentBudgetYear().toString(),
+          plan_id: survey.id,
+          in_plan: 'ในแผน',
+          carried_forward_quantity: '',
+          carried_forward_value: '0',
+          required_quantity_for_year: requestedAmount ? requestedAmount.toString() : '0',
+          total_required_value: totalRequiredValue ? totalRequiredValue.toString() : '0',
+          additional_purchase_qty: requestedAmount ? requestedAmount.toString() : '0',
+          additional_purchase_value: additionalPurchaseValue ? additionalPurchaseValue.toString() : '0',
+          purchasing_department: survey.requesting_dept || '',
         },
       ];
     });
@@ -667,20 +667,20 @@ function PurchasePlansPageContent() {
     setHighlightedSurveyIndex(-1);
     setFormData((prev) => ({
       ...prev,
-      planId: null,
-      productCode: '',
+      plan_id: null,
+      product_code: '',
       category: '',
-      productName: '',
-      productType: '',
-      productSubtype: '',
+      product_name: '',
+      product_type: '',
+      product_subtype: '',
       unit: '',
-      pricePerUnit: undefined,
-      budgetYear: '',
-      requiredQuantityForYear: null,
-      totalRequiredValue: undefined,
-      additionalPurchaseQty: null,
-      additionalPurchaseValue: undefined,
-      purchasingDepartment: '',
+      price_per_unit: undefined,
+      budget_year: '',
+      required_quantity_for_year: null,
+      total_required_value: undefined,
+      additional_purchase_qty: null,
+      additional_purchase_value: undefined,
+      purchasing_department: '',
     }));
   };
 
@@ -729,9 +729,9 @@ function PurchasePlansPageContent() {
     const { name, value } = e.target;
     setFormData(prev => ({
       ...prev,
-      [name]: ['pricePerUnit','carriedForwardValue','totalRequiredValue','additionalPurchaseValue'].includes(name)
+      [name]: ['price_per_unit','carried_forward_value','total_required_value','additional_purchase_value'].includes(name)
         ? (value ? parseFloat(value) : undefined)
-        : ['planId','carriedForwardQuantity','requiredQuantityForYear','additionalPurchaseQty'].includes(name)
+        : ['plan_id','carried_forward_quantity','required_quantity_for_year','additional_purchase_qty'].includes(name)
         ? (value ? parseInt(value) : null)
         : value
     }));
@@ -744,18 +744,18 @@ function PurchasePlansPageContent() {
         [field]: value,
       } as BulkPurchasePlanRecord;
 
-      const pricePerUnit = Number(nextRecord.pricePerUnit) || 0;
-      const requiredQuantityForYear = Number(nextRecord.requiredQuantityForYear) || 0;
-      const carriedForwardQuantity = Number(nextRecord.carriedForwardQuantity) || 0;
+      const pricePerUnit = Number(nextRecord.price_per_unit) || 0;
+      const requiredQuantityForYear = Number(nextRecord.required_quantity_for_year) || 0;
+      const carriedForwardQuantity = Number(nextRecord.carried_forward_quantity) || 0;
       const carriedForwardValue = Number((carriedForwardQuantity * pricePerUnit).toFixed(2));
       const additionalPurchaseQty = Math.max(requiredQuantityForYear - carriedForwardQuantity, 0);
       const totalRequiredValue = Number((requiredQuantityForYear * pricePerUnit).toFixed(2));
       const additionalPurchaseValue = Number((additionalPurchaseQty * pricePerUnit).toFixed(2));
 
-      nextRecord.carriedForwardValue = carriedForwardValue ? carriedForwardValue.toString() : '0';
-      nextRecord.additionalPurchaseQty = additionalPurchaseQty ? additionalPurchaseQty.toString() : '0';
-      nextRecord.totalRequiredValue = totalRequiredValue ? totalRequiredValue.toString() : '0';
-      nextRecord.additionalPurchaseValue = additionalPurchaseValue ? additionalPurchaseValue.toString() : '0';
+      nextRecord.carried_forward_value = carriedForwardValue ? carriedForwardValue.toString() : '0';
+      nextRecord.additional_purchase_qty = additionalPurchaseQty ? additionalPurchaseQty.toString() : '0';
+      nextRecord.total_required_value = totalRequiredValue ? totalRequiredValue.toString() : '0';
+      nextRecord.additional_purchase_value = additionalPurchaseValue ? additionalPurchaseValue.toString() : '0';
 
       return nextRecord;
     });
@@ -766,22 +766,22 @@ function PurchasePlansPageContent() {
       const nextValidationErrors: Record<number, { inPlan?: string; carriedForwardQuantity?: string; purchasingDepartment?: string }> = {};
 
       const validRecords = bulkRecords.filter((record) => {
-        const hasProduct = record.productCode.trim() !== '' && record.productName.trim() !== '';
+        const hasProduct = record.product_code.trim() !== '' && record.product_name.trim() !== '';
         if (!hasProduct) {
           return false;
         }
 
         const recordErrors: { inPlan?: string; carriedForwardQuantity?: string; purchasingDepartment?: string } = {};
 
-        if (!record.inPlan.trim()) {
+        if (!record.in_plan.trim()) {
           recordErrors.inPlan = 'กรุณาเลือกประเภทในแผน/นอกแผน';
         }
 
-        if (record.carriedForwardQuantity.trim() === '' || Number.isNaN(Number(record.carriedForwardQuantity)) || Number(record.carriedForwardQuantity) < 0) {
+        if (record.carried_forward_quantity.trim() === '' || Number.isNaN(Number(record.carried_forward_quantity)) || Number(record.carried_forward_quantity) < 0) {
           recordErrors.carriedForwardQuantity = 'กรุณากรอกจำนวนยกยอดมาให้ถูกต้อง';
         }
 
-        if (!record.purchasingDepartment.trim()) {
+        if (!record.purchasing_department.trim()) {
           recordErrors.purchasingDepartment = 'กรุณาเลือกหน่วยงานจัดซื้อ';
         }
 
@@ -810,23 +810,23 @@ function PurchasePlansPageContent() {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            productCode: record.productCode.trim(),
+            product_code: record.product_code.trim(),
             category: record.category || '',
-            productName: record.productName.trim(),
-            productType: record.productType || '',
-            productSubtype: record.productSubtype || '',
+            product_name: record.product_name.trim(),
+            product_type: record.product_type || '',
+            product_subtype: record.product_subtype || '',
             unit: record.unit || '',
-            pricePerUnit: record.pricePerUnit ? Number(record.pricePerUnit) : 0,
-            budgetYear: record.budgetYear || '',
-            planId: record.planId,
-            inPlan: record.inPlan,
-            carriedForwardQuantity: record.carriedForwardQuantity ? Number(record.carriedForwardQuantity) : 0,
-            carriedForwardValue: record.carriedForwardValue ? Number(record.carriedForwardValue) : 0,
-            requiredQuantityForYear: record.requiredQuantityForYear ? Number(record.requiredQuantityForYear) : 0,
-            totalRequiredValue: record.totalRequiredValue ? Number(record.totalRequiredValue) : 0,
-            additionalPurchaseQty: record.additionalPurchaseQty ? Number(record.additionalPurchaseQty) : 0,
-            additionalPurchaseValue: record.additionalPurchaseValue ? Number(record.additionalPurchaseValue) : 0,
-            purchasingDepartment: record.purchasingDepartment,
+            price_per_unit: record.price_per_unit ? Number(record.price_per_unit) : 0,
+            budget_year: record.budget_year || '',
+            plan_id: record.plan_id,
+            in_plan: record.in_plan,
+            carried_forward_quantity: record.carried_forward_quantity ? Number(record.carried_forward_quantity) : 0,
+            carried_forward_value: record.carried_forward_value ? Number(record.carried_forward_value) : 0,
+            required_quantity_for_year: record.required_quantity_for_year ? Number(record.required_quantity_for_year) : 0,
+            total_required_value: record.total_required_value ? Number(record.total_required_value) : 0,
+            additional_purchase_qty: record.additional_purchase_qty ? Number(record.additional_purchase_qty) : 0,
+            additional_purchase_value: record.additional_purchase_value ? Number(record.additional_purchase_value) : 0,
+            purchasing_department: record.purchasing_department,
           }),
         })
       );
@@ -929,7 +929,7 @@ function PurchasePlansPageContent() {
                   </label>
                   <label className="flex flex-col gap-1 text-sm text-gray-700">
                     <span className="font-medium">รายการในแผน/นอกแผน</span>
-                    <select id="purchase-plan-inPlan" name="inPlan" value={formData.inPlan || ''} onChange={handleInputChange} className={modalFieldClassName}>
+                    <select id="purchase-plan-inPlan" name="in_plan" value={formData.in_plan || ''} onChange={handleInputChange} className={modalFieldClassName}>
                       <option value="">เลือกประเภท</option>
                       <option value="ในแผน">ในแผน</option>
                       <option value="นอกแผน">นอกแผน</option>
@@ -937,19 +937,19 @@ function PurchasePlansPageContent() {
                   </label>
                   <label className="flex flex-col gap-1 text-sm text-gray-700">
                     <span className="font-medium">จำนวนยกยอดมา</span>
-                    <input id="purchase-plan-carriedForwardQuantity" type="number" name="carriedForwardQuantity" value={formData.carriedForwardQuantity ?? ''} onChange={handleInputChange} className={modalFieldClassName} min="0" />
+                    <input id="purchase-plan-carriedForwardQuantity" type="number" name="carried_forward_quantity" value={formData.carried_forward_quantity ?? ''} onChange={handleInputChange} className={modalFieldClassName} min="0" />
                   </label>
                   <label className="flex flex-col gap-1 text-sm text-gray-700">
                     <span className="font-medium">มูลค่ายกยอดมา</span>
-                    <input id="purchase-plan-carriedForwardValue" type="number" step="0.01" name="carriedForwardValue" value={formData.carriedForwardValue ?? ''} className={`${modalFieldClassName} bg-gray-50`} min="0" readOnly />
+                    <input id="purchase-plan-carriedForwardValue" type="number" step="0.01" name="carried_forward_value" value={formData.carried_forward_value ?? ''} className={`${modalFieldClassName} bg-gray-50`} min="0" readOnly />
                   </label>
                   <label className="flex flex-col gap-1 text-sm text-gray-700">
                     <span className="font-medium">รหัสสินค้า</span>
-                    <input id="purchase-plan-productCode" name="productCode" value={formData.productCode || ''} className={`${modalFieldClassName} bg-gray-50`} readOnly />
+                    <input id="purchase-plan-productCode" name="product_code" value={formData.product_code || ''} className={`${modalFieldClassName} bg-gray-50`} readOnly />
                   </label>
                   <label className="flex flex-col gap-1 text-sm text-gray-700">
                     <span className="font-medium">ชื่อสินค้า</span>
-                    <input id="purchase-plan-productName" name="productName" value={formData.productName || ''} className={`${modalFieldClassName} bg-gray-50`} readOnly />
+                    <input id="purchase-plan-productName" name="product_name" value={formData.product_name || ''} className={`${modalFieldClassName} bg-gray-50`} readOnly />
                   </label>
                   <label className="flex flex-col gap-1 text-sm text-gray-700">
                     <span className="font-medium">หน่วย</span>
@@ -961,39 +961,39 @@ function PurchasePlansPageContent() {
                   </label>
                   <label className="flex flex-col gap-1 text-sm text-gray-700">
                     <span className="font-medium">ประเภท</span>
-                    <input id="purchase-plan-productType" name="productType" value={formData.productType || ''} className={`${modalFieldClassName} bg-gray-50`} readOnly />
+                    <input id="purchase-plan-productType" name="product_type" value={formData.product_type || ''} className={`${modalFieldClassName} bg-gray-50`} readOnly />
                   </label>
                   <label className="flex flex-col gap-1 text-sm text-gray-700">
                     <span className="font-medium">ประเภทย่อย</span>
-                    <input id="purchase-plan-productSubtype" name="productSubtype" value={formData.productSubtype || ''} className={`${modalFieldClassName} bg-gray-50`} readOnly />
+                    <input id="purchase-plan-productSubtype" name="product_subtype" value={formData.product_subtype || ''} className={`${modalFieldClassName} bg-gray-50`} readOnly />
                   </label>
                   <label className="flex flex-col gap-1 text-sm text-gray-700">
                     <span className="font-medium">ราคา/หน่วย</span>
-                    <input id="purchase-plan-pricePerUnit" type="number" step="0.01" name="pricePerUnit" value={formData.pricePerUnit ?? ''} className={`${modalFieldClassName} bg-gray-50`} readOnly />
+                    <input id="purchase-plan-pricePerUnit" type="number" step="0.01" name="price_per_unit" value={formData.price_per_unit ?? ''} className={`${modalFieldClassName} bg-gray-50`} readOnly />
                   </label>
                   <label className="flex flex-col gap-1 text-sm text-gray-700">
                     <span className="font-medium">จำนวนที่ต้องการใช้ในปี</span>
-                    <input id="purchase-plan-requiredQuantityForYear" type="number" name="requiredQuantityForYear" value={formData.requiredQuantityForYear ?? ''} className={`${modalFieldClassName} bg-gray-50`} readOnly />
+                    <input id="purchase-plan-requiredQuantityForYear" type="number" name="required_quantity_for_year" value={formData.required_quantity_for_year ?? ''} className={`${modalFieldClassName} bg-gray-50`} readOnly />
                   </label>
                   <label className="flex flex-col gap-1 text-sm text-gray-700">
                     <span className="font-medium">มูลค่ารวมที่ต้องใช้ในปี</span>
-                    <input id="purchase-plan-totalRequiredValue" type="number" step="0.01" name="totalRequiredValue" value={formData.totalRequiredValue ?? ''} className={`${modalFieldClassName} bg-gray-50`} readOnly />
+                    <input id="purchase-plan-totalRequiredValue" type="number" step="0.01" name="total_required_value" value={formData.total_required_value ?? ''} className={`${modalFieldClassName} bg-gray-50`} readOnly />
                   </label>
                   <label className="flex flex-col gap-1 text-sm text-gray-700">
                     <span className="font-medium">จำนวนที่ต้องซื้อเพิ่มในปี</span>
-                    <input id="purchase-plan-additionalPurchaseQty" type="number" name="additionalPurchaseQty" value={formData.additionalPurchaseQty ?? ''} className={`${modalFieldClassName} bg-gray-50`} readOnly />
+                    <input id="purchase-plan-additionalPurchaseQty" type="number" name="additional_purchase_qty" value={formData.additional_purchase_qty ?? ''} className={`${modalFieldClassName} bg-gray-50`} readOnly />
                   </label>
                   <label className="flex flex-col gap-1 text-sm text-gray-700">
                     <span className="font-medium">มูลค่าที่ต้องซื้อเพิ่มในปี</span>
-                    <input id="purchase-plan-additionalPurchaseValue" type="number" step="0.01" name="additionalPurchaseValue" value={formData.additionalPurchaseValue ?? ''} className={`${modalFieldClassName} bg-gray-50`} readOnly />
+                    <input id="purchase-plan-additionalPurchaseValue" type="number" step="0.01" name="additional_purchase_value" value={formData.additional_purchase_value ?? ''} className={`${modalFieldClassName} bg-gray-50`} readOnly />
                   </label>
                   <label className="flex flex-col gap-1 text-sm text-gray-700">
                     <span className="font-medium">ปีงบประมาณ</span>
-                    <input id="purchase-plan-budgetYear" name="budgetYear" value={formData.budgetYear || ''} className={`${modalFieldClassName} bg-gray-50`} readOnly />
+                    <input id="purchase-plan-budgetYear" name="budget_year" value={formData.budget_year || ''} className={`${modalFieldClassName} bg-gray-50`} readOnly />
                   </label>
                   <label className="flex flex-col gap-1 text-sm text-gray-700">
                     <span className="font-medium">หน่วยงานจัดซื้อ</span>
-                    <select id="purchase-plan-purchasingDepartment" name="purchasingDepartment" value={formData.purchasingDepartment || ''} onChange={handleInputChange} className={modalFieldClassName}>
+                    <select id="purchase-plan-purchasingDepartment" name="purchasing_department" value={formData.purchasing_department || ''} onChange={handleInputChange} className={modalFieldClassName}>
                       <option value="">เลือกหน่วยงานจัดซื้อ</option>
                       {purchasingDepartmentOptions.map((department) => (
                         <option key={department} value={department}>{department}</option>
@@ -1053,8 +1053,8 @@ function PurchasePlansPageContent() {
                               onClick={() => handleSurveySelect(survey)}
                               className={`block w-full border-b border-gray-100 px-4 py-3 text-left text-sm ${index === highlightedSurveyIndex ? 'bg-blue-50' : 'hover:bg-gray-50'}`}
                             >
-                              <div className="font-medium text-gray-900">{survey.productCode || '-'} | {survey.productName || '-'}</div>
-                              <div className="text-xs text-gray-500">{survey.category || '-'} | {survey.type || '-'} | {survey.unit || '-'} | {survey.requestingDept || '-'}</div>
+                              <div className="font-medium text-gray-900">{survey.product_code || '-'} | {survey.product_name || '-'}</div>
+                              <div className="text-xs text-gray-500">{survey.category || '-'} | {survey.type || '-'} | {survey.unit || '-'} | {survey.requesting_dept || '-'}</div>
                             </button>
                           ))
                         )}
@@ -1086,16 +1086,16 @@ function PurchasePlansPageContent() {
                           <tr key={record.id} className="border-b border-slate-200 bg-white align-top">
                             <td className="w-12 px-2 py-3 text-xs text-gray-900">{index + 1}</td>
                             <td className="w-36 px-2 py-3">
-                              <input value={record.productCode} readOnly className="w-full rounded border border-gray-300 bg-gray-100 px-2 py-1 text-xs" />
+                              <input value={record.product_code} readOnly className="w-full rounded border border-gray-300 bg-gray-100 px-2 py-1 text-xs" />
                             </td>
                             <td className="min-w-[20rem] px-2 py-3">
-                              <input value={record.productName} readOnly title={record.productName} className="w-full rounded border border-gray-300 bg-gray-100 px-2 py-1 text-xs" />
+                              <input value={record.product_name} readOnly title={record.product_name} className="w-full rounded border border-gray-300 bg-gray-100 px-2 py-1 text-xs" />
                             </td>
                             <td className="w-28 px-2 py-3">
                               <select
-                                value={record.inPlan}
+                                value={record.in_plan}
                                 onChange={(e) => {
-                                  handleBulkFieldChange(record.id, 'inPlan', e.target.value);
+                                  handleBulkFieldChange(record.id, 'in_plan', e.target.value);
                                   clearBulkValidationError(record.id, 'inPlan');
                                 }}
                                 className={`w-full rounded border px-2 py-1 text-xs ${bulkValidationErrors[record.id]?.inPlan ? 'border-red-500' : 'border-gray-300'}`}
@@ -1110,9 +1110,9 @@ function PurchasePlansPageContent() {
                               <input
                                 type="number"
                                 min="0"
-                                value={record.carriedForwardQuantity}
+                                value={record.carried_forward_quantity}
                                 onChange={(e) => {
-                                  handleBulkFieldChange(record.id, 'carriedForwardQuantity', e.target.value);
+                                  handleBulkFieldChange(record.id, 'carried_forward_quantity', e.target.value);
                                   clearBulkValidationError(record.id, 'carriedForwardQuantity');
                                 }}
                                 className={`w-full rounded border px-2 py-1 text-xs ${bulkValidationErrors[record.id]?.carriedForwardQuantity ? 'border-red-500' : 'border-gray-300'}`}
@@ -1120,19 +1120,19 @@ function PurchasePlansPageContent() {
                               {bulkValidationErrors[record.id]?.carriedForwardQuantity && <p className="mt-1 text-[10px] text-red-600">{bulkValidationErrors[record.id]?.carriedForwardQuantity}</p>}
                             </td>
                             <td className="w-28 px-2 py-3">
-                              <input value={record.carriedForwardValue} readOnly className="w-full rounded border border-gray-300 bg-gray-100 px-2 py-1 text-xs" />
+                              <input value={record.carried_forward_value} readOnly className="w-full rounded border border-gray-300 bg-gray-100 px-2 py-1 text-xs" />
                             </td>
                             <td className="w-28 px-2 py-3">
-                              <input value={record.requiredQuantityForYear} readOnly className="w-full rounded border border-gray-300 bg-gray-100 px-2 py-1 text-xs" />
+                              <input value={record.required_quantity_for_year} readOnly className="w-full rounded border border-gray-300 bg-gray-100 px-2 py-1 text-xs" />
                             </td>
                             <td className="w-28 px-2 py-3">
-                              <input value={record.additionalPurchaseQty} readOnly className="w-full rounded border border-gray-300 bg-gray-100 px-2 py-1 text-xs" />
+                              <input value={record.additional_purchase_qty} readOnly className="w-full rounded border border-gray-300 bg-gray-100 px-2 py-1 text-xs" />
                             </td>
                             <td className="w-32 px-2 py-3">
                               <select
-                                value={record.purchasingDepartment}
+                                value={record.purchasing_department}
                                 onChange={(e) => {
-                                  handleBulkFieldChange(record.id, 'purchasingDepartment', e.target.value);
+                                  handleBulkFieldChange(record.id, 'purchasing_department', e.target.value);
                                   clearBulkValidationError(record.id, 'purchasingDepartment');
                                 }}
                                 className={`w-full rounded border px-2 py-1 text-xs ${bulkValidationErrors[record.id]?.purchasingDepartment ? 'border-red-500' : 'border-gray-300'}`}
@@ -1213,18 +1213,18 @@ function PurchasePlansPageContent() {
             <h3 className="text-lg font-medium text-gray-900">สรุปข้อมูลแผนการจัดซื้อ</h3>
             <div className="flex flex-wrap items-center gap-6 text-sm">
               <div>
-                <span className="text-gray-500">มูลค่ารวมตามแผน (totalRequiredValue): </span>
+                <span className="text-gray-500">มูลค่ารวมตามแผน (total_required_value): </span>
                 <span className="font-semibold text-gray-900">
                   ฿{summaryItems
-                    .reduce((sum, row) => sum + (Number(row.totalRequiredValue) || 0), 0)
+                    .reduce((sum, row) => sum + (Number(row.total_required_value) || 0), 0)
                     .toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </span>
               </div>
               <div>
-                <span className="text-gray-500">มูลค่ารวมซื้อเพิ่ม (additionalPurchaseValue): </span>
+                <span className="text-gray-500">มูลค่ารวมซื้อเพิ่ม (additional_purchase_value): </span>
                 <span className="font-semibold text-gray-900">
                   ฿{summaryItems
-                    .reduce((sum, row) => sum + (Number(row.additionalPurchaseValue) || 0), 0)
+                    .reduce((sum, row) => sum + (Number(row.additional_purchase_value) || 0), 0)
                     .toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </span>
               </div>
@@ -1285,34 +1285,34 @@ function PurchasePlansPageContent() {
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
-                <th onClick={()=>handleSort('productCode')} className={getHeaderClass('productCode')}>รหัส</th>
-                <th onClick={()=>handleSort('productName')} className={getHeaderClass('productName')}>ชื่อสินค้า</th>
+                <th onClick={()=>handleSort('product_code')} className={getHeaderClass('product_code')}>รหัส</th>
+                <th onClick={()=>handleSort('product_name')} className={getHeaderClass('product_name')}>ชื่อสินค้า</th>
                 <th onClick={()=>handleSort('category')} className={getHeaderClass('category')}>หมวด</th>
-                <th onClick={()=>handleSort('productType')} className={getHeaderClass('productType')}>ประเภท</th>
+                <th onClick={()=>handleSort('product_type')} className={getHeaderClass('product_type')}>ประเภท</th>
                 <th onClick={()=>handleSort('unit')} className={getHeaderClass('unit')}>หน่วย</th>
-                <th onClick={()=>handleSort('pricePerUnit')} className={getHeaderClass('pricePerUnit')}>ราคา/หน่วย</th>
-                <th onClick={()=>handleSort('requiredQuantityForYear')} className={getHeaderClass('requiredQuantityForYear')}>ต้องการ/ปี</th>
-                <th onClick={()=>handleSort('totalRequiredValue')} className={getHeaderClass('totalRequiredValue')}>มูลค่ารวม</th>
-                <th onClick={()=>handleSort('budgetYear')} className={getHeaderClass('budgetYear')}>ปีงบ</th>
+                <th onClick={()=>handleSort('price_per_unit')} className={getHeaderClass('price_per_unit')}>ราคา/หน่วย</th>
+                <th onClick={()=>handleSort('required_quantity_for_year')} className={getHeaderClass('required_quantity_for_year')}>ต้องการ/ปี</th>
+                <th onClick={()=>handleSort('total_required_value')} className={getHeaderClass('total_required_value')}>มูลค่ารวม</th>
+                <th onClick={()=>handleSort('budget_year')} className={getHeaderClass('budget_year')}>ปีงบ</th>
                 <th className="px-3 py-3 text-left text-[10px] font-medium text-gray-500 uppercase tracking-wider w-24">Action</th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
               {items.map((row) => (
                 <tr key={row.id}>
-                  <td className="px-3 py-2 text-xs">{row.productCode}</td>
+                  <td className="px-3 py-2 text-xs">{row.product_code}</td>
                   <td className="px-3 py-2 text-xs">
-                    <div className="whitespace-normal break-words" title={row.productName}>
-                      {row.productName}
+                    <div className="whitespace-normal break-words" title={row.product_name}>
+                      {row.product_name}
                     </div>
                   </td>
                   <td className="px-3 py-2 text-xs">{row.category}</td>
-                  <td className="px-3 py-2 text-xs">{row.productType}</td>
+                  <td className="px-3 py-2 text-xs">{row.product_type}</td>
                   <td className="px-3 py-2 text-xs">{row.unit}</td>
-                  <td className="px-3 py-2 text-xs">{row.pricePerUnit ? Number(row.pricePerUnit).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '-'}</td>
-                  <td className="px-3 py-2 text-xs">{row.requiredQuantityForYear ?? '-'}</td>
-                  <td className="px-3 py-2 text-xs">{row.totalRequiredValue ? Number(row.totalRequiredValue).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '-'}</td>
-                  <td className="px-3 py-2 text-xs">{row.budgetYear}</td>
+                  <td className="px-3 py-2 text-xs">{row.price_per_unit ? Number(row.price_per_unit).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '-'}</td>
+                  <td className="px-3 py-2 text-xs">{row.required_quantity_for_year ?? '-'}</td>
+                  <td className="px-3 py-2 text-xs">{row.total_required_value ? Number(row.total_required_value).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '-'}</td>
+                  <td className="px-3 py-2 text-xs">{row.budget_year}</td>
                   <td className="px-3 py-2 text-xs font-medium w-24">
                     <button
                       onClick={() => handleEdit(row)}

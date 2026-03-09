@@ -24,7 +24,7 @@ export async function GET(
       return NextResponse.json(cached);
     }
 
-    const result = await pgQuery('SELECT id, name FROM public."Department" WHERE id = $1 LIMIT 1', [numericId]);
+    const result = await pgQuery('SELECT id, name FROM public.department WHERE id = $1 LIMIT 1', [numericId]);
     const department = result.rows[0];
 
     if (!department) {
@@ -72,7 +72,7 @@ export async function PUT(
       );
     }
 
-    const existingResult = await pgQuery('SELECT id FROM public."Department" WHERE id = $1 LIMIT 1', [numericId]);
+    const existingResult = await pgQuery('SELECT id FROM public.department WHERE id = $1 LIMIT 1', [numericId]);
 
     if (existingResult.rows.length === 0) {
       return NextResponse.json(
@@ -82,7 +82,7 @@ export async function PUT(
     }
 
     const updatedResult = await pgQuery(
-      'UPDATE public."Department" SET name = $1 WHERE id = $2 RETURNING id, name',
+      'UPDATE public.department SET name = $1 WHERE id = $2 RETURNING id, name',
       [name, numericId]
     );
 
@@ -114,7 +114,7 @@ export async function DELETE(
       );
     }
 
-    const existingResult = await pgQuery('SELECT id FROM public."Department" WHERE id = $1 LIMIT 1', [numericId]);
+    const existingResult = await pgQuery('SELECT id FROM public.department WHERE id = $1 LIMIT 1', [numericId]);
 
     if (existingResult.rows.length === 0) {
       return NextResponse.json(
@@ -123,7 +123,7 @@ export async function DELETE(
       );
     }
 
-    await pgQuery('DELETE FROM public."Department" WHERE id = $1', [numericId]);
+    await pgQuery('DELETE FROM public.department WHERE id = $1', [numericId]);
     await cacheDelByPattern('erp:departments:list:*');
     await cacheDel(`erp:departments:detail:${numericId}`);
 

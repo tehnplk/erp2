@@ -28,7 +28,7 @@ export async function GET(
     }
 
     const result = await pgQuery(
-      'SELECT id, category, type, subtype FROM public."Category" WHERE id = $1 LIMIT 1',
+      'SELECT id, category, type, subtype FROM public.category WHERE id = $1 LIMIT 1',
       [numericId]
     );
     const category = result.rows[0];
@@ -80,7 +80,7 @@ export async function PUT(
       );
     }
 
-    const existingResult = await pgQuery('SELECT id FROM public."Category" WHERE id = $1 LIMIT 1', [numericId]);
+    const existingResult = await pgQuery('SELECT id FROM public.category WHERE id = $1 LIMIT 1', [numericId]);
     if (existingResult.rows.length === 0) {
       return NextResponse.json(
         { success: false, error: 'Category not found' },
@@ -89,7 +89,7 @@ export async function PUT(
     }
 
     const updatedResult = await pgQuery(
-      `UPDATE public."Category"
+      `UPDATE public.category
        SET category = $1, type = $2, subtype = $3
        WHERE id = $4
        RETURNING id, category, type, subtype`,
@@ -129,7 +129,7 @@ export async function DELETE(
       );
     }
 
-    const existingResult = await pgQuery('SELECT id FROM public."Category" WHERE id = $1 LIMIT 1', [numericId]);
+    const existingResult = await pgQuery('SELECT id FROM public.category WHERE id = $1 LIMIT 1', [numericId]);
     if (existingResult.rows.length === 0) {
       return NextResponse.json(
         { success: false, error: 'Category not found' },
@@ -137,7 +137,7 @@ export async function DELETE(
       );
     }
 
-    await pgQuery('DELETE FROM public."Category" WHERE id = $1', [numericId]);
+    await pgQuery('DELETE FROM public.category WHERE id = $1', [numericId]);
 
     await cacheDelByPattern('erp:categories:list:*');
     await cacheDel(`erp:categories:detail:${numericId}`);

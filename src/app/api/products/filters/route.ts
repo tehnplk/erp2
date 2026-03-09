@@ -11,18 +11,18 @@ export async function GET() {
     const [categoryRowsResult, unitRowsResult, sellerRowsResult] = await Promise.all([
       pgQuery(
         `SELECT category, type, subtype
-         FROM public."Category"
+         FROM public.category
          ORDER BY category ASC, type ASC, subtype ASC`
       ),
       pgQuery(
         `SELECT DISTINCT unit
-         FROM public."Product"
+         FROM public.product
          WHERE unit IS NOT NULL
          ORDER BY unit ASC`
       ),
       pgQuery(
         `SELECT code, name
-         FROM public."Seller"
+         FROM public.seller
          ORDER BY code ASC`
       ),
     ]);
@@ -42,9 +42,9 @@ export async function GET() {
       types,
       subtypes,
       units,
-      sellerCodes,
-      categoryOptions: categoryRows,
-      sellerOptions: sellerRows,
+      seller_codes: sellerCodes,
+      category_options: categoryRows,
+      seller_options: sellerRows,
     };
 
     await cacheSet(cacheKey, result, 3600);

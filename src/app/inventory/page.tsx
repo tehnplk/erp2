@@ -59,11 +59,11 @@ const shortcuts = [
 
 export default async function InventoryPage() {
   const [balanceCountResult, pendingReceiptCountResult, requisitionCountResult, issueCountResult, inventorySummaryResult] = await Promise.all([
-    pgQuery<CountRow>('SELECT COUNT(*)::int AS count FROM public."InventoryBalance"'),
-    pgQuery<CountRow>(`SELECT COUNT(*)::int AS count FROM public."PurchaseApprovalInventoryLink" WHERE "inventoryReceiptStatus" IN ('PENDING', 'PARTIAL')`),
-    pgQuery<CountRow>('SELECT COUNT(*)::int AS count FROM public."InventoryRequisition"'),
-    pgQuery<CountRow>('SELECT COUNT(*)::int AS count FROM public."InventoryIssue"'),
-    pgQuery<SummaryRow>(`SELECT COALESCE(SUM("onHandQty"), 0)::int AS totalQty, COALESCE(SUM("onHandQty" * "avgCost"), 0)::float8 AS totalValue FROM public."InventoryBalance"`),
+    pgQuery<CountRow>('SELECT COUNT(*)::int AS count FROM public.inventory_balance'),
+    pgQuery<CountRow>(`SELECT COUNT(*)::int AS count FROM public.purchase_approval_inventory_link WHERE inventory_receipt_status IN ('PENDING', 'PARTIAL')`),
+    pgQuery<CountRow>('SELECT COUNT(*)::int AS count FROM public.inventory_requisition'),
+    pgQuery<CountRow>('SELECT COUNT(*)::int AS count FROM public.inventory_issue'),
+    pgQuery<SummaryRow>(`SELECT COALESCE(SUM(on_hand_qty), 0)::int AS totalqty, COALESCE(SUM(on_hand_qty * avg_cost), 0)::float8 AS totalvalue FROM public.inventory_balance`),
   ]);
 
   const stats = [

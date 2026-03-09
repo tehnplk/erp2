@@ -24,16 +24,16 @@ export async function POST(request: NextRequest) {
     }
 
     const requisitionId = Number(
-      new URL(request.url).searchParams.get("requisitionId"),
+      new URL(request.url).searchParams.get("requisition_id"),
     );
     if (!requisitionId || Number.isNaN(requisitionId)) {
-      return apiError("requisitionId is required", 400);
+      return apiError("requisition_id is required", 400);
     }
 
     await client.query("BEGIN");
 
     const requisitionResult = await client.query(
-      `SELECT id, "requisitionNo", "requestingDepartment", status FROM public."InventoryRequisition" WHERE id = $1 FOR UPDATE`,
+      `SELECT id, requisition_no, requesting_department, status FROM public.inventory_requisition WHERE id = $1 FOR UPDATE`,
       [requisitionId],
     );
 
@@ -54,81 +54,81 @@ export async function POST(request: NextRequest) {
 
     for (const item of validation.data.items) {
       const requisitionItemResult = await client.query(
-        `SELECT iri.id, iri."inventoryItemId", iri."requestedQty", iri."approvedQty", iri."issuedQty", ib."availableQty", ib."onHandQty", ib."avgCost"
-         FROM public."InventoryRequisitionItem" iri
-         INNER JOIN public."InventoryBalance" ib ON ib."inventoryItemId" = iri."inventoryItemId"
-         WHERE iri.id = $1 AND iri."requisitionId" = $2
+        `SELECT iri.id, iri.inventory_item_id, iri.requested_qty, iri.approved_qty, iri.issued_qty, ib.available_qty, ib.on_hand_qty, ib.avg_cost
+         FROM public.inventory_requisition_item iri
+         INNER JOIN public.inventory_balance ib ON ib.inventory_item_id = iri.inventory_item_id
+         WHERE iri.id = $1 AND iri.requisition_id = $2
          FOR UPDATE`,
-        [item.requisitionItemId, requisitionId],
+        [item.requisition_item_id, requisitionId],
       );
 
       if (requisitionItemResult.rows.length === 0) {
         await client.query("ROLLBACK");
         return apiNotFound(
-          `Inventory requisition item ${item.requisitionItemId}`,
+          `Inventory requisition item ${item.requisition_item_id}`,
         );
       }
 
       const requisitionItem = requisitionItemResult.rows[0];
-      const requestedQty = Number(requisitionItem.requestedQty || 0);
-      const oldApprovedQty = Number(requisitionItem.approvedQty || 0);
-      const approvedQty = Number(item.approvedQty || 0);
-      const availableQty = Number(requisitionItem.availableQty || 0);
-      const onHandQty = Number(requisitionItem.onHandQty || 0);
-      const avgCost = Number(requisitionItem.avgCost || 0);
+      const requestedQty = Number(requisitionItem.requested_qty || 0);
+      const oldApprovedQty = Number(requisitionItem.approved_qty || 0);
+      const approvedQty = Number(item.approved_qty || 0);
+      const availableQty = Number(requisitionItem.available_qty || 0);
+      const onHandQty = Number(requisitionItem.on_hand_qty || 0);
+      const avgCost = Number(requisitionItem.avg_cost || 0);
       
       const diffQty = approvedQty - oldApprovedQty;
 
       if (approvedQty > requestedQty) {
         await client.query("ROLLBACK");
         return apiConflict(
-          `Approved quantity cannot exceed requested quantity for item ${item.requisitionItemId}`,
+          `Approved quantity cannot exceed requested quantity for item ${item.requisition_item_id}`,
         );
       }
 
       if (diffQty > availableQty) {
         await client.query("ROLLBACK");
         return apiConflict(
-          `Approved quantity exceeds available quantity for item ${item.requisitionItemId}`,
+          `Approved quantity exceeds available quantity for item ${item.requisition_item_id}`,
         );
       }
 
       await client.query(
-        `UPDATE public."InventoryRequisitionItem"
-         SET "approvedQty" = $2,
-             "lineStatus" = CASE WHEN $2 = 0 THEN 'REJECTED' WHEN $2 < "requestedQty" THEN 'PARTIALLY_APPROVED' ELSE 'APPROVED' END
+        `UPDATE public.inventory_requisition_item
+         SET approved_qty = $2,
+             line_status = CASE WHEN $2 = 0 THEN 'REJECTED' WHEN $2 < requested_qty THEN 'PARTIALLY_APPROVED' ELSE 'APPROVED' END
          WHERE id = $1`,
-        [item.requisitionItemId, approvedQty],
+        [item.requisition_item_id, approvedQty],
       );
 
       if (diffQty !== 0) {
         await client.query(
-          `UPDATE public."InventoryBalance"
-           SET "reservedQty" = "reservedQty" + $2,
-               "availableQty" = "availableQty" - $2,
+          `UPDATE public.inventory_balance
+           SET reserved_qty = reserved_qty + $2,
+               available_qty = available_qty - $2,
                updated_at = CURRENT_TIMESTAMP
-           WHERE "inventoryItemId" = $1`,
-          [requisitionItem.inventoryItemId, diffQty],
+           WHERE inventory_item_id = $1`,
+          [requisitionItem.inventory_item_id, diffQty],
         );
 
         const movementType = diffQty > 0 ? 'REQUISITION_RESERVE' : 'REQUISITION_UNRESERVE';
         const absoluteDiff = Math.abs(diffQty);
         
         await client.query(
-          `INSERT INTO public."InventoryMovement"
-            ("inventoryItemId", "movementDate", "movementType", "qtyIn", "qtyOut", "unitCost", "totalCost", "balanceQtyAfter", "balanceValueAfter", "referenceType", "referenceId", "referenceNo", "targetDepartment", note, "createdBy")
+          `INSERT INTO public.inventory_movement
+            (inventory_item_id, movement_date, movement_type, qty_in, qty_out, unit_cost, total_cost, balance_qty_after, balance_value_after, reference_type, reference_id, reference_no, target_department, note, created_by)
            VALUES ($1, CURRENT_TIMESTAMP, $2, 0, 0, $3, 0, $4, $5, 'InventoryRequisition', $6, $7, $8, $9, $10)`,
           [
-            requisitionItem.inventoryItemId,
+            requisitionItem.inventory_item_id,
             movementType,
             avgCost,
             onHandQty,
             Number((onHandQty * avgCost).toFixed(2)),
             requisition.id,
-            requisition.requisitionNo,
-            requisition.requestingDepartment,
+            requisition.requisition_no,
+            requisition.requesting_department,
             `${diffQty > 0 ? 'Reserved' : 'Unreserved'} ${absoluteDiff} items`,
-            validation.data.approvedBy || null,
+            validation.data.approved_by || null,
           ],
         );
       }
@@ -136,18 +136,18 @@ export async function POST(request: NextRequest) {
 
     const summaryResult = await client.query(
       `SELECT
-         COALESCE(SUM("requestedQty"), 0)::int AS "requestedQtyTotal",
-         COALESCE(SUM("approvedQty"), 0)::int AS "approvedQtyTotal"
-       FROM public."InventoryRequisitionItem"
-       WHERE "requisitionId" = $1`,
+         COALESCE(SUM(requested_qty), 0)::int AS requested_qty_total,
+         COALESCE(SUM(approved_qty), 0)::int AS approved_qty_total
+       FROM public.inventory_requisition_item
+       WHERE requisition_id = $1`,
       [requisitionId],
     );
 
     const requestedQtyTotal = Number(
-      summaryResult.rows[0]?.requestedQtyTotal || 0,
+      summaryResult.rows[0]?.requested_qty_total || 0,
     );
     const approvedQtyTotal = Number(
-      summaryResult.rows[0]?.approvedQtyTotal || 0,
+      summaryResult.rows[0]?.approved_qty_total || 0,
     );
     const nextStatus =
       approvedQtyTotal === 0
@@ -157,18 +157,18 @@ export async function POST(request: NextRequest) {
           : "APPROVED";
 
     const updatedResult = await client.query(
-      `UPDATE public."InventoryRequisition"
+      `UPDATE public.inventory_requisition
        SET status = $2,
-           "approvedBy" = $3,
-           "approvedAt" = CURRENT_TIMESTAMP,
+           approved_by = $3,
+           approved_at = CURRENT_TIMESTAMP,
            note = COALESCE($4, note),
            updated_at = CURRENT_TIMESTAMP
        WHERE id = $1
-       RETURNING id, "requisitionNo", status, "approvedBy", "approvedAt"`,
+       RETURNING id, requisition_no, status, approved_by, approved_at`,
       [
         requisitionId,
         nextStatus,
-        validation.data.approvedBy || null,
+        validation.data.approved_by || null,
         validation.data.note || null,
       ],
     );

@@ -13,11 +13,11 @@ export async function GET(request: NextRequest) {
     const [categoryRowsResult, departments, budgetYears] = await Promise.all([
       pgQuery(
         `SELECT category, type, subtype
-         FROM public."Category"
+         FROM public.category
          ORDER BY category ASC, type ASC, subtype ASC`
       ),
-      pgQuery('SELECT DISTINCT "requestingDept" AS "requestingDept" FROM public."UsagePlan" WHERE "requestingDept" IS NOT NULL ORDER BY "requestingDept" ASC'),
-      pgQuery('SELECT DISTINCT budget_year AS "budgetYear" FROM public."UsagePlan" WHERE budget_year IS NOT NULL ORDER BY budget_year DESC')
+      pgQuery('SELECT DISTINCT requesting_dept FROM public.usage_plan WHERE requesting_dept IS NOT NULL ORDER BY requesting_dept ASC'),
+      pgQuery('SELECT DISTINCT budget_year FROM public.usage_plan WHERE budget_year IS NOT NULL ORDER BY budget_year DESC')
     ]);
 
     const categoryRows = categoryRowsResult.rows;
@@ -26,9 +26,9 @@ export async function GET(request: NextRequest) {
       categories: Array.from(new Set(categoryRows.map((item: any) => item.category).filter(Boolean))),
       types: Array.from(new Set(categoryRows.map((item: any) => item.type).filter(Boolean))),
       subtypes: Array.from(new Set(categoryRows.map((item: any) => item.subtype).filter(Boolean))),
-      categoryOptions: categoryRows,
-      departments: departments.rows.map((d: any) => d.requestingDept).filter(Boolean),
-      budgetYears: budgetYears.rows.map((year: any) => year.budgetYear).filter((value: number | null) => value !== null)
+      category_options: categoryRows,
+      departments: departments.rows.map((d: any) => d.requesting_dept).filter(Boolean),
+      budget_years: budgetYears.rows.map((year: any) => year.budget_year).filter((value: number | null) => value !== null)
     };
 
     await cacheSet(cacheKey, result, 3600);

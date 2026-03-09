@@ -5,18 +5,18 @@ export const dynamic = 'force-dynamic';
 
 type BalanceRow = {
   id: number;
-  inventoryItemId: number;
-  productCode: string;
-  productName: string;
+  inventory_item_id: number;
+  product_code: string;
+  product_name: string;
   category: string | null;
-  productType: string | null;
+  product_type: string | null;
   unit: string | null;
-  warehouseName: string;
-  lotNo: string | null;
-  onHandQty: number;
-  reservedQty: number;
-  availableQty: number;
-  avgCost: number;
+  warehouse_name: string;
+  lot_no: string | null;
+  on_hand_qty: number;
+  reserved_qty: number;
+  available_qty: number;
+  avg_cost: number;
 };
 
 function formatNumber(value: number) {
@@ -35,22 +35,22 @@ export default async function InventoryStockPage() {
   const result = await pgQuery<BalanceRow>(`
     SELECT
       ib.id,
-      ib."inventoryItemId",
-      ii."productCode",
-      ii."productName",
+      ib.inventory_item_id,
+      ii.product_code,
+      ii.product_name,
       ii.category,
-      ii."productType",
+      ii.product_type,
       ii.unit,
-      iw."warehouseName",
-      ii."lotNo",
-      ib."onHandQty",
-      ib."reservedQty",
-      ib."availableQty",
-      ib."avgCost"::float8 AS "avgCost"
-    FROM public."InventoryBalance" ib
-    INNER JOIN public."InventoryItem" ii ON ii.id = ib."inventoryItemId"
-    INNER JOIN public."InventoryWarehouse" iw ON iw.id = ii."warehouseId"
-    ORDER BY ib."availableQty" DESC, ii."productName" ASC
+      iw.warehouse_name,
+      ii.lot_no,
+      ib.on_hand_qty,
+      ib.reserved_qty,
+      ib.available_qty,
+      ib.avg_cost::float8 AS avg_cost
+    FROM public.inventory_balance ib
+    INNER JOIN public.inventory_item ii ON ii.id = ib.inventory_item_id
+    INNER JOIN public.inventory_warehouse iw ON iw.id = ii.warehouse_id
+    ORDER BY ib.available_qty DESC, ii.product_name ASC
     LIMIT 100
   `);
 
@@ -89,17 +89,17 @@ export default async function InventoryStockPage() {
               <tbody className="divide-y divide-slate-100 bg-white">
                 {result.rows.map((row) => (
                   <tr key={row.id} className="hover:bg-slate-50">
-                    <td className="px-4 py-3 font-medium text-slate-900">{row.productCode}</td>
-                    <td className="px-4 py-3 text-slate-700">{row.productName}</td>
+                    <td className="px-4 py-3 font-medium text-slate-900">{row.product_code}</td>
+                    <td className="px-4 py-3 text-slate-700">{row.product_name}</td>
                     <td className="px-4 py-3 text-slate-600">{row.category || '-'}</td>
-                    <td className="px-4 py-3 text-slate-600">{row.productType || '-'}</td>
-                    <td className="px-4 py-3 text-slate-600">{row.warehouseName}</td>
-                    <td className="px-4 py-3 text-slate-600">{row.lotNo || '-'}</td>
-                    <td className="px-4 py-3 text-right text-slate-700">{formatNumber(Number(row.onHandQty || 0))}</td>
-                    <td className="px-4 py-3 text-right text-amber-700">{formatNumber(Number(row.reservedQty || 0))}</td>
-                    <td className="px-4 py-3 text-right font-semibold text-emerald-700">{formatNumber(Number(row.availableQty || 0))}</td>
-                    <td className="px-4 py-3 text-right text-slate-700">{formatCurrency(Number(row.avgCost || 0))}</td>
-                    <td className="px-4 py-3 text-right font-semibold text-slate-900">{formatCurrency(Number(row.availableQty || 0) * Number(row.avgCost || 0))}</td>
+                    <td className="px-4 py-3 text-slate-600">{row.product_type || '-'}</td>
+                    <td className="px-4 py-3 text-slate-600">{row.warehouse_name}</td>
+                    <td className="px-4 py-3 text-slate-600">{row.lot_no || '-'}</td>
+                    <td className="px-4 py-3 text-right text-slate-700">{formatNumber(Number(row.on_hand_qty || 0))}</td>
+                    <td className="px-4 py-3 text-right text-amber-700">{formatNumber(Number(row.reserved_qty || 0))}</td>
+                    <td className="px-4 py-3 text-right font-semibold text-emerald-700">{formatNumber(Number(row.available_qty || 0))}</td>
+                    <td className="px-4 py-3 text-right text-slate-700">{formatCurrency(Number(row.avg_cost || 0))}</td>
+                    <td className="px-4 py-3 text-right font-semibold text-slate-900">{formatCurrency(Number(row.available_qty || 0) * Number(row.avg_cost || 0))}</td>
                   </tr>
                 ))}
               </tbody>

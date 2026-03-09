@@ -35,57 +35,57 @@ interface ProductOption {
   type: string;
   subtype: string | null;
   unit: string;
-  costPrice?: number | null;
+  cost_price?: number | null;
 }
 
 interface BulkSurveyRecord {
   id: number;
   productSearch: string;
-  productCode: string;
+  product_code: string;
   category: string;
   type: string;
   subtype: string;
-  productName: string;
-  requestedAmount: string;
+  product_name: string;
+  requested_amount: string;
   unit: string;
-  pricePerUnit: string;
-  requestingDept: string;
-  approvedQuota: string;
-  budgetYear: string;
-  sequenceNo: string;
+  price_per_unit: string;
+  requesting_dept: string;
+  approved_quota: string;
+  budget_year: string;
+  sequence_no: string;
 }
 
 interface Survey {
   id: number;
-  productCode: string | null;
+  product_code: string | null;
   category: string | null;
   type: string | null;
   subtype: string | null;
-  productName: string | null;
-  requestedAmount: number | null;
+  product_name: string | null;
+  requested_amount: number | null;
   unit: string | null;
-  pricePerUnit: number;
-  requestingDept: string | null;
-  approvedQuota: number | null;
-  budgetYear: number | null;
-  sequenceNo: number | null;
-  createdAt: string;
-  updatedAt: string;
+  price_per_unit: number;
+  requesting_dept: string | null;
+  approved_quota: number | null;
+  budget_year: number | null;
+  sequence_no: number | null;
+  created_at: string;
+  updated_at: string;
 }
 
 interface SurveyFormData {
-  productCode: string;
+  product_code: string;
   category: string;
   type: string;
   subtype: string;
-  productName: string;
-  requestedAmount: string;
+  product_name: string;
+  requested_amount: string;
   unit: string;
-  pricePerUnit: string;
-  requestingDept: string;
-  approvedQuota: string;
-  budgetYear: string;
-  sequenceNo: string;
+  price_per_unit: string;
+  requesting_dept: string;
+  approved_quota: string;
+  budget_year: string;
+  sequence_no: string;
 }
 
 interface CategoryOption {
@@ -98,14 +98,14 @@ function SurveysPageContent() {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const initialProductNameFilter = searchParams.get('productName') || '';
+  const initialProductNameFilter = searchParams.get('product_name') || '';
   const initialCategoryFilter = searchParams.get('category') || '';
   const initialTypeFilter = searchParams.get('type') || '';
   const initialSubtypeFilter = searchParams.get('subtype') || '';
-  const initialRequestingDeptFilter = searchParams.get('requestingDept') || '';
-  const initialBudgetYearFilter = searchParams.get('budgetYear') || getCurrentBudgetYear().toString();
-  const initialSortField = searchParams.get('orderBy') || 'id';
-  const initialSortOrder = (searchParams.get('sortOrder') === 'asc' ? 'asc' : 'desc') as 'asc' | 'desc';
+  const initialRequestingDeptFilter = searchParams.get('requesting_dept') || '';
+  const initialBudgetYearFilter = searchParams.get('budget_year') || getCurrentBudgetYear().toString();
+  const initialSortField = searchParams.get('order_by') || 'id';
+  const initialSortOrder = (searchParams.get('sort_order') === 'asc' ? 'asc' : 'desc') as 'asc' | 'desc';
   const initialPage = Math.max(1, parseInt(searchParams.get('page') || '1', 10) || 1);
   const initialPageSize = Math.max(1, parseInt(searchParams.get('pageSize') || '20', 10) || 20);
   const [surveys, setSurveys] = useState<Survey[]>([]);
@@ -116,35 +116,35 @@ function SurveysPageContent() {
   const [editingSurvey, setEditingSurvey] = useState<Survey | null>(null);
   const [importing, setImporting] = useState(false);
   const [formData, setFormData] = useState<SurveyFormData>({
-    productCode: '',
+    product_code: '',
     category: '',
     type: '',
     subtype: '',
-    productName: '',
-    requestedAmount: '',
+    product_name: '',
+    requested_amount: '',
     unit: '',
-    pricePerUnit: '',
-    requestingDept: '',
-    approvedQuota: '',
-    budgetYear: getCurrentBudgetYear().toString(),
-    sequenceNo: '1'
+    price_per_unit: '',
+    requesting_dept: '',
+    approved_quota: '',
+    budget_year: getCurrentBudgetYear().toString(),
+    sequence_no: '1'
   });
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editingField, setEditingField] = useState<'requestedAmount' | 'requestingDept' | 'approvedQuota' | null>(null);
   const [isInlineSaving, setIsInlineSaving] = useState(false);
   const [editData, setEditData] = useState({
-    productCode: '',
+    product_code: '',
     category: '',
     type: '',
     subtype: '',
-    productName: '',
-    requestedAmount: '',
+    product_name: '',
+    requested_amount: '',
     unit: '',
-    pricePerUnit: '',
-    requestingDept: '',
-    approvedQuota: '',
-    budgetYear: getCurrentBudgetYear().toString(),
-    sequenceNo: '1'
+    price_per_unit: '',
+    requesting_dept: '',
+    approved_quota: '',
+    budget_year: getCurrentBudgetYear().toString(),
+    sequence_no: '1'
   });
   const [showBulkForm, setShowBulkForm] = useState(false);
   const [bulkRecords, setBulkRecords] = useState<BulkSurveyRecord[]>([]);
@@ -257,14 +257,14 @@ function SurveysPageContent() {
       return;
     }
 
-    const nextProductName = searchParams.get('productName') || '';
+    const nextProductName = searchParams.get('product_name') || '';
     const nextCategory = searchParams.get('category') || '';
     const nextType = searchParams.get('type') || '';
     const nextSubtype = searchParams.get('subtype') || '';
-    const nextRequestingDept = searchParams.get('requestingDept') || '';
-    const nextBudgetYear = searchParams.get('budgetYear') || getCurrentBudgetYear().toString();
-    const nextSortField = searchParams.get('orderBy') || 'id';
-    const nextSortOrder = (searchParams.get('sortOrder') === 'asc' ? 'asc' : 'desc') as 'asc' | 'desc';
+    const nextRequestingDept = searchParams.get('requesting_dept') || '';
+    const nextBudgetYear = searchParams.get('budget_year') || getCurrentBudgetYear().toString();
+    const nextSortField = searchParams.get('order_by') || 'id';
+    const nextSortOrder = (searchParams.get('sort_order') === 'asc' ? 'asc' : 'desc') as 'asc' | 'desc';
     const nextPage = Math.max(1, parseInt(searchParams.get('page') || '1', 10) || 1);
     const nextPageSize = Math.max(1, parseInt(searchParams.get('pageSize') || '20', 10) || 20);
 
@@ -283,14 +283,14 @@ function SurveysPageContent() {
   useEffect(() => {
     const params = new URLSearchParams();
 
-    if (productNameFilter) params.set('productName', productNameFilter);
+    if (productNameFilter) params.set('product_name', productNameFilter);
     if (categoryFilter) params.set('category', categoryFilter);
     if (typeFilter) params.set('type', typeFilter);
     if (subtypeFilter) params.set('subtype', subtypeFilter);
-    if (requestingDeptFilter) params.set('requestingDept', requestingDeptFilter);
-    if (budgetYearFilter) params.set('budgetYear', budgetYearFilter);
-    if (sortField && sortField !== 'id') params.set('orderBy', sortField);
-    if (sortOrder !== 'desc') params.set('sortOrder', sortOrder);
+    if (requestingDeptFilter) params.set('requesting_dept', requestingDeptFilter);
+    if (budgetYearFilter) params.set('budget_year', budgetYearFilter);
+    if (sortField && sortField !== 'id') params.set('order_by', sortField);
+    if (sortOrder !== 'desc') params.set('sort_order', sortOrder);
     if (page > 1) params.set('page', page.toString());
     if (pageSize !== 20) params.set('pageSize', pageSize.toString());
 
@@ -326,8 +326,8 @@ function SurveysPageContent() {
         const params = new URLSearchParams({
           page: '1',
           pageSize: PRODUCT_SUGGESTION_LIMIT.toString(),
-          orderBy: 'code',
-          sortOrder: 'asc',
+          order_by: 'code',
+          sort_order: 'asc',
           search: searchValue,
         });
 
@@ -411,9 +411,9 @@ function SurveysPageContent() {
         setCategories(data.categories);
         setTypes(data.types);
         setSubtypes(data.subtypes);
-        setCategoryOptions(data.categoryOptions || []);
+        setCategoryOptions(data.category_options || []);
         setDepartments(data.departments);
-        setBudgetYears((data.budgetYears || []).sort((a: number, b: number) => b - a));
+        setBudgetYears((data.budget_years || []).sort((a: number, b: number) => b - a));
       }
     } catch (error) {
       console.error('Error fetching filter options:', error);
@@ -532,14 +532,14 @@ function SurveysPageContent() {
       setLoading(true);
       const params = new URLSearchParams();
       
-      if (productNameFilter) params.append('productName', productNameFilter);
+      if (productNameFilter) params.append('product_name', productNameFilter);
       if (categoryFilter) params.append('category', categoryFilter);
       if (typeFilter) params.append('type', typeFilter);
       if (subtypeFilter) params.append('subtype', subtypeFilter);
-      if (requestingDeptFilter) params.append('requestingDept', requestingDeptFilter);
-      if (budgetYearFilter) params.append('budgetYear', budgetYearFilter);
-      if (sortField) params.append('orderBy', sortField);
-      if (sortOrder) params.append('sortOrder', sortOrder);
+      if (requestingDeptFilter) params.append('requesting_dept', requestingDeptFilter);
+      if (budgetYearFilter) params.append('budget_year', budgetYearFilter);
+      if (sortField) params.append('order_by', sortField);
+      if (sortOrder) params.append('sort_order', sortOrder);
       params.append('page', page.toString());
       params.append('pageSize', pageSize.toString());
       
@@ -573,13 +573,14 @@ function SurveysPageContent() {
     try {
       const params = new URLSearchParams();
 
-      if (productNameFilter) params.append('productName', productNameFilter);
+      if (productNameFilter) params.append('product_name', productNameFilter);
       if (categoryFilter) params.append('category', categoryFilter);
       if (typeFilter) params.append('type', typeFilter);
       if (subtypeFilter) params.append('subtype', subtypeFilter);
-      if (requestingDeptFilter) params.append('requestingDept', requestingDeptFilter);
-      if (sortField) params.append('orderBy', sortField);
-      if (sortOrder) params.append('sortOrder', sortOrder);
+      if (requestingDeptFilter) params.append('requesting_dept', requestingDeptFilter);
+      if (budgetYearFilter) params.append('budget_year', budgetYearFilter);
+      if (sortField) params.append('order_by', sortField);
+      if (sortOrder) params.append('sort_order', sortOrder);
 
       const response = await fetch(`/api/usage-plans?${params.toString()}`);
       if (response.ok) {
@@ -619,13 +620,13 @@ function SurveysPageContent() {
       setHighlightedProductIndex(-1);
       setFormData((prev) => ({
         ...prev,
-        productCode: value,
-        productName: '',
+        product_code: value,
+        product_name: '',
         category: '',
         type: '',
         subtype: '',
         unit: '',
-        pricePerUnit: '',
+        price_per_unit: '',
       }));
       return;
     }
@@ -637,38 +638,38 @@ function SurveysPageContent() {
     setHighlightedProductIndex(-1);
     setFormData((prev) => ({
       ...prev,
-      productCode: selectedProduct.code || '',
-      productName: selectedProduct.name || '',
+      product_code: selectedProduct.code || '',
+      product_name: selectedProduct.name || '',
       category: selectedProduct.category || '',
       type: selectedProduct.type || '',
       subtype: selectedProduct.subtype || '',
       unit: selectedProduct.unit || '',
-      pricePerUnit: selectedProduct.costPrice?.toString() || prev.pricePerUnit,
+      price_per_unit: selectedProduct.cost_price?.toString() || prev.price_per_unit,
     }));
 
     setErrors((prev) => ({
       ...prev,
-      productCode: '',
-      productName: '',
+      product_code: '',
+      product_name: '',
     }));
   };
 
   const updateInlineField = (field: 'requestedAmount' | 'approvedQuota', value: string) => {
     setEditData((prev) => ({
       ...prev,
-      [field]: value,
+      [field === 'requestedAmount' ? 'requested_amount' : 'approved_quota']: value,
     }));
   };
 
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
     
-    if (!formData.productCode.trim()) {
-      newErrors.productCode = 'กรุณาระบุรหัสสินค้า';
+    if (!formData.product_code.trim()) {
+      newErrors.product_code = 'กรุณาระบุรหัสสินค้า';
     }
     
-    if (!formData.productName.trim()) {
-      newErrors.productName = 'กรุณาระบุชื่อสินค้า';
+    if (!formData.product_name.trim()) {
+      newErrors.product_name = 'กรุณาระบุชื่อสินค้า';
     }
     
     setErrors(newErrors);
@@ -693,8 +694,8 @@ function SurveysPageContent() {
         },
         body: JSON.stringify({
           ...formData,
-          budgetYear: formData.budgetYear ? parseInt(formData.budgetYear, 10) : null,
-          sequenceNo: formData.sequenceNo ? parseInt(formData.sequenceNo, 10) : null,
+          budget_year: formData.budget_year ? parseInt(formData.budget_year, 10) : null,
+          sequence_no: formData.sequence_no ? parseInt(formData.sequence_no, 10) : null,
         }),
       });
       
@@ -725,24 +726,24 @@ function SurveysPageContent() {
 
   const handleEdit = (survey: Survey) => {
     setEditingSurvey(survey);
-    const label = survey.productCode && survey.productName ? `${survey.productCode} - ${survey.productName}` : survey.productCode || survey.productName || '';
+    const label = survey.product_code && survey.product_name ? `${survey.product_code} - ${survey.product_name}` : survey.product_code || survey.product_name || '';
     setProductSearch(label);
     setSelectedProductLabel(label);
     setShowProductSuggestions(false);
     setHighlightedProductIndex(-1);
     setFormData({
-      productCode: survey.productCode || '',
+      product_code: survey.product_code || '',
       category: survey.category || '',
       type: survey.type || '',
       subtype: survey.subtype || '',
-      productName: survey.productName || '',
-      requestedAmount: survey.requestedAmount?.toString() || '',
+      product_name: survey.product_name || '',
+      requested_amount: survey.requested_amount?.toString() || '',
       unit: survey.unit || '',
-      pricePerUnit: survey.pricePerUnit?.toString() || '',
-      requestingDept: survey.requestingDept || '',
-      approvedQuota: survey.approvedQuota?.toString() || '',
-      budgetYear: survey.budgetYear?.toString() || getCurrentBudgetYear().toString(),
-      sequenceNo: survey.sequenceNo?.toString() || '1'
+      price_per_unit: survey.price_per_unit?.toString() || '',
+      requesting_dept: survey.requesting_dept || '',
+      approved_quota: survey.approved_quota?.toString() || '',
+      budget_year: survey.budget_year?.toString() || getCurrentBudgetYear().toString(),
+      sequence_no: survey.sequence_no?.toString() || '1'
     });
     setShowForm(true);
   };
@@ -750,7 +751,7 @@ function SurveysPageContent() {
   const handleDelete = async (survey: Survey) => {
     const result = await Swal.fire({
       title: 'คุณแน่ใจหรือไม่?',
-      text: `คุณต้องการลบข้อมูล "${survey.productName}" หรือไม่?`,
+      text: `คุณต้องการลบข้อมูล "${survey.product_name}" หรือไม่?`,
       icon: 'warning',
       showCancelButton: true,
       confirmButtonColor: '#d33',
@@ -797,18 +798,18 @@ function SurveysPageContent() {
     setShowProductSuggestions(false);
     setHighlightedProductIndex(-1);
     setFormData({
-      productCode: '',
+      product_code: '',
       category: '',
       type: '',
       subtype: '',
-      productName: '',
-      requestedAmount: '',
+      product_name: '',
+      requested_amount: '',
       unit: '',
-      pricePerUnit: '',
-      requestingDept: '',
-      approvedQuota: '',
-      budgetYear: getCurrentBudgetYear().toString(),
-      sequenceNo: '1'
+      price_per_unit: '',
+      requesting_dept: '',
+      approved_quota: '',
+      budget_year: getCurrentBudgetYear().toString(),
+      sequence_no: '1'
     });
     setErrors({});
   };
@@ -890,18 +891,18 @@ function SurveysPageContent() {
     setEditingId(survey.id);
     setEditingField(field);
     setEditData({
-      productCode: survey.productCode || '',
+      product_code: survey.product_code || '',
       category: survey.category || '',
       type: survey.type || '',
       subtype: survey.subtype || '',
-      productName: survey.productName || '',
-      requestedAmount: survey.requestedAmount?.toString() || '',
+      product_name: survey.product_name || '',
+      requested_amount: survey.requested_amount?.toString() || '',
       unit: survey.unit || '',
-      pricePerUnit: survey.pricePerUnit?.toString() || '',
-      requestingDept: survey.requestingDept || '',
-      approvedQuota: survey.approvedQuota?.toString() || '',
-      budgetYear: survey.budgetYear?.toString() || getCurrentBudgetYear().toString(),
-      sequenceNo: survey.sequenceNo?.toString() || '1'
+      price_per_unit: survey.price_per_unit?.toString() || '',
+      requesting_dept: survey.requesting_dept || '',
+      approved_quota: survey.approved_quota?.toString() || '',
+      budget_year: survey.budget_year?.toString() || getCurrentBudgetYear().toString(),
+      sequence_no: survey.sequence_no?.toString() || '1'
     });
   };
 
@@ -911,7 +912,7 @@ function SurveysPageContent() {
     setEditingField(null);
     setIsInlineSaving(false);
     setEditData({
-      productCode: '', category: '', type: '', subtype: '', productName: '', requestedAmount: '', unit: '', pricePerUnit: '', requestingDept: '', approvedQuota: '', budgetYear: getCurrentBudgetYear().toString(), sequenceNo: '1'
+      product_code: '', category: '', type: '', subtype: '', product_name: '', requested_amount: '', unit: '', price_per_unit: '', requesting_dept: '', approved_quota: '', budget_year: getCurrentBudgetYear().toString(), sequence_no: '1'
     });
   };
 
@@ -926,9 +927,9 @@ function SurveysPageContent() {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          requestedAmount: editData.requestedAmount,
-          approvedQuota: editData.approvedQuota,
-          requestingDept: editData.requestingDept,
+          requested_amount: editData.requested_amount,
+          approved_quota: editData.approved_quota,
+          requesting_dept: editData.requesting_dept,
         })
       });
 
@@ -984,18 +985,18 @@ function SurveysPageContent() {
   const createEmptyBulkRecord = (id: number): BulkSurveyRecord => ({
     id,
     productSearch: '',
-    productCode: '',
+    product_code: '',
     category: '',
     type: '',
     subtype: '',
-    productName: '',
-    requestedAmount: '',
+    product_name: '',
+    requested_amount: '',
     unit: '',
-    pricePerUnit: '',
-    requestingDept: '',
-    approvedQuota: '',
-    budgetYear: getCurrentBudgetYear().toString(),
-    sequenceNo: '1'
+    price_per_unit: '',
+    requesting_dept: '',
+    approved_quota: '',
+    budget_year: getCurrentBudgetYear().toString(),
+    sequence_no: '1'
   });
 
   const updateBulkRecord = (id: number, updater: (record: BulkSurveyRecord) => BulkSurveyRecord) => {
@@ -1051,7 +1052,7 @@ function SurveysPageContent() {
     });
 
     setBulkRecords((prev) => {
-      const hasExistingRecord = prev.some((record) => record.productCode === selectedProduct.code);
+      const hasExistingRecord = prev.some((record) => record.product_code === selectedProduct.code);
       if (hasExistingRecord) {
         return prev;
       }
@@ -1062,18 +1063,18 @@ function SurveysPageContent() {
         {
           id: nextId,
           productSearch: selectedLabel,
-          productCode: selectedProduct.code || '',
+          product_code: selectedProduct.code || '',
           category: selectedProduct.category || '',
           type: selectedProduct.type || '',
           subtype: selectedProduct.subtype || '',
-          productName: selectedProduct.name || '',
-          requestedAmount: '',
+          product_name: selectedProduct.name || '',
+          requested_amount: '',
           unit: selectedProduct.unit || '',
-          pricePerUnit: selectedProduct.costPrice?.toString() || '0',
-          requestingDept: '',
-          approvedQuota: '',
-          budgetYear: getCurrentBudgetYear().toString(),
-          sequenceNo: '1',
+          price_per_unit: selectedProduct.cost_price?.toString() || '0',
+          requesting_dept: '',
+          approved_quota: '',
+          budget_year: getCurrentBudgetYear().toString(),
+          sequence_no: '1',
         },
       ];
     });
@@ -1085,14 +1086,14 @@ function SurveysPageContent() {
       const nextValidationErrors: Record<number, { requestedAmount?: string; requestingDept?: string }> = {};
 
       const validRecords = bulkRecords.filter((record) => {
-        const hasProduct = record.productCode.trim() !== '' && record.productName.trim() !== '';
+        const hasProduct = record.product_code.trim() !== '' && record.product_name.trim() !== '';
 
         if (!hasProduct) {
           return false;
         }
 
-        const requestedAmount = record.requestedAmount.trim();
-        const requestingDept = record.requestingDept.trim();
+        const requestedAmount = record.requested_amount.trim();
+        const requestingDept = record.requesting_dept.trim();
         const recordErrors: { requestedAmount?: string; requestingDept?: string } = {};
 
         if (!requestedAmount || Number.isNaN(Number(requestedAmount)) || Number(requestedAmount) <= 0) {
@@ -1115,7 +1116,7 @@ function SurveysPageContent() {
 
       if (validRecords.length === 0) {
         setToast({
-          message: bulkRecords.some((record) => record.productCode.trim() !== '' && record.productName.trim() !== '')
+          message: bulkRecords.some((record) => record.product_code.trim() !== '' && record.product_name.trim() !== '')
             ? 'กรุณากรอกจำนวนที่ขอและหน่วยงานที่ขอให้ครบถ้วน'
             : 'กรุณากรอกข้อมูลให้ครบถ้วนอย่างน้อย 1 รายการ',
           type: 'error',
@@ -1130,17 +1131,17 @@ function SurveysPageContent() {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            productCode: record.productCode.trim(),
+            product_code: record.product_code.trim(),
             category: record.category || '',
             type: record.type || '',
             subtype: record.subtype || '',
-            productName: record.productName.trim(),
-            requestedAmount: record.requestedAmount ? parseFloat(record.requestedAmount) : 0,
+            product_name: record.product_name.trim(),
+            requested_amount: record.requested_amount ? parseFloat(record.requested_amount) : 0,
             unit: record.unit || '',
-            pricePerUnit: record.pricePerUnit ? parseFloat(record.pricePerUnit) : 0,
-            requestingDept: record.requestingDept || '',
-            approvedQuota: record.approvedQuota ? parseFloat(record.approvedQuota) : 0,
-            budgetYear: record.budgetYear ? parseInt(record.budgetYear, 10) : null,
+            price_per_unit: record.price_per_unit ? parseFloat(record.price_per_unit) : 0,
+            requesting_dept: record.requesting_dept || '',
+            approved_quota: record.approved_quota ? parseFloat(record.approved_quota) : 0,
+            budget_year: record.budget_year ? parseInt(record.budget_year, 10) : null,
           })
         })
       );
@@ -1400,17 +1401,17 @@ function SurveysPageContent() {
               <h3 className="text-lg font-medium text-gray-900">สรุปข้อมูล</h3>
               <div className="flex flex-wrap items-center gap-6">
                 <div className="text-sm">
-                  <span className="text-gray-500">มูลค่ารวมที่ขอ: </span>
-                  <span className="font-semibold text-gray-900">
-                    ฿{summarySurveys.reduce((sum, s) => sum + ((s.requestedAmount || 0) * (s.pricePerUnit || 0)), 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                  </span>
-                </div>
-                <div className="text-sm">
-                  <span className="text-gray-500">มูลค่ารวมที่อนุมัติ: </span>
-                  <span className="font-semibold text-gray-900">
-                    ฿{summarySurveys.reduce((sum, s) => sum + ((s.approvedQuota || 0) * (s.pricePerUnit || 0)), 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                  </span>
-                </div>
+                <span className="text-gray-500">มูลค่ารวมที่ขอ: </span>
+                <span className="font-semibold text-gray-900">
+                    ฿{summarySurveys.reduce((sum, s) => sum + ((s.requested_amount || 0) * (s.price_per_unit || 0)), 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </span>
+              </div>
+              <div className="text-sm">
+                <span className="text-gray-500">มูลค่ารวมที่อนุมัติ: </span>
+                <span className="font-semibold text-gray-900">
+                    ฿{summarySurveys.reduce((sum, s) => sum + ((s.approved_quota || 0) * (s.price_per_unit || 0)), 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </span>
+              </div>
               </div>
             </div>
           </div>
@@ -1474,17 +1475,17 @@ function SurveysPageContent() {
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th onClick={() => handleSort('budgetYear')} className={getHeaderClass('budgetYear')}>
-                      ปีงบ {getSortIcon('budgetYear')}
+                    <th onClick={() => handleSort('budget_year')} className={getHeaderClass('budget_year')}>
+                      ปีงบ {getSortIcon('budget_year')}
                     </th>
-                    <th onClick={() => handleSort('sequenceNo')} className={getHeaderClass('sequenceNo')}>
-                      ครั้งที่ {getSortIcon('sequenceNo')}
+                    <th onClick={() => handleSort('sequence_no')} className={getHeaderClass('sequence_no')}>
+                      ครั้งที่ {getSortIcon('sequence_no')}
                     </th>
-                    <th onClick={() => handleSort('productCode')} className={getHeaderClass('productCode') + ' w-24'}>
-                      รหัสสินค้า {getSortIcon('productCode')}
+                    <th onClick={() => handleSort('product_code')} className={getHeaderClass('product_code') + ' w-24'}>
+                      รหัสสินค้า {getSortIcon('product_code')}
                     </th>
-                    <th onClick={() => handleSort('productName')} className={getHeaderClass('productName')}>
-                      ชื่อสินค้า {getSortIcon('productName')}
+                    <th onClick={() => handleSort('product_name')} className={getHeaderClass('product_name')}>
+                      ชื่อสินค้า {getSortIcon('product_name')}
                     </th>
                     <th onClick={() => handleSort('category')} className={getHeaderClass('category')}>
                       หมวดสินค้า {getSortIcon('category')}
@@ -1492,17 +1493,17 @@ function SurveysPageContent() {
                     <th onClick={() => handleSort('type')} className={getHeaderClass('type')}>
                       ประเภท {getSortIcon('type')}
                     </th>
-                    <th onClick={() => handleSort('requestedAmount')} className={getHeaderClass('requestedAmount')}>
-                      จำนวนที่ขอ {getSortIcon('requestedAmount')}
+                    <th onClick={() => handleSort('requested_amount')} className={getHeaderClass('requested_amount')}>
+                      จำนวนที่ขอ {getSortIcon('requested_amount')}
                     </th>
-                    <th onClick={() => handleSort('pricePerUnit')} className={getHeaderClass('pricePerUnit')}>
-                      ราคาต่อหน่วย {getSortIcon('pricePerUnit')}
+                    <th onClick={() => handleSort('price_per_unit')} className={getHeaderClass('price_per_unit')}>
+                      ราคาต่อหน่วย {getSortIcon('price_per_unit')}
                     </th>
-                    <th onClick={() => handleSort('requestingDept')} className={getHeaderClass('requestingDept')}>
-                      หน่วยงานที่ขอ {getSortIcon('requestingDept')}
+                    <th onClick={() => handleSort('requesting_dept')} className={getHeaderClass('requesting_dept')}>
+                      หน่วยงานที่ขอ {getSortIcon('requesting_dept')}
                     </th>
-                    <th onClick={() => handleSort('approvedQuota')} className={getHeaderClass('approvedQuota')}>
-                      จำนวนที่อนุมัติ {getSortIcon('approvedQuota')}
+                    <th onClick={() => handleSort('approved_quota')} className={getHeaderClass('approved_quota')}>
+                      จำนวนที่อนุมัติ {getSortIcon('approved_quota')}
                     </th>
                     <th className="px-3 py-3 text-left text-[10px] font-medium text-gray-500 uppercase tracking-wider w-24">
                       Action
@@ -1513,16 +1514,16 @@ function SurveysPageContent() {
                   {surveys.map((survey) => (
                     <tr key={survey.id} className="hover:bg-gray-50">
                       <td className="px-6 py-4 whitespace-nowrap text-xs text-gray-900">
-                        {survey.budgetYear || '-'}
+                        {survey.budget_year || '-'}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-xs text-gray-900">
-                        {survey.sequenceNo || '-'}
+                        {survey.sequence_no || '-'}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-xs text-gray-900">
-                        {survey.productCode}
+                        {survey.product_code}
                       </td>
                       <td className="px-6 py-4 text-xs text-gray-900 break-words max-w-xs">
-                        {survey.productName}
+                        {survey.product_name}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-xs text-gray-900">
                         {survey.category}
@@ -1539,7 +1540,7 @@ function SurveysPageContent() {
                               aria-label={`จำนวนที่ขอ รายการ ${survey.id}`}
                               type="number"
                               min="0"
-                              value={editData.requestedAmount}
+                              value={editData.requested_amount}
                               onChange={(e) => updateInlineField('requestedAmount', e.target.value)}
                               onBlur={(e) => handleInlineEditorBlur(e, survey.id)}
                               autoFocus
@@ -1553,12 +1554,12 @@ function SurveysPageContent() {
                             onClick={() => startInlineEdit(survey, 'requestedAmount')}
                             className="w-full text-left cursor-text"
                           >
-                            {survey.requestedAmount?.toLocaleString() || ''} {survey.unit}
+                            {survey.requested_amount?.toLocaleString() || ''} {survey.unit}
                           </button>
                         )}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-xs text-gray-900">
-                        <>฿{survey.pricePerUnit?.toLocaleString() || '0'}</>
+                        <>฿{survey.price_per_unit?.toLocaleString() || '0'}</>
                       </td>
                       <td
                         ref={editingId === survey.id && editingField === 'requestingDept' ? inlineEditContainerRef : null}
@@ -1569,8 +1570,8 @@ function SurveysPageContent() {
                             id={`survey-inline-requesting-dept-${survey.id}`}
                             name={`inlineRequestingDept-${survey.id}`}
                             aria-label={`หน่วยงานที่ขอ รายการ ${survey.id}`}
-                            value={editData.requestingDept}
-                            onChange={(e) => setEditData((prev) => ({ ...prev, requestingDept: e.target.value }))}
+                            value={editData.requesting_dept}
+                            onChange={(e) => setEditData((prev) => ({ ...prev, requesting_dept: e.target.value }))}
                             onBlur={(e) => handleInlineEditorBlur(e, survey.id)}
                             autoFocus
                             className="w-40 rounded border border-gray-300 px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -1586,7 +1587,7 @@ function SurveysPageContent() {
                             onClick={() => startInlineEdit(survey, 'requestingDept')}
                             className="w-full text-left cursor-text"
                           >
-                            {survey.requestingDept || '-'}
+                            {survey.requesting_dept || '-'}
                           </button>
                         )}
                       </td>
@@ -1598,7 +1599,7 @@ function SurveysPageContent() {
                             aria-label={`จำนวนที่อนุมัติ รายการ ${survey.id}`}
                             type="number"
                             min="0"
-                            value={editData.approvedQuota}
+                            value={editData.approved_quota}
                             onChange={(e) => updateInlineField('approvedQuota', e.target.value)}
                             onBlur={(e) => handleInlineEditorBlur(e, survey.id)}
                             autoFocus
@@ -1610,7 +1611,7 @@ function SurveysPageContent() {
                             onClick={() => startInlineEdit(survey, 'approvedQuota')}
                             className="w-full text-left cursor-text"
                           >
-                            {survey.approvedQuota?.toLocaleString() || '-'}
+                            {survey.approved_quota?.toLocaleString() || '-'}
                           </button>
                         )}
                       </td>
@@ -1699,7 +1700,7 @@ function SurveysPageContent() {
                       autoComplete="off"
                       aria-label="ค้นหารหัสหรือชื่อสินค้า"
                       placeholder="พิมพ์รหัสสินค้า หรือชื่อสินค้า"
-                      className={`w-full rounded-md border px-3 py-2 pl-9 pr-9 focus:outline-none focus:ring-2 focus:ring-blue-500 ${errors.productCode ? 'border-red-500' : 'border-gray-300'} ${editingSurvey ? 'bg-gray-50' : 'bg-white'}`}
+                      className={`w-full rounded-md border px-3 py-2 pl-9 pr-9 focus:outline-none focus:ring-2 focus:ring-blue-500 ${errors.product_code ? 'border-red-500' : 'border-gray-300'} ${editingSurvey ? 'bg-gray-50' : 'bg-white'}`}
                     />
                     {productSearch && !editingSurvey && (
                       <button
@@ -1735,10 +1736,10 @@ function SurveysPageContent() {
                       </div>
                     )}
                   </div>
-                  {errors.productCode && <p className="mt-2 text-sm text-red-600">{errors.productCode}</p>}
+                  {errors.product_code && <p className="mt-2 text-sm text-red-600">{errors.product_code}</p>}
                 </div>
 
-                {(editingSurvey || formData.productName) && (
+                {(editingSurvey || formData.product_name) && (
                   <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
                     <div className="border-b border-slate-200 px-4 py-3">
                       <h3 className="text-sm font-semibold text-slate-700">รายการที่เลือก</h3>
@@ -1760,23 +1761,23 @@ function SurveysPageContent() {
                         <tbody>
                           <tr className="border-t border-slate-200 align-top">
                             <td className="px-4 py-3">
-                              <input id="survey-product-code" type="text" name="productCode" aria-label="รหัสสินค้า" value={formData.productCode} readOnly className="w-full rounded-md border border-gray-300 bg-gray-50 px-3 py-2 text-sm focus:outline-none" />
+                              <input id="survey-product-code" type="text" name="product_code" aria-label="รหัสสินค้า" value={formData.product_code} readOnly className="w-full rounded-md border border-gray-300 bg-gray-50 px-3 py-2 text-sm focus:outline-none" />
                             </td>
                             <td className="px-4 py-3 min-w-[240px]">
-                              <input id="survey-product-name" type="text" name="productName" aria-label="ชื่อสินค้า" value={formData.productName} readOnly className={`w-full rounded-md border px-3 py-2 text-sm focus:outline-none ${errors.productName ? 'border-red-500' : 'border-gray-300 bg-gray-50'}`} />
-                              {errors.productName && <p className="mt-1 text-sm text-red-600">{errors.productName}</p>}
+                              <input id="survey-product-name" type="text" name="product_name" aria-label="ชื่อสินค้า" value={formData.product_name} readOnly className={`w-full rounded-md border px-3 py-2 text-sm focus:outline-none ${errors.product_name ? 'border-red-500' : 'border-gray-300 bg-gray-50'}`} />
+                              {errors.product_name && <p className="mt-1 text-sm text-red-600">{errors.product_name}</p>}
                             </td>
                             <td className="px-4 py-3 min-w-[140px]">
-                              <input id="survey-requested-amount" type="number" name="requestedAmount" aria-label="จำนวนที่ขอ" value={formData.requestedAmount} onChange={handleInputChange} min="0" className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="จำนวน" />
+                              <input id="survey-requested-amount" type="number" name="requested_amount" aria-label="จำนวนที่ขอ" value={formData.requested_amount} onChange={handleInputChange} min="0" className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="จำนวน" />
                             </td>
                             <td className="px-4 py-3 min-w-[120px]">
                               <input id="survey-unit" type="text" name="unit" aria-label="หน่วย" value={formData.unit} readOnly className="w-full rounded-md border border-gray-300 bg-gray-50 px-3 py-2 text-sm focus:outline-none" />
                             </td>
                             <td className="px-4 py-3 min-w-[150px]">
-                              <input id="survey-price-per-unit" type="number" name="pricePerUnit" aria-label="ราคาต่อหน่วย" value={formData.pricePerUnit} onChange={handleInputChange} min="0" step="0.01" className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="ราคาต่อหน่วย" />
+                              <input id="survey-price-per-unit" type="number" name="price_per_unit" aria-label="ราคาต่อหน่วย" value={formData.price_per_unit} onChange={handleInputChange} min="0" step="0.01" className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="ราคาต่อหน่วย" />
                             </td>
                             <td className="px-4 py-3 min-w-[220px]">
-                              <select id="survey-requesting-dept" name="requestingDept" aria-label="หน่วยงานที่ขอ" value={formData.requestingDept} onChange={handleInputChange} className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                              <select id="survey-requesting-dept" name="requesting_dept" aria-label="หน่วยงานที่ขอ" value={formData.requesting_dept} onChange={handleInputChange} className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
                                 <option value="">เลือกหน่วยงานที่ขอ</option>
                                 {departments.map((dept) => (
                                   <option key={dept} value={dept}>{dept}</option>
@@ -1784,7 +1785,7 @@ function SurveysPageContent() {
                               </select>
                             </td>
                             <td className="px-4 py-3 min-w-[140px]">
-                              <input id="survey-approved-quota" type="number" name="approvedQuota" aria-label="จำนวนที่อนุมัติ" value={formData.approvedQuota} onChange={handleInputChange} min="0" className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="จำนวนอนุมัติ" />
+                              <input id="survey-approved-quota" type="number" name="approved_quota" aria-label="จำนวนที่อนุมัติ" value={formData.approved_quota} onChange={handleInputChange} min="0" className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="จำนวนอนุมัติ" />
                             </td>
                           </tr>
                         </tbody>
@@ -1806,7 +1807,7 @@ function SurveysPageContent() {
                       </div>
                       <div>
                         <label htmlFor="survey-budget-year" className="mb-2 block text-sm font-medium text-gray-700">ปีงบ</label>
-                        <select id="survey-budget-year" name="budgetYear" value={formData.budgetYear} onChange={handleInputChange} className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <select id="survey-budget-year" name="budget_year" value={formData.budget_year} onChange={handleInputChange} className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
                           {availableBudgetYears.map((year) => (
                             <option key={year} value={year.toString()}>{year}</option>
                           ))}
@@ -1814,7 +1815,7 @@ function SurveysPageContent() {
                       </div>
                       <div>
                         <label htmlFor="survey-sequence-no" className="mb-2 block text-sm font-medium text-gray-700">ครั้งที่</label>
-                        <select id="survey-sequence-no" name="sequenceNo" value={formData.sequenceNo} onChange={handleInputChange} className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <select id="survey-sequence-no" name="sequence_no" value={formData.sequence_no} onChange={handleInputChange} className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
                           <option value="1">ครั้งที่ 1</option>
                           <option value="2">ครั้งที่ 2</option>
                         </select>
@@ -1962,7 +1963,7 @@ function SurveysPageContent() {
                                 name={`bulkProductCode-${record.id}`}
                                 aria-label={`รหัสสินค้า แถว ${index + 1}`}
                                 type="text"
-                                value={record.productCode}
+                                value={record.product_code}
                                 readOnly
                                 placeholder="รหัสสินค้า"
                                 className="w-full px-2 py-1 border border-gray-300 rounded bg-gray-100 text-sm"
@@ -1974,10 +1975,10 @@ function SurveysPageContent() {
                                 name={`bulkProductName-${record.id}`}
                                 aria-label={`ชื่อสินค้า แถว ${index + 1}`}
                                 type="text"
-                                value={record.productName}
+                                value={record.product_name}
                                 readOnly
                                 placeholder="ชื่อสินค้า"
-                                title={record.productName || ''}
+                                title={record.product_name || ''}
                                 className="w-full px-2 py-1 border border-gray-300 rounded bg-gray-100 text-sm"
                               />
                             </td>
@@ -1989,9 +1990,9 @@ function SurveysPageContent() {
                                 type="number"
                                 required
                                 min="1"
-                                value={record.requestedAmount || ''}
+                                value={record.requested_amount || ''}
                                 onChange={(e) => {
-                                  updateBulkRecord(record.id, (current) => ({ ...current, requestedAmount: e.target.value }));
+                                  updateBulkRecord(record.id, (current) => ({ ...current, requested_amount: e.target.value }));
                                   clearBulkValidationError(record.id, 'requestedAmount');
                                 }}
                                 placeholder="จำนวนที่ขอ"
@@ -2019,9 +2020,9 @@ function SurveysPageContent() {
                                 name={`bulkRequestingDept-${record.id}`}
                                 aria-label={`หน่วยงานที่ขอ แถว ${index + 1}`}
                                 required
-                                value={record.requestingDept || ''}
+                                value={record.requesting_dept || ''}
                                 onChange={(e) => {
-                                  updateBulkRecord(record.id, (current) => ({ ...current, requestingDept: e.target.value }));
+                                  updateBulkRecord(record.id, (current) => ({ ...current, requesting_dept: e.target.value }));
                                   clearBulkValidationError(record.id, 'requestingDept');
                                 }}
                                 className={`w-full px-2 py-1 border rounded focus:outline-none focus:ring-2 text-sm ${bulkValidationErrors[record.id]?.requestingDept ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 focus:ring-blue-500'}`}
@@ -2041,9 +2042,9 @@ function SurveysPageContent() {
                                 name={`bulkApprovedQuota-${record.id}`}
                                 aria-label={`จำนวนที่อนุมัติ แถว ${index + 1}`}
                                 type="number"
-                                value={record.approvedQuota || ''}
+                                value={record.approved_quota || ''}
                                 onChange={(e) => {
-                                  updateBulkRecord(record.id, (current) => ({ ...current, approvedQuota: e.target.value }));
+                                  updateBulkRecord(record.id, (current) => ({ ...current, approved_quota: e.target.value }));
                                 }}
                                 placeholder="จำนวนอนุมัติ"
                                 className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"

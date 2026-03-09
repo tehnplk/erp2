@@ -5,21 +5,21 @@ import Link from 'next/link';
 
 type MovementRow = {
   id: number;
-  inventoryItemId: number;
-  productCode: string;
-  productName: string;
-  movementDate: string;
-  movementType: string;
-  qtyIn: number;
-  qtyOut: number;
-  unitCost: number;
-  totalCost: number;
-  balanceQtyAfter: number;
-  balanceValueAfter: number;
-  referenceType: string | null;
-  referenceNo: string | null;
-  targetDepartment: string | null;
-  sourceDepartment: string | null;
+  inventory_item_id: number;
+  product_code: string;
+  product_name: string;
+  movement_date: string;
+  movement_type: string;
+  qty_in: number;
+  qty_out: number;
+  unit_cost: number;
+  total_cost: number;
+  balance_qty_after: number;
+  balance_value_after: number;
+  reference_type: string | null;
+  reference_no: string | null;
+  target_department: string | null;
+  source_department: string | null;
 };
 
 type ApiResponse<T> = {
@@ -49,7 +49,7 @@ export default function InventoryMovementsPage() {
     const fetchMovements = async () => {
       try {
         setLoading(true);
-        const response = await fetch('/api/inventory/movements?page=1&pageSize=200');
+        const response = await fetch('/api/inventory/movements?page=1&page_size=200');
         const payload: ApiResponse<MovementRow[]> = await response.json();
         if (!response.ok || !payload.success) {
           throw new Error(payload.error || 'โหลด movement ไม่สำเร็จ');
@@ -105,15 +105,15 @@ export default function InventoryMovementsPage() {
                   <tr><td colSpan={9} className="px-4 py-10 text-center text-slate-500">ยังไม่มีประวัติการเคลื่อนไหวสินค้า</td></tr>
                 ) : items.map((item) => (
                   <tr key={item.id} className="hover:bg-slate-50">
-                    <td className="px-4 py-3 text-slate-600">{item.movementDate ? new Date(item.movementDate).toLocaleString('th-TH') : '-'}</td>
-                    <td className="px-4 py-3 text-slate-700"><div className="font-medium text-slate-900">{item.productCode}</div><div>{item.productName}</div></td>
-                    <td className="px-4 py-3"><span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-700">{item.movementType}</span></td>
-                    <td className="px-4 py-3 text-right text-emerald-700">{formatNumber(Number(item.qtyIn || 0))}</td>
-                    <td className="px-4 py-3 text-right text-rose-700">{formatNumber(Number(item.qtyOut || 0))}</td>
-                    <td className="px-4 py-3 text-right text-slate-700">{formatCurrency(Number(item.totalCost || 0))}</td>
-                    <td className="px-4 py-3 text-right font-semibold text-slate-900">{formatNumber(Number(item.balanceQtyAfter || 0))}</td>
-                    <td className="px-4 py-3 text-slate-600">{item.referenceType || '-'} {item.referenceNo || ''}</td>
-                    <td className="px-4 py-3 text-slate-600">{item.targetDepartment || item.sourceDepartment || '-'}</td>
+                    <td className="px-4 py-3 text-slate-600">{item.movement_date ? new Date(item.movement_date).toLocaleString('th-TH') : '-'}</td>
+                    <td className="px-4 py-3 text-slate-700"><div className="font-medium text-slate-900">{item.product_code}</div><div>{item.product_name}</div></td>
+                    <td className="px-4 py-3"><span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-700">{item.movement_type}</span></td>
+                    <td className="px-4 py-3 text-right text-emerald-700">{formatNumber(Number(item.qty_in || 0))}</td>
+                    <td className="px-4 py-3 text-right text-rose-700">{formatNumber(Number(item.qty_out || 0))}</td>
+                    <td className="px-4 py-3 text-right text-slate-700">{formatCurrency(Number(item.total_cost || 0))}</td>
+                    <td className="px-4 py-3 text-right font-semibold text-slate-900">{formatNumber(Number(item.balance_qty_after || 0))}</td>
+                    <td className="px-4 py-3 text-slate-600">{item.reference_type || '-'} {item.reference_no || ''}</td>
+                    <td className="px-4 py-3 text-slate-600">{item.target_department || item.source_department || '-'}</td>
                   </tr>
                 ))}
               </tbody>

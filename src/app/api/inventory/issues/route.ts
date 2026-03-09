@@ -14,18 +14,18 @@ export async function GET() {
     const result = await pgQuery(`
       SELECT
         ii.id,
-        ii."issueNo",
-        ii."issueDate",
-        ii."requisitionId",
-        ii."requestingDepartment",
+        ii.issue_no,
+        ii.issue_date,
+        ii.requisition_id,
+        ii.requesting_department,
         ii.status,
-        ii."issuedBy",
-        ii."approvedBy",
+        ii.issued_by,
+        ii.approved_by,
         ii.note,
         ii.created_at,
-        COALESCE(SUM(iii."issuedQty"), 0)::int AS "issuedQtyTotal"
-      FROM public."InventoryIssue" ii
-      LEFT JOIN public."InventoryIssueItem" iii ON iii."issueId" = ii.id
+        COALESCE(SUM(iii.issued_qty), 0)::int AS issued_qty_total
+      FROM public.inventory_issue ii
+      LEFT JOIN public.inventory_issue_item iii ON iii.issue_id = ii.id
       GROUP BY ii.id
       ORDER BY ii.id DESC
     `);
@@ -49,15 +49,15 @@ export async function POST(request: NextRequest) {
       return validation.error;
     }
 
-    const { requisitionId, issueNo, issueDate, requestingDepartment, issuedBy, approvedBy, note, items } = validation.data;
-    const resolvedIssueNo = issueNo || `ISS-${Date.now()}`;
-    const resolvedIssueDate = issueDate || new Date().toISOString();
+    const { requisition_id, issue_no, issue_date, requesting_department, issued_by, approved_by, note, items } = validation.data;
+    const resolvedIssueNo = issue_no || `ISS-${Date.now()}`;
+    const resolvedIssueDate = issue_date || new Date().toISOString();
 
     await client.query('BEGIN');
 
     const requisitionResult = await client.query(
-      `SELECT id, status FROM public."InventoryRequisition" WHERE id = $1 FOR UPDATE`,
-      [requisitionId]
+      `SELECT id, status FROM public.inventory_requisition WHERE id = $1 FOR UPDATE`,
+      [requisition_id]
     );
 
     if (requisitionResult.rows.length === 0) {
@@ -72,147 +72,147 @@ export async function POST(request: NextRequest) {
     }
 
     const issueResult = await client.query(
-      `INSERT INTO public."InventoryIssue" ("issueNo", "issueDate", "requisitionId", "requestingDepartment", status, "issuedBy", "approvedBy", note)
+      `INSERT INTO public.inventory_issue (issue_no, issue_date, requisition_id, requesting_department, status, issued_by, approved_by, note)
        VALUES ($1, $2, $3, $4, 'POSTED', $5, $6, $7)
-       RETURNING id, "issueNo", "issueDate"`,
-      [resolvedIssueNo, resolvedIssueDate, requisitionId, requestingDepartment, issuedBy || null, approvedBy || null, note || null]
+       RETURNING id, issue_no, issue_date`,
+      [resolvedIssueNo, resolvedIssueDate, requisition_id, requesting_department, issued_by || null, approved_by || null, note || null]
     );
 
     const issue = issueResult.rows[0];
 
     for (const item of items) {
       const requisitionItemResult = await client.query(
-        `SELECT id, "inventoryItemId", "approvedQty", "issuedQty"
-         FROM public."InventoryRequisitionItem"
-         WHERE id = $1 AND "requisitionId" = $2
+        `SELECT id, inventory_item_id, approved_qty, issued_qty
+         FROM public.inventory_requisition_item
+         WHERE id = $1 AND requisition_id = $2
          FOR UPDATE`,
-        [item.requisitionItemId, requisitionId]
+        [item.requisition_item_id, requisition_id]
       );
 
       if (requisitionItemResult.rows.length === 0) {
         await client.query('ROLLBACK');
-        return apiNotFound(`Inventory requisition item ${item.requisitionItemId}`);
+        return apiNotFound(`Inventory requisition item ${item.requisition_item_id}`);
       }
 
       const requisitionItem = requisitionItemResult.rows[0];
-      const approvedQty = Number(requisitionItem.approvedQty || 0);
-      const alreadyIssuedQty = Number(requisitionItem.issuedQty || 0);
+      const approvedQty = Number(requisitionItem.approved_qty || 0);
+      const alreadyIssuedQty = Number(requisitionItem.issued_qty || 0);
       const remainingIssueQty = approvedQty - alreadyIssuedQty;
 
-      if (item.inventoryItemId !== Number(requisitionItem.inventoryItemId)) {
+      if (item.inventory_item_id !== Number(requisitionItem.inventory_item_id)) {
         await client.query('ROLLBACK');
-        return apiConflict(`Inventory item mismatch for requisition item ${item.requisitionItemId}`);
+        return apiConflict(`Inventory item mismatch for requisition item ${item.requisition_item_id}`);
       }
 
-      if (item.issuedQty > remainingIssueQty) {
+      if (item.issued_qty > remainingIssueQty) {
         await client.query('ROLLBACK');
-        return apiConflict(`Issued quantity exceeds remaining approved quantity for requisition item ${item.requisitionItemId}`);
+        return apiConflict(`Issued quantity exceeds remaining approved quantity for requisition item ${item.requisition_item_id}`);
       }
 
       const balanceResult = await client.query(
-        `SELECT "onHandQty", "reservedQty", "availableQty", "avgCost"
-         FROM public."InventoryBalance"
-         WHERE "inventoryItemId" = $1
+        `SELECT on_hand_qty, reserved_qty, available_qty, avg_cost
+         FROM public.inventory_balance
+         WHERE inventory_item_id = $1
          FOR UPDATE`,
-        [item.inventoryItemId]
+        [item.inventory_item_id]
       );
 
       if (balanceResult.rows.length === 0) {
         await client.query('ROLLBACK');
-        return apiNotFound(`Inventory balance for item ${item.inventoryItemId}`);
+        return apiNotFound(`Inventory balance for item ${item.inventory_item_id}`);
       }
 
       const balance = balanceResult.rows[0];
-      const onHandQty = Number(balance.onHandQty || 0);
-      const reservedQty = Number(balance.reservedQty || 0);
-      const availableQty = Number(balance.availableQty || 0);
-      const avgCost = Number(balance.avgCost || 0);
+      const onHandQty = Number(balance.on_hand_qty || 0);
+      const reservedQty = Number(balance.reserved_qty || 0);
+      const availableQty = Number(balance.available_qty || 0);
+      const avgCost = Number(balance.avg_cost || 0);
 
-      if (item.issuedQty > onHandQty) {
+      if (item.issued_qty > onHandQty) {
         await client.query('ROLLBACK');
-        return apiConflict(`Issued quantity exceeds on hand quantity for inventory item ${item.inventoryItemId}`);
+        return apiConflict(`Issued quantity exceeds on hand quantity for inventory item ${item.inventory_item_id}`);
       }
 
-      if (item.issuedQty > reservedQty) {
+      if (item.issued_qty > reservedQty) {
         await client.query('ROLLBACK');
-        return apiConflict(`Issued quantity exceeds reserved quantity for inventory item ${item.inventoryItemId}`);
+        return apiConflict(`Issued quantity exceeds reserved quantity for inventory item ${item.inventory_item_id}`);
       }
 
       await client.query(
-        `INSERT INTO public."InventoryIssueItem" ("issueId", "requisitionItemId", "inventoryItemId", "issuedQty", "unitCost", "totalCost")
+        `INSERT INTO public.inventory_issue_item (issue_id, requisition_item_id, inventory_item_id, issued_qty, unit_cost, total_cost)
          VALUES ($1, $2, $3, $4, $5, $6)`,
-        [issue.id, item.requisitionItemId, item.inventoryItemId, item.issuedQty, avgCost, item.issuedQty * avgCost]
+        [issue.id, item.requisition_item_id, item.inventory_item_id, item.issued_qty, avgCost, item.issued_qty * avgCost]
       );
 
-      const nextOnHandQty = onHandQty - item.issuedQty;
-      const nextReservedQty = reservedQty - item.issuedQty;
+      const nextOnHandQty = onHandQty - item.issued_qty;
+      const nextReservedQty = reservedQty - item.issued_qty;
       const nextAvailableQty = availableQty;
 
       await client.query(
-        `UPDATE public."InventoryBalance"
-         SET "onHandQty" = $2,
-             "reservedQty" = $3,
-             "availableQty" = $4,
-             "lastMovementAt" = CURRENT_TIMESTAMP,
+        `UPDATE public.inventory_balance
+         SET on_hand_qty = $2,
+             reserved_qty = $3,
+             available_qty = $4,
+             last_movement_at = CURRENT_TIMESTAMP,
              updated_at = CURRENT_TIMESTAMP
-         WHERE "inventoryItemId" = $1`,
-        [item.inventoryItemId, nextOnHandQty, nextReservedQty, nextAvailableQty]
+         WHERE inventory_item_id = $1`,
+        [item.inventory_item_id, nextOnHandQty, nextReservedQty, nextAvailableQty]
       );
 
       await client.query(
-        `UPDATE public."InventoryRequisitionItem"
-         SET "issuedQty" = "issuedQty" + $2,
-             "lineStatus" = CASE
-               WHEN "issuedQty" + $2 >= "approvedQty" THEN 'ISSUED'
-               WHEN "issuedQty" + $2 > 0 THEN 'PARTIALLY_ISSUED'
-               ELSE "lineStatus"
+        `UPDATE public.inventory_requisition_item
+         SET issued_qty = issued_qty + $2,
+             line_status = CASE
+               WHEN issued_qty + $2 >= approved_qty THEN 'ISSUED'
+               WHEN issued_qty + $2 > 0 THEN 'PARTIALLY_ISSUED'
+               ELSE line_status
              END
          WHERE id = $1`,
-        [item.requisitionItemId, item.issuedQty]
+        [item.requisition_item_id, item.issued_qty]
       );
 
       await client.query(
-        `INSERT INTO public."InventoryMovement"
-          ("inventoryItemId", "movementDate", "movementType", "qtyIn", "qtyOut", "unitCost", "totalCost", "balanceQtyAfter", "balanceValueAfter", "referenceType", "referenceId", "referenceNo", "targetDepartment", note, "createdBy")
+        `INSERT INTO public.inventory_movement
+          (inventory_item_id, movement_date, movement_type, qty_in, qty_out, unit_cost, total_cost, balance_qty_after, balance_value_after, reference_type, reference_id, reference_no, target_department, note, created_by)
          VALUES ($1, $2, 'ISSUE_APPROVED', 0, $3, $4, $5, $6, $7, 'InventoryIssue', $8, $9, $10, $11, $12)`,
         [
-          item.inventoryItemId,
+          item.inventory_item_id,
           resolvedIssueDate,
-          item.issuedQty,
+          item.issued_qty,
           avgCost,
-          item.issuedQty * avgCost,
+          item.issued_qty * avgCost,
           nextOnHandQty,
           Number((nextOnHandQty * avgCost).toFixed(2)),
           issue.id,
-          issue.issueNo,
-          requestingDepartment,
+          issue.issue_no,
+          requesting_department,
           note || null,
-          issuedBy || null,
+          issued_by || null,
         ]
       );
     }
 
     const requisitionSummaryResult = await client.query(
       `SELECT
-         COALESCE(SUM("approvedQty"), 0)::int AS "approvedQtyTotal",
-         COALESCE(SUM("issuedQty"), 0)::int AS "issuedQtyTotal"
-       FROM public."InventoryRequisitionItem"
-       WHERE "requisitionId" = $1`,
-      [requisitionId]
+         COALESCE(SUM(approved_qty), 0)::int AS approved_qty_total,
+         COALESCE(SUM(issued_qty), 0)::int AS issued_qty_total
+       FROM public.inventory_requisition_item
+       WHERE requisition_id = $1`,
+      [requisition_id]
     );
 
-    const approvedQtyTotal = Number(requisitionSummaryResult.rows[0]?.approvedQtyTotal || 0);
-    const issuedQtyTotal = Number(requisitionSummaryResult.rows[0]?.issuedQtyTotal || 0);
+    const approvedQtyTotal = Number(requisitionSummaryResult.rows[0]?.approved_qty_total || 0);
+    const issuedQtyTotal = Number(requisitionSummaryResult.rows[0]?.issued_qty_total || 0);
     const nextStatus = issuedQtyTotal >= approvedQtyTotal ? 'ISSUED' : 'PARTIALLY_ISSUED';
 
     await client.query(
-      `UPDATE public."InventoryRequisition"
+      `UPDATE public.inventory_requisition
        SET status = $2,
-           "issuedBy" = $3,
-           "issuedAt" = CURRENT_TIMESTAMP,
+           issued_by = $3,
+           issued_at = CURRENT_TIMESTAMP,
            updated_at = CURRENT_TIMESTAMP
        WHERE id = $1`,
-      [requisitionId, nextStatus, issuedBy || null]
+      [requisition_id, nextStatus, issued_by || null]
     );
 
     await client.query('COMMIT');
@@ -223,9 +223,9 @@ export async function POST(request: NextRequest) {
     await cacheDelByPattern('erp:inventory:requisitions:list:*');
 
     return apiSuccess({
-      issueId: issue.id,
-      issueNo: issue.issueNo,
-      requisitionId,
+      issue_id: issue.id,
+      issue_no: issue.issue_no,
+      requisition_id,
       status: nextStatus,
     }, 'Inventory issue posted successfully', undefined, 201);
   } catch (error) {

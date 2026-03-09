@@ -7,38 +7,38 @@ import { createInventoryRequisitionSchema, inventoryRequisitionQuerySchema } fro
 
 type InventoryRequisitionItemRow = {
   id: number;
-  requisitionId: number;
-  inventoryItemId: number;
-  requestedQty: number;
-  approvedQty: number;
-  issuedQty: number;
-  lineStatus: string;
+  requisition_id: number;
+  inventory_item_id: number;
+  requested_qty: number;
+  approved_qty: number;
+  issued_qty: number;
+  line_status: string;
   note: string | null;
-  productCode: string | null;
-  productName: string | null;
-  availableQty: number;
+  product_code: string | null;
+  product_name: string | null;
+  available_qty: number;
 };
 
 const inventoryRequisitionSelect = `
   SELECT
     ir.id,
-    ir."requisitionNo",
-    ir."requestDate",
-    ir."requestingDepartment",
+    ir.requisition_no,
+    ir.request_date,
+    ir.requesting_department,
     ir.status,
-    ir."requestedBy",
-    ir."approvedBy",
-    ir."approvedAt",
-    ir."issuedBy",
-    ir."issuedAt",
+    ir.requested_by,
+    ir.approved_by,
+    ir.approved_at,
+    ir.issued_by,
+    ir.issued_at,
     ir.note,
     ir.created_at,
     ir.updated_at,
-    COALESCE(SUM(iri."requestedQty"), 0)::int AS "requestedQtyTotal",
-    COALESCE(SUM(iri."approvedQty"), 0)::int AS "approvedQtyTotal",
-    COALESCE(SUM(iri."issuedQty"), 0)::int AS "issuedQtyTotal"
-  FROM public."InventoryRequisition" ir
-  LEFT JOIN public."InventoryRequisitionItem" iri ON iri."requisitionId" = ir.id
+    COALESCE(SUM(iri.requested_qty), 0)::int AS requested_qty_total,
+    COALESCE(SUM(iri.approved_qty), 0)::int AS approved_qty_total,
+    COALESCE(SUM(iri.issued_qty), 0)::int AS issued_qty_total
+  FROM public.inventory_requisition ir
+  LEFT JOIN public.inventory_requisition_item iri ON iri.requisition_id = ir.id
 `;
 
 export async function GET(request: NextRequest) {
@@ -49,32 +49,33 @@ export async function GET(request: NextRequest) {
       return queryValidation.error;
     }
 
-    const { page = 1, pageSize = 20 } = queryValidation.data;
-    const cacheKey = `erp:inventory:requisitions:list:${JSON.stringify({ ...queryValidation.data, page, pageSize })}`;
+    const page = queryValidation.data.page ?? 1;
+    const pageSize = Math.max(1, Math.min(200, Number(searchParams.get('page_size') || queryValidation.data.pageSize || 20)));
+    const cacheKey = `erp:inventory:requisitions:list:${JSON.stringify({ ...queryValidation.data, page, page_size: pageSize })}`;
     const cached = await cacheGet<any>(cacheKey);
     if (cached) {
       return apiSuccess(cached.items, undefined, cached.totalCount, 200, { page, pageSize });
     }
 
     const {
-      requisitionNo,
-      requestingDepartment,
+      requisition_no,
+      requesting_department,
       status,
-      orderBy,
-      sortOrder,
+      order_by,
+      sort_order,
     } = queryValidation.data;
 
     const whereClauses: string[] = [];
     const params: unknown[] = [];
 
-    if (requisitionNo) {
-      params.push(`%${requisitionNo}%`);
-      whereClauses.push(`ir."requisitionNo" ILIKE $${params.length}`);
+    if (requisition_no) {
+      params.push(`%${requisition_no}%`);
+      whereClauses.push(`ir.requisition_no ILIKE $${params.length}`);
     }
 
-    if (requestingDepartment) {
-      params.push(requestingDepartment);
-      whereClauses.push(`ir."requestingDepartment" = $${params.length}`);
+    if (requesting_department) {
+      params.push(requesting_department);
+      whereClauses.push(`ir.requesting_department = $${params.length}`);
     }
 
     if (status) {
@@ -84,20 +85,20 @@ export async function GET(request: NextRequest) {
 
     const allowedOrderFields: Record<string, string> = {
       id: 'ir.id',
-      requisitionNo: 'ir."requisitionNo"',
-      requestDate: 'ir."requestDate"',
-      requestingDepartment: 'ir."requestingDepartment"',
+      requisition_no: 'ir.requisition_no',
+      request_date: 'ir.request_date',
+      requesting_department: 'ir.requesting_department',
       status: 'ir.status',
     };
 
-    const safeOrderField = allowedOrderFields[orderBy || 'id'] || 'ir.id';
-    const safeSortOrder = sortOrder === 'asc' ? 'ASC' : 'DESC';
+    const safeOrderField = allowedOrderFields[order_by || 'id'] || 'ir.id';
+    const safeSortOrder = sort_order === 'asc' ? 'ASC' : 'DESC';
     const whereSql = whereClauses.length > 0 ? `WHERE ${whereClauses.join(' AND ')}` : '';
     const groupBySql = 'GROUP BY ir.id';
     const offset = (page - 1) * pageSize;
 
     const [countResult, itemsResult] = await Promise.all([
-      pgQuery(`SELECT COUNT(*)::int AS count FROM public."InventoryRequisition" ir ${whereSql}`, params),
+      pgQuery(`SELECT COUNT(*)::int AS count FROM public.inventory_requisition ir ${whereSql}`, params),
       pgQuery(`${inventoryRequisitionSelect} ${whereSql} ${groupBySql} ORDER BY ${safeOrderField} ${safeSortOrder} LIMIT $${params.length + 1} OFFSET $${params.length + 2}`, [...params, pageSize, offset]),
     ]);
 
@@ -109,28 +110,28 @@ export async function GET(request: NextRequest) {
       const lineItemsResult = await pgQuery<InventoryRequisitionItemRow>(
         `SELECT
            iri.id,
-           iri."requisitionId" AS "requisitionId",
-           iri."inventoryItemId" AS "inventoryItemId",
-           iri."requestedQty" AS "requestedQty",
-           iri."approvedQty" AS "approvedQty",
-           iri."issuedQty" AS "issuedQty",
-           iri."lineStatus" AS "lineStatus",
+           iri.requisition_id,
+           iri.inventory_item_id,
+           iri.requested_qty,
+           iri.approved_qty,
+           iri.issued_qty,
+           iri.line_status,
            iri.note,
-           ii."productCode" AS "productCode",
-           ii."productName" AS "productName",
-           COALESCE(ib."availableQty", 0)::int AS "availableQty"
-         FROM public."InventoryRequisitionItem" iri
-         INNER JOIN public."InventoryItem" ii ON ii.id = iri."inventoryItemId"
-         LEFT JOIN public."InventoryBalance" ib ON ib."inventoryItemId" = iri."inventoryItemId"
-         WHERE iri."requisitionId" IN (${itemParams})
+           ii.product_code,
+           ii.product_name,
+           COALESCE(ib.available_qty, 0)::int AS available_qty
+         FROM public.inventory_requisition_item iri
+         INNER JOIN public.inventory_item ii ON ii.id = iri.inventory_item_id
+         LEFT JOIN public.inventory_balance ib ON ib.inventory_item_id = iri.inventory_item_id
+         WHERE iri.requisition_id IN (${itemParams})
          ORDER BY iri.id ASC`,
         requisitionIds
       );
 
       lineItemsByRequisitionId = lineItemsResult.rows.reduce((map, row) => {
-        const current = map.get(row.requisitionId) || [];
+        const current = map.get(row.requisition_id) || [];
         current.push(row);
-        map.set(row.requisitionId, current);
+        map.set(row.requisition_id, current);
         return map;
       }, new Map<number, InventoryRequisitionItemRow[]>());
     }
@@ -165,26 +166,26 @@ export async function POST(request: NextRequest) {
       return validation.error;
     }
 
-    const { requisitionNo, requestDate, requestingDepartment, requestedBy, note, items } = validation.data;
-    const resolvedRequisitionNo = requisitionNo || `REQ-${Date.now()}`;
-    const resolvedRequestDate = requestDate || new Date().toISOString();
+    const { requisition_no, request_date, requesting_department, requested_by, note, items } = validation.data;
+    const resolvedRequisitionNo = requisition_no || `REQ-${Date.now()}`;
+    const resolvedRequestDate = request_date || new Date().toISOString();
 
     await client.query('BEGIN');
 
     const requisitionResult = await client.query(
-      `INSERT INTO public."InventoryRequisition" ("requisitionNo", "requestDate", "requestingDepartment", status, "requestedBy", note)
+      `INSERT INTO public.inventory_requisition (requisition_no, request_date, requesting_department, status, requested_by, note)
        VALUES ($1, $2, $3, 'DRAFT', $4, $5)
-       RETURNING id, "requisitionNo", "requestDate", "requestingDepartment", status`,
-      [resolvedRequisitionNo, resolvedRequestDate, requestingDepartment, requestedBy || null, note || null]
+       RETURNING id, requisition_no, request_date, requesting_department, status`,
+      [resolvedRequisitionNo, resolvedRequestDate, requesting_department, requested_by || null, note || null]
     );
 
     const requisition = requisitionResult.rows[0];
 
     for (const item of items) {
       await client.query(
-        `INSERT INTO public."InventoryRequisitionItem" ("requisitionId", "inventoryItemId", "requestedQty", "approvedQty", "issuedQty", "lineStatus", note)
+        `INSERT INTO public.inventory_requisition_item (requisition_id, inventory_item_id, requested_qty, approved_qty, issued_qty, line_status, note)
          VALUES ($1, $2, $3, 0, 0, 'DRAFT', $4)`,
-        [requisition.id, item.inventoryItemId, item.requestedQty, item.note || null]
+        [requisition.id, item.inventory_item_id, item.requested_qty, item.note || null]
       );
     }
 

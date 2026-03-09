@@ -5,23 +5,23 @@ import Link from 'next/link';
 
 type PendingReceiptRow = {
   id: number;
-  approvalId: string | null;
+  approval_id: string | null;
   department: string | null;
-  budgetYear: number | null;
-  recordNumber: string | null;
-  requestDate: string | null;
-  productCode: string | null;
-  productName: string | null;
+  budget_year: number | null;
+  record_number: string | null;
+  request_date: string | null;
+  product_code: string | null;
+  product_name: string | null;
   category: string | null;
-  productType: string | null;
-  productSubtype: string | null;
-  requestedQuantity: number | null;
+  product_type: string | null;
+  product_subtype: string | null;
+  requested_quantity: number | null;
   unit: string | null;
-  pricePerUnit: number | null;
-  totalValue: number | null;
-  inventoryReceiptStatus: string;
-  receivedQty: number;
-  remainingQty: number;
+  price_per_unit: number | null;
+  total_value: number | null;
+  inventory_receipt_status: string;
+  received_qty: number;
+  remaining_qty: number;
 };
 
 type ApiResponse<T> = {
@@ -46,23 +46,23 @@ function formatCurrency(value: number) {
 export default function InventoryReceiptsPage() {
   const [items, setItems] = useState<PendingReceiptRow[]>([]);
   const [loading, setLoading] = useState(true);
-  const [submittingId, setSubmittingId] = useState<number | null>(null);
+  const [submitting_id, setSubmittingId] = useState<number | null>(null);
   const [message, setMessage] = useState<string>('');
-  const [warehouseId, setWarehouseId] = useState('1');
-  const [productNameFilter, setProductNameFilter] = useState('');
+  const [warehouse_id, setWarehouseId] = useState('1');
+  const [product_name_filter, setProductNameFilter] = useState('');
 
   const filteredItems = useMemo(() => {
-    if (!productNameFilter.trim()) {
+    if (!product_name_filter.trim()) {
       return items;
     }
 
-    return items.filter((item) => `${item.productCode || ''} ${item.productName || ''}`.toLowerCase().includes(productNameFilter.toLowerCase()));
-  }, [items, productNameFilter]);
+    return items.filter((item) => `${item.product_code || ''} ${item.product_name || ''}`.toLowerCase().includes(product_name_filter.toLowerCase()));
+  }, [items, product_name_filter]);
 
   const fetchItems = async () => {
     try {
       setLoading(true);
-      const response = await fetch('/api/inventory/receipts/pending-purchase-approvals?page=1&pageSize=200');
+      const response = await fetch('/api/inventory/receipts/pending-purchase-approvals?page=1&page_size=200');
       const payload: ApiResponse<PendingReceiptRow[]> = await response.json();
       if (!response.ok || !payload.success) {
         throw new Error(payload.error || 'โหลดรายการรอรับเข้าไม่สำเร็จ');
@@ -88,11 +88,11 @@ export default function InventoryReceiptsPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          purchaseApprovalId: item.id,
-          warehouseId: Number(warehouseId),
-          qty: item.remainingQty,
-          unitCost: item.pricePerUnit || 0,
-          note: `Auto receipt from PurchaseApproval ${item.recordNumber || item.id}`,
+          purchase_approval_id: item.id,
+          warehouse_id: Number(warehouse_id),
+          qty: item.remaining_qty,
+          unit_cost: item.price_per_unit || 0,
+          note: `Auto receipt from PurchaseApproval ${item.record_number || item.id}`,
         }),
       });
 
@@ -101,7 +101,7 @@ export default function InventoryReceiptsPage() {
         throw new Error(payload.error || 'รับเข้าสินค้าไม่สำเร็จ');
       }
 
-      setMessage(`บันทึกรับสินค้า ${item.productName || item.productCode} เข้าคลังเรียบร้อยแล้ว`);
+      setMessage(`บันทึกรับสินค้า ${item.product_name || item.product_code} เข้าคลังเรียบร้อยแล้ว`);
       await fetchItems();
     } catch (error) {
       console.error(error);
@@ -131,7 +131,7 @@ export default function InventoryReceiptsPage() {
           <label className="text-sm text-slate-600">
             ค้นหาสินค้า
             <input
-              value={productNameFilter}
+              value={product_name_filter}
               onChange={(e) => setProductNameFilter(e.target.value)}
               placeholder="ค้นหาจากรหัสหรือชื่อสินค้า"
               className="mt-2 w-full rounded-xl border border-slate-300 px-3 py-2 text-slate-900 outline-none ring-0 focus:border-blue-500"
@@ -140,7 +140,7 @@ export default function InventoryReceiptsPage() {
           <label className="text-sm text-slate-600">
             รหัสคลัง
             <input
-              value={warehouseId}
+              value={warehouse_id}
               onChange={(e) => setWarehouseId(e.target.value)}
               className="mt-2 w-full rounded-xl border border-slate-300 px-3 py-2 text-slate-900 outline-none ring-0 focus:border-blue-500"
             />
@@ -186,25 +186,25 @@ export default function InventoryReceiptsPage() {
                 ) : (
                   filteredItems.map((item) => (
                     <tr key={item.id} className="hover:bg-slate-50">
-                      <td className="px-4 py-3 font-medium text-slate-900">{item.productCode || '-'}</td>
-                      <td className="px-4 py-3 text-slate-700">{item.productName || '-'}</td>
+                      <td className="px-4 py-3 font-medium text-slate-900">{item.product_code || '-'}</td>
+                      <td className="px-4 py-3 text-slate-700">{item.product_name || '-'}</td>
                       <td className="px-4 py-3 text-slate-600">{item.department || '-'}</td>
-                      <td className="px-4 py-3 text-slate-600">{item.budgetYear || '-'}</td>
-                      <td className="px-4 py-3 text-right text-slate-700">{formatNumber(Number(item.requestedQuantity || 0))}</td>
-                      <td className="px-4 py-3 text-right text-slate-700">{formatNumber(Number(item.receivedQty || 0))}</td>
-                      <td className="px-4 py-3 text-right font-semibold text-amber-700">{formatNumber(Number(item.remainingQty || 0))}</td>
-                      <td className="px-4 py-3 text-right text-slate-700">{formatCurrency(Number(item.pricePerUnit || 0))}</td>
+                      <td className="px-4 py-3 text-slate-600">{item.budget_year || '-'}</td>
+                      <td className="px-4 py-3 text-right text-slate-700">{formatNumber(Number(item.requested_quantity || 0))}</td>
+                      <td className="px-4 py-3 text-right text-slate-700">{formatNumber(Number(item.received_qty || 0))}</td>
+                      <td className="px-4 py-3 text-right font-semibold text-amber-700">{formatNumber(Number(item.remaining_qty || 0))}</td>
+                      <td className="px-4 py-3 text-right text-slate-700">{formatCurrency(Number(item.price_per_unit || 0))}</td>
                       <td className="px-4 py-3">
-                        <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-medium text-amber-800">{item.inventoryReceiptStatus}</span>
+                        <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-medium text-amber-800">{item.inventory_receipt_status}</span>
                       </td>
                       <td className="px-4 py-3 text-right">
                         <button
                           type="button"
                           onClick={() => handleReceive(item)}
-                          disabled={submittingId === item.id || Number(item.remainingQty || 0) <= 0}
+                          disabled={submitting_id === item.id || Number(item.remaining_qty || 0) <= 0}
                           className="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-slate-300"
                         >
-                          {submittingId === item.id ? 'กำลังบันทึก...' : 'รับเข้าทั้งค้าง'}
+                          {submitting_id === item.id ? 'กำลังบันทึก...' : 'รับเข้าทั้งค้าง'}
                         </button>
                       </td>
                     </tr>

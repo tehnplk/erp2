@@ -8,27 +8,27 @@ import { cacheGet, cacheSet } from '@/lib/redis';
 const inventoryMovementSelect = `
   SELECT
     im.id,
-    im."inventoryItemId",
-    ii."productCode",
-    ii."productName",
-    im."movementDate",
-    im."movementType",
-    im."qtyIn",
-    im."qtyOut",
-    im."unitCost"::float8 AS "unitCost",
-    im."totalCost"::float8 AS "totalCost",
-    im."balanceQtyAfter",
-    im."balanceValueAfter"::float8 AS "balanceValueAfter",
-    im."referenceType",
-    im."referenceId",
-    im."referenceNo",
-    im."sourceDepartment",
-    im."targetDepartment",
+    im.inventory_item_id,
+    ii.product_code,
+    ii.product_name,
+    im.movement_date,
+    im.movement_type,
+    im.qty_in,
+    im.qty_out,
+    im.unit_cost::float8 AS unit_cost,
+    im.total_cost::float8 AS total_cost,
+    im.balance_qty_after,
+    im.balance_value_after::float8 AS balance_value_after,
+    im.reference_type,
+    im.reference_id,
+    im.reference_no,
+    im.source_department,
+    im.target_department,
     im.note,
-    im."createdBy",
+    im.created_by,
     im.created_at
-  FROM public."InventoryMovement" im
-  INNER JOIN public."InventoryItem" ii ON ii.id = im."inventoryItemId"
+  FROM public.inventory_movement im
+  INNER JOIN public.inventory_item ii ON ii.id = im.inventory_item_id
 `;
 
 export async function GET(request: NextRequest) {
@@ -39,75 +39,76 @@ export async function GET(request: NextRequest) {
       return queryValidation.error;
     }
 
+    const page = queryValidation.data.page ?? 1;
+    const pageSize = Math.max(1, Math.min(200, Number(searchParams.get('page_size') || queryValidation.data.pageSize || 20)));
+
     const {
-      inventoryItemId,
-      productCode,
-      movementType,
-      referenceType,
-      dateFrom,
-      dateTo,
-      orderBy,
-      sortOrder,
-      page = 1,
-      pageSize = 20,
+      inventory_item_id,
+      product_code,
+      movement_type,
+      reference_type,
+      date_from,
+      date_to,
+      order_by,
+      sort_order,
     } = queryValidation.data;
 
     const whereClauses: string[] = [];
     const params: unknown[] = [];
 
-    if (inventoryItemId) {
-      params.push(inventoryItemId);
-      whereClauses.push(`im."inventoryItemId" = $${params.length}`);
+    if (inventory_item_id) {
+      params.push(inventory_item_id);
+      whereClauses.push(`im.inventory_item_id = $${params.length}`);
     }
 
-    if (productCode) {
-      params.push(`%${productCode}%`);
-      whereClauses.push(`ii."productCode" ILIKE $${params.length}`);
+    if (product_code) {
+      params.push(`%${product_code}%`);
+      whereClauses.push(`ii.product_code ILIKE $${params.length}`);
     }
 
-    if (movementType) {
-      params.push(movementType);
-      whereClauses.push(`im."movementType" = $${params.length}`);
+    if (movement_type) {
+      params.push(movement_type);
+      whereClauses.push(`im.movement_type = $${params.length}`);
     }
 
-    if (referenceType) {
-      params.push(referenceType);
-      whereClauses.push(`im."referenceType" = $${params.length}`);
+    if (reference_type) {
+      params.push(reference_type);
+      whereClauses.push(`im.reference_type = $${params.length}`);
     }
 
-    if (dateFrom) {
-      params.push(dateFrom);
-      whereClauses.push(`im."movementDate" >= $${params.length}`);
+    if (date_from) {
+      params.push(date_from);
+      whereClauses.push(`im.movement_date >= $${params.length}`);
     }
 
-    if (dateTo) {
-      params.push(dateTo);
-      whereClauses.push(`im."movementDate" <= $${params.length}`);
+    if (date_to) {
+      params.push(date_to);
+      whereClauses.push(`im.movement_date <= $${params.length}`);
     }
 
     const allowedOrderFields: Record<string, string> = {
       id: 'im.id',
-      movementDate: 'im."movementDate"',
-      movementType: 'im."movementType"',
-      productCode: 'ii."productCode"',
-      productName: 'ii."productName"',
-      qtyIn: 'im."qtyIn"',
-      qtyOut: 'im."qtyOut"',
+      movement_date: 'im.movement_date',
+      movement_type: 'im.movement_type',
+      product_code: 'ii.product_code',
+      product_name: 'ii.product_name',
+      qty_in: 'im.qty_in',
+      qty_out: 'im.qty_out',
     };
 
-    const safeOrderField = allowedOrderFields[orderBy || 'movementDate'] || 'im."movementDate"';
-    const safeSortOrder = sortOrder === 'asc' ? 'ASC' : 'DESC';
+    const safeOrderField = allowedOrderFields[order_by || 'movement_date'] || 'im.movement_date';
+    const safeSortOrder = sort_order === 'asc' ? 'ASC' : 'DESC';
     const whereSql = whereClauses.length > 0 ? `WHERE ${whereClauses.join(' AND ')}` : '';
     const offset = (page - 1) * pageSize;
 
-    const cacheKey = `erp:inventory:movements:${JSON.stringify({ ...queryValidation.data, page, pageSize })}`;
+    const cacheKey = `erp:inventory:movements:${JSON.stringify({ ...queryValidation.data, page, page_size: pageSize })}`;
     const cached = await cacheGet<{ items: any[]; totalCount: number }>(cacheKey);
     if (cached) {
       return apiSuccess(cached.items, undefined, cached.totalCount, 200, { page, pageSize });
     }
 
     const [countResult, itemsResult] = await Promise.all([
-      pgQuery(`SELECT COUNT(*)::int AS count FROM public."InventoryMovement" im INNER JOIN public."InventoryItem" ii ON ii.id = im."inventoryItemId" ${whereSql}`, params),
+      pgQuery(`SELECT COUNT(*)::int AS count FROM public.inventory_movement im INNER JOIN public.inventory_item ii ON ii.id = im.inventory_item_id ${whereSql}`, params),
       pgQuery(`${inventoryMovementSelect} ${whereSql} ORDER BY ${safeOrderField} ${safeSortOrder} LIMIT $${params.length + 1} OFFSET $${params.length + 2}`, [...params, pageSize, offset]),
     ]);
 
