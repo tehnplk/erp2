@@ -28,7 +28,7 @@ export async function GET(request: NextRequest) {
       order_by,
       sort_order,
       page: validatedPage,
-      pageSize: validatedPageSize,
+      page_size: validatedPageSize,
     } = queryValidation.data as any;
 
     const orderField = order_by || 'id';
@@ -112,7 +112,7 @@ export async function GET(request: NextRequest) {
     const offset = (page - 1) * pageSize;
 
     // --- Redis Caching Logic (Paginated) ---
-    const paginatedCacheKey = `erp:surveys:list:${JSON.stringify({ ...queryValidation.data, page, pageSize })}`;
+    const paginatedCacheKey = `erp:surveys:list:${JSON.stringify({ ...queryValidation.data, page, page_size: pageSize })}`;
     const cachedPaginated = await cacheGet<any>(paginatedCacheKey);
     if (cachedPaginated) {
       return NextResponse.json(cachedPaginated);
@@ -132,7 +132,7 @@ export async function GET(request: NextRequest) {
       surveys: surveysResult.rows,
       totalCount: totalCountResult.rows[0]?.count || 0,
       page,
-      pageSize,
+      page_size: pageSize,
     };
 
     // Save to Cache

@@ -16,7 +16,7 @@ export async function GET(request: NextRequest) {
       return queryValidation.error;
     }
 
-    const { code, name, search, category, type, subtype, order_by, sort_order, page = 1, pageSize = 20 } = queryValidation.data as any;
+    const { code, name, search, category, type, subtype, order_by, sort_order, page = 1, page_size: pageSize = 20 } = queryValidation.data as any;
 
     const whereClauses: string[] = [];
     const params: unknown[] = [];
@@ -63,10 +63,10 @@ export async function GET(request: NextRequest) {
     const skip = (page - 1) * pageSize;
 
     // --- Redis Caching Logic ---
-    const cacheKey = `erp:products:list:${JSON.stringify({ ...queryValidation.data, page, pageSize })}`;
+    const cacheKey = `erp:products:list:${JSON.stringify({ ...queryValidation.data, page, page_size: pageSize })}`;
     const cached = await cacheGet<any>(cacheKey);
     if (cached) {
-      return apiSuccess(cached.items, undefined, cached.totalCount, 200, { page, pageSize });
+      return apiSuccess(cached.items, undefined, cached.totalCount, 200, { page, page_size: pageSize });
     }
 
     const [totalCountResult, productsResult] = await Promise.all([
@@ -81,7 +81,7 @@ export async function GET(request: NextRequest) {
 
     await cacheSet(cacheKey, result, 1800); // 30 minutes
 
-    return apiSuccess(result.items, undefined, result.totalCount, 200, { page, pageSize });
+    return apiSuccess(result.items, undefined, result.totalCount, 200, { page, page_size: pageSize });
   } catch (error) {
     console.error('Error fetching products:', error);
     return apiError('Failed to fetch products');

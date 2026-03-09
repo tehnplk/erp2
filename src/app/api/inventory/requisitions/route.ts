@@ -50,11 +50,11 @@ export async function GET(request: NextRequest) {
     }
 
     const page = queryValidation.data.page ?? 1;
-    const pageSize = Math.max(1, Math.min(200, Number(searchParams.get('page_size') || queryValidation.data.pageSize || 20)));
+    const pageSize = Math.max(1, Math.min(200, Number(searchParams.get('page_size') || queryValidation.data.page_size || 20)));
     const cacheKey = `erp:inventory:requisitions:list:${JSON.stringify({ ...queryValidation.data, page, page_size: pageSize })}`;
     const cached = await cacheGet<any>(cacheKey);
     if (cached) {
-      return apiSuccess(cached.items, undefined, cached.totalCount, 200, { page, pageSize });
+      return apiSuccess(cached.items, undefined, cached.totalCount, 200, { page, page_size: pageSize });
     }
 
     const {
@@ -149,7 +149,7 @@ export async function GET(request: NextRequest) {
     // Cache the result for 5 minutes
     await cacheSet(cacheKey, finalResult, 300);
 
-    return apiSuccess(finalResult.items, undefined, finalResult.totalCount, 200, { page, pageSize });
+    return apiSuccess(finalResult.items, undefined, finalResult.totalCount, 200, { page, page_size: pageSize });
   } catch (error) {
     console.error('Error fetching inventory requisitions:', error);
     return apiError('Failed to fetch inventory requisitions');

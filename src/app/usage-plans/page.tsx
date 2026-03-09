@@ -107,7 +107,7 @@ function SurveysPageContent() {
   const initialSortField = searchParams.get('order_by') || 'id';
   const initialSortOrder = (searchParams.get('sort_order') === 'asc' ? 'asc' : 'desc') as 'asc' | 'desc';
   const initialPage = Math.max(1, parseInt(searchParams.get('page') || '1', 10) || 1);
-  const initialPageSize = Math.max(1, parseInt(searchParams.get('pageSize') || '20', 10) || 20);
+  const initialPageSize = Math.max(1, parseInt(searchParams.get('page_size') || '20', 10) || 20);
   const [surveys, setSurveys] = useState<Survey[]>([]);
   const [summarySurveys, setSummarySurveys] = useState<Survey[]>([]);
   const [totalCount, setTotalCount] = useState(0);
@@ -266,7 +266,7 @@ function SurveysPageContent() {
     const nextSortField = searchParams.get('order_by') || 'id';
     const nextSortOrder = (searchParams.get('sort_order') === 'asc' ? 'asc' : 'desc') as 'asc' | 'desc';
     const nextPage = Math.max(1, parseInt(searchParams.get('page') || '1', 10) || 1);
-    const nextPageSize = Math.max(1, parseInt(searchParams.get('pageSize') || '20', 10) || 20);
+    const nextPageSize = Math.max(1, parseInt(searchParams.get('page_size') || '20', 10) || 20);
 
     setProductNameFilter((prev) => prev === nextProductName ? prev : nextProductName);
     setCategoryFilter((prev) => prev === nextCategory ? prev : nextCategory);
@@ -292,7 +292,7 @@ function SurveysPageContent() {
     if (sortField && sortField !== 'id') params.set('order_by', sortField);
     if (sortOrder !== 'desc') params.set('sort_order', sortOrder);
     if (page > 1) params.set('page', page.toString());
-    if (pageSize !== 20) params.set('pageSize', pageSize.toString());
+    if (pageSize !== 20) params.set('page_size', pageSize.toString());
 
     const nextUrl = params.toString() ? `${pathname}?${params.toString()}` : pathname;
     router.replace(nextUrl, { scroll: false });
@@ -325,7 +325,7 @@ function SurveysPageContent() {
 
         const params = new URLSearchParams({
           page: '1',
-          pageSize: PRODUCT_SUGGESTION_LIMIT.toString(),
+          page_size: PRODUCT_SUGGESTION_LIMIT.toString(),
           order_by: 'code',
           sort_order: 'asc',
           search: searchValue,
@@ -541,7 +541,7 @@ function SurveysPageContent() {
       if (sortField) params.append('order_by', sortField);
       if (sortOrder) params.append('sort_order', sortOrder);
       params.append('page', page.toString());
-      params.append('pageSize', pageSize.toString());
+      params.append('page_size', pageSize.toString());
       
       const response = await fetch(`/api/usage-plans?${params.toString()}`);
       if (response.ok) {
@@ -554,8 +554,8 @@ function SurveysPageContent() {
         if (data.page && data.page !== page) {
           setPage(data.page);
         }
-        if (data.pageSize && data.pageSize !== pageSize) {
-          setPageSize(data.pageSize);
+        if (data.page_size && data.page_size !== pageSize) {
+          setPageSize(data.page_size);
         }
       }
     } catch (error) {
@@ -1426,7 +1426,7 @@ function SurveysPageContent() {
               <label htmlFor="surveys-page-size" className="text-sm text-gray-600">แสดงต่อหน้า</label>
               <select
                 id="surveys-page-size"
-                name="pageSize"
+                name="page_size"
                 value={pageSize}
                 onChange={handlePageSizeChange}
                 className="rounded border border-gray-300 px-2 py-1 text-sm"

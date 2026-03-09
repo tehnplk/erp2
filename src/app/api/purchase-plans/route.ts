@@ -133,7 +133,7 @@ export async function GET(request: NextRequest) {
       purchasing_department,
       budget_year,
       page,
-      pageSize
+      page_size: pageSize
     } = queryValidation.data as any;
 
     const allowedOrderFields: Record<string, string> = {
@@ -188,7 +188,7 @@ export async function GET(request: NextRequest) {
 
     // Determine whether pagination params were explicitly provided
     const pageParam = searchParams.get('page');
-    const pageSizeParam = searchParams.get('pageSize');
+    const pageSizeParam = searchParams.get('page_size');
 
     // Non-paginated mode: no page/pageSize in query -> return all matching items (for summaries)
     const cacheKeyAll = `erp:purchase:plans:list:all:${JSON.stringify(params)}`;
@@ -215,10 +215,10 @@ export async function GET(request: NextRequest) {
     const currentPage = page && typeof page === 'number' ? page : 1;
     const currentPageSize = pageSize && typeof pageSize === 'number' ? pageSize : 20;
     
-    const cacheKey = `erp:purchase:plans:list:${JSON.stringify({ ...queryValidation.data, page: currentPage, pageSize: currentPageSize })}`;
+    const cacheKey = `erp:purchase:plans:list:${JSON.stringify({ ...queryValidation.data, page: currentPage, page_size: currentPageSize })}`;
     const cached = await cacheGet<any>(cacheKey);
     if (cached) {
-      return apiSuccess(cached.items, undefined, cached.totalCount, 200, { page: currentPage, pageSize: currentPageSize });
+      return apiSuccess(cached.items, undefined, cached.totalCount, 200, { page: currentPage, page_size: currentPageSize });
     }
 
     const skip = (currentPage - 1) * currentPageSize;
@@ -237,7 +237,7 @@ export async function GET(request: NextRequest) {
 
     await cacheSet(cacheKey, result, 1800);
 
-    return apiSuccess(result.items, undefined, result.totalCount, 200, { page: currentPage, pageSize: currentPageSize });
+    return apiSuccess(result.items, undefined, result.totalCount, 200, { page: currentPage, page_size: currentPageSize });
   } catch (error) {
     console.error('Error fetching purchase plans:', error);
     return apiError('Failed to fetch purchase plans');

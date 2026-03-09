@@ -40,7 +40,7 @@ export async function GET(request: NextRequest) {
     }
 
     const page = queryValidation.data.page ?? 1;
-    const pageSize = Math.max(1, Math.min(200, Number(searchParams.get('page_size') || queryValidation.data.pageSize || 20)));
+    const pageSize = Math.max(1, Math.min(200, Number(searchParams.get('page_size') || queryValidation.data.page_size || 20)));
 
     const {
       inventory_item_id,
@@ -104,7 +104,7 @@ export async function GET(request: NextRequest) {
     const cacheKey = `erp:inventory:movements:${JSON.stringify({ ...queryValidation.data, page, page_size: pageSize })}`;
     const cached = await cacheGet<{ items: any[]; totalCount: number }>(cacheKey);
     if (cached) {
-      return apiSuccess(cached.items, undefined, cached.totalCount, 200, { page, pageSize });
+      return apiSuccess(cached.items, undefined, cached.totalCount, 200, { page, page_size: pageSize });
     }
 
     const [countResult, itemsResult] = await Promise.all([
@@ -119,7 +119,7 @@ export async function GET(request: NextRequest) {
 
     await cacheSet(cacheKey, result, 300);
 
-    return apiSuccess(result.items, undefined, result.totalCount, 200, { page, pageSize });
+    return apiSuccess(result.items, undefined, result.totalCount, 200, { page, page_size: pageSize });
   } catch (error) {
     console.error('Error fetching inventory movements:', error);
     return apiError('Failed to fetch inventory movements');

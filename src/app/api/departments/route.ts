@@ -15,7 +15,7 @@ export async function GET(request: NextRequest) {
       return queryValidation.error;
     }
 
-    const { name, page, pageSize } = queryValidation.data as any;
+    const { name, page, page_size: pageSize } = queryValidation.data as any;
 
     const whereClauses: string[] = [];
     const params: unknown[] = [];
@@ -40,10 +40,10 @@ export async function GET(request: NextRequest) {
     const skip = (page - 1) * pageSize;
 
     // --- Redis Caching Logic (Paginated) ---
-    const cacheKey = `erp:departments:list:${JSON.stringify({ ...queryValidation.data, page, pageSize })}`;
+    const cacheKey = `erp:departments:list:${JSON.stringify({ ...queryValidation.data, page, page_size: pageSize })}`;
     const cached = await cacheGet<any>(cacheKey);
     if (cached) {
-      return apiSuccess(cached.items, undefined, cached.totalCount, 200, { page, pageSize });
+      return apiSuccess(cached.items, undefined, cached.totalCount, 200, { page, page_size: pageSize });
     }
 
     const [countResult, result] = await Promise.all([
@@ -58,7 +58,7 @@ export async function GET(request: NextRequest) {
 
     await cacheSet(cacheKey, finalResult, 3600);
 
-    return apiSuccess(finalResult.items, undefined, finalResult.totalCount, 200, { page, pageSize });
+    return apiSuccess(finalResult.items, undefined, finalResult.totalCount, 200, { page, page_size: pageSize });
   } catch (error) {
     console.error('Error fetching departments:', error);
     return apiError('Failed to fetch departments');

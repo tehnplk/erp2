@@ -314,7 +314,7 @@ export default function PurchaseApprovalsPage() {
       params.append('order_by', sortBy);
       params.append('sort_order', sortOrder);
       params.append('page', page.toString());
-      params.append('pageSize', pageSize.toString());
+      params.append('page_size', pageSize.toString());
 
       const res = await fetch(`/api/purchase-approvals?${params.toString()}`);
       if (!res.ok) throw new Error('fetch failed');
@@ -324,8 +324,8 @@ export default function PurchaseApprovalsPage() {
       if (data.page && data.page !== page) {
         setPage(data.page);
       }
-      if (data.pageSize && data.pageSize !== pageSize) {
-        setPageSize(data.pageSize);
+      if (data.page_size && data.page_size !== pageSize) {
+        setPageSize(data.page_size);
       }
     } catch (e) { console.error(e); } finally { setLoading(false); }
   };

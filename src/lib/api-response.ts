@@ -7,7 +7,7 @@ export interface ApiResponse<T = any> {
   message?: string;
   totalCount?: number;
   page?: number;
-  pageSize?: number;
+  page_size?: number;
 }
 
 export function apiSuccess<T>(
@@ -17,7 +17,7 @@ export function apiSuccess<T>(
   status: number = 200,
   meta?: {
     page?: number;
-    pageSize?: number;
+    page_size?: number;
   }
 ) {
   const response: ApiResponse<T> = {
@@ -26,7 +26,7 @@ export function apiSuccess<T>(
     ...(message && { message }),
     ...(totalCount !== undefined && { totalCount }),
     ...(meta?.page !== undefined && { page: meta.page }),
-    ...(meta?.pageSize !== undefined && { pageSize: meta.pageSize })
+    ...(meta?.page_size !== undefined && { page_size: meta.page_size })
   };
   
   return NextResponse.json(response, { status });

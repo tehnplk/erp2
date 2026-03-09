@@ -4,40 +4,40 @@
 
 This document proposes a new warehouse and inventory module for the ERP system using PostgreSQL via `pg` only. The redesign replaces the current single-table warehouse approach with a document-driven and ledger-based inventory model.
 
-The main business requirement is that stock in the warehouse must originate automatically from `PurchaseApproval` records, rather than being entered manually as standalone warehouse rows.
+The main business requirement is that stock in the warehouse must originate from `purchase_approval` records, rather than being entered manually as standalone warehouse rows.
 
 ## Current State Summary
 
-### Existing `PurchaseApproval`
+### Existing `purchase_approval`
 
-Current table: `public."PurchaseApproval"`
+Current table: `public.purchase_approval`
 
 Relevant columns:
 
 - `id`
-- `approvalId`
+- `approval_id`
 - `department`
-- `budgetYear`
-- `recordNumber`
-- `requestDate`
-- `productName`
-- `productCode`
+- `budget_year`
+- `record_number`
+- `request_date`
+- `product_name`
+- `product_code`
 - `category`
-- `productType`
-- `productSubtype`
-- `requestedQuantity`
+- `product_type`
+- `product_subtype`
+- `requested_quantity`
 - `unit`
-- `pricePerUnit`
-- `totalValue`
-- `overPlanCase`
+- `price_per_unit`
+- `total_value`
+- `over_plan_case`
 - `requester`
 - `approver`
 - `created_at`
 - `updated_at`
 
-### Existing `Warehouse`
+### Existing `warehouse`
 
-Current table: `public."Warehouse"`
+Current table: `public.warehouse`
 
 The current schema mixes:
 
@@ -59,7 +59,7 @@ This structure is not suitable for an auditable inventory system because it does
 
 ## Design Goals
 
-- Stock must originate from `PurchaseApproval` automatically.
+- Stock must originate from `purchase_approval` automatically.
 - Inventory must support requisition and issue approval flow.
 - Inventory must support stock deduction and stock balance tracking.
 - Inventory must support carried forward / carried over balances.
@@ -75,109 +75,109 @@ Balances such as on-hand quantity or available quantity may be stored in summary
 
 ## Proposed Data Model
 
-### 1. `InventoryWarehouse`
+### 1. `inventory_warehouse`
 
 Master table for warehouses.
 
 Columns:
 
 - `id` serial primary key
-- `warehouseCode` text not null unique
-- `warehouseName` text not null
-- `isActive` boolean not null default true
+- `warehouse_code` text not null unique
+- `warehouse_name` text not null
+- `is_active` boolean not null default true
 - `created_at` timestamp not null default current_timestamp
 - `updated_at` timestamp not null default current_timestamp
 
-### 2. `InventoryLocation`
+### 2. `inventory_location`
 
 Optional sub-location inside a warehouse.
 
 Columns:
 
 - `id` serial primary key
-- `warehouseId` integer not null references `InventoryWarehouse(id)`
-- `locationCode` text not null
-- `locationName` text not null
-- `isActive` boolean not null default true
+- `warehouse_id` integer not null references `inventory_warehouse(id)`
+- `location_code` text not null
+- `location_name` text not null
+- `is_active` boolean not null default true
 - `created_at` timestamp not null default current_timestamp
 - `updated_at` timestamp not null default current_timestamp
 
 Unique index:
 
-- `warehouseId`, `locationCode`
+- `warehouse_id`, `location_code`
 
-### 3. `InventoryItem`
+### 3. `inventory_item`
 
 Master item record as stored in inventory.
 
 Columns:
 
 - `id` serial primary key
-- `productCode` text not null
-- `productName` text not null
+- `product_code` text not null
+- `product_name` text not null
 - `category` text null
-- `productType` text null
-- `productSubtype` text null
+- `product_type` text null
+- `product_subtype` text null
 - `unit` text null
-- `warehouseId` integer not null references `InventoryWarehouse(id)`
-- `locationId` integer null references `InventoryLocation(id)`
-- `lotNo` text null
-- `expiryDate` date null
-- `standardCost` numeric(18,2) not null default 0
-- `isActive` boolean not null default true
+- `warehouse_id` integer not null references `inventory_warehouse(id)`
+- `location_id` integer null references `inventory_location(id)`
+- `lot_no` text null
+- `expiry_date` date null
+- `standard_cost` numeric(18,2) not null default 0
+- `is_active` boolean not null default true
 - `created_at` timestamp not null default current_timestamp
 - `updated_at` timestamp not null default current_timestamp
 
 Recommended uniqueness:
 
-- `productCode`, `warehouseId`, `coalesce(locationId, 0)`, `coalesce(lotNo, '')`
+- `product_code`, `warehouse_id`, `coalesce(location_id, 0)`, `coalesce(lot_no, '')`
 
 Implementation note:
 
-Because PostgreSQL does not support `coalesce` in a normal unique constraint cleanly for nullable columns without expression indexes, use a unique expression index if location/lot-level tracking is required. For MVP, a simpler unique constraint on `productCode`, `warehouseId`, `locationId`, `lotNo` may be acceptable.
+Because PostgreSQL does not support `coalesce` in a normal unique constraint cleanly for nullable columns without expression indexes, use a unique expression index if location/lot-level tracking is required. For MVP, a simpler unique constraint on `product_code`, `warehouse_id`, `location_id`, `lot_no` may be acceptable.
 
-### 4. `InventoryBalance`
+### 4. `inventory_balance`
 
 Current stock summary per inventory item.
 
 Columns:
 
 - `id` serial primary key
-- `inventoryItemId` integer not null unique references `InventoryItem(id)`
-- `onHandQty` integer not null default 0
-- `reservedQty` integer not null default 0
-- `availableQty` integer not null default 0
-- `avgCost` numeric(18,2) not null default 0
-- `lastMovementAt` timestamp null
+- `inventory_item_id` integer not null unique references `inventory_item(id)`
+- `on_hand_qty` integer not null default 0
+- `reserved_qty` integer not null default 0
+- `available_qty` integer not null default 0
+- `avg_cost` numeric(18,2) not null default 0
+- `last_movement_at` timestamp null
 - `updated_at` timestamp not null default current_timestamp
 
 Business rule:
 
-- `availableQty = onHandQty - reservedQty`
+- `available_qty = on_hand_qty - reserved_qty`
 
-### 5. `InventoryMovement`
+### 5. `inventory_movement`
 
 Ledger table for every stock movement.
 
 Columns:
 
 - `id` serial primary key
-- `inventoryItemId` integer not null references `InventoryItem(id)`
-- `movementDate` timestamp not null default current_timestamp
-- `movementType` text not null
-- `qtyIn` integer not null default 0
-- `qtyOut` integer not null default 0
-- `unitCost` numeric(18,2) not null default 0
-- `totalCost` numeric(18,2) not null default 0
-- `balanceQtyAfter` integer not null default 0
-- `balanceValueAfter` numeric(18,2) not null default 0
-- `referenceType` text null
-- `referenceId` integer null
-- `referenceNo` text null
-- `sourceDepartment` text null
-- `targetDepartment` text null
+- `inventory_item_id` integer not null references `inventory_item(id)`
+- `movement_date` timestamp not null default current_timestamp
+- `movement_type` text not null
+- `qty_in` integer not null default 0
+- `qty_out` integer not null default 0
+- `unit_cost` numeric(18,2) not null default 0
+- `total_cost` numeric(18,2) not null default 0
+- `balance_qty_after` integer not null default 0
+- `balance_value_after` numeric(18,2) not null default 0
+- `reference_type` text null
+- `reference_id` integer null
+- `reference_no` text null
+- `source_department` text null
+- `target_department` text null
 - `note` text null
-- `createdBy` text null
+- `created_by` text null
 - `created_at` timestamp not null default current_timestamp
 
 Recommended movement types:
@@ -196,87 +196,87 @@ Recommended movement types:
 - `TRANSFER_OUT`
 - `CLOSING_CARRY_FORWARD`
 
-### 6. `InventoryReceipt`
+### 6. `inventory_receipt`
 
 Header document for warehouse receiving.
 
 Columns:
 
 - `id` serial primary key
-- `receiptNo` text not null unique
-- `receiptDate` timestamp not null default current_timestamp
-- `receiptType` text not null
+- `receipt_no` text not null unique
+- `receipt_date` timestamp not null default current_timestamp
+- `receipt_type` text not null
 - `status` text not null default 'POSTED'
-- `vendorName` text null
-- `sourceReferenceType` text null
-- `sourceReferenceId` integer null
-- `sourceReferenceNo` text null
+- `vendor_name` text null
+- `source_reference_type` text null
+- `source_reference_id` integer null
+- `source_reference_no` text null
 - `note` text null
-- `createdBy` text null
-- `approvedBy` text null
+- `created_by` text null
+- `approved_by` text null
 - `created_at` timestamp not null default current_timestamp
 - `updated_at` timestamp not null default current_timestamp
 
-Recommended `receiptType` values:
+Recommended `receipt_type` values:
 
 - `FROM_PURCHASE_APPROVAL`
 - `MANUAL`
 - `RETURN`
 - `TRANSFER_IN`
 
-### 7. `InventoryReceiptItem`
+### 7. `inventory_receipt_item`
 
 Line items for receipts.
 
 Columns:
 
 - `id` serial primary key
-- `receiptId` integer not null references `InventoryReceipt(id)` on delete cascade
-- `inventoryItemId` integer not null references `InventoryItem(id)`
-- `purchaseApprovalId` integer null references `PurchaseApproval(id)`
+- `receipt_id` integer not null references `inventory_receipt(id)` on delete cascade
+- `inventory_item_id` integer not null references `inventory_item(id)`
+- `purchase_approval_id` integer null references `purchase_approval(id)`
 - `qty` integer not null
-- `unitCost` numeric(18,2) not null default 0
-- `totalCost` numeric(18,2) not null default 0
-- `lotNo` text null
-- `expiryDate` date null
+- `unit_cost` numeric(18,2) not null default 0
+- `total_cost` numeric(18,2) not null default 0
+- `lot_no` text null
+- `expiry_date` date null
 
-### 8. `PurchaseApprovalInventoryLink`
+### 8. `purchase_approval_inventory_link`
 
 Explicit link between purchase approval rows and inventory receiving progress.
 
 Columns:
 
 - `id` serial primary key
-- `purchaseApprovalId` integer not null unique references `PurchaseApproval(id)` on delete cascade
-- `inventoryReceiptStatus` text not null default 'PENDING'
-- `receivedQty` integer not null default 0
-- `lastReceiptId` integer null references `InventoryReceipt(id)`
+- `purchase_approval_id` integer not null unique references `purchase_approval(id)` on delete cascade
+- `inventory_receipt_status` text not null default 'PENDING'
+- `received_qty` integer not null default 0
+- `last_receipt_id` integer null references `inventory_receipt(id)`
 - `created_at` timestamp not null default current_timestamp
 - `updated_at` timestamp not null default current_timestamp
 
-Recommended `inventoryReceiptStatus` values:
+Recommended `inventory_receipt_status` values:
 
 - `PENDING`
 - `PARTIAL`
 - `RECEIVED`
 - `CANCELLED`
 
-### 9. `InventoryRequisition`
+### 9. `inventory_requisition`
 
 Header document for requisition requests.
 
 Columns:
 
 - `id` serial primary key
-- `requisitionNo` text not null unique
-- `requestDate` timestamp not null default current_timestamp
-- `requestingDepartment` text not null
+- `requisition_no` text not null unique
+- `request_date` timestamp not null default current_timestamp
+- `requesting_department` text not null
 - `status` text not null default 'DRAFT'
-- `requestedBy` text null
-- `approvedBy` text null
-- `approvedAt` timestamp null
-- `issuedBy` text null
-- `issuedAt` timestamp null
+- `requested_by` text null
+- `approved_by` text null
+- `approved_at` timestamp null
+- `issued_by` text null
+- `issued_at` timestamp null
 - `note` text null
 - `created_at` timestamp not null default current_timestamp
 - `updated_at` timestamp not null default current_timestamp
@@ -292,92 +292,92 @@ Recommended `status` values:
 - `ISSUED`
 - `CANCELLED`
 
-### 10. `InventoryRequisitionItem`
+### 10. `inventory_requisition_item`
 
 Columns:
 
 - `id` serial primary key
-- `requisitionId` integer not null references `InventoryRequisition(id)` on delete cascade
-- `inventoryItemId` integer not null references `InventoryItem(id)`
-- `requestedQty` integer not null
-- `approvedQty` integer not null default 0
-- `issuedQty` integer not null default 0
-- `unitCostAtIssue` numeric(18,2) not null default 0
-- `lineStatus` text not null default 'DRAFT'
+- `requisition_id` integer not null references `inventory_requisition(id)` on delete cascade
+- `inventory_item_id` integer not null references `inventory_item(id)`
+- `requested_qty` integer not null
+- `approved_qty` integer not null default 0
+- `issued_qty` integer not null default 0
+- `unit_cost_at_issue` numeric(18,2) not null default 0
+- `line_status` text not null default 'DRAFT'
 - `note` text null
 
-### 11. `InventoryIssue`
+### 11. `inventory_issue`
 
 Header document for issue transactions.
 
 Columns:
 
 - `id` serial primary key
-- `issueNo` text not null unique
-- `issueDate` timestamp not null default current_timestamp
-- `requisitionId` integer not null references `InventoryRequisition(id)`
-- `requestingDepartment` text not null
+- `issue_no` text not null unique
+- `issue_date` timestamp not null default current_timestamp
+- `requisition_id` integer not null references `inventory_requisition(id)`
+- `requesting_department` text not null
 - `status` text not null default 'POSTED'
-- `issuedBy` text null
-- `approvedBy` text null
+- `issued_by` text null
+- `approved_by` text null
 - `note` text null
 - `created_at` timestamp not null default current_timestamp
 
-### 12. `InventoryIssueItem`
+### 12. `inventory_issue_item`
 
 Columns:
 
 - `id` serial primary key
-- `issueId` integer not null references `InventoryIssue(id)` on delete cascade
-- `requisitionItemId` integer not null references `InventoryRequisitionItem(id)`
-- `inventoryItemId` integer not null references `InventoryItem(id)`
-- `issuedQty` integer not null
-- `unitCost` numeric(18,2) not null default 0
-- `totalCost` numeric(18,2) not null default 0
+- `issue_id` integer not null references `inventory_issue(id)` on delete cascade
+- `requisition_item_id` integer not null references `inventory_requisition_item(id)`
+- `inventory_item_id` integer not null references `inventory_item(id)`
+- `issued_qty` integer not null
+- `unit_cost` numeric(18,2) not null default 0
+- `total_cost` numeric(18,2) not null default 0
 
-### 13. `InventoryAdjustment`
+### 13. `inventory_adjustment`
 
 Header document for stock adjustments.
 
 Columns:
 
 - `id` serial primary key
-- `adjustmentNo` text not null unique
-- `adjustmentDate` timestamp not null default current_timestamp
+- `adjustment_no` text not null unique
+- `adjustment_date` timestamp not null default current_timestamp
 - `reason` text not null
 - `status` text not null default 'DRAFT'
-- `createdBy` text null
-- `approvedBy` text null
+- `created_by` text null
+- `approved_by` text null
 - `created_at` timestamp not null default current_timestamp
 
-### 14. `InventoryAdjustmentItem`
+### 14. `inventory_adjustment_item`
 
 Columns:
 
 - `id` serial primary key
-- `adjustmentId` integer not null references `InventoryAdjustment(id)` on delete cascade
-- `inventoryItemId` integer not null references `InventoryItem(id)`
-- `qtyDiff` integer not null
-- `unitCost` numeric(18,2) not null default 0
+- `adjustment_id` integer not null references `inventory_adjustment(id)` on delete cascade
+- `inventory_item_id` integer not null references `inventory_item(id)`
+- `qty_diff` integer not null
+- `unit_cost` numeric(18,2) not null default 0
 - `note` text null
 
-### 15. `InventoryPeriod`
+### 15. `inventory_period`
 
 Header table for inventory closing period.
 
 Columns:
 
 - `id` serial primary key
-- `periodYear` integer not null
-- `periodMonth` integer not null
+- `period_year` integer not null
+- `period_month` integer not null
 - `status` text not null default 'OPEN'
-- `closedAt` timestamp null
-- `closedBy` text null
+- `closed_at` timestamp null
+- `closed_by` text null
 - `created_at` timestamp not null default current_timestamp
 
 Unique constraint:
 
-- `periodYear`, `periodMonth`
+- `period_year`, `period_month`
 
 Recommended `status` values:
 
@@ -385,35 +385,35 @@ Recommended `status` values:
 - `CLOSING`
 - `CLOSED`
 
-### 16. `InventoryPeriodBalance`
+### 16. `inventory_period_balance`
 
 Snapshot of opening and closing balances.
 
 Columns:
 
 - `id` serial primary key
-- `periodId` integer not null references `InventoryPeriod(id)` on delete cascade
-- `inventoryItemId` integer not null references `InventoryItem(id)`
-- `openingQty` integer not null default 0
-- `openingValue` numeric(18,2) not null default 0
-- `closingQty` integer not null default 0
-- `closingValue` numeric(18,2) not null default 0
+- `period_id` integer not null references `inventory_period(id)` on delete cascade
+- `inventory_item_id` integer not null references `inventory_item(id)`
+- `opening_qty` integer not null default 0
+- `opening_value` numeric(18,2) not null default 0
+- `closing_qty` integer not null default 0
+- `closing_value` numeric(18,2) not null default 0
 
 Unique constraint:
 
-- `periodId`, `inventoryItemId`
+- `period_id`, `inventory_item_id`
 
 ## How Stock Originates from PurchaseApproval
 
 ### Recommended business flow
 
-`PurchaseApproval` is the source document for receivable stock.
+`purchase_approval` is the source document for receivable stock.
 
 Recommended approach:
 
-1. A `PurchaseApproval` record is created and approved.
+1. A `purchase_approval` record is created and approved.
 2. The system exposes approved rows as pending warehouse receipts.
-3. Warehouse staff performs receiving based on `PurchaseApproval`.
+3. Warehouse staff performs receiving based on `purchase_approval`.
 4. Receipt posting creates item master records as needed and writes inventory movements.
 
 This is preferable to instant stock creation upon approval because it supports:
@@ -426,7 +426,7 @@ This is preferable to instant stock creation upon approval because it supports:
 
 ### Auto-origin requirement interpretation
 
-If the requirement says warehouse stock must come from `PurchaseApproval` automatically, the system should treat `PurchaseApproval` as the authoritative source of inbound inventory. Warehouse receiving should not allow unrelated inbound creation unless explicitly created as a manual receipt type.
+If the requirement says warehouse stock must come from `purchase_approval` automatically, the system should treat `purchase_approval` as the authoritative source of inbound inventory. Warehouse receiving should not allow unrelated inbound creation unless explicitly created as a manual receipt type.
 
 ## Main Business Flows
 
@@ -442,13 +442,13 @@ Flow:
 
 System actions:
 
-- upsert `InventoryItem`
-- create `InventoryReceipt`
-- create `InventoryReceiptItem`
-- create `InventoryMovement` with `PURCHASE_APPROVAL_RECEIPT`
-- update `InventoryBalance`
-- update `PurchaseApprovalInventoryLink.receivedQty`
-- update `PurchaseApprovalInventoryLink.inventoryReceiptStatus`
+- upsert `inventory_item`
+- create `inventory_receipt`
+- create `inventory_receipt_item`
+- create `inventory_movement` with `PURCHASE_APPROVAL_RECEIPT`
+- update `inventory_balance`
+- update `purchase_approval_inventory_link.received_qty`
+- update `purchase_approval_inventory_link.inventory_receipt_status`
 
 Rules:
 
@@ -476,7 +476,7 @@ Flow:
 System actions:
 
 - update requisition item approved quantity
-- update reserved quantity in `InventoryBalance`
+- update reserved quantity in `inventory_balance`
 - optionally create reservation movement entry with `REQUISITION_RESERVE`
 
 ### 4. Issue and stock deduction
@@ -489,12 +489,12 @@ Flow:
 
 System actions:
 
-- create `InventoryIssue`
-- create `InventoryIssueItem`
-- create `InventoryMovement` with `ISSUE_APPROVED`
-- decrease `onHandQty`
-- decrease `reservedQty`
-- recalculate `availableQty`
+- create `inventory_issue`
+- create `inventory_issue_item`
+- create `inventory_movement` with `ISSUE_APPROVED`
+- decrease `on_hand_qty`
+- decrease `reserved_qty`
+- recalculate `available_qty`
 
 ### 5. Return
 
@@ -621,8 +621,8 @@ Add linkage between `PurchaseApproval` and inventory receipt status.
 
 Recommended approach:
 
-- create `PurchaseApprovalInventoryLink`
-- backfill rows for existing `PurchaseApproval` records
+- create `purchase_approval_inventory_link`
+- backfill rows for existing `purchase_approval` records
 
 ### Phase 3
 
@@ -664,7 +664,7 @@ For each transaction:
 
 To prevent double posting or incorrect stock balance:
 
-- use `SELECT ... FOR UPDATE` when loading `InventoryBalance` rows during stock-affecting transactions
+- use `SELECT ... FOR UPDATE` when loading `inventory_balance` rows during stock-affecting transactions
 - enforce document status transitions strictly
 - prevent receiving the same purchase approval line beyond allowed quantity
 - prevent issuing more than approved or available quantity
@@ -698,22 +698,22 @@ Recommended workflow:
 
 Create SQL migration for the following first:
 
-- `InventoryWarehouse`
-- `InventoryLocation`
-- `InventoryItem`
-- `InventoryBalance`
-- `InventoryMovement`
-- `InventoryReceipt`
-- `InventoryReceiptItem`
-- `PurchaseApprovalInventoryLink`
-- `InventoryRequisition`
-- `InventoryRequisitionItem`
-- `InventoryIssue`
-- `InventoryIssueItem`
-- `InventoryAdjustment`
-- `InventoryAdjustmentItem`
-- `InventoryPeriod`
-- `InventoryPeriodBalance`
+- `inventory_warehouse`
+- `inventory_location`
+- `inventory_item`
+- `inventory_balance`
+- `inventory_movement`
+- `inventory_receipt`
+- `inventory_receipt_item`
+- `purchase_approval_inventory_link`
+- `inventory_requisition`
+- `inventory_requisition_item`
+- `inventory_issue`
+- `inventory_issue_item`
+- `inventory_adjustment`
+- `inventory_adjustment_item`
+- `inventory_period`
+- `inventory_period_balance`
 
 ### Step 2
 
@@ -751,10 +751,10 @@ Create UI MVP pages under `/inventory`.
 
 For correctness and auditability, use this default:
 
-- `PurchaseApproval` = source of receivable stock
+- `purchase_approval` = source of receivable stock
 - warehouse user must confirm receipt before on-hand stock increases
 - issue flow uses requisition -> approval -> posting
-- all stock changes must write to `InventoryMovement`
+- all stock changes must write to `inventory_movement`
 - balances are maintained summary values, not the only source of truth
 
 ## เอกสารส่งมอบสำหรับทีมพัฒนา
@@ -765,12 +765,12 @@ For correctness and auditability, use this default:
 
 โมดูล `inventory` ถูกพัฒนาเป็น MVP ที่ใช้งานได้จริงบน Next.js App Router และ PostgreSQL ผ่าน `pg` แล้ว โดย flow หลักที่ทำงานได้ในปัจจุบันคือ:
 
-- รับสินค้าเข้าคลังจาก `PurchaseApproval`
-- ดูยอดคงคลังปัจจุบันจาก `InventoryBalance`
+- รับสินค้าเข้าคลังจาก `purchase_approval`
+- ดูยอดคงคลังปัจจุบันจาก `inventory_balance`
 - สร้างคำขอเบิกสินค้า
 - อนุมัติคำขอเบิกและทำการ reserve stock
 - บันทึกจ่ายสินค้าและตัด stock จริง
-- ดู movement / stock ledger จาก `InventoryMovement`
+- ดู movement / stock ledger จาก `inventory_movement`
 
 ระบบนี้ไม่ได้ใช้ Prisma และยึดหลักให้ `InventoryMovement` เป็นแหล่งอ้างอิงหลักของการเปลี่ยนแปลงสต็อก ส่วน `InventoryBalance` เป็น summary table สำหรับการอ่านเร็วและแสดงผลบน UI
 
@@ -780,7 +780,7 @@ For correctness and auditability, use this default:
 
 หลักคิดของโมดูลใหม่คือ:
 
-- stock ต้นทางต้องมาจาก `PurchaseApproval`
+- stock ต้นทางต้องมาจาก `purchase_approval`
 - การรับเข้าและจ่ายออกต้องเกิดเป็น document ชัดเจน
 - ทุกการเปลี่ยนแปลง stock ต้องมี ledger ย้อนกลับได้
 - balance ที่ UI เห็นต้องอธิบายได้จาก movement จริง
@@ -793,27 +793,27 @@ For correctness and auditability, use this default:
 
 ตารางสำคัญที่ถูกสร้างแล้ว:
 
-- `InventoryWarehouse`
-- `InventoryLocation`
-- `InventoryItem`
-- `InventoryBalance`
-- `InventoryMovement`
-- `InventoryReceipt`
-- `InventoryReceiptItem`
-- `PurchaseApprovalInventoryLink`
-- `InventoryRequisition`
-- `InventoryRequisitionItem`
-- `InventoryIssue`
-- `InventoryIssueItem`
-- `InventoryAdjustment`
-- `InventoryAdjustmentItem`
-- `InventoryPeriod`
-- `InventoryPeriodBalance`
+- `inventory_warehouse`
+- `inventory_location`
+- `inventory_item`
+- `inventory_balance`
+- `inventory_movement`
+- `inventory_receipt`
+- `inventory_receipt_item`
+- `purchase_approval_inventory_link`
+- `inventory_requisition`
+- `inventory_requisition_item`
+- `inventory_issue`
+- `inventory_issue_item`
+- `inventory_adjustment`
+- `inventory_adjustment_item`
+- `inventory_period`
+- `inventory_period_balance`
 
 ข้อมูลตั้งต้นที่มีอยู่แล้ว:
 
 - warehouse หลัก `MAIN / คลังกลาง`
-- backfill ข้อมูล `PurchaseApprovalInventoryLink` จาก `PurchaseApproval`
+- backfill ข้อมูล `purchase_approval_inventory_link` จาก `purchase_approval`
 
 ### API ที่มีแล้ว
 
@@ -882,35 +882,35 @@ For correctness and auditability, use this default:
 
 ### 1. Inbound stock
 
-ต้นทาง stock ไม่ได้เริ่มที่ `InventoryItem` หรือ `InventoryBalance` แต่เริ่มที่ `PurchaseApproval`
+ต้นทาง stock ไม่ได้เริ่มที่ `inventory_item` หรือ `inventory_balance` แต่เริ่มที่ `purchase_approval`
 
 flow ปัจจุบัน:
 
-1. `PurchaseApproval` ถูกใช้เป็น source ของรายการที่รอรับเข้า
-2. `PurchaseApprovalInventoryLink` เก็บสถานะว่าแต่ละรายการรับเข้าไปแล้วเท่าไร
+1. `purchase_approval` ถูกใช้เป็น source ของรายการที่รอรับเข้า
+2. `purchase_approval_inventory_link` เก็บสถานะว่าแต่ละรายการรับเข้าไปแล้วเท่าไร
 3. เมื่อ user ทำ receipt:
-   - หา/สร้าง `InventoryItem`
-   - หา/สร้าง `InventoryBalance`
-   - สร้าง `InventoryReceipt` และ `InventoryReceiptItem`
-   - เขียน `InventoryMovement` แบบ `PURCHASE_APPROVAL_RECEIPT`
-   - update `InventoryBalance`
-   - update `PurchaseApprovalInventoryLink`
+   - หา/สร้าง `inventory_item`
+   - หา/สร้าง `inventory_balance`
+   - สร้าง `inventory_receipt` และ `inventory_receipt_item`
+   - เขียน `inventory_movement` แบบ `PURCHASE_APPROVAL_RECEIPT`
+   - update `inventory_balance`
+   - update `purchase_approval_inventory_link`
 
 ### 2. Requisition and reservation
 
 เมื่อ user สร้าง requisition:
 
-1. สร้าง `InventoryRequisition`
-2. สร้าง `InventoryRequisitionItem`
+1. สร้าง `inventory_requisition`
+2. สร้าง `inventory_requisition_item`
 
 เมื่อ approver อนุมัติ:
 
-1. lock `InventoryRequisition`
-2. lock `InventoryRequisitionItem`
-3. lock `InventoryBalance`
-4. เพิ่ม `reservedQty`
-5. ลด `availableQty`
-6. เปลี่ยนสถานะ `InventoryRequisition` และ line items
+1. lock `inventory_requisition`
+2. lock `inventory_requisition_item`
+3. lock `inventory_balance`
+4. เพิ่ม `reserved_qty`
+5. ลด `available_qty`
+6. เปลี่ยนสถานะ `inventory_requisition` และ line items
 
 หมายเหตุ: flow ปัจจุบันยังไม่ insert movement แยกสำหรับ reserve แม้ใน design จะรองรับแนวคิด `REQUISITION_RESERVE`
 
@@ -918,47 +918,47 @@ flow ปัจจุบัน:
 
 เมื่อ user ทำ issue จาก requisition ที่อนุมัติแล้ว:
 
-1. สร้าง `InventoryIssue`
-2. สร้าง `InventoryIssueItem`
-3. ลด `onHandQty`
-4. ลด `reservedQty`
-5. คง `availableQty` ไว้ตามค่าที่ถูกลดไปตั้งแต่ขั้นอนุมัติ
-6. เขียน `InventoryMovement` แบบ `ISSUE_APPROVED`
-7. อัปเดตสถานะ `InventoryRequisition` เป็น `PARTIALLY_ISSUED` หรือ `ISSUED`
+1. สร้าง `inventory_issue`
+2. สร้าง `inventory_issue_item`
+3. ลด `on_hand_qty`
+4. ลด `reserved_qty`
+5. คง `available_qty` ไว้ตามค่าที่ถูกลดไปตั้งแต่ขั้นอนุมัติ
+6. เขียน `inventory_movement` แบบ `ISSUE_APPROVED`
+7. อัปเดตสถานะ `inventory_requisition` เป็น `PARTIALLY_ISSUED` หรือ `ISSUED`
 
 ## Business Rules ที่สำคัญใน implementation ปัจจุบัน
 
 ### Receipt
 
-- รับเข้าเกินจำนวนคงเหลือของ `PurchaseApproval` ไม่ได้
+- รับเข้าเกินจำนวนคงเหลือของ `purchase_approval` ไม่ได้
 - support partial receipt
-- ถ้ารับเข้าครบจะเปลี่ยน `PurchaseApprovalInventoryLink.inventoryReceiptStatus` เป็น `RECEIVED`
+- ถ้ารับเข้าครบจะเปลี่ยน `purchase_approval_inventory_link.inventory_receipt_status` เป็น `RECEIVED`
 - ถ้ายังไม่ครบจะเป็น `PARTIAL`
 
 ### Approve requisition
 
-- อนุมัติเกิน `requestedQty` ไม่ได้
-- อนุมัติเกิน `availableQty` ไม่ได้
-- การอนุมัติจะไป reserve stock ทันทีด้วยการเพิ่ม `reservedQty` และลด `availableQty`
+- อนุมัติเกิน `requested_qty` ไม่ได้
+- อนุมัติเกิน `available_qty` ไม่ได้
+- การอนุมัติจะไป reserve stock ทันทีด้วยการเพิ่ม `reserved_qty` และลด `available_qty`
 
 ### Issue posting
 
-- จ่ายเกิน `approvedQty - issuedQty` ไม่ได้
-- จ่ายเกิน `onHandQty` ไม่ได้
-- จ่ายเกิน `reservedQty` ไม่ได้
-- การ issue จะลด `onHandQty` และ `reservedQty`
+- จ่ายเกิน `approved_qty - issued_qty` ไม่ได้
+- จ่ายเกิน `on_hand_qty` ไม่ได้
+- จ่ายเกิน `reserved_qty` ไม่ได้
+- การ issue จะลด `on_hand_qty` และ `reserved_qty`
 
 ## Source of Truth ที่ควรใช้เวลา debug
 
 เวลา debug ปัญหา stock ให้ตรวจตามลำดับนี้:
 
-1. `InventoryMovement`
-2. `InventoryBalance`
-3. `InventoryReceipt` / `InventoryReceiptItem`
-4. `InventoryRequisition` / `InventoryRequisitionItem`
-5. `InventoryIssue` / `InventoryIssueItem`
-6. `PurchaseApprovalInventoryLink`
-7. `InventoryWarehouse` / `InventoryItem`
+1. `inventory_movement`
+2. `inventory_balance`
+3. `inventory_receipt` / `inventory_receipt_item`
+4. `inventory_requisition` / `inventory_requisition_item`
+5. `inventory_issue` / `inventory_issue_item`
+6. `purchase_approval_inventory_link`
+7. `inventory_warehouse` / `inventory_item`
 
 หลักการคือห้ามแก้ปัญหาข้อมูลด้วย fallback ฝั่ง UI ถ้ายังไม่รู้ว่าต้นทางใน DB ถูกหรือไม่
 
@@ -966,7 +966,7 @@ flow ปัจจุบัน:
 
 ### 1. ปัญหาข้อมูลชื่อคลังใน DB
 
-เคยพบกรณี `InventoryWarehouse.warehouseName` ถูกเก็บเป็น `????????...` ทำให้หน้า stock แสดงชื่อคลังพัง
+เคยพบกรณี `inventory_warehouse.warehouse_name` ถูกเก็บเป็น `????????...` ทำให้หน้า stock แสดงชื่อคลังพัง
 
 บทเรียนสำคัญ:
 

@@ -15,7 +15,7 @@ export async function GET(request: NextRequest) {
       return queryValidation.error;
     }
 
-    const { category, type, subtype, page, pageSize } = queryValidation.data as any;
+    const { category, type, subtype, page, page_size: pageSize } = queryValidation.data as any;
 
     const whereClauses: string[] = [];
     const params: unknown[] = [];
@@ -48,10 +48,10 @@ export async function GET(request: NextRequest) {
     const skip = (page - 1) * pageSize;
 
     // --- Redis Caching Logic ---
-    const cacheKey = `erp:categories:list:${JSON.stringify({ ...queryValidation.data, page, pageSize })}`;
+    const cacheKey = `erp:categories:list:${JSON.stringify({ ...queryValidation.data, page, page_size: pageSize })}`;
     const cached = await cacheGet<any>(cacheKey);
     if (cached) {
-      return apiSuccess(cached.items, undefined, cached.totalCount, 200, { page, pageSize });
+      return apiSuccess(cached.items, undefined, cached.totalCount, 200, { page, page_size: pageSize });
     }
 
     const [totalCountResult, categoriesResult] = await Promise.all([
@@ -66,7 +66,7 @@ export async function GET(request: NextRequest) {
 
     await cacheSet(cacheKey, result, 3600); // 1 hour
 
-    return apiSuccess(result.items, undefined, result.totalCount, 200, { page, pageSize });
+    return apiSuccess(result.items, undefined, result.totalCount, 200, { page, page_size: pageSize });
   } catch (error) {
     console.error('Error fetching categories:', error);
     return apiError('Failed to fetch categories');

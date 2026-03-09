@@ -24,11 +24,11 @@ export async function GET() {
 
     const result = {
       categories: Array.from(new Set(categoryRows.map((item: any) => item.category).filter(Boolean))),
-      productTypes: Array.from(new Set(categoryRows.map((item: any) => item.type).filter(Boolean))),
-      productSubtypes: Array.from(new Set(categoryRows.map((item: any) => item.subtype).filter(Boolean))),
-      categoryOptions: categoryRows,
+      product_types: Array.from(new Set(categoryRows.map((item: any) => item.type).filter(Boolean))),
+      product_subtypes: Array.from(new Set(categoryRows.map((item: any) => item.subtype).filter(Boolean))),
+      category_options: categoryRows,
       departments: departments.rows.map((item: any) => item.purchasing_department).filter(Boolean),
-      budgetYears: budgetYears.rows.map((item: any) => item.budget_year).filter(Boolean)
+      budget_years: budgetYears.rows.map((item: any) => item.budget_year).filter(Boolean)
     };
 
     await cacheSet(cacheKey, result, 3600);

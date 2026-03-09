@@ -64,7 +64,7 @@ export default function ProductsPage() {
   const initialSortBy = searchParams.get('order_by') || 'code';
   const initialSortOrder = (searchParams.get('sort_order') === 'desc' ? 'desc' : 'asc') as 'asc' | 'desc';
   const initialPage = Math.max(1, parseInt(searchParams.get('page') || '1', 10) || 1);
-  const initialPageSize = Math.max(1, parseInt(searchParams.get('pageSize') || '20', 10) || 20);
+  const initialPageSize = Math.max(1, parseInt(searchParams.get('page_size') || '20', 10) || 20);
   const [products, setProducts] = useState<Product[]>([]);
   const [totalCount, setTotalCount] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -166,7 +166,7 @@ export default function ProductsPage() {
     const nextSortBy = searchParams.get('order_by') || 'code';
     const nextSortOrder = (searchParams.get('sort_order') === 'desc' ? 'desc' : 'asc') as 'asc' | 'desc';
     const nextPage = Math.max(1, parseInt(searchParams.get('page') || '1', 10) || 1);
-    const nextPageSize = Math.max(1, parseInt(searchParams.get('pageSize') || '20', 10) || 20);
+    const nextPageSize = Math.max(1, parseInt(searchParams.get('page_size') || '20', 10) || 20);
 
     setCodeFilter((prev) => (prev === nextCode ? prev : nextCode));
     setNameFilter((prev) => (prev === nextName ? prev : nextName));
@@ -190,7 +190,7 @@ export default function ProductsPage() {
     if (sortBy !== 'code') params.set('order_by', sortBy);
     if (sortOrder !== 'asc') params.set('sort_order', sortOrder);
     if (page > 1) params.set('page', page.toString());
-    if (pageSize !== 20) params.set('pageSize', pageSize.toString());
+    if (pageSize !== 20) params.set('page_size', pageSize.toString());
 
     const nextUrl = params.toString() ? `${pathname}?${params.toString()}` : pathname;
     const currentUrl = searchParams.toString() ? `${pathname}?${searchParams.toString()}` : pathname;
@@ -355,7 +355,7 @@ export default function ProductsPage() {
       params.append('order_by', sortBy);
       params.append('sort_order', sortOrder);
       params.append('page', page.toString());
-      params.append('pageSize', pageSize.toString());
+      params.append('page_size', pageSize.toString());
       
       const response = await fetch(`/api/products?${params.toString()}`);
       if (!response.ok) throw new Error('Failed to fetch products');
@@ -365,8 +365,8 @@ export default function ProductsPage() {
       if (data.page && data.page !== page) {
         setPage(data.page);
       }
-      if (data.pageSize && data.pageSize !== pageSize) {
-        setPageSize(data.pageSize);
+      if (data.page_size && data.page_size !== pageSize) {
+        setPageSize(data.page_size);
       }
     } catch (err) {
       console.error('Error fetching products:', err);

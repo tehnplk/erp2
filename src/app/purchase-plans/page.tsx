@@ -90,7 +90,7 @@ function PurchasePlansPageContent() {
   const initialSortBy = searchParams.get('order_by') || 'id';
   const initialSortOrder = (searchParams.get('sort_order') === 'asc' ? 'asc' : 'desc') as 'asc' | 'desc';
   const initialPage = Math.max(1, parseInt(searchParams.get('page') || '1', 10) || 1);
-  const initialPageSize = Math.max(1, parseInt(searchParams.get('pageSize') || '20', 10) || 20);
+  const initialPageSize = Math.max(1, parseInt(searchParams.get('page_size') || '20', 10) || 20);
   const [items, setItems] = useState<any[]>([]);
   const [summaryItems, setSummaryItems] = useState<any[]>([]);
   const [surveyOptions, setSurveyOptions] = useState<SurveyOption[]>([]);
@@ -276,7 +276,7 @@ function PurchasePlansPageContent() {
     const nextSortBy = searchParams.get('order_by') || 'id';
     const nextSortOrder = (searchParams.get('sort_order') === 'asc' ? 'asc' : 'desc') as 'asc' | 'desc';
     const nextPage = Math.max(1, parseInt(searchParams.get('page') || '1', 10) || 1);
-    const nextPageSize = Math.max(1, parseInt(searchParams.get('pageSize') || '20', 10) || 20);
+    const nextPageSize = Math.max(1, parseInt(searchParams.get('page_size') || '20', 10) || 20);
 
     setProductNameFilter((prev) => (prev === nextProductName ? prev : nextProductName));
     setCategoryFilter((prev) => (prev === nextCategory ? prev : nextCategory));
@@ -302,7 +302,7 @@ function PurchasePlansPageContent() {
     if (sortBy && sortBy !== 'id') params.set('order_by', sortBy);
     if (sortOrder !== 'desc') params.set('sort_order', sortOrder);
     if (page > 1) params.set('page', page.toString());
-    if (pageSize !== 20) params.set('pageSize', pageSize.toString());
+    if (pageSize !== 20) params.set('page_size', pageSize.toString());
 
     const nextUrl = params.toString() ? `${pathname}?${params.toString()}` : pathname;
     const currentUrl = searchParams.toString() ? `${pathname}?${searchParams.toString()}` : pathname;
@@ -375,7 +375,7 @@ function PurchasePlansPageContent() {
       params.append('order_by', sortBy);
       params.append('sort_order', sortOrder);
       params.append('page', page.toString());
-      params.append('pageSize', pageSize.toString());
+      params.append('page_size', pageSize.toString());
 
       const res = await fetch(`/api/purchase-plans?${params.toString()}`);
       if (!res.ok) throw new Error('fetch failed');
@@ -400,8 +400,8 @@ function PurchasePlansPageContent() {
       if (data.page && data.page !== page) {
         setPage(data.page);
       }
-      if (data.pageSize && data.pageSize !== pageSize) {
-        setPageSize(data.pageSize);
+      if (data.page_size && data.page_size !== pageSize) {
+        setPageSize(data.page_size);
       }
     } catch (e) {
       console.error(e);

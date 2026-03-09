@@ -8,7 +8,7 @@ const nullableIntInput = z.union([z.string(), z.number(), z.null(), z.undefined(
 const nonEmptyString = z.string().min(1, 'This field is required');
 const paginationFields = {
   page: z.coerce.number().int().min(1).optional(),
-  pageSize: z.coerce.number().int().min(1).max(200).optional()
+  page_size: z.coerce.number().int().min(1).max(200).optional()
 };
 
 // Product schemas

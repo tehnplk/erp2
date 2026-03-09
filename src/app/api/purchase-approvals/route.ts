@@ -27,7 +27,7 @@ export async function GET(request: NextRequest) {
       department,
       budget_year,
       page,
-      pageSize
+      page_size: pageSize
     } = queryValidation.data as any;
 
     const whereClauses: string[] = [];
@@ -77,7 +77,7 @@ export async function GET(request: NextRequest) {
     const whereSql = whereClauses.length ? `WHERE ${whereClauses.join(' AND ')}` : '';
 
     const pageParam = searchParams.get('page');
-    const pageSizeParam = searchParams.get('pageSize');
+    const pageSizeParam = searchParams.get('page_size');
 
     if (!pageParam && !pageSizeParam) {
       const cacheKeyAll = `erp:purchase:approvals:list:all:${JSON.stringify(queryValidation.data)}`;
@@ -104,10 +104,10 @@ export async function GET(request: NextRequest) {
     const currentPage = page && typeof page === 'number' ? page : 1;
     const currentPageSize = pageSize && typeof pageSize === 'number' ? pageSize : 20;
     const skip = (currentPage - 1) * currentPageSize;
-    const cacheKey = `erp:purchase:approvals:list:${JSON.stringify({ ...queryValidation.data, page: currentPage, pageSize: currentPageSize })}`;
+    const cacheKey = `erp:purchase:approvals:list:${JSON.stringify({ ...queryValidation.data, page: currentPage, page_size: currentPageSize })}`;
     const cached = await cacheGet<any>(cacheKey);
     if (cached) {
-      return apiSuccess(cached.items, undefined, cached.totalCount, 200, { page: currentPage, pageSize: currentPageSize });
+      return apiSuccess(cached.items, undefined, cached.totalCount, 200, { page: currentPage, page_size: currentPageSize });
     }
 
     const [totalCount, items] = await Promise.all([
@@ -119,12 +119,12 @@ export async function GET(request: NextRequest) {
       items: items.rows,
       totalCount: totalCount.rows[0]?.count || 0,
       page: currentPage,
-      pageSize: currentPageSize
+      page_size: currentPageSize
     };
 
     await cacheSet(cacheKey, result, 600);
 
-    return apiSuccess(result.items, undefined, result.totalCount, 200, { page: currentPage, pageSize: currentPageSize });
+    return apiSuccess(result.items, undefined, result.totalCount, 200, { page: currentPage, page_size: currentPageSize });
   } catch (error) {
     console.error('Error fetching purchase approvals:', error);
     return apiError('Failed to fetch purchase approvals');

@@ -38,7 +38,7 @@ export async function GET(request: NextRequest) {
     }
 
     const page = queryValidation.data.page ?? 1;
-    const pageSize = Math.max(1, Math.min(200, Number(searchParams.get('page_size') || queryValidation.data.pageSize || 20)));
+    const pageSize = Math.max(1, Math.min(200, Number(searchParams.get('page_size') || queryValidation.data.page_size || 20)));
 
     const {
       product_name,
@@ -95,7 +95,7 @@ export async function GET(request: NextRequest) {
     const cacheKey = `erp:inventory:receipts:pending:${JSON.stringify({ ...queryValidation.data, page, page_size: pageSize })}`;
     const cached = await cacheGet<{ items: any[]; totalCount: number }>(cacheKey);
     if (cached) {
-      return apiSuccess(cached.items, undefined, cached.totalCount, 200, { page, pageSize });
+      return apiSuccess(cached.items, undefined, cached.totalCount, 200, { page, page_size: pageSize });
     }
 
     const [countResult, itemsResult] = await Promise.all([
@@ -109,7 +109,7 @@ export async function GET(request: NextRequest) {
     // Save to Cache
     await cacheSet(cacheKey, { items, totalCount }, 600);
 
-    return apiSuccess(items, undefined, totalCount, 200, { page, pageSize });
+    return apiSuccess(items, undefined, totalCount, 200, { page, page_size: pageSize });
   } catch (error) {
     console.error('Error fetching pending purchase approvals for inventory receipt:', error);
     return apiError('Failed to fetch pending purchase approvals');

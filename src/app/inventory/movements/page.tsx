@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
 
 type MovementRow = {
@@ -40,31 +40,59 @@ function formatCurrency(value: number) {
   }).format(value);
 }
 
+const MOVEMENT_TYPES = [
+  'PURCHASE_APPROVAL_RECEIPT',
+  'ISSUE_APPROVED',
+  'REQUISITION_RESERVE',
+  'REQUISITION_UNRESERVE',
+  'ADJUSTMENT_IN',
+  'ADJUSTMENT_OUT',
+];
+
 export default function InventoryMovementsPage() {
   const [items, setItems] = useState<MovementRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState('');
+  const [filterProductCode, setFilterProductCode] = useState('');
+  const [filterMovementType, setFilterMovementType] = useState('');
+  const [filterInput, setFilterInput] = useState('');
+
+  const fetchMovements = useCallback(async () => {
+    try {
+      setLoading(true);
+      const params = new URLSearchParams();
+      params.set('page', '1');
+      params.set('page_size', '200');
+      if (filterProductCode) params.set('product_code', filterProductCode);
+      if (filterMovementType) params.set('movement_type', filterMovementType);
+      const response = await fetch(`/api/inventory/movements?${params.toString()}`);
+      const payload: ApiResponse<MovementRow[]> = await response.json();
+      if (!response.ok || !payload.success) {
+        throw new Error(payload.error || 'โหลด movement ไม่สำเร็จ');
+      }
+      setItems(payload.data || []);
+    } catch (error) {
+      console.error(error);
+      setMessage(error instanceof Error ? error.message : 'เกิดข้อผิดพลาด');
+    } finally {
+      setLoading(false);
+    }
+  }, [filterProductCode, filterMovementType]);
 
   useEffect(() => {
-    const fetchMovements = async () => {
-      try {
-        setLoading(true);
-        const response = await fetch('/api/inventory/movements?page=1&page_size=200');
-        const payload: ApiResponse<MovementRow[]> = await response.json();
-        if (!response.ok || !payload.success) {
-          throw new Error(payload.error || 'โหลด movement ไม่สำเร็จ');
-        }
-        setItems(payload.data || []);
-      } catch (error) {
-        console.error(error);
-        setMessage(error instanceof Error ? error.message : 'เกิดข้อผิดพลาด');
-      } finally {
-        setLoading(false);
-      }
-    };
-
     fetchMovements();
-  }, []);
+  }, [fetchMovements]);
+
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    setFilterProductCode(filterInput);
+  };
+
+  const handleClear = () => {
+    setFilterInput('');
+    setFilterProductCode('');
+    setFilterMovementType('');
+  };
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -79,6 +107,35 @@ export default function InventoryMovementsPage() {
             กลับหน้าหลักระบบคลังสินค้า
           </Link>
         </div>
+
+        {/* Filter */}
+        <form onSubmit={handleSearch} className="mb-4 flex flex-wrap gap-2">
+          <input
+            type="text"
+            value={filterInput}
+            onChange={(e) => setFilterInput(e.target.value)}
+            placeholder="ค้นหารหัสสินค้า"
+            className="w-56 rounded-xl border border-slate-300 px-4 py-2 text-sm shadow-sm focus:border-blue-500 focus:outline-none"
+          />
+          <select
+            value={filterMovementType}
+            onChange={(e) => setFilterMovementType(e.target.value)}
+            className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm shadow-sm focus:border-blue-500 focus:outline-none"
+          >
+            <option value="">ทุกประเภท</option>
+            {MOVEMENT_TYPES.map((t) => (
+              <option key={t} value={t}>{t}</option>
+            ))}
+          </select>
+          <button type="submit" className="rounded-xl bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700">
+            ค้นหา
+          </button>
+          {(filterProductCode || filterMovementType) && (
+            <button type="button" onClick={handleClear} className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100">
+              ล้าง
+            </button>
+          )}
+        </form>
 
         {message ? <div className="mb-4 rounded-2xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">{message}</div> : null}
 
