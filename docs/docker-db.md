@@ -7,10 +7,10 @@
 - user : admin
 - password : 112233
 
-## Query
+## Data Retrieval
 
-- use psql command within docker to execute
+- You have to use psql command within docker to execute.
 
-## tables
+## Tables
 
 - see [tables.md](tables.md)
