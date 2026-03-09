@@ -10,3 +10,7 @@
 ## Query
 
 - use psql command within docker to execute
+
+## tables
+
+- see [tables.md](tables.md)
