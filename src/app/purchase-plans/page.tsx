@@ -1364,20 +1364,20 @@ function PurchasePlansPageContent() {
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
+                <th onClick={()=>handleSort('budget_year')} className={getHeaderClass('budget_year')}>ปีงบ</th>
                 <th onClick={()=>handleSort('product_code')} className={`${getHeaderClass('product_code')} w-28`}>รหัส</th>
                 <th onClick={()=>handleSort('product_name')} className={`${getHeaderClass('product_name')} min-w-[280px] w-2/5`}>ชื่อสินค้า</th>
-                <th onClick={()=>handleSort('usageplan_dept')} className={getHeaderClass('usageplan_dept')}>หน่วยงานที่ขอ</th>
-                <th onClick={()=>handleSort('unit')} className={getHeaderClass('unit')}>หน่วย</th>
                 <th onClick={()=>handleSort('price_per_unit')} className={getHeaderClass('price_per_unit')}>ราคา/หน่วย</th>
-                <th onClick={()=>handleSort('required_quantity_for_year')} className={getHeaderClass('required_quantity_for_year')}>แผนใช้</th>
+                <th onClick={()=>handleSort('usageplan_dept')} className={getHeaderClass('usageplan_dept')}>หน่วยงานที่ขอ</th>
+                <th onClick={()=>handleSort('required_quantity_for_year')} className={getHeaderClass('required_quantity_for_year')}>จำนวนที่ขอ</th>
                 <th onClick={()=>handleSort('total_required_value')} className={getHeaderClass('total_required_value')}>มูลค่ารวม</th>
-                <th onClick={()=>handleSort('budget_year')} className={getHeaderClass('budget_year')}>ปีงบ</th>
                 <th className="px-3 py-3 text-left text-[10px] font-medium text-gray-500 uppercase tracking-wider w-24">Action</th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
               {items.map((row) => (
                 <tr key={row.id}>
+                  <td className="px-3 py-2 text-xs">{row.budget_year}</td>
                   <td className="px-3 py-2 text-sm w-28">{row.product_code}</td>
                   <td className="px-3 py-2 text-sm min-w-[280px]">
                     <div className="font-medium text-gray-900 whitespace-normal break-words" title={row.product_name}>
@@ -1389,12 +1389,10 @@ function PurchasePlansPageContent() {
                         .join(' · ')}
                     </div>
                   </td>
-                  <td className="px-3 py-2 text-xs">{row.usageplan_dept || '-'}</td>
-                  <td className="px-3 py-2 text-xs">{row.unit}</td>
                   <td className="px-3 py-2 text-xs">{row.price_per_unit ? Number(row.price_per_unit).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '-'}</td>
+                  <td className="px-3 py-2 text-xs">{row.usageplan_dept || '-'}</td>
                   <td className="px-3 py-2 text-xs">{row.required_quantity_for_year ?? '-'}</td>
                   <td className="px-3 py-2 text-xs">{row.total_required_value ? Number(row.total_required_value).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '-'}</td>
-                  <td className="px-3 py-2 text-xs">{row.budget_year}</td>
                   <td className="px-3 py-2 text-xs font-medium w-24">
                     <button
                       onClick={() => handleEdit(row)}

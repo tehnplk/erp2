@@ -775,7 +775,21 @@ function SurveysPageContent() {
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+    setFormData(prev => {
+      if (name === 'requested_amount' && !editingSurvey) {
+        const shouldSyncApprovedQuota =
+          prev.approved_quota === '' ||
+          prev.approved_quota === prev.requested_amount;
+
+        return {
+          ...prev,
+          [name]: value,
+          approved_quota: shouldSyncApprovedQuota ? value : prev.approved_quota,
+        };
+      }
+
+      return { ...prev, [name]: value };
+    });
     
     // Clear error when user starts typing
     if (errors[name]) {
@@ -1515,7 +1529,7 @@ function SurveysPageContent() {
                 onChange={(e) => setRequestingDeptFilter(e.target.value)}
                 className="w-full rounded-md border-gray-300 shadow-sm text-sm px-3 py-2"
               >
-                <option value="">หน่วยงานที่ขอ</option>
+                <option value="">หน่วยงาน</option>
                 {departments.map((dept) => (
                   <option key={dept} value={dept}>{dept}</option>
                 ))}
@@ -1683,7 +1697,7 @@ function SurveysPageContent() {
                       ชื่อสินค้า {getSortIcon('product_name')}
                     </th>
                     <th onClick={() => handleSort('price_per_unit')} className={`${getHeaderClass('price_per_unit')} w-28`}>
-                      ราคาต่อหน่วย {getSortIcon('price_per_unit')}
+                      ราคา/หน่วย {getSortIcon('price_per_unit')}
                     </th>
                     <th onClick={() => handleSort('requesting_dept')} className={`${getHeaderClass('requesting_dept')} w-40`}>
                       หน่วยงานที่ขอ {getSortIcon('requesting_dept')}
@@ -1691,8 +1705,8 @@ function SurveysPageContent() {
                     <th onClick={() => handleSort('requested_amount')} className={`${getHeaderClass('requested_amount')} w-32`}>
                       จำนวนที่ขอ {getSortIcon('requested_amount')}
                     </th>
-                    <th onClick={() => handleSort('approved_quota')} className={`${getHeaderClass('approved_quota')} w-32`}>
-                      โควต้าที่ได้รับ {getSortIcon('approved_quota')}
+                    <th onClick={() => handleSort('approved_quota')} className={getHeaderClass('approved_quota')}>
+                      โควต้าที่ได้ {getSortIcon('approved_quota')}
                     </th>
                     <th className="px-3 py-3 text-left text-[10px] font-medium text-gray-500 uppercase tracking-wider w-24">
                       Action
@@ -1720,7 +1734,10 @@ function SurveysPageContent() {
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 w-28">
-                        <>฿{survey.price_per_unit?.toLocaleString() || '0'}</>
+                        {Number(survey.price_per_unit ?? 0).toLocaleString('en-US', {
+                          minimumFractionDigits: 2,
+                          maximumFractionDigits: 2,
+                        })}
                       </td>
                       <td
                         ref={editingId === survey.id && editingField === 'requestingDept' ? inlineEditContainerRef : null}
@@ -2191,7 +2208,17 @@ function SurveysPageContent() {
                                 min="1"
                                 value={record.requested_amount || ''}
                                 onChange={(e) => {
-                                  updateBulkRecord(record.id, (current) => ({ ...current, requested_amount: e.target.value }));
+                                  updateBulkRecord(record.id, (current) => {
+                                    const shouldSyncApprovedQuota =
+                                      current.approved_quota === '' ||
+                                      current.approved_quota === current.requested_amount;
+
+                                    return {
+                                      ...current,
+                                      requested_amount: e.target.value,
+                                      approved_quota: shouldSyncApprovedQuota ? e.target.value : current.approved_quota,
+                                    };
+                                  });
                                   clearBulkValidationError(record.id, 'requestedAmount');
                                 }}
                                 placeholder="จำนวนที่ขอ"
@@ -2214,6 +2241,14 @@ function SurveysPageContent() {
                               />
                             </td>
                             <td className="min-w-[14rem] px-2 py-3">
+                              <input
+                                id={`survey-bulk-approved-quota-${record.id}`}
+                                name={`bulkApprovedQuota-${record.id}`}
+                                aria-label={`โควต้าที่ได้รับ แถว ${index + 1}`}
+                                type="hidden"
+                                value={record.approved_quota || ''}
+                                readOnly
+                              />
                               <DepartmentCombobox
                                 id={`survey-bulk-requesting-dept-${record.id}`}
                                 name={`bulkRequestingDept-${record.id}`}
