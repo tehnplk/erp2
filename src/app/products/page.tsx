@@ -1480,12 +1480,6 @@ export default function ProductsPage() {
               <th onClick={() => handleSort('sell_price')} className={getHeaderClass('sell_price')}>
                 ราคาขายต่อหน่วย {getSortIcon('sell_price')}
               </th>
-              <th onClick={() => handleSort('stock_balance')} className={getHeaderClass('stock_balance')}>
-                ยอดยกมา {getSortIcon('stock_balance')}
-              </th>
-              <th onClick={() => handleSort('stock_value')} className={getHeaderClass('stock_value')}>
-                มูลค่ายกมา {getSortIcon('stock_value')}
-              </th>
               <th className="px-3 py-3 text-left text-[10px] font-medium text-gray-500 uppercase tracking-wider w-20">
                 สถานะ
               </th>
@@ -1516,12 +1510,6 @@ export default function ProductsPage() {
                 </td>
                 <td className="px-3 py-4 whitespace-nowrap text-xs text-gray-500 w-24">
                   {product.sell_price ? `฿${Number(product.sell_price).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '-'}
-                </td>
-                <td className="px-3 py-4 whitespace-nowrap text-xs text-gray-500 w-20">
-                  {product.stock_balance || 0}
-                </td>
-                <td className="px-3 py-4 whitespace-nowrap text-xs text-gray-500 w-24">
-                  {product.stock_value ? `฿${Number(product.stock_value).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '-'}
                 </td>
                 <td className="px-3 py-4 whitespace-nowrap w-20">
                   <span className={`px-2 inline-flex text-[10px] leading-4 font-semibold rounded-full ${
