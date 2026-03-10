@@ -28,7 +28,7 @@ export async function GET(
     }
 
     const result = await pgQuery(
-      'SELECT id, category, type, subtype FROM public.category WHERE id = $1 LIMIT 1',
+      'SELECT id, category_code, category, type, subtype FROM public.category WHERE id = $1 LIMIT 1',
       [numericId]
     );
     const category = result.rows[0];
@@ -64,7 +64,7 @@ export async function PUT(
     const { id } = await params;
     const numericId = parseInt(id, 10);
     const body = await request.json();
-    const { category, type, subtype } = body;
+    const { category_code, category, type, subtype } = body;
 
     if (isNaN(numericId)) {
       return NextResponse.json(
@@ -73,9 +73,9 @@ export async function PUT(
       );
     }
 
-    if (!category || !type || !subtype) {
+    if (!category_code || !category || !type || !subtype) {
       return NextResponse.json(
-        { success: false, error: 'Category, type, and subtype are required' },
+        { success: false, error: 'Category code, category, type, and subtype are required' },
         { status: 400 }
       );
     }
@@ -90,10 +90,10 @@ export async function PUT(
 
     const updatedResult = await pgQuery(
       `UPDATE public.category
-       SET category = $1, type = $2, subtype = $3
-       WHERE id = $4
-       RETURNING id, category, type, subtype`,
-      [category, type, subtype, numericId]
+       SET category_code = $1, category = $2, type = $3, subtype = $4
+       WHERE id = $5
+       RETURNING id, category_code, category, type, subtype`,
+      [category_code, category, type, subtype, numericId]
     );
 
     await cacheDelByPattern('erp:categories:list:*');

@@ -171,6 +171,7 @@ export const departmentQuerySchema = z.object({
 
 // Category schemas
 export const createCategorySchema = z.object({
+  category_code: nonEmptyString,
   category: nonEmptyString,
   type: nonEmptyString,
   subtype: nonEmptyString

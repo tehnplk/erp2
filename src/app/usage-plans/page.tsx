@@ -1491,7 +1491,7 @@ function SurveysPageContent() {
                       หน่วยงานที่ขอ {getSortIcon('requesting_dept')}
                     </th>
                     <th onClick={() => handleSort('approved_quota')} className={getHeaderClass('approved_quota')}>
-                      จำนวนที่อนุมัติ {getSortIcon('approved_quota')}
+                      โควต้าที่ได้รับ {getSortIcon('approved_quota')}
                     </th>
                     <th className="px-3 py-3 text-left text-[10px] font-medium text-gray-500 uppercase tracking-wider w-24">
                       Action
@@ -1584,7 +1584,7 @@ function SurveysPageContent() {
                           <input
                             id={`survey-inline-approved-quota-${survey.id}`}
                             name={`inlineApprovedQuota-${survey.id}`}
-                            aria-label={`จำนวนที่อนุมัติ รายการ ${survey.id}`}
+                            aria-label={`โควต้าที่ได้รับ รายการ ${survey.id}`}
                             type="number"
                             min="0"
                             value={editData.approved_quota}
@@ -1773,7 +1773,7 @@ function SurveysPageContent() {
                               </select>
                             </td>
                             <td className="px-4 py-3 min-w-[140px]">
-                              <input id="survey-approved-quota" type="number" name="approved_quota" aria-label="จำนวนที่อนุมัติ" value={formData.approved_quota} onChange={handleInputChange} min="0" className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="จำนวนอนุมัติ" />
+                              <input id="survey-approved-quota" type="number" name="approved_quota" aria-label="โควต้าที่ได้รับ" value={formData.approved_quota} onChange={handleInputChange} min="0" className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="โควต้าที่ได้รับ" />
                             </td>
                           </tr>
                         </tbody>
@@ -1939,7 +1939,6 @@ function SurveysPageContent() {
                           <th scope="col" className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase">จำนวนที่ขอ</th>
                           <th scope="col" className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase">หน่วย</th>
                           <th scope="col" className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase">หน่วยงานที่ขอ</th>
-                          <th scope="col" className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase">จำนวนที่อนุมัติ</th>
                           <th scope="col" className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase">จัดการ</th>
                         </tr>
                       </thead>
@@ -2025,20 +2024,6 @@ function SurveysPageContent() {
                               {bulkValidationErrors[record.id]?.requestingDept && (
                                 <p className="mt-1 text-xs text-red-600">{bulkValidationErrors[record.id]?.requestingDept}</p>
                               )}
-                            </td>
-                            <td className="w-32 px-2 py-3">
-                              <input
-                                id={`survey-bulk-approved-quota-${record.id}`}
-                                name={`bulkApprovedQuota-${record.id}`}
-                                aria-label={`จำนวนที่อนุมัติ แถว ${index + 1}`}
-                                type="number"
-                                value={record.approved_quota || ''}
-                                onChange={(e) => {
-                                  updateBulkRecord(record.id, (current) => ({ ...current, approved_quota: e.target.value }));
-                                }}
-                                placeholder="จำนวนอนุมัติ"
-                                className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
-                              />
                             </td>
                             <td className="w-16 px-2 py-3">
                               <div className="flex gap-1">

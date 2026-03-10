@@ -6,6 +6,7 @@ import { Plus, Check, X, Pencil, Trash2 } from 'lucide-react';
 
 interface Category {
   id: number;
+  category_code: string;
   category: string;
   type: string;
   subtype: string;
@@ -16,18 +17,21 @@ export default function CategoriesPage() {
   const [filteredCategories, setFilteredCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [formData, setFormData] = useState({
+    category_code: '',
     category: '',
     type: '',
     subtype: ''
   });
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editData, setEditData] = useState({
+    category_code: '',
     category: '',
     type: '',
     subtype: ''
   });
   const [addingNew, setAddingNew] = useState(false);
   const [newRecordData, setNewRecordData] = useState({
+    category_code: '',
     category: '',
     type: '',
     subtype: ''
@@ -54,6 +58,7 @@ export default function CategoriesPage() {
   const PAGE_SIZE_OPTIONS = [10, 20, 50];
 
   const createEmptyCategoryRecord = () => ({
+    category_code: '',
     category: '',
     type: '',
     subtype: ''
@@ -87,9 +92,10 @@ export default function CategoriesPage() {
     // Search filter
     if (filters.search) {
       filtered = filtered.filter(cat =>
-        cat.category.toLowerCase().includes(filters.search.toLowerCase()) ||
-        cat.type.toLowerCase().includes(filters.search.toLowerCase()) ||
-        cat.subtype.toLowerCase().includes(filters.search.toLowerCase())
+        String(cat.category_code || '').toLowerCase().includes(filters.search.toLowerCase()) ||
+        String(cat.category || '').toLowerCase().includes(filters.search.toLowerCase()) ||
+        String(cat.type || '').toLowerCase().includes(filters.search.toLowerCase()) ||
+        String(cat.subtype || '').toLowerCase().includes(filters.search.toLowerCase())
       );
     }
 
@@ -138,6 +144,20 @@ export default function CategoriesPage() {
     return [...new Set(categories.map(cat => cat[field]))].sort();
   };
 
+  const filteredTypeOptions = [...new Set(
+    categories
+      .filter((cat) => !filters.category || cat.category === filters.category)
+      .map((cat) => cat.type)
+      .filter(Boolean)
+  )].sort();
+
+  const filteredSubtypeOptions = [...new Set(
+    categories
+      .filter((cat) => (!filters.category || cat.category === filters.category) && (!filters.type || cat.type === filters.type))
+      .map((cat) => cat.subtype)
+      .filter(Boolean)
+  )].sort();
+
   // Delete category
   const deleteCategory = async (id: number) => {
     const confirmation = await Swal.fire({
@@ -169,6 +189,7 @@ export default function CategoriesPage() {
   const startInlineEdit = (category: Category) => {
     setEditingId(category.id);
     setEditData({
+      category_code: category.category_code,
       category: category.category,
       type: category.type,
       subtype: category.subtype
@@ -186,7 +207,7 @@ export default function CategoriesPage() {
 
       if (response.ok) {
         setEditingId(null);
-        setEditData({ category: '', type: '', subtype: '' });
+        setEditData({ category_code: '', category: '', type: '', subtype: '' });
         fetchCategories();
 
         // Show success toast
@@ -233,6 +254,7 @@ export default function CategoriesPage() {
   // Save new record
   const saveNewRecord = async () => {
     if (
+      !newRecordData.category_code.trim() ||
       !newRecordData.category.trim() ||
       !newRecordData.type.trim() ||
       !newRecordData.subtype.trim()
@@ -253,6 +275,7 @@ export default function CategoriesPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          category_code: newRecordData.category_code.trim(),
           category: newRecordData.category.trim(),
           type: newRecordData.type.trim(),
           subtype: newRecordData.subtype.trim()
@@ -261,7 +284,7 @@ export default function CategoriesPage() {
 
       if (response.ok) {
         setAddingNew(false);
-        setNewRecordData({ category: '', type: '', subtype: '' });
+        setNewRecordData({ category_code: '', category: '', type: '', subtype: '' });
         fetchCategories();
 
         // Show success toast
@@ -310,6 +333,7 @@ export default function CategoriesPage() {
     try {
       // Filter out empty records
       const validRecords = bulkRecords.filter(record =>
+        record.category_code.trim() !== '' &&
         record.category.trim() !== '' &&
         record.type.trim() !== '' &&
         record.subtype.trim() !== ''
@@ -333,6 +357,7 @@ export default function CategoriesPage() {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
+            category_code: record.category_code.trim(),
             category: record.category.trim(),
             type: record.type.trim(),
             subtype: record.subtype.trim()
@@ -389,7 +414,7 @@ export default function CategoriesPage() {
   // Cancel inline edit
   const cancelInlineEdit = () => {
     setEditingId(null);
-    setEditData({ category: '', type: '', subtype: '' });
+    setEditData({ category_code: '', category: '', type: '', subtype: '' });
   };
 
   const cancelNewRecord = () => {
@@ -468,7 +493,7 @@ export default function CategoriesPage() {
         </div>
       )}
       <div className="mb-4">
-        <h1 className="text-2xl font-semibold text-gray-900">จัดการหมวดหมู่สินค้า</h1>
+        <h1 className="text-2xl font-semibold text-gray-900">จัดการหมวดสินค้า</h1>
       </div>
 
       {/* Bulk Add Form Modal */}
@@ -477,7 +502,7 @@ export default function CategoriesPage() {
           <div className="bg-white rounded-lg p-6 w-full max-w-4xl max-h-[80vh] overflow-y-auto">
             <div className="flex justify-between items-center mb-4">
               <div>
-                <h2 className="text-xl font-bold">Bulk insert หมวดหมู่สินค้า</h2>
+                <h2 className="text-xl font-bold">Bulk insert หมวดสินค้า</h2>
                 <p className="mt-1 text-sm text-gray-500">เพิ่มหลายรายการพร้อมกัน และกดปุ่ม + เพื่อเพิ่มแถวได้ตามต้องการ</p>
               </div>
               <button
@@ -499,7 +524,8 @@ export default function CategoriesPage() {
                   <thead className="bg-gray-100">
                     <tr>
                       <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">ลำดับ</th>
-                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">หมวดหมู่</th>
+                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">รหัสหมวด</th>
+                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">หมวด</th>
                       <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">ประเภท</th>
                       <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">ประเภทย่อย</th>
                       <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">จัดการ</th>
@@ -512,13 +538,26 @@ export default function CategoriesPage() {
                         <td className="px-4 py-3">
                           <input
                             type="text"
+                            value={record.category_code}
+                            onChange={(e) => {
+                              const updated = [...bulkRecords];
+                              updated[index].category_code = e.target.value;
+                              setBulkRecords(updated);
+                            }}
+                            placeholder="รหัสหมวด"
+                            className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          />
+                        </td>
+                        <td className="px-4 py-3">
+                          <input
+                            type="text"
                             value={record.category}
                             onChange={(e) => {
                               const updated = [...bulkRecords];
                               updated[index].category = e.target.value;
                               setBulkRecords(updated);
                             }}
-                            placeholder="หมวดหมู่"
+                            placeholder="หมวด"
                             className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
                           />
                         </td>
@@ -611,7 +650,7 @@ export default function CategoriesPage() {
             </label>
             <input
               type="text"
-              placeholder="ค้นหาหมวดหมู่..."
+              placeholder="ค้นหารหัสหมวด / หมวด / ประเภท / ประเภทย่อย..."
               value={filters.search}
               onChange={(e) => setFilters({ ...filters, search: e.target.value })}
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -621,14 +660,14 @@ export default function CategoriesPage() {
           {/* Category Filter */}
           <div>
             <label className="mb-1 block text-sm font-medium text-gray-700">
-              หมวดหมู่
+              หมวด
             </label>
             <select
               value={filters.category}
-              onChange={(e) => setFilters({ ...filters, category: e.target.value })}
+              onChange={(e) => setFilters({ ...filters, category: e.target.value, type: '', subtype: '' })}
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
-              <option value="">หมวดหมู่ทั้งหมด</option>
+              <option value="">หมวดทั้งหมด</option>
               {getUniqueValues('category').map((cat) => (
                 <option key={cat} value={cat}>{cat}</option>
               ))}
@@ -642,11 +681,11 @@ export default function CategoriesPage() {
             </label>
             <select
               value={filters.type}
-              onChange={(e) => setFilters({ ...filters, type: e.target.value })}
+              onChange={(e) => setFilters({ ...filters, type: e.target.value, subtype: '' })}
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               <option value="">ประเภททั้งหมด</option>
-              {getUniqueValues('type').map((type) => (
+              {filteredTypeOptions.map((type) => (
                 <option key={type} value={type}>{type}</option>
               ))}
             </select>
@@ -663,7 +702,7 @@ export default function CategoriesPage() {
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               <option value="">ประเภทย่อยทั้งหมด</option>
-              {getUniqueValues('subtype').map((subtype) => (
+              {filteredSubtypeOptions.map((subtype) => (
                 <option key={subtype} value={subtype}>{subtype}</option>
               ))}
             </select>
@@ -698,7 +737,7 @@ export default function CategoriesPage() {
           }}
           disabled={addingNew}
           className="rounded-md bg-blue-600 px-3 py-2 text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-blue-300"
-          title="เพิ่มหมวดหมู่ใหม่"
+          title="เพิ่มหมวดใหม่"
         >
           <Plus className="h-5 w-5" />
         </button>
@@ -751,10 +790,13 @@ export default function CategoriesPage() {
             <thead className="bg-gray-50">
               <tr>
                 <th className="px-6 py-3 text-left text-[10px] font-medium text-gray-500 uppercase tracking-wider">
-                  รหัส
+                  ลำดับที่
                 </th>
                 <th className="px-6 py-3 text-left text-[10px] font-medium text-gray-500 uppercase tracking-wider">
-                  หมวดหมู่
+                  รหัสหมวด
+                </th>
+                <th className="px-6 py-3 text-left text-[10px] font-medium text-gray-500 uppercase tracking-wider">
+                  หมวด
                 </th>
                 <th className="px-6 py-3 text-left text-[10px] font-medium text-gray-500 uppercase tracking-wider">
                   ประเภท
@@ -774,10 +816,19 @@ export default function CategoriesPage() {
                   <td className="px-6 py-4 whitespace-nowrap text-xs">
                     <input
                       type="text"
+                      value={newRecordData.category_code}
+                      onChange={(e) => setNewRecordData({ ...newRecordData, category_code: e.target.value })}
+                      className="w-full px-2 py-1 border border-gray-300 rounded text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="รหัสหมวด"
+                    />
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-xs">
+                    <input
+                      type="text"
                       value={newRecordData.category}
                       onChange={(e) => setNewRecordData({ ...newRecordData, category: e.target.value })}
                       className="w-full px-2 py-1 border border-gray-300 rounded text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      placeholder="หมวดหมู่"
+                      placeholder="หมวด"
                     />
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-xs">
@@ -822,6 +873,18 @@ export default function CategoriesPage() {
                 <tr key={cat.id} className="hover:bg-gray-50">
                   <td className="px-6 py-4 whitespace-nowrap text-xs text-gray-900">
                     {cat.id}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-xs text-gray-900">
+                    {editingId === cat.id ? (
+                      <input
+                        type="text"
+                        value={editData.category_code}
+                        onChange={(e) => setEditData({ ...editData, category_code: e.target.value })}
+                        className="w-full px-2 py-1 border border-gray-300 rounded text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    ) : (
+                      cat.category_code
+                    )}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-xs">
                     {editingId === cat.id ? (
@@ -910,13 +973,13 @@ export default function CategoriesPage() {
 
         {categories.length === 0 && (
           <div className="text-center py-8 text-gray-500">
-            ไม่พบหมวดหมู่ เพิ่มหมวดหมู่แรกเพื่อเริ่มต้น
+            ไม่พบหมวดสินค้า เพิ่มหมวดแรกเพื่อเริ่มต้น
           </div>
         )}
       </div>
 
       <div className="mt-4 text-sm text-gray-600">
-        หมวดหมู่ทั้งหมด: {categories.length}
+        หมวดทั้งหมด: {categories.length}
       </div>
     </div>
   );

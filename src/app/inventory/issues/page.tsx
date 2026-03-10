@@ -48,6 +48,8 @@ function formatNumber(value: number) {
   return new Intl.NumberFormat('th-TH').format(value);
 }
 
+const ISSUE_READY_STATUSES = ['APPROVED', 'PARTIALLY_APPROVED', 'PARTIALLY_ISSUED'] as const;
+
 export default function InventoryIssuesPage() {
   const [items, setItems] = useState<IssueRow[]>([]);
   const [requisitions, setRequisitions] = useState<RequisitionRow[]>([]);
@@ -56,6 +58,38 @@ export default function InventoryIssuesPage() {
   const [posting, setPosting] = useState(false);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState('');
+
+  const fetchReadyRequisitions = async (targetRequisitionId?: string) => {
+    const requestPageSize = 200;
+    const collected = new Map<number, RequisitionRow>();
+    let page = 1;
+    let totalCount = 0;
+
+    while (page === 1 || collected.size < totalCount) {
+      const response = await fetch(`/api/inventory/requisitions?page=${page}&page_size=${requestPageSize}`);
+      const payload: ApiResponse<RequisitionRow[]> & { totalCount?: number } = await response.json();
+      if (!response.ok || !payload.success) {
+        throw new Error(payload.error || 'โหลด requisition ไม่สำเร็จ');
+      }
+
+      const pageItems = payload.data || [];
+      totalCount = payload.totalCount || pageItems.length;
+
+      for (const item of pageItems) {
+        if (ISSUE_READY_STATUSES.includes(item.status as typeof ISSUE_READY_STATUSES[number])) {
+          collected.set(item.id, item);
+        }
+      }
+
+      if (!targetRequisitionId || collected.has(Number(targetRequisitionId)) || pageItems.length < requestPageSize) {
+        break;
+      }
+
+      page += 1;
+    }
+
+    return Array.from(collected.values());
+  };
 
   useEffect(() => {
     const fetchIssues = async () => {
@@ -81,12 +115,9 @@ export default function InventoryIssuesPage() {
   useEffect(() => {
     const fetchApprovedRequisitions = async () => {
       try {
-        const response = await fetch('/api/inventory/requisitions?page=1&page_size=100');
-        const payload: ApiResponse<RequisitionRow[]> = await response.json();
-        if (!response.ok || !payload.success) {
-          throw new Error(payload.error || 'โหลด requisition ไม่สำเร็จ');
-        }
-        setRequisitions((payload.data || []).filter((item) => ['APPROVED', 'PARTIALLY_APPROVED', 'PARTIALLY_ISSUED'].includes(item.status)));
+        const requisition_id = new URLSearchParams(window.location.search).get('requisition_id') || undefined;
+        const readyItems = await fetchReadyRequisitions(requisition_id);
+        setRequisitions(readyItems);
       } catch (error) {
         console.error(error);
       }
@@ -183,6 +214,9 @@ export default function InventoryIssuesPage() {
       if (refreshResponse.ok && refreshPayload.success) {
         setItems(refreshPayload.data || []);
       }
+
+      const refreshedRequisitions = await fetchReadyRequisitions();
+      setRequisitions(refreshedRequisitions);
     } catch (error) {
       console.error(error);
       setMessage(error instanceof Error ? error.message : 'เกิดข้อผิดพลาดในการจ่าย');

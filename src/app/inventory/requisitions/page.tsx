@@ -53,9 +53,11 @@ function formatNumber(value: number) {
 }
 
 export default function InventoryRequisitionsPage() {
+  const [activeTab, setActiveTab] = useState<'pending_approval' | 'cancelled' | 'pending_issue'>('pending_approval');
   const [items, setItems] = useState<RequisitionRow[]>([]);
   const [balance_options, setBalanceOptions] = useState<BalanceOption[]>([]);
-  const [department, setDepartment] = useState('กลุ่มงานบริหารทั่วไป');
+  const [departmentOptions, setDepartmentOptions] = useState<string[]>([]);
+  const [department, setDepartment] = useState('');
   const [requested_by, setRequestedBy] = useState('');
   const [selected_item_id, setSelectedItemId] = useState('');
   const [product_search, setProductSearch] = useState('');
@@ -92,6 +94,24 @@ export default function InventoryRequisitionsPage() {
       .filter((item) => `${item.product_code} ${item.product_name}`.toLowerCase().includes(keyword))
       .slice(0, 20);
   }, [balance_options, product_search]);
+
+  const tabCounts = useMemo(() => ({
+    pending_approval: items.filter((item) => ['DRAFT', 'SUBMITTED', 'PARTIALLY_APPROVED'].includes(item.status)).length,
+    cancelled: items.filter((item) => item.status === 'CANCELLED').length,
+    pending_issue: items.filter((item) => ['APPROVED', 'PARTIALLY_ISSUED'].includes(item.status)).length,
+  }), [items]);
+
+  const filteredItems = useMemo(() => {
+    if (activeTab === 'pending_approval') {
+      return items.filter((item) => ['DRAFT', 'SUBMITTED', 'PARTIALLY_APPROVED'].includes(item.status));
+    }
+
+    if (activeTab === 'cancelled') {
+      return items.filter((item) => item.status === 'CANCELLED');
+    }
+
+    return items.filter((item) => ['APPROVED', 'PARTIALLY_ISSUED'].includes(item.status));
+  }, [activeTab, items]);
 
   const handleAddToCart = () => {
     if (!selected_item_id || !selectedOption) {
@@ -322,9 +342,30 @@ export default function InventoryRequisitionsPage() {
     }
   };
 
+  const fetchDepartments = async () => {
+    try {
+      const response = await fetch('/api/departments?page=1&page_size=200');
+      const payload = await response.json();
+      if (!response.ok || !payload.success) {
+        throw new Error(payload.error || 'โหลดหน่วยงานไม่สำเร็จ');
+      }
+
+      const names = (payload.data || [])
+        .map((dept: { name?: string }) => dept?.name)
+        .filter(Boolean) as string[];
+      setDepartmentOptions(names);
+      if (!department && names.length > 0) {
+        setDepartment(names[0]);
+      }
+    } catch (error) {
+      console.error('fetchDepartments error', error);
+    }
+  };
+
   useEffect(() => {
     fetchRequisitions();
     fetchBalances();
+    fetchDepartments();
   }, []);
 
   useEffect(() => {
@@ -438,7 +479,16 @@ export default function InventoryRequisitionsPage() {
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
             <label className="text-sm font-medium text-slate-700">
               หน่วยงานที่ขอ
-              <input value={department} onChange={(e) => setDepartment(e.target.value)} className="mt-2 w-full rounded-xl border border-slate-300 px-3 py-2 focus:border-blue-500 focus:ring-1 focus:ring-blue-500" />
+              <select
+                value={department}
+                onChange={(e) => setDepartment(e.target.value)}
+                className="mt-2 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+              >
+                <option value="">เลือกหน่วยงาน</option>
+                {departmentOptions.map((dept) => (
+                  <option key={dept} value={dept}>{dept}</option>
+                ))}
+              </select>
             </label>
             <label className="text-sm font-medium text-slate-700">
               ผู้ขอ
@@ -596,6 +646,43 @@ export default function InventoryRequisitionsPage() {
         </div>
 
         <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
+          <div className="border-b border-slate-200 bg-slate-50 px-4 py-3">
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => setActiveTab('pending_approval')}
+                className={`rounded-full px-4 py-2 text-sm font-medium transition ${
+                  activeTab === 'pending_approval'
+                    ? 'bg-blue-600 text-white shadow-sm'
+                    : 'bg-white text-slate-600 hover:bg-slate-100'
+                }`}
+              >
+                {`รออนุมัติ (${tabCounts.pending_approval})`}
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveTab('cancelled')}
+                className={`rounded-full px-4 py-2 text-sm font-medium transition ${
+                  activeTab === 'cancelled'
+                    ? 'bg-blue-600 text-white shadow-sm'
+                    : 'bg-white text-slate-600 hover:bg-slate-100'
+                }`}
+              >
+                {`ยกเลิก (${tabCounts.cancelled})`}
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveTab('pending_issue')}
+                className={`rounded-full px-4 py-2 text-sm font-medium transition ${
+                  activeTab === 'pending_issue'
+                    ? 'bg-blue-600 text-white shadow-sm'
+                    : 'bg-white text-slate-600 hover:bg-slate-100'
+                }`}
+              >
+                {`รอจ่าย (${tabCounts.pending_issue})`}
+              </button>
+            </div>
+          </div>
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-slate-200 text-sm">
               <thead className="bg-slate-100 text-left text-xs uppercase tracking-wider text-slate-500">
@@ -615,12 +702,12 @@ export default function InventoryRequisitionsPage() {
                   <tr>
                     <td colSpan={8} className="px-4 py-10 text-center text-slate-500">กำลังโหลดข้อมูล...</td>
                   </tr>
-                ) : items.length === 0 ? (
+                ) : filteredItems.length === 0 ? (
                   <tr>
-                    <td colSpan={8} className="px-4 py-10 text-center text-slate-500">ยังไม่มีคำขอเบิกในระบบ</td>
+                    <td colSpan={8} className="px-4 py-10 text-center text-slate-500">ไม่พบรายการในแท็บนี้</td>
                   </tr>
                 ) : (
-                  items.flatMap((item) => {
+                  filteredItems.flatMap((item) => {
                     const isExpanded = expanded_requisition_id === item.id;
                     const canApprove = ['DRAFT', 'SUBMITTED', 'PARTIALLY_APPROVED'].includes(item.status);
                     const canCancel = !['ISSUED', 'CANCELLED', 'REJECTED'].includes(item.status);
@@ -686,7 +773,6 @@ export default function InventoryRequisitionsPage() {
                                           <th className="px-3 py-2 text-right">ขอเบิก</th>
                                           <th className="px-3 py-2 text-right">อนุมัติ</th>
                                           <th className="px-3 py-2 text-right">จ่ายแล้ว</th>
-                                          <th className="px-3 py-2 text-right">พร้อมใช้</th>
                                           <th className="px-3 py-2">สถานะรายการ</th>
                                         </tr>
                                       </thead>
@@ -700,7 +786,6 @@ export default function InventoryRequisitionsPage() {
                                             <td className="px-3 py-2 text-right">{formatNumber(Number(line.requested_qty || 0))}</td>
                                             <td className="px-3 py-2 text-right">{formatNumber(Number(line.approved_qty || 0))}</td>
                                             <td className="px-3 py-2 text-right">{formatNumber(Number(line.issued_qty || 0))}</td>
-                                            <td className="px-3 py-2 text-right">{formatNumber(Number(line.available_qty || 0))}</td>
                                             <td className="px-3 py-2 text-slate-600">{line.line_status}</td>
                                           </tr>
                                         ))}
