@@ -1,0 +1,127 @@
+- generic [active] [ref=e1]:
+  - navigation [ref=e2]:
+    - generic [ref=e4]:
+      - link "Hospital ERP" [ref=e5] [cursor=pointer]:
+        - /url: /
+        - img [ref=e6]
+        - generic [ref=e10]: Hospital ERP
+      - generic [ref=e11]:
+        - link "หน้าหลัก" [ref=e12] [cursor=pointer]:
+          - /url: /
+          - img [ref=e13]
+          - text: หน้าหลัก
+        - link "แผนการใช้" [ref=e16] [cursor=pointer]:
+          - /url: /surveys
+          - img [ref=e17]
+          - text: แผนการใช้
+        - link "แผนจัดซื้อ" [ref=e20] [cursor=pointer]:
+          - /url: /purchase-plans
+          - img [ref=e21]
+          - text: แผนจัดซื้อ
+        - link "อนุมัติจัดซื้อ" [ref=e23] [cursor=pointer]:
+          - /url: /purchase-approvals
+          - img [ref=e24]
+          - text: อนุมัติจัดซื้อ
+        - link "ระบบคลังสินค้า" [ref=e27] [cursor=pointer]:
+          - /url: /inventory
+          - img [ref=e28]
+          - text: ระบบคลังสินค้า
+        - link "Gemini AI" [ref=e31] [cursor=pointer]:
+          - /url: /gemini
+          - img [ref=e32]
+          - text: Gemini AI
+        - button "ตั้งค่า ▾" [ref=e36]:
+          - img [ref=e37]
+          - text: ตั้งค่า
+          - generic [ref=e40]: ▾
+  - generic [ref=e43]:
+    - generic [ref=e45]:
+      - generic [ref=e46]:
+        - paragraph [ref=e47]: Warehouse Management
+        - heading "ระบบคลังสินค้า" [level=1] [ref=e48]
+        - paragraph [ref=e49]: ศูนย์กลางการบริหารรับเข้า เบิกจ่าย และติดตามความเคลื่อนไหวสินค้าแบบครบถ้วนบนฐานข้อมูลกลาง
+      - generic [ref=e50]:
+        - paragraph [ref=e51]: มูลค่าสินค้าคงเหลือรวม
+        - paragraph [ref=e52]: ฿26,640
+        - paragraph [ref=e53]: จำนวนคงเหลือรวม 309 หน่วย
+    - generic [ref=e54]:
+      - generic [ref=e55]:
+        - paragraph [ref=e56]: รายการคงคลัง
+        - paragraph [ref=e57]: "4"
+        - paragraph [ref=e58]: จำนวนสินค้าและ lot ที่มีการเคลื่อนไหวในระบบคลังสินค้า
+      - generic [ref=e59]:
+        - paragraph [ref=e60]: รอรับเข้าจาก PurchaseApproval
+        - paragraph [ref=e61]: 1,214
+        - paragraph [ref=e62]: รายการที่ยังรับเข้าไม่ครบ
+      - generic [ref=e63]:
+        - paragraph [ref=e64]: เอกสารขอเบิก
+        - paragraph [ref=e65]: "3"
+        - paragraph [ref=e66]: จำนวนคำขอเบิกที่บันทึกในระบบคลังสินค้า
+      - generic [ref=e67]:
+        - paragraph [ref=e68]: เอกสารจ่าย
+        - paragraph [ref=e69]: "1"
+        - paragraph [ref=e70]: จำนวนเอกสารจ่ายสินค้าที่บันทึกเรียบร้อยแล้ว
+    - generic [ref=e71]:
+      - link "รับเข้าจากอนุมัติจัดซื้อ ตรวจสอบรายการที่อนุมัติแล้วและบันทึกรับสินค้าเข้าคลังจากเอกสารจัดซื้อ เข้าสู่หน้าจัดการ" [ref=e72] [cursor=pointer]:
+        - /url: /inventory/receipts
+        - generic [ref=e73]:
+          - img [ref=e75]
+          - generic [ref=e79]:
+            - generic [ref=e80]:
+              - heading "รับเข้าจากอนุมัติจัดซื้อ" [level=2] [ref=e81]
+              - img [ref=e82]
+            - paragraph [ref=e88]: ตรวจสอบรายการที่อนุมัติแล้วและบันทึกรับสินค้าเข้าคลังจากเอกสารจัดซื้อ
+            - generic [ref=e89]:
+              - text: เข้าสู่หน้าจัดการ
+              - img [ref=e90]
+      - link "คงคลังปัจจุบัน ติดตามยอดคงเหลือ พร้อมใช้ จองใช้ และต้นทุนเฉลี่ยของสินค้าแต่ละรายการ เข้าสู่หน้าจัดการ" [ref=e93] [cursor=pointer]:
+        - /url: /inventory/stock
+        - generic [ref=e94]:
+          - img [ref=e96]
+          - generic [ref=e106]:
+            - generic [ref=e107]:
+              - heading "คงคลังปัจจุบัน" [level=2] [ref=e108]
+              - img [ref=e109]
+            - paragraph [ref=e115]: ติดตามยอดคงเหลือ พร้อมใช้ จองใช้ และต้นทุนเฉลี่ยของสินค้าแต่ละรายการ
+            - generic [ref=e116]:
+              - text: เข้าสู่หน้าจัดการ
+              - img [ref=e117]
+      - link "รายการขอเบิก จัดทำคำขอเบิกและติดตามสถานะอนุมัติเพื่อเตรียมการจ่ายสินค้า เข้าสู่หน้าจัดการ" [ref=e120] [cursor=pointer]:
+        - /url: /inventory/requisitions
+        - generic [ref=e121]:
+          - img [ref=e123]
+          - generic [ref=e128]:
+            - generic [ref=e129]:
+              - heading "รายการขอเบิก" [level=2] [ref=e130]
+              - img [ref=e131]
+            - paragraph [ref=e137]: จัดทำคำขอเบิกและติดตามสถานะอนุมัติเพื่อเตรียมการจ่ายสินค้า
+            - generic [ref=e138]:
+              - text: เข้าสู่หน้าจัดการ
+              - img [ref=e139]
+      - link "รายการจ่าย บันทึกและตรวจสอบเอกสารจ่ายสินค้าจากคำขอเบิกที่ได้รับอนุมัติแล้ว เข้าสู่หน้าจัดการ" [ref=e142] [cursor=pointer]:
+        - /url: /inventory/issues
+        - generic [ref=e143]:
+          - img [ref=e145]
+          - generic [ref=e148]:
+            - generic [ref=e149]:
+              - heading "รายการจ่าย" [level=2] [ref=e150]
+              - img [ref=e151]
+            - paragraph [ref=e157]: บันทึกและตรวจสอบเอกสารจ่ายสินค้าจากคำขอเบิกที่ได้รับอนุมัติแล้ว
+            - generic [ref=e158]:
+              - text: เข้าสู่หน้าจัดการ
+              - img [ref=e159]
+      - link "ประวัติการเคลื่อนไหวสินค้า ตรวจสอบประวัติการรับเข้า จ่ายออก และยอดคงเหลือหลังรายการในแต่ละเอกสาร เข้าสู่หน้าจัดการ" [ref=e162] [cursor=pointer]:
+        - /url: /inventory/movements
+        - generic [ref=e163]:
+          - img [ref=e165]
+          - generic [ref=e171]:
+            - generic [ref=e172]:
+              - heading "ประวัติการเคลื่อนไหวสินค้า" [level=2] [ref=e173]
+              - img [ref=e174]
+            - paragraph [ref=e180]: ตรวจสอบประวัติการรับเข้า จ่ายออก และยอดคงเหลือหลังรายการในแต่ละเอกสาร
+            - generic [ref=e181]:
+              - text: เข้าสู่หน้าจัดการ
+              - img [ref=e182]
+  - button "Open Next.js Dev Tools" [ref=e190] [cursor=pointer]:
+    - img [ref=e191]
+  - alert [ref=e194]

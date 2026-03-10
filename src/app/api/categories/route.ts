@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { pgQuery } from '@/lib/pg';
 import { apiSuccess, apiError } from '@/lib/api-response';
+import { cacheGet, cacheSet, cacheDelByPattern } from '@/lib/redis';
 import { validateRequest, validateQuery } from '@/lib/validation/validate';
 import { createCategorySchema, categoryQuerySchema } from '@/lib/validation/schemas';
 
@@ -14,35 +15,58 @@ export async function GET(request: NextRequest) {
       return queryValidation.error;
     }
 
-    const { category, type, subtype, page, pageSize } = queryValidation.data as any;
+    const { category, type, subtype, page, page_size: pageSize } = queryValidation.data as any;
 
-    const where: any = {};
-    if (category) where.category = { contains: category, mode: 'insensitive' };
-    if (type) where.type = { contains: type, mode: 'insensitive' };
-    if (subtype) where.subtype = { contains: subtype, mode: 'insensitive' };
+    const whereClauses: string[] = [];
+    const params: unknown[] = [];
 
-    // If no pagination params, return all categories (backwards compatible)
+    if (category) {
+      params.push(`%${category}%`);
+      whereClauses.push(`category ILIKE $${params.length}`);
+    }
+    if (type) {
+      params.push(`%${type}%`);
+      whereClauses.push(`type ILIKE $${params.length}`);
+    }
+    if (subtype) {
+      params.push(`%${subtype}%`);
+      whereClauses.push(`subtype ILIKE $${params.length}`);
+    }
+
+    const whereSql = whereClauses.length ? `WHERE ${whereClauses.join(' AND ')}` : '';
+    const baseSelect = 'SELECT id, category_code, category, type, subtype FROM public.category';
+    const cacheKeyAll = `erp:categories:list:all:${JSON.stringify(params)}`;
     if (!page || !pageSize) {
-      const categories = await prisma.category.findMany({
-        where,
-        orderBy: { id: 'asc' }
-      });
-      return apiSuccess(categories, undefined, categories.length);
+      const cachedAll = await cacheGet<any>(cacheKeyAll);
+      if (cachedAll) return apiSuccess(cachedAll.rows, undefined, cachedAll.rows.length);
+
+      const categoriesResult = await pgQuery(`${baseSelect} ${whereSql} ORDER BY id ASC`, params);
+      await cacheSet(cacheKeyAll, { rows: categoriesResult.rows }, 3600);
+      return apiSuccess(categoriesResult.rows, undefined, categoriesResult.rows.length);
     }
 
     const skip = (page - 1) * pageSize;
 
-    const [totalCount, categories] = await Promise.all([
-      prisma.category.count({ where }),
-      prisma.category.findMany({
-        where,
-        orderBy: { id: 'asc' },
-        skip,
-        take: pageSize
-      })
+    // --- Redis Caching Logic ---
+    const cacheKey = `erp:categories:list:${JSON.stringify({ ...queryValidation.data, page, page_size: pageSize })}`;
+    const cached = await cacheGet<any>(cacheKey);
+    if (cached) {
+      return apiSuccess(cached.items, undefined, cached.totalCount, 200, { page, page_size: pageSize });
+    }
+
+    const [totalCountResult, categoriesResult] = await Promise.all([
+      pgQuery(`SELECT COUNT(*)::int AS count FROM public.category ${whereSql}`, params),
+      pgQuery(`${baseSelect} ${whereSql} ORDER BY id ASC LIMIT $${params.length + 1} OFFSET $${params.length + 2}`, [...params, pageSize, skip]),
     ]);
-    
-    return apiSuccess(categories, undefined, totalCount, 200, { page, pageSize });
+
+    const result = {
+      items: categoriesResult.rows,
+      totalCount: totalCountResult.rows[0]?.count || 0
+    };
+
+    await cacheSet(cacheKey, result, 3600); // 1 hour
+
+    return apiSuccess(result.items, undefined, result.totalCount, 200, { page, page_size: pageSize });
   } catch (error) {
     console.error('Error fetching categories:', error);
     return apiError('Failed to fetch categories');
@@ -53,18 +77,22 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    
-    // Validate request body
+
     const validation = await validateRequest(createCategorySchema, body);
     if (!validation.success) {
       return validation.error;
     }
 
-    const newCategory = await prisma.category.create({
-      data: validation.data as any
-    });
+    const result = await pgQuery(
+      `INSERT INTO public.category (category_code, category, type, subtype)
+       VALUES ($1, $2, $3, $4)
+       RETURNING id, category_code, category, type, subtype`,
+      [validation.data.category_code, validation.data.category, validation.data.type, validation.data.subtype]
+    );
 
-    return apiSuccess(newCategory, 'Category created successfully', undefined, 201);
+    await cacheDelByPattern('erp:categories:list:*');
+
+    return apiSuccess(result.rows[0], 'Category created successfully', undefined, 201);
   } catch (error) {
     console.error('Error creating category:', error);
     return apiError('Failed to create category');

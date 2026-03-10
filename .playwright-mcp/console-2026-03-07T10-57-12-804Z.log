@@ -1,0 +1,150 @@
+[   89230ms] [ERROR] ./src/app/inventory/issues/page.tsx
+Error:   × You're importing a component that needs `useEffect`. This React Hook only works in a Client Component. To fix, mark the file (or its parent) with the `"use client"` directive.
+  │
+  │  Learn more: https://nextjs.org/docs/app/api-reference/directives/use-client
+  │
+
+   ╭─[E:\NextJS\erp\src\app\inventory\issues\page.tsx:1:1]
+ 1 │ import { useEffect, useState } from 'react';
+   ·          ─────────
+ 2 │ import Link from 'next/link';
+ 3 │ 
+ 4 │ type RequisitionItemRow = {
+   ╰────
+  × You're importing a component that needs `useState`. This React Hook only works in a Client Component. To fix, mark the file (or its parent) with the `"use client"` directive.
+  │
+  │  Learn more: https://nextjs.org/docs/app/api-reference/directives/use-client
+  │
+
+   ╭─[E:\NextJS\erp\src\app\inventory\issues\page.tsx:1:1]
+ 1 │ import { useEffect, useState } from 'react';
+   ·                     ────────
+ 2 │ import Link from 'next/link';
+ 3 │ 
+ 4 │ type RequisitionItemRow = {
+   ╰────
+
+Import trace for requested module:
+./src/app/inventory/issues/page.tsx @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/next-devtools/userspace/app/errors/intercept-console-error.js:56
+[   89799ms] [ERROR] ./src/app/inventory/issues/page.tsx
+Error:   × You're importing a component that needs `useEffect`. This React Hook only works in a Client Component. To fix, mark the file (or its parent) with the `"use client"` directive.
+  │
+  │  Learn more: https://nextjs.org/docs/app/api-reference/directives/use-client
+  │
+
+   ╭─[E:\NextJS\erp\src\app\inventory\issues\page.tsx:1:1]
+ 1 │ import { useEffect, useState } from 'react';
+   ·          ─────────
+ 2 │ import Link from 'next/link';
+ 3 │ 
+ 4 │ type RequisitionItemRow = {
+   ╰────
+  × You're importing a component that needs `useState`. This React Hook only works in a Client Component. To fix, mark the file (or its parent) with the `"use client"` directive.
+  │
+  │  Learn more: https://nextjs.org/docs/app/api-reference/directives/use-client
+  │
+
+   ╭─[E:\NextJS\erp\src\app\inventory\issues\page.tsx:1:1]
+ 1 │ import { useEffect, useState } from 'react';
+   ·                     ────────
+ 2 │ import Link from 'next/link';
+ 3 │ 
+ 4 │ type RequisitionItemRow = {
+   ╰────
+
+Import trace for requested module:
+./src/app/inventory/issues/page.tsx @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/next-devtools/userspace/app/errors/intercept-console-error.js:56
+[   91016ms] [ERROR] ./src/app/inventory/issues/page.tsx
+Error:   × You're importing a component that needs `useEffect`. This React Hook only works in a Client Component. To fix, mark the file (or its parent) with the `"use client"` directive.
+  │
+  │  Learn more: https://nextjs.org/docs/app/api-reference/directives/use-client
+  │
+
+   ╭─[E:\NextJS\erp\src\app\inventory\issues\page.tsx:1:1]
+ 1 │ import { useEffect, useState } from 'react';
+   ·          ─────────
+ 2 │ import Link from 'next/link';
+ 3 │ 
+ 4 │ type RequisitionItemRow = {
+   ╰────
+  × You're importing a component that needs `useState`. This React Hook only works in a Client Component. To fix, mark the file (or its parent) with the `"use client"` directive.
+  │
+  │  Learn more: https://nextjs.org/docs/app/api-reference/directives/use-client
+  │
+
+   ╭─[E:\NextJS\erp\src\app\inventory\issues\page.tsx:1:1]
+ 1 │ import { useEffect, useState } from 'react';
+   ·                     ────────
+ 2 │ import Link from 'next/link';
+ 3 │ 
+ 4 │ type RequisitionItemRow = {
+   ╰────
+
+Import trace for requested module:
+./src/app/inventory/issues/page.tsx @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/next-devtools/userspace/app/errors/intercept-console-error.js:56
+[   91225ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:3000/inventory/issues?requisitionId=4&_rsc=qw4bs:0
+[   91254ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:3000/inventory/issues?requisitionId=4&_rsc=xso1a:0
+[   91281ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:3000/inventory/issues?requisitionId=4&_rsc=xso1a:0
+[   91312ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:3000/inventory/issues?requisitionId=4:0
+[   91633ms] ModuleBuildError: Module build failed (from ./node_modules/next/dist/build/webpack/loaders/next-swc-loader.js):
+Error:   × You're importing a component that needs `useEffect`. This React Hook only works in a Client Component. To fix, mark the file (or its parent) with the `"use client"` directive.
+  │
+  │  Learn more: https://nextjs.org/docs/app/api-reference/directives/use-client
+  │
+
+   ╭─[E:\NextJS\erp\src\app\inventory\issues\page.tsx:1:1]
+ 1 │ import { useEffect, useState } from 'react';
+   ·          ─────────
+ 2 │ import Link from 'next/link';
+ 3 │ 
+ 4 │ type RequisitionItemRow = {
+   ╰────
+  × You're importing a component that needs `useState`. This React Hook only works in a Client Component. To fix, mark the file (or its parent) with the `"use client"` directive.
+  │
+  │  Learn more: https://nextjs.org/docs/app/api-reference/directives/use-client
+  │
+
+   ╭─[E:\NextJS\erp\src\app\inventory\issues\page.tsx:1:1]
+ 1 │ import { useEffect, useState } from 'react';
+   ·                     ────────
+ 2 │ import Link from 'next/link';
+ 3 │ 
+ 4 │ type RequisitionItemRow = {
+   ╰────
+
+    at processResult (file://E:\NextJS\erp\node_modules\next\dist\compiled\webpack\bundle5.js:29:407086)
+    at <unknown> (file://E:\NextJS\erp\node_modules\next\dist\compiled\webpack\bundle5.js:29:408881)
+    at <unknown> (file://E:\NextJS\erp\node_modules\next\dist\compiled\loader-runner\LoaderRunner.js:1:8645)
+    at <unknown> (file://E:\NextJS\erp\node_modules\next\dist\compiled\loader-runner\LoaderRunner.js:1:5019)
+    at r.callback (file://E:\NextJS\erp\node_modules\next\dist\compiled\loader-runner\LoaderRunner.js:1:4039)
+[   91635ms] [ERROR] ./src/app/inventory/issues/page.tsx
+Error:   × You're importing a component that needs `useEffect`. This React Hook only works in a Client Component. To fix, mark the file (or its parent) with the `"use client"` directive.
+  │
+  │  Learn more: https://nextjs.org/docs/app/api-reference/directives/use-client
+  │
+
+   ╭─[E:\NextJS\erp\src\app\inventory\issues\page.tsx:1:1]
+ 1 │ import { useEffect, useState } from 'react';
+   ·          ─────────
+ 2 │ import Link from 'next/link';
+ 3 │ 
+ 4 │ type RequisitionItemRow = {
+   ╰────
+  × You're importing a component that needs `useState`. This React Hook only works in a Client Component. To fix, mark the file (or its parent) with the `"use client"` directive.
+  │
+  │  Learn more: https://nextjs.org/docs/app/api-reference/directives/use-client
+  │
+
+   ╭─[E:\NextJS\erp\src\app\inventory\issues\page.tsx:1:1]
+ 1 │ import { useEffect, useState } from 'react';
+   ·                     ────────
+ 2 │ import Link from 'next/link';
+ 3 │ 
+ 4 │ type RequisitionItemRow = {
+   ╰──── @ webpack-internal:///(pages-dir-browser)/./node_modules/next/dist/next-devtools/userspace/pages/pages-dev-overlay-setup.js:76
+[  150127ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:3000/_next/static/webpack/d109bc4a688d1ac2.webpack.hot-update.json:0
+[  150127ms] [WARNING] [Fast Refresh] performing full reload because your application had an unrecoverable error @ webpack-internal:///(pages-dir-browser)/./node_modules/next/dist/client/dev/hot-reloader/pages/hot-reloader-pages.js:347
+[  151599ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:3000/_next/static/webpack/d109bc4a688d1ac2.webpack.hot-update.json:0
+[  151600ms] [WARNING] [Fast Refresh] performing full reload because your application had an unrecoverable error @ webpack-internal:///(pages-dir-browser)/./node_modules/next/dist/client/dev/hot-reloader/pages/hot-reloader-pages.js:347
+[  151961ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:3000/_next/static/webpack/d109bc4a688d1ac2.webpack.hot-update.json:0
+[  151961ms] [WARNING] [Fast Refresh] performing full reload because your application had an unrecoverable error @ webpack-internal:///(pages-dir-browser)/./node_modules/next/dist/client/dev/hot-reloader/pages/hot-reloader-pages.js:347

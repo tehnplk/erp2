@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { pgQuery } from '@/lib/pg';
+import { cacheDel, cacheGet, cacheSet, cacheDelByPattern } from '@/lib/redis';
 
 // GET /api/departments/[id] - Get a specific department
 export async function GET(
@@ -8,7 +9,7 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
-    const numericId = parseInt(id);
+    const numericId = parseInt(id, 10);
     
     if (isNaN(numericId)) {
       return NextResponse.json(
@@ -17,9 +18,14 @@ export async function GET(
       );
     }
 
-    const department = await prisma.department.findUnique({
-      where: { id: numericId }
-    });
+    const cacheKey = `erp:departments:detail:${numericId}`;
+    const cached = await cacheGet<any>(cacheKey);
+    if (cached) {
+      return NextResponse.json(cached);
+    }
+
+    const result = await pgQuery('SELECT id, name FROM public.department WHERE id = $1 LIMIT 1', [numericId]);
+    const department = result.rows[0];
 
     if (!department) {
       return NextResponse.json(
@@ -27,6 +33,8 @@ export async function GET(
         { status: 404 }
       );
     }
+
+    await cacheSet(cacheKey, department, 3600);
 
     return NextResponse.json(department);
   } catch (error) {
@@ -45,7 +53,7 @@ export async function PUT(
 ) {
   try {
     const { id } = await params;
-    const numericId = parseInt(id);
+    const numericId = parseInt(id, 10);
     
     if (isNaN(numericId)) {
       return NextResponse.json(
@@ -64,26 +72,23 @@ export async function PUT(
       );
     }
 
-    // Check if department exists
-    const existingDepartment = await prisma.department.findUnique({
-      where: { id: numericId }
-    });
+    const existingResult = await pgQuery('SELECT id FROM public.department WHERE id = $1 LIMIT 1', [numericId]);
 
-    if (!existingDepartment) {
+    if (existingResult.rows.length === 0) {
       return NextResponse.json(
         { error: 'Department not found' },
         { status: 404 }
       );
     }
 
-    const updatedDepartment = await prisma.department.update({
-      where: { id: numericId },
-      data: {
-        name
-      }
-    });
+    const updatedResult = await pgQuery(
+      'UPDATE public.department SET name = $1 WHERE id = $2 RETURNING id, name',
+      [name, numericId]
+    );
 
-    return NextResponse.json(updatedDepartment);
+    await cacheDelByPattern('erp:departments:list:*');
+    await cacheDel(`erp:departments:detail:${numericId}`);
+    return NextResponse.json(updatedResult.rows[0]);
   } catch (error) {
     console.error('Error updating department:', error);
     return NextResponse.json(
@@ -100,7 +105,7 @@ export async function DELETE(
 ) {
   try {
     const { id } = await params;
-    const numericId = parseInt(id);
+    const numericId = parseInt(id, 10);
     
     if (isNaN(numericId)) {
       return NextResponse.json(
@@ -109,21 +114,18 @@ export async function DELETE(
       );
     }
 
-    // Check if department exists
-    const existingDepartment = await prisma.department.findUnique({
-      where: { id: numericId }
-    });
+    const existingResult = await pgQuery('SELECT id FROM public.department WHERE id = $1 LIMIT 1', [numericId]);
 
-    if (!existingDepartment) {
+    if (existingResult.rows.length === 0) {
       return NextResponse.json(
         { error: 'Department not found' },
         { status: 404 }
       );
     }
 
-    await prisma.department.delete({
-      where: { id: numericId }
-    });
+    await pgQuery('DELETE FROM public.department WHERE id = $1', [numericId]);
+    await cacheDelByPattern('erp:departments:list:*');
+    await cacheDel(`erp:departments:detail:${numericId}`);
 
     return NextResponse.json(
       { message: 'Department deleted successfully' },

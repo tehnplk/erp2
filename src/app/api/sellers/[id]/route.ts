@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { pgQuery } from '@/lib/pg';
 import { apiSuccess, apiError, apiNotFound } from '@/lib/api-response';
+import { cacheDelByPattern } from '@/lib/redis';
 import { validateRequest } from '@/lib/validation/validate';
 import { idParamSchema, updateSellerSchema } from '@/lib/validation/schemas';
 
@@ -19,9 +20,11 @@ export async function GET(
     
     const { id } = idValidation.data;
 
-    const seller = await prisma.seller.findUnique({
-      where: { id }
-    });
+    const result = await pgQuery(
+      'SELECT id, code, prefix, name, business, address, phone, fax, mobile FROM public.seller WHERE id = $1 LIMIT 1',
+      [id]
+    );
+    const seller = result.rows[0];
 
     if (!seller) {
       return apiNotFound('Seller');
@@ -57,17 +60,48 @@ export async function PUT(
       return validation.error;
     }
 
-    const updatedSeller = await prisma.seller.update({
-      where: { id },
-      data: validation.data as any
-    });
-
-    return apiSuccess(updatedSeller, 'Seller updated successfully');
-  } catch (error: any) {
-    console.error('Error updating seller:', error);
-    if (error.code === 'P2025') {
+    const existingResult = await pgQuery('SELECT id FROM public.seller WHERE id = $1 LIMIT 1', [id]);
+    if (existingResult.rows.length === 0) {
       return apiNotFound('Seller');
     }
+
+    const columnMap: Record<string, string> = {
+      code: 'code',
+      prefix: 'prefix',
+      name: 'name',
+      business: 'business',
+      address: 'address',
+      phone: 'phone',
+      fax: 'fax',
+      mobile: 'mobile',
+    };
+    const assignments: string[] = [];
+    const values: unknown[] = [];
+
+    Object.entries(validation.data as Record<string, unknown>).forEach(([key, value]) => {
+      const column = columnMap[key];
+      if (!column) return;
+      values.push(value ?? null);
+      assignments.push(`${column} = $${values.length}`);
+    });
+
+    if (assignments.length === 0) {
+      const unchangedResult = await pgQuery('SELECT id, code, prefix, name, business, address, phone, fax, mobile FROM public.seller WHERE id = $1 LIMIT 1', [id]);
+      return apiSuccess(unchangedResult.rows[0], 'Seller updated successfully');
+    }
+
+    values.push(id);
+    const updatedResult = await pgQuery(
+      `UPDATE public.seller SET ${assignments.join(', ')} WHERE id = $${values.length}
+       RETURNING id, code, prefix, name, business, address, phone, fax, mobile`,
+      values
+    );
+
+    await cacheDelByPattern('erp:sellers:list:*');
+
+    return apiSuccess(updatedResult.rows[0], 'Seller updated successfully');
+  } catch (error) {
+    console.error('Error updating seller:', error);
     return apiError('Failed to update seller');
   }
 }
@@ -87,16 +121,17 @@ export async function DELETE(
     
     const { id } = idValidation.data;
 
-    await prisma.seller.delete({
-      where: { id }
-    });
-
-    return apiSuccess(null, 'Seller deleted successfully');
-  } catch (error: any) {
-    console.error('Error deleting seller:', error);
-    if (error.code === 'P2025') {
+    const existingResult = await pgQuery('SELECT id FROM public.seller WHERE id = $1 LIMIT 1', [id]);
+    if (existingResult.rows.length === 0) {
       return apiNotFound('Seller');
     }
+
+    await pgQuery('DELETE FROM public.seller WHERE id = $1', [id]);
+    await cacheDelByPattern('erp:sellers:list:*');
+
+    return apiSuccess(null, 'Seller deleted successfully');
+  } catch (error) {
+    console.error('Error deleting seller:', error);
     return apiError('Failed to delete seller');
   }
 }

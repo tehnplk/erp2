@@ -1,0 +1,1800 @@
+[  905186ms] [ERROR] ./src/app/api/inventory/requisitions/route.ts
+Module parse failed: Identifier 'page' has already been declared (47:81)
+|             });
+|         }
+>         const { requisitionNo, requestingDepartment, status, orderBy, sortOrder, page = 1, pageSize = 20 } = queryValidation.data;
+|         const whereClauses = [];
+|         const params = [];
+
+Import trace for requested module:
+./src/app/api/inventory/requisitions/route.ts @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/next-devtools/userspace/app/errors/intercept-console-error.js:56
+[  906650ms] [ERROR] ./src/app/api/inventory/requisitions/route.ts
+Module parse failed: Identifier 'page' has already been declared (47:81)
+|             });
+|         }
+>         const { requisitionNo, requestingDepartment, status, orderBy, sortOrder, page = 1, pageSize = 20 } = queryValidation.data;
+|         const whereClauses = [];
+|         const params = [];
+
+Import trace for requested module:
+./src/app/api/inventory/requisitions/route.ts @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/next-devtools/userspace/app/errors/intercept-console-error.js:56
+[  907404ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:3000/inventory/requisitions?_rsc=xso1a:0
+[  908810ms] [ERROR] ./src/app/api/inventory/requisitions/route.ts
+Module parse failed: Identifier 'page' has already been declared (47:81)
+|             });
+|         }
+>         const { requisitionNo, requestingDepartment, status, orderBy, sortOrder, page = 1, pageSize = 20 } = queryValidation.data;
+|         const whereClauses = [];
+|         const params = [];
+
+Import trace for requested module:
+./src/app/api/inventory/requisitions/route.ts @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/next-devtools/userspace/app/errors/intercept-console-error.js:56
+[  909538ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:3000/inventory/requisitions?_rsc=xso1a:0
+[  910424ms] [ERROR] ./src/app/api/inventory/requisitions/route.ts
+Module parse failed: Identifier 'page' has already been declared (47:81)
+|             });
+|         }
+>         const { requisitionNo, requestingDepartment, status, orderBy, sortOrder, page = 1, pageSize = 20 } = queryValidation.data;
+|         const whereClauses = [];
+|         const params = [];
+
+Import trace for requested module:
+./src/app/api/inventory/requisitions/route.ts @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/next-devtools/userspace/app/errors/intercept-console-error.js:56
+[  911153ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:3000/inventory/requisitions?_rsc=xso1a:0
+[  912013ms] [ERROR] ./src/app/api/inventory/requisitions/route.ts
+Module parse failed: Identifier 'page' has already been declared (47:81)
+|             });
+|         }
+>         const { requisitionNo, requestingDepartment, status, orderBy, sortOrder, page = 1, pageSize = 20 } = queryValidation.data;
+|         const whereClauses = [];
+|         const params = [];
+
+Import trace for requested module:
+./src/app/api/inventory/requisitions/route.ts @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/next-devtools/userspace/app/errors/intercept-console-error.js:56
+[  912675ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:3000/inventory/requisitions?_rsc=xso1a:0
+[  913585ms] [ERROR] ./src/app/api/inventory/requisitions/route.ts
+Module parse failed: Identifier 'page' has already been declared (47:81)
+|             });
+|         }
+>         const { requisitionNo, requestingDepartment, status, orderBy, sortOrder, page = 1, pageSize = 20 } = queryValidation.data;
+|         const whereClauses = [];
+|         const params = [];
+
+Import trace for requested module:
+./src/app/api/inventory/requisitions/route.ts @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/next-devtools/userspace/app/errors/intercept-console-error.js:56
+[  914272ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:3000/inventory/requisitions?_rsc=xso1a:0
+[  915143ms] [ERROR] ./src/app/api/inventory/requisitions/route.ts
+Module parse failed: Identifier 'page' has already been declared (47:81)
+|             });
+|         }
+>         const { requisitionNo, requestingDepartment, status, orderBy, sortOrder, page = 1, pageSize = 20 } = queryValidation.data;
+|         const whereClauses = [];
+|         const params = [];
+
+Import trace for requested module:
+./src/app/api/inventory/requisitions/route.ts @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/next-devtools/userspace/app/errors/intercept-console-error.js:56
+[  915877ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:3000/inventory/requisitions?_rsc=xso1a:0
+[  916761ms] [ERROR] ./src/app/api/inventory/requisitions/route.ts
+Module parse failed: Identifier 'page' has already been declared (47:81)
+|             });
+|         }
+>         const { requisitionNo, requestingDepartment, status, orderBy, sortOrder, page = 1, pageSize = 20 } = queryValidation.data;
+|         const whereClauses = [];
+|         const params = [];
+
+Import trace for requested module:
+./src/app/api/inventory/requisitions/route.ts @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/next-devtools/userspace/app/errors/intercept-console-error.js:56
+[  917401ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:3000/inventory/requisitions?_rsc=xso1a:0
+[  918858ms] [ERROR] ./src/app/api/inventory/requisitions/route.ts
+Module parse failed: Identifier 'page' has already been declared (47:81)
+|             });
+|         }
+>         const { requisitionNo, requestingDepartment, status, orderBy, sortOrder, page = 1, pageSize = 20 } = queryValidation.data;
+|         const whereClauses = [];
+|         const params = [];
+
+Import trace for requested module:
+./src/app/api/inventory/requisitions/route.ts @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/next-devtools/userspace/app/errors/intercept-console-error.js:56
+[  919528ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:3000/inventory/requisitions?_rsc=xso1a:0
+[  920420ms] [ERROR] ./src/app/api/inventory/requisitions/route.ts
+Module parse failed: Identifier 'page' has already been declared (47:81)
+|             });
+|         }
+>         const { requisitionNo, requestingDepartment, status, orderBy, sortOrder, page = 1, pageSize = 20 } = queryValidation.data;
+|         const whereClauses = [];
+|         const params = [];
+
+Import trace for requested module:
+./src/app/api/inventory/requisitions/route.ts @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/next-devtools/userspace/app/errors/intercept-console-error.js:56
+[  921077ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:3000/inventory/requisitions?_rsc=xso1a:0
+[  922007ms] [ERROR] ./src/app/api/inventory/requisitions/route.ts
+Module parse failed: Identifier 'page' has already been declared (47:81)
+|             });
+|         }
+>         const { requisitionNo, requestingDepartment, status, orderBy, sortOrder, page = 1, pageSize = 20 } = queryValidation.data;
+|         const whereClauses = [];
+|         const params = [];
+
+Import trace for requested module:
+./src/app/api/inventory/requisitions/route.ts @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/next-devtools/userspace/app/errors/intercept-console-error.js:56
+[  922643ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:3000/inventory/requisitions?_rsc=xso1a:0
+[  923559ms] [ERROR] ./src/app/api/inventory/requisitions/route.ts
+Module parse failed: Identifier 'page' has already been declared (47:81)
+|             });
+|         }
+>         const { requisitionNo, requestingDepartment, status, orderBy, sortOrder, page = 1, pageSize = 20 } = queryValidation.data;
+|         const whereClauses = [];
+|         const params = [];
+
+Import trace for requested module:
+./src/app/api/inventory/requisitions/route.ts @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/next-devtools/userspace/app/errors/intercept-console-error.js:56
+[  924285ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:3000/inventory/requisitions?_rsc=xso1a:0
+[  925215ms] [ERROR] ./src/app/api/inventory/requisitions/route.ts
+Module parse failed: Identifier 'page' has already been declared (47:81)
+|             });
+|         }
+>         const { requisitionNo, requestingDepartment, status, orderBy, sortOrder, page, pageSize } = {
+|             ...queryValidation.data,
+|             page,
+
+Import trace for requested module:
+./src/app/api/inventory/requisitions/route.ts @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/next-devtools/userspace/app/errors/intercept-console-error.js:56
+[  925872ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:3000/inventory/requisitions?_rsc=xso1a:0
+[  926550ms] [ERROR] ./src/app/api/inventory/requisitions/route.ts
+Module parse failed: Identifier 'page' has already been declared (47:81)
+|             });
+|         }
+>         const { requisitionNo, requestingDepartment, status, orderBy, sortOrder, page, pageSize } = {
+|             ...queryValidation.data,
+|             page,
+
+Import trace for requested module:
+./src/app/api/inventory/requisitions/route.ts @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/next-devtools/userspace/app/errors/intercept-console-error.js:56
+[  926777ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:3000/inventory/requisitions?_rsc=xso1a:0
+[  927122ms] [ERROR] ./src/app/api/inventory/requisitions/route.ts
+Module parse failed: Identifier 'page' has already been declared (47:81)
+|             });
+|         }
+>         const { requisitionNo, requestingDepartment, status, orderBy, sortOrder, page, pageSize } = {
+|             ...queryValidation.data,
+|             page,
+
+Import trace for requested module:
+./src/app/api/inventory/requisitions/route.ts @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/next-devtools/userspace/app/errors/intercept-console-error.js:56
+[  927303ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:3000/inventory/requisitions?_rsc=xso1a:0
+[  927668ms] [ERROR] ./src/app/api/inventory/requisitions/route.ts
+Module parse failed: Identifier 'page' has already been declared (47:81)
+|             });
+|         }
+>         const { requisitionNo, requestingDepartment, status, orderBy, sortOrder, page, pageSize } = {
+|             ...queryValidation.data,
+|             page,
+
+Import trace for requested module:
+./src/app/api/inventory/requisitions/route.ts @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/next-devtools/userspace/app/errors/intercept-console-error.js:56
+[  927848ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:3000/inventory/requisitions?_rsc=xso1a:0
+[  928140ms] [ERROR] ./src/app/api/inventory/requisitions/route.ts
+Module parse failed: Identifier 'page' has already been declared (47:81)
+|             });
+|         }
+>         const { requisitionNo, requestingDepartment, status, orderBy, sortOrder, page, pageSize } = {
+|             ...queryValidation.data,
+|             page,
+
+Import trace for requested module:
+./src/app/api/inventory/requisitions/route.ts @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/next-devtools/userspace/app/errors/intercept-console-error.js:56
+[  928328ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:3000/inventory/requisitions?_rsc=xso1a:0
+[  928630ms] [ERROR] ./src/app/api/inventory/requisitions/route.ts
+Module parse failed: Identifier 'page' has already been declared (47:81)
+|             });
+|         }
+>         const { requisitionNo, requestingDepartment, status, orderBy, sortOrder, page, pageSize } = {
+|             ...queryValidation.data,
+|             page,
+
+Import trace for requested module:
+./src/app/api/inventory/requisitions/route.ts @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/next-devtools/userspace/app/errors/intercept-console-error.js:56
+[  928817ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:3000/inventory/requisitions?_rsc=xso1a:0
+[  929101ms] [ERROR] ./src/app/api/inventory/requisitions/route.ts
+Module parse failed: Identifier 'page' has already been declared (47:81)
+|             });
+|         }
+>         const { requisitionNo, requestingDepartment, status, orderBy, sortOrder, page, pageSize } = {
+|             ...queryValidation.data,
+|             page,
+
+Import trace for requested module:
+./src/app/api/inventory/requisitions/route.ts @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/next-devtools/userspace/app/errors/intercept-console-error.js:56
+[  929280ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:3000/inventory/requisitions?_rsc=xso1a:0
+[  929579ms] [ERROR] ./src/app/api/inventory/requisitions/route.ts
+Module parse failed: Identifier 'page' has already been declared (47:81)
+|             });
+|         }
+>         const { requisitionNo, requestingDepartment, status, orderBy, sortOrder, page, pageSize } = {
+|             ...queryValidation.data,
+|             page,
+
+Import trace for requested module:
+./src/app/api/inventory/requisitions/route.ts @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/next-devtools/userspace/app/errors/intercept-console-error.js:56
+[  929762ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:3000/inventory/requisitions?_rsc=xso1a:0
+[  930048ms] [ERROR] ./src/app/api/inventory/requisitions/route.ts
+Module parse failed: Identifier 'page' has already been declared (47:81)
+|             });
+|         }
+>         const { requisitionNo, requestingDepartment, status, orderBy, sortOrder, page, pageSize } = {
+|             ...queryValidation.data,
+|             page,
+
+Import trace for requested module:
+./src/app/api/inventory/requisitions/route.ts @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/next-devtools/userspace/app/errors/intercept-console-error.js:56
+[  930233ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:3000/inventory/requisitions?_rsc=xso1a:0
+[  930519ms] [ERROR] ./src/app/api/inventory/requisitions/route.ts
+Module parse failed: Identifier 'page' has already been declared (47:81)
+|             });
+|         }
+>         const { requisitionNo, requestingDepartment, status, orderBy, sortOrder, page, pageSize } = {
+|             ...queryValidation.data,
+|             page,
+
+Import trace for requested module:
+./src/app/api/inventory/requisitions/route.ts @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/next-devtools/userspace/app/errors/intercept-console-error.js:56
+[  930698ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:3000/inventory/requisitions?_rsc=xso1a:0
+[  930991ms] [ERROR] ./src/app/api/inventory/requisitions/route.ts
+Module parse failed: Identifier 'page' has already been declared (47:81)
+|             });
+|         }
+>         const { requisitionNo, requestingDepartment, status, orderBy, sortOrder, page, pageSize } = {
+|             ...queryValidation.data,
+|             page,
+
+Import trace for requested module:
+./src/app/api/inventory/requisitions/route.ts @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/next-devtools/userspace/app/errors/intercept-console-error.js:56
+[  931184ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:3000/inventory/requisitions?_rsc=xso1a:0
+[  931479ms] [ERROR] ./src/app/api/inventory/requisitions/route.ts
+Module parse failed: Identifier 'page' has already been declared (47:81)
+|             });
+|         }
+>         const { requisitionNo, requestingDepartment, status, orderBy, sortOrder, page, pageSize } = {
+|             ...queryValidation.data,
+|             page,
+
+Import trace for requested module:
+./src/app/api/inventory/requisitions/route.ts @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/next-devtools/userspace/app/errors/intercept-console-error.js:56
+[  931663ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:3000/inventory/requisitions?_rsc=xso1a:0
+[  932016ms] [ERROR] ./src/app/api/inventory/requisitions/route.ts
+Module parse failed: Identifier 'page' has already been declared (47:81)
+|             });
+|         }
+>         const { requisitionNo, requestingDepartment, status, orderBy, sortOrder, page, pageSize } = {
+|             ...queryValidation.data,
+|             page,
+
+Import trace for requested module:
+./src/app/api/inventory/requisitions/route.ts @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/next-devtools/userspace/app/errors/intercept-console-error.js:56
+[  932201ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:3000/inventory/requisitions?_rsc=xso1a:0
+[  932498ms] [ERROR] ./src/app/api/inventory/requisitions/route.ts
+Module parse failed: Identifier 'page' has already been declared (47:81)
+|             });
+|         }
+>         const { requisitionNo, requestingDepartment, status, orderBy, sortOrder, page, pageSize } = {
+|             ...queryValidation.data,
+|             page,
+
+Import trace for requested module:
+./src/app/api/inventory/requisitions/route.ts @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/next-devtools/userspace/app/errors/intercept-console-error.js:56
+[  932680ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:3000/inventory/requisitions?_rsc=xso1a:0
+[  932969ms] [ERROR] ./src/app/api/inventory/requisitions/route.ts
+Module parse failed: Identifier 'page' has already been declared (47:81)
+|             });
+|         }
+>         const { requisitionNo, requestingDepartment, status, orderBy, sortOrder, page, pageSize } = {
+|             ...queryValidation.data,
+|             page,
+
+Import trace for requested module:
+./src/app/api/inventory/requisitions/route.ts @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/next-devtools/userspace/app/errors/intercept-console-error.js:56
+[  933152ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:3000/inventory/requisitions?_rsc=xso1a:0
+[  933450ms] [ERROR] ./src/app/api/inventory/requisitions/route.ts
+Module parse failed: Identifier 'page' has already been declared (47:81)
+|             });
+|         }
+>         const { requisitionNo, requestingDepartment, status, orderBy, sortOrder, page, pageSize } = {
+|             ...queryValidation.data,
+|             page,
+
+Import trace for requested module:
+./src/app/api/inventory/requisitions/route.ts @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/next-devtools/userspace/app/errors/intercept-console-error.js:56
+[  933632ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:3000/inventory/requisitions?_rsc=xso1a:0
+[  933927ms] [ERROR] ./src/app/api/inventory/requisitions/route.ts
+Module parse failed: Identifier 'page' has already been declared (47:81)
+|             });
+|         }
+>         const { requisitionNo, requestingDepartment, status, orderBy, sortOrder, page, pageSize } = {
+|             ...queryValidation.data,
+|             page,
+
+Import trace for requested module:
+./src/app/api/inventory/requisitions/route.ts @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/next-devtools/userspace/app/errors/intercept-console-error.js:56
+[  934115ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:3000/inventory/requisitions?_rsc=xso1a:0
+[  934418ms] [ERROR] ./src/app/api/inventory/requisitions/route.ts
+Module parse failed: Identifier 'page' has already been declared (47:81)
+|             });
+|         }
+>         const { requisitionNo, requestingDepartment, status, orderBy, sortOrder, page, pageSize } = {
+|             ...queryValidation.data,
+|             page,
+
+Import trace for requested module:
+./src/app/api/inventory/requisitions/route.ts @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/next-devtools/userspace/app/errors/intercept-console-error.js:56
+[  934601ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:3000/inventory/requisitions?_rsc=xso1a:0
+[  934913ms] [ERROR] ./src/app/api/inventory/requisitions/route.ts
+Module parse failed: Identifier 'page' has already been declared (47:81)
+|             });
+|         }
+>         const { requisitionNo, requestingDepartment, status, orderBy, sortOrder, page, pageSize } = {
+|             ...queryValidation.data,
+|             page,
+
+Import trace for requested module:
+./src/app/api/inventory/requisitions/route.ts @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/next-devtools/userspace/app/errors/intercept-console-error.js:56
+[  935106ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:3000/inventory/requisitions?_rsc=xso1a:0
+[  935411ms] [ERROR] ./src/app/api/inventory/requisitions/route.ts
+Module parse failed: Identifier 'page' has already been declared (47:81)
+|             });
+|         }
+>         const { requisitionNo, requestingDepartment, status, orderBy, sortOrder, page, pageSize } = {
+|             ...queryValidation.data,
+|             page,
+
+Import trace for requested module:
+./src/app/api/inventory/requisitions/route.ts @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/next-devtools/userspace/app/errors/intercept-console-error.js:56
+[  935628ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:3000/inventory/requisitions?_rsc=xso1a:0
+[  936768ms] [ERROR] ./src/app/api/inventory/requisitions/route.ts
+Module parse failed: Identifier 'page' has already been declared (47:81)
+|             });
+|         }
+>         const { requisitionNo, requestingDepartment, status, orderBy, sortOrder, page, pageSize } = {
+|             ...queryValidation.data,
+|             page,
+
+Import trace for requested module:
+./src/app/api/inventory/requisitions/route.ts @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/next-devtools/userspace/app/errors/intercept-console-error.js:56
+[  937502ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:3000/inventory/requisitions?_rsc=xso1a:0
+[  938382ms] [ERROR] ./src/app/api/inventory/requisitions/route.ts
+Module parse failed: Identifier 'page' has already been declared (47:81)
+|             });
+|         }
+>         const { requisitionNo, requestingDepartment, status, orderBy, sortOrder, page, pageSize } = {
+|             ...queryValidation.data,
+|             page,
+
+Import trace for requested module:
+./src/app/api/inventory/requisitions/route.ts @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/next-devtools/userspace/app/errors/intercept-console-error.js:56
+[  939074ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:3000/inventory/requisitions?_rsc=xso1a:0
+[  939476ms] [ERROR] ./src/app/api/inventory/requisitions/route.ts
+Module parse failed: Identifier 'page' has already been declared (47:81)
+|             });
+|         }
+>         const { requisitionNo, requestingDepartment, status, orderBy, sortOrder, page, pageSize } = {
+|             ...queryValidation.data,
+|             page,
+
+Import trace for requested module:
+./src/app/api/inventory/requisitions/route.ts @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/next-devtools/userspace/app/errors/intercept-console-error.js:56
+[  939690ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:3000/inventory/requisitions?_rsc=xso1a:0
+[  940012ms] [ERROR] ./src/app/api/inventory/requisitions/route.ts
+Module parse failed: Identifier 'page' has already been declared (47:81)
+|             });
+|         }
+>         const { requisitionNo, requestingDepartment, status, orderBy, sortOrder, page, pageSize } = {
+|             ...queryValidation.data,
+|             page,
+
+Import trace for requested module:
+./src/app/api/inventory/requisitions/route.ts @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/next-devtools/userspace/app/errors/intercept-console-error.js:56
+[  940204ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:3000/inventory/requisitions?_rsc=xso1a:0
+[  940497ms] [ERROR] ./src/app/api/inventory/requisitions/route.ts
+Module parse failed: Identifier 'page' has already been declared (47:81)
+|             });
+|         }
+>         const { requisitionNo, requestingDepartment, status, orderBy, sortOrder, page, pageSize } = {
+|             ...queryValidation.data,
+|             page,
+
+Import trace for requested module:
+./src/app/api/inventory/requisitions/route.ts @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/next-devtools/userspace/app/errors/intercept-console-error.js:56
+[  940677ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:3000/inventory/requisitions?_rsc=xso1a:0
+[  940974ms] [ERROR] ./src/app/api/inventory/requisitions/route.ts
+Module parse failed: Identifier 'page' has already been declared (47:81)
+|             });
+|         }
+>         const { requisitionNo, requestingDepartment, status, orderBy, sortOrder, page, pageSize } = {
+|             ...queryValidation.data,
+|             page,
+
+Import trace for requested module:
+./src/app/api/inventory/requisitions/route.ts @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/next-devtools/userspace/app/errors/intercept-console-error.js:56
+[  941156ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:3000/inventory/requisitions?_rsc=xso1a:0
+[  941456ms] [ERROR] ./src/app/api/inventory/requisitions/route.ts
+Module parse failed: Identifier 'page' has already been declared (47:81)
+|             });
+|         }
+>         const { requisitionNo, requestingDepartment, status, orderBy, sortOrder, page, pageSize } = {
+|             ...queryValidation.data,
+|             page,
+
+Import trace for requested module:
+./src/app/api/inventory/requisitions/route.ts @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/next-devtools/userspace/app/errors/intercept-console-error.js:56
+[  941640ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:3000/inventory/requisitions?_rsc=xso1a:0
+[  941949ms] [ERROR] ./src/app/api/inventory/requisitions/route.ts
+Module parse failed: Identifier 'page' has already been declared (47:81)
+|             });
+|         }
+>         const { requisitionNo, requestingDepartment, status, orderBy, sortOrder, page, pageSize } = {
+|             ...queryValidation.data,
+|             page,
+
+Import trace for requested module:
+./src/app/api/inventory/requisitions/route.ts @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/next-devtools/userspace/app/errors/intercept-console-error.js:56
+[  942143ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:3000/inventory/requisitions?_rsc=xso1a:0
+[  942435ms] [ERROR] ./src/app/api/inventory/requisitions/route.ts
+Module parse failed: Identifier 'page' has already been declared (47:81)
+|             });
+|         }
+>         const { requisitionNo, requestingDepartment, status, orderBy, sortOrder, page, pageSize } = {
+|             ...queryValidation.data,
+|             page,
+
+Import trace for requested module:
+./src/app/api/inventory/requisitions/route.ts @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/next-devtools/userspace/app/errors/intercept-console-error.js:56
+[  942617ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:3000/inventory/requisitions?_rsc=xso1a:0
+[  942903ms] [ERROR] ./src/app/api/inventory/requisitions/route.ts
+Module parse failed: Identifier 'page' has already been declared (47:81)
+|             });
+|         }
+>         const { requisitionNo, requestingDepartment, status, orderBy, sortOrder, page, pageSize } = {
+|             ...queryValidation.data,
+|             page,
+
+Import trace for requested module:
+./src/app/api/inventory/requisitions/route.ts @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/next-devtools/userspace/app/errors/intercept-console-error.js:56
+[  943084ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:3000/inventory/requisitions?_rsc=xso1a:0
+[  943381ms] [ERROR] ./src/app/api/inventory/requisitions/route.ts
+Module parse failed: Identifier 'page' has already been declared (47:81)
+|             });
+|         }
+>         const { requisitionNo, requestingDepartment, status, orderBy, sortOrder, page, pageSize } = {
+|             ...queryValidation.data,
+|             page,
+
+Import trace for requested module:
+./src/app/api/inventory/requisitions/route.ts @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/next-devtools/userspace/app/errors/intercept-console-error.js:56
+[  943578ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:3000/inventory/requisitions?_rsc=xso1a:0
+[  943878ms] [ERROR] ./src/app/api/inventory/requisitions/route.ts
+Module parse failed: Identifier 'page' has already been declared (47:81)
+|             });
+|         }
+>         const { requisitionNo, requestingDepartment, status, orderBy, sortOrder, page, pageSize } = {
+|             ...queryValidation.data,
+|             page,
+
+Import trace for requested module:
+./src/app/api/inventory/requisitions/route.ts @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/next-devtools/userspace/app/errors/intercept-console-error.js:56
+[  944098ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:3000/inventory/requisitions?_rsc=xso1a:0
+[  944431ms] [ERROR] ./src/app/api/inventory/requisitions/route.ts
+Module parse failed: Identifier 'page' has already been declared (47:81)
+|             });
+|         }
+>         const { requisitionNo, requestingDepartment, status, orderBy, sortOrder, page, pageSize } = {
+|             ...queryValidation.data,
+|             page,
+
+Import trace for requested module:
+./src/app/api/inventory/requisitions/route.ts @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/next-devtools/userspace/app/errors/intercept-console-error.js:56
+[  944610ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:3000/inventory/requisitions?_rsc=xso1a:0
+[  944913ms] [ERROR] ./src/app/api/inventory/requisitions/route.ts
+Module parse failed: Identifier 'page' has already been declared (47:81)
+|             });
+|         }
+>         const { requisitionNo, requestingDepartment, status, orderBy, sortOrder, page, pageSize } = {
+|             ...queryValidation.data,
+|             page,
+
+Import trace for requested module:
+./src/app/api/inventory/requisitions/route.ts @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/next-devtools/userspace/app/errors/intercept-console-error.js:56
+[  945116ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:3000/inventory/requisitions?_rsc=xso1a:0
+[  945461ms] [ERROR] ./src/app/api/inventory/requisitions/route.ts
+Module parse failed: Identifier 'page' has already been declared (47:81)
+|             });
+|         }
+>         const { requisitionNo, requestingDepartment, status, orderBy, sortOrder, page, pageSize } = {
+|             ...queryValidation.data,
+|             page,
+
+Import trace for requested module:
+./src/app/api/inventory/requisitions/route.ts @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/next-devtools/userspace/app/errors/intercept-console-error.js:56
+[  945668ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:3000/inventory/requisitions?_rsc=xso1a:0
+[  945978ms] [ERROR] ./src/app/api/inventory/requisitions/route.ts
+Module parse failed: Identifier 'page' has already been declared (47:81)
+|             });
+|         }
+>         const { requisitionNo, requestingDepartment, status, orderBy, sortOrder, page, pageSize } = {
+|             ...queryValidation.data,
+|             page,
+
+Import trace for requested module:
+./src/app/api/inventory/requisitions/route.ts @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/next-devtools/userspace/app/errors/intercept-console-error.js:56
+[  946178ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:3000/inventory/requisitions?_rsc=xso1a:0
+[  946470ms] [ERROR] ./src/app/api/inventory/requisitions/route.ts
+Module parse failed: Identifier 'page' has already been declared (47:81)
+|             });
+|         }
+>         const { requisitionNo, requestingDepartment, status, orderBy, sortOrder, page, pageSize } = {
+|             ...queryValidation.data,
+|             page,
+
+Import trace for requested module:
+./src/app/api/inventory/requisitions/route.ts @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/next-devtools/userspace/app/errors/intercept-console-error.js:56
+[  946660ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:3000/inventory/requisitions?_rsc=xso1a:0
+[  946958ms] [ERROR] ./src/app/api/inventory/requisitions/route.ts
+Module parse failed: Identifier 'page' has already been declared (47:81)
+|             });
+|         }
+>         const { requisitionNo, requestingDepartment, status, orderBy, sortOrder, page, pageSize } = {
+|             ...queryValidation.data,
+|             page,
+
+Import trace for requested module:
+./src/app/api/inventory/requisitions/route.ts @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/next-devtools/userspace/app/errors/intercept-console-error.js:56
+[  947141ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:3000/inventory/requisitions?_rsc=xso1a:0
+[  947437ms] [ERROR] ./src/app/api/inventory/requisitions/route.ts
+Module parse failed: Identifier 'page' has already been declared (47:81)
+|             });
+|         }
+>         const { requisitionNo, requestingDepartment, status, orderBy, sortOrder, page, pageSize } = {
+|             ...queryValidation.data,
+|             page,
+
+Import trace for requested module:
+./src/app/api/inventory/requisitions/route.ts @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/next-devtools/userspace/app/errors/intercept-console-error.js:56
+[  947615ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:3000/inventory/requisitions?_rsc=xso1a:0
+[  947901ms] [ERROR] ./src/app/api/inventory/requisitions/route.ts
+Module parse failed: Identifier 'page' has already been declared (47:81)
+|             });
+|         }
+>         const { requisitionNo, requestingDepartment, status, orderBy, sortOrder, page, pageSize } = {
+|             ...queryValidation.data,
+|             page,
+
+Import trace for requested module:
+./src/app/api/inventory/requisitions/route.ts @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/next-devtools/userspace/app/errors/intercept-console-error.js:56
+[  948083ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:3000/inventory/requisitions?_rsc=xso1a:0
+[  948377ms] [ERROR] ./src/app/api/inventory/requisitions/route.ts
+Module parse failed: Identifier 'page' has already been declared (47:81)
+|             });
+|         }
+>         const { requisitionNo, requestingDepartment, status, orderBy, sortOrder, page, pageSize } = {
+|             ...queryValidation.data,
+|             page,
+
+Import trace for requested module:
+./src/app/api/inventory/requisitions/route.ts @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/next-devtools/userspace/app/errors/intercept-console-error.js:56
+[  948561ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:3000/inventory/requisitions?_rsc=xso1a:0
+[  948848ms] [ERROR] ./src/app/api/inventory/requisitions/route.ts
+Module parse failed: Identifier 'page' has already been declared (47:81)
+|             });
+|         }
+>         const { requisitionNo, requestingDepartment, status, orderBy, sortOrder, page, pageSize } = {
+|             ...queryValidation.data,
+|             page,
+
+Import trace for requested module:
+./src/app/api/inventory/requisitions/route.ts @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/next-devtools/userspace/app/errors/intercept-console-error.js:56
+[  949035ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:3000/inventory/requisitions?_rsc=xso1a:0
+[  949331ms] [ERROR] ./src/app/api/inventory/requisitions/route.ts
+Module parse failed: Identifier 'page' has already been declared (47:81)
+|             });
+|         }
+>         const { requisitionNo, requestingDepartment, status, orderBy, sortOrder, page, pageSize } = {
+|             ...queryValidation.data,
+|             page,
+
+Import trace for requested module:
+./src/app/api/inventory/requisitions/route.ts @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/next-devtools/userspace/app/errors/intercept-console-error.js:56
+[  949540ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:3000/inventory/requisitions?_rsc=xso1a:0
+[  950200ms] [ERROR] ./src/app/api/inventory/requisitions/route.ts
+Module parse failed: Identifier 'page' has already been declared (47:81)
+|             });
+|         }
+>         const { requisitionNo, requestingDepartment, status, orderBy, sortOrder, page, pageSize } = {
+|             ...queryValidation.data,
+|             page,
+
+Import trace for requested module:
+./src/app/api/inventory/requisitions/route.ts @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/next-devtools/userspace/app/errors/intercept-console-error.js:56
+[  950480ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:3000/inventory/requisitions?_rsc=xso1a:0
+[  950806ms] [ERROR] ./src/app/api/inventory/requisitions/route.ts
+Module parse failed: Identifier 'page' has already been declared (47:81)
+|             });
+|         }
+>         const { requisitionNo, requestingDepartment, status, orderBy, sortOrder, page, pageSize } = {
+|             ...queryValidation.data,
+|             page,
+
+Import trace for requested module:
+./src/app/api/inventory/requisitions/route.ts @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/next-devtools/userspace/app/errors/intercept-console-error.js:56
+[  951035ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:3000/inventory/requisitions?_rsc=xso1a:0
+[  951371ms] [ERROR] ./src/app/api/inventory/requisitions/route.ts
+Module parse failed: Identifier 'page' has already been declared (47:81)
+|             });
+|         }
+>         const { requisitionNo, requestingDepartment, status, orderBy, sortOrder, page, pageSize } = {
+|             ...queryValidation.data,
+|             page,
+
+Import trace for requested module:
+./src/app/api/inventory/requisitions/route.ts @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/next-devtools/userspace/app/errors/intercept-console-error.js:56
+[  951617ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:3000/inventory/requisitions?_rsc=xso1a:0
+[  951932ms] [ERROR] ./src/app/api/inventory/requisitions/route.ts
+Module parse failed: Identifier 'page' has already been declared (47:81)
+|             });
+|         }
+>         const { requisitionNo, requestingDepartment, status, orderBy, sortOrder, page, pageSize } = {
+|             ...queryValidation.data,
+|             page,
+
+Import trace for requested module:
+./src/app/api/inventory/requisitions/route.ts @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/next-devtools/userspace/app/errors/intercept-console-error.js:56
+[  952154ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:3000/inventory/requisitions?_rsc=xso1a:0
+[  952451ms] [ERROR] ./src/app/api/inventory/requisitions/route.ts
+Module parse failed: Identifier 'page' has already been declared (47:81)
+|             });
+|         }
+>         const { requisitionNo, requestingDepartment, status, orderBy, sortOrder, page, pageSize } = {
+|             ...queryValidation.data,
+|             page,
+
+Import trace for requested module:
+./src/app/api/inventory/requisitions/route.ts @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/next-devtools/userspace/app/errors/intercept-console-error.js:56
+[  952638ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:3000/inventory/requisitions?_rsc=xso1a:0
+[  952931ms] [ERROR] ./src/app/api/inventory/requisitions/route.ts
+Module parse failed: Identifier 'page' has already been declared (47:81)
+|             });
+|         }
+>         const { requisitionNo, requestingDepartment, status, orderBy, sortOrder, page, pageSize } = {
+|             ...queryValidation.data,
+|             page,
+
+Import trace for requested module:
+./src/app/api/inventory/requisitions/route.ts @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/next-devtools/userspace/app/errors/intercept-console-error.js:56
+[  953115ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:3000/inventory/requisitions?_rsc=xso1a:0
+[  953409ms] [ERROR] ./src/app/api/inventory/requisitions/route.ts
+Module parse failed: Identifier 'page' has already been declared (47:81)
+|             });
+|         }
+>         const { requisitionNo, requestingDepartment, status, orderBy, sortOrder, page, pageSize } = {
+|             ...queryValidation.data,
+|             page,
+
+Import trace for requested module:
+./src/app/api/inventory/requisitions/route.ts @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/next-devtools/userspace/app/errors/intercept-console-error.js:56
+[  953592ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:3000/inventory/requisitions?_rsc=xso1a:0
+[  953887ms] [ERROR] ./src/app/api/inventory/requisitions/route.ts
+Module parse failed: Identifier 'page' has already been declared (47:81)
+|             });
+|         }
+>         const { requisitionNo, requestingDepartment, status, orderBy, sortOrder, page, pageSize } = {
+|             ...queryValidation.data,
+|             page,
+
+Import trace for requested module:
+./src/app/api/inventory/requisitions/route.ts @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/next-devtools/userspace/app/errors/intercept-console-error.js:56
+[  954069ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:3000/inventory/requisitions?_rsc=xso1a:0
+[  954362ms] [ERROR] ./src/app/api/inventory/requisitions/route.ts
+Module parse failed: Identifier 'page' has already been declared (47:81)
+|             });
+|         }
+>         const { requisitionNo, requestingDepartment, status, orderBy, sortOrder, page, pageSize } = {
+|             ...queryValidation.data,
+|             page,
+
+Import trace for requested module:
+./src/app/api/inventory/requisitions/route.ts @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/next-devtools/userspace/app/errors/intercept-console-error.js:56
+[  954551ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:3000/inventory/requisitions?_rsc=xso1a:0
+[  954842ms] [ERROR] ./src/app/api/inventory/requisitions/route.ts
+Module parse failed: Identifier 'page' has already been declared (47:81)
+|             });
+|         }
+>         const { requisitionNo, requestingDepartment, status, orderBy, sortOrder, page, pageSize } = {
+|             ...queryValidation.data,
+|             page,
+
+Import trace for requested module:
+./src/app/api/inventory/requisitions/route.ts @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/next-devtools/userspace/app/errors/intercept-console-error.js:56
+[  955029ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:3000/inventory/requisitions?_rsc=xso1a:0
+[  955317ms] [ERROR] ./src/app/api/inventory/requisitions/route.ts
+Module parse failed: Identifier 'page' has already been declared (47:81)
+|             });
+|         }
+>         const { requisitionNo, requestingDepartment, status, orderBy, sortOrder, page, pageSize } = {
+|             ...queryValidation.data,
+|             page,
+
+Import trace for requested module:
+./src/app/api/inventory/requisitions/route.ts @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/next-devtools/userspace/app/errors/intercept-console-error.js:56
+[  955504ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:3000/inventory/requisitions?_rsc=xso1a:0
+[  955803ms] [ERROR] ./src/app/api/inventory/requisitions/route.ts
+Module parse failed: Identifier 'page' has already been declared (47:81)
+|             });
+|         }
+>         const { requisitionNo, requestingDepartment, status, orderBy, sortOrder, page, pageSize } = {
+|             ...queryValidation.data,
+|             page,
+
+Import trace for requested module:
+./src/app/api/inventory/requisitions/route.ts @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/next-devtools/userspace/app/errors/intercept-console-error.js:56
+[  955999ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:3000/inventory/requisitions?_rsc=xso1a:0
+[  956304ms] [ERROR] ./src/app/api/inventory/requisitions/route.ts
+Module parse failed: Identifier 'page' has already been declared (47:81)
+|             });
+|         }
+>         const { requisitionNo, requestingDepartment, status, orderBy, sortOrder, page, pageSize } = {
+|             ...queryValidation.data,
+|             page,
+
+Import trace for requested module:
+./src/app/api/inventory/requisitions/route.ts @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/next-devtools/userspace/app/errors/intercept-console-error.js:56
+[  956493ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:3000/inventory/requisitions?_rsc=xso1a:0
+[  956789ms] [ERROR] ./src/app/api/inventory/requisitions/route.ts
+Module parse failed: Identifier 'page' has already been declared (47:81)
+|             });
+|         }
+>         const { requisitionNo, requestingDepartment, status, orderBy, sortOrder, page, pageSize } = {
+|             ...queryValidation.data,
+|             page,
+
+Import trace for requested module:
+./src/app/api/inventory/requisitions/route.ts @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/next-devtools/userspace/app/errors/intercept-console-error.js:56
+[  956976ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:3000/inventory/requisitions?_rsc=xso1a:0
+[  957271ms] [ERROR] ./src/app/api/inventory/requisitions/route.ts
+Module parse failed: Identifier 'page' has already been declared (47:81)
+|             });
+|         }
+>         const { requisitionNo, requestingDepartment, status, orderBy, sortOrder, page, pageSize } = {
+|             ...queryValidation.data,
+|             page,
+
+Import trace for requested module:
+./src/app/api/inventory/requisitions/route.ts @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/next-devtools/userspace/app/errors/intercept-console-error.js:56
+[  957452ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:3000/inventory/requisitions?_rsc=xso1a:0
+[  957750ms] [ERROR] ./src/app/api/inventory/requisitions/route.ts
+Module parse failed: Identifier 'page' has already been declared (47:81)
+|             });
+|         }
+>         const { requisitionNo, requestingDepartment, status, orderBy, sortOrder, page, pageSize } = {
+|             ...queryValidation.data,
+|             page,
+
+Import trace for requested module:
+./src/app/api/inventory/requisitions/route.ts @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/next-devtools/userspace/app/errors/intercept-console-error.js:56
+[  957940ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:3000/inventory/requisitions?_rsc=xso1a:0
+[  958234ms] [ERROR] ./src/app/api/inventory/requisitions/route.ts
+Module parse failed: Identifier 'page' has already been declared (47:81)
+|             });
+|         }
+>         const { requisitionNo, requestingDepartment, status, orderBy, sortOrder, page, pageSize } = {
+|             ...queryValidation.data,
+|             page,
+
+Import trace for requested module:
+./src/app/api/inventory/requisitions/route.ts @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/next-devtools/userspace/app/errors/intercept-console-error.js:56
+[  958421ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:3000/inventory/requisitions?_rsc=xso1a:0
+[  958710ms] [ERROR] ./src/app/api/inventory/requisitions/route.ts
+Module parse failed: Identifier 'page' has already been declared (47:81)
+|             });
+|         }
+>         const { requisitionNo, requestingDepartment, status, orderBy, sortOrder, page, pageSize } = {
+|             ...queryValidation.data,
+|             page,
+
+Import trace for requested module:
+./src/app/api/inventory/requisitions/route.ts @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/next-devtools/userspace/app/errors/intercept-console-error.js:56
+[  958895ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:3000/inventory/requisitions?_rsc=xso1a:0
+[  959180ms] [ERROR] ./src/app/api/inventory/requisitions/route.ts
+Module parse failed: Identifier 'page' has already been declared (47:81)
+|             });
+|         }
+>         const { requisitionNo, requestingDepartment, status, orderBy, sortOrder, page, pageSize } = {
+|             ...queryValidation.data,
+|             page,
+
+Import trace for requested module:
+./src/app/api/inventory/requisitions/route.ts @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/next-devtools/userspace/app/errors/intercept-console-error.js:56
+[  959378ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:3000/inventory/requisitions?_rsc=xso1a:0
+[  959669ms] [ERROR] ./src/app/api/inventory/requisitions/route.ts
+Module parse failed: Identifier 'page' has already been declared (47:81)
+|             });
+|         }
+>         const { requisitionNo, requestingDepartment, status, orderBy, sortOrder, page, pageSize } = {
+|             ...queryValidation.data,
+|             page,
+
+Import trace for requested module:
+./src/app/api/inventory/requisitions/route.ts @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/next-devtools/userspace/app/errors/intercept-console-error.js:56
+[  959852ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:3000/inventory/requisitions?_rsc=xso1a:0
+[  960146ms] [ERROR] ./src/app/api/inventory/requisitions/route.ts
+Module parse failed: Identifier 'page' has already been declared (47:81)
+|             });
+|         }
+>         const { requisitionNo, requestingDepartment, status, orderBy, sortOrder, page, pageSize } = {
+|             ...queryValidation.data,
+|             page,
+
+Import trace for requested module:
+./src/app/api/inventory/requisitions/route.ts @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/next-devtools/userspace/app/errors/intercept-console-error.js:56
+[  960331ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:3000/inventory/requisitions?_rsc=xso1a:0
+[  960618ms] [ERROR] ./src/app/api/inventory/requisitions/route.ts
+Module parse failed: Identifier 'page' has already been declared (47:81)
+|             });
+|         }
+>         const { requisitionNo, requestingDepartment, status, orderBy, sortOrder, page, pageSize } = {
+|             ...queryValidation.data,
+|             page,
+
+Import trace for requested module:
+./src/app/api/inventory/requisitions/route.ts @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/next-devtools/userspace/app/errors/intercept-console-error.js:56
+[  960806ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:3000/inventory/requisitions?_rsc=xso1a:0
+[  961466ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:3000/inventory/requisitions?_rsc=xso1a:0
+[  962996ms] [ERROR] ./src/app/api/inventory/requisitions/route.ts
+Module parse failed: Identifier 'page' has already been declared (47:81)
+|             });
+|         }
+>         const { requisitionNo, requestingDepartment, status, orderBy, sortOrder, page, pageSize } = {
+|             ...queryValidation.data,
+|             page,
+
+Import trace for requested module:
+./src/app/api/inventory/requisitions/route.ts @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/next-devtools/userspace/app/errors/intercept-console-error.js:56
+[  963241ms] [ERROR] ./src/app/api/inventory/requisitions/route.ts
+Module parse failed: Identifier 'page' has already been declared (47:81)
+|             });
+|         }
+>         const { requisitionNo, requestingDepartment, status, orderBy, sortOrder, page, pageSize } = {
+|             ...queryValidation.data,
+|             page,
+
+Import trace for requested module:
+./src/app/api/inventory/requisitions/route.ts @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/next-devtools/userspace/app/errors/intercept-console-error.js:56
+[  963612ms] [ERROR] ./src/app/api/inventory/requisitions/route.ts
+Module parse failed: Identifier 'page' has already been declared (47:81)
+|             });
+|         }
+>         const { requisitionNo, requestingDepartment, status, orderBy, sortOrder, page, pageSize } = {
+|             ...queryValidation.data,
+|             page,
+
+Import trace for requested module:
+./src/app/api/inventory/requisitions/route.ts @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/next-devtools/userspace/app/errors/intercept-console-error.js:56
+[  964244ms] [ERROR] ./src/app/api/inventory/requisitions/route.ts
+Module parse failed: Identifier 'page' has already been declared (47:81)
+|             });
+|         }
+>         const { requisitionNo, requestingDepartment, status, orderBy, sortOrder, page, pageSize } = {
+|             ...queryValidation.data,
+|             page,
+
+Import trace for requested module:
+./src/app/api/inventory/requisitions/route.ts @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/next-devtools/userspace/app/errors/intercept-console-error.js:56
+[  964873ms] [ERROR] ./src/app/api/inventory/requisitions/route.ts
+Module parse failed: Identifier 'page' has already been declared (47:81)
+|             });
+|         }
+>         const { requisitionNo, requestingDepartment, status, orderBy, sortOrder, page, pageSize } = {
+|             ...queryValidation.data,
+|             page,
+
+Import trace for requested module:
+./src/app/api/inventory/requisitions/route.ts @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/next-devtools/userspace/app/errors/intercept-console-error.js:56
+[  965089ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:3000/inventory/requisitions?_rsc=xso1a:0
+[  965107ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:3000/api/inventory/balances?page=1&pageSize=200:0
+[  965123ms] [ERROR] SyntaxError: Unexpected token '<', "<!DOCTYPE "... is not valid JSON @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/next-devtools/userspace/app/errors/intercept-console-error.js:56
+[  965124ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:3000/api/inventory/requisitions?page=1&pageSize=100:0
+[  965125ms] [ERROR] SyntaxError: Unexpected token '<', "<!DOCTYPE "... is not valid JSON @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/next-devtools/userspace/app/errors/intercept-console-error.js:56
+[  965465ms] [ERROR] ./src/app/api/inventory/requisitions/route.ts
+Module parse failed: Identifier 'page' has already been declared (47:81)
+|             });
+|         }
+>         const { requisitionNo, requestingDepartment, status, orderBy, sortOrder, page, pageSize } = {
+|             ...queryValidation.data,
+|             page,
+
+Import trace for requested module:
+./src/app/api/inventory/requisitions/route.ts @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/next-devtools/userspace/app/errors/intercept-console-error.js:56
+[  965651ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:3000/inventory/requisitions?_rsc=xso1a:0
+[  965989ms] [ERROR] ./src/app/api/inventory/requisitions/route.ts
+Module parse failed: Identifier 'page' has already been declared (47:81)
+|             });
+|         }
+>         const { requisitionNo, requestingDepartment, status, orderBy, sortOrder, page, pageSize } = {
+|             ...queryValidation.data,
+|             page,
+
+Import trace for requested module:
+./src/app/api/inventory/requisitions/route.ts @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/next-devtools/userspace/app/errors/intercept-console-error.js:56
+[  966179ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:3000/inventory/requisitions?_rsc=xso1a:0
+[  966491ms] [ERROR] ./src/app/api/inventory/requisitions/route.ts
+Module parse failed: Identifier 'page' has already been declared (47:81)
+|             });
+|         }
+>         const { requisitionNo, requestingDepartment, status, orderBy, sortOrder, page, pageSize } = {
+|             ...queryValidation.data,
+|             page,
+
+Import trace for requested module:
+./src/app/api/inventory/requisitions/route.ts @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/next-devtools/userspace/app/errors/intercept-console-error.js:56
+[  966612ms] [ERROR] ./src/app/api/inventory/requisitions/route.ts
+Module parse failed: Identifier 'page' has already been declared (47:81)
+|             });
+|         }
+>         const { requisitionNo, requestingDepartment, status, orderBy, sortOrder, page, pageSize } = {
+|             ...queryValidation.data,
+|             page, @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/next-devtools/userspace/app/errors/intercept-console-error.js:56
+[  967010ms] [ERROR] ./src/app/api/inventory/requisitions/route.ts
+Module parse failed: Identifier 'page' has already been declared (47:81)
+|             });
+|         }
+>         const { requisitionNo, requestingDepartment, status, orderBy, sortOrder, page, pageSize } = {
+|             ...queryValidation.data,
+|             page,
+
+Import trace for requested module:
+./src/app/api/inventory/requisitions/route.ts @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/next-devtools/userspace/app/errors/intercept-console-error.js:56
+[  967465ms] [ERROR] ./src/app/api/inventory/requisitions/route.ts
+Module parse failed: Identifier 'page' has already been declared (47:81)
+|             });
+|         }
+>         const { requisitionNo, requestingDepartment, status, orderBy, sortOrder, page, pageSize } = {
+|             ...queryValidation.data,
+|             page,
+
+Import trace for requested module:
+./src/app/api/inventory/requisitions/route.ts @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/next-devtools/userspace/app/errors/intercept-console-error.js:56
+[  967690ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:3000/inventory/requisitions?_rsc=xso1a:0
+[  968034ms] [ERROR] ./src/app/api/inventory/requisitions/route.ts
+Module parse failed: Identifier 'page' has already been declared (47:81)
+|             });
+|         }
+>         const { requisitionNo, requestingDepartment, status, orderBy, sortOrder, page, pageSize } = {
+|             ...queryValidation.data,
+|             page,
+
+Import trace for requested module:
+./src/app/api/inventory/requisitions/route.ts @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/next-devtools/userspace/app/errors/intercept-console-error.js:56
+[  968344ms] [ERROR] ./src/app/api/inventory/requisitions/route.ts
+Module parse failed: Identifier 'page' has already been declared (47:81)
+|             });
+|         }
+>         const { requisitionNo, requestingDepartment, status, orderBy, sortOrder, page, pageSize } = {
+|             ...queryValidation.data,
+|             page,
+
+Import trace for requested module:
+./src/app/api/inventory/requisitions/route.ts @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/next-devtools/userspace/app/errors/intercept-console-error.js:56
+[  968689ms] [ERROR] ./src/app/api/inventory/requisitions/route.ts
+Module parse failed: Identifier 'page' has already been declared (47:81)
+|             });
+|         }
+>         const { requisitionNo, requestingDepartment, status, orderBy, sortOrder, page, pageSize } = {
+|             ...queryValidation.data,
+|             page,
+
+Import trace for requested module:
+./src/app/api/inventory/requisitions/route.ts @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/next-devtools/userspace/app/errors/intercept-console-error.js:56
+[  968872ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:3000/inventory/requisitions?_rsc=xso1a:0
+[  969231ms] [ERROR] ./src/app/api/inventory/requisitions/route.ts
+Module parse failed: Identifier 'page' has already been declared (47:81)
+|             });
+|         }
+>         const { requisitionNo, requestingDepartment, status, orderBy, sortOrder, page, pageSize } = {
+|             ...queryValidation.data,
+|             page,
+
+Import trace for requested module:
+./src/app/api/inventory/requisitions/route.ts @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/next-devtools/userspace/app/errors/intercept-console-error.js:56
+[  969536ms] [ERROR] ./src/app/api/inventory/requisitions/route.ts
+Module parse failed: Identifier 'page' has already been declared (47:81)
+|             });
+|         }
+>         const { requisitionNo, requestingDepartment, status, orderBy, sortOrder, page, pageSize } = {
+|             ...queryValidation.data,
+|             page,
+
+Import trace for requested module:
+./src/app/api/inventory/requisitions/route.ts @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/next-devtools/userspace/app/errors/intercept-console-error.js:56
+[  969751ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:3000/inventory/requisitions?_rsc=xso1a:0
+[  970093ms] [ERROR] ./src/app/api/inventory/requisitions/route.ts
+Module parse failed: Identifier 'page' has already been declared (47:81)
+|             });
+|         }
+>         const { requisitionNo, requestingDepartment, status, orderBy, sortOrder, page, pageSize } = {
+|             ...queryValidation.data,
+|             page,
+
+Import trace for requested module:
+./src/app/api/inventory/requisitions/route.ts @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/next-devtools/userspace/app/errors/intercept-console-error.js:56
+[  970407ms] [ERROR] ./src/app/api/inventory/requisitions/route.ts
+Module parse failed: Identifier 'page' has already been declared (47:81)
+|             });
+|         }
+>         const { requisitionNo, requestingDepartment, status, orderBy, sortOrder, page, pageSize } = {
+|             ...queryValidation.data,
+|             page,
+
+Import trace for requested module:
+./src/app/api/inventory/requisitions/route.ts @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/next-devtools/userspace/app/errors/intercept-console-error.js:56
+[  970651ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:3000/inventory/requisitions?_rsc=xso1a:0
+[  971053ms] [ERROR] ./src/app/api/inventory/requisitions/route.ts
+Module parse failed: Identifier 'page' has already been declared (47:81)
+|             });
+|         }
+>         const { requisitionNo, requestingDepartment, status, orderBy, sortOrder, page, pageSize } = {
+|             ...queryValidation.data,
+|             page,
+
+Import trace for requested module:
+./src/app/api/inventory/requisitions/route.ts @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/next-devtools/userspace/app/errors/intercept-console-error.js:56
+[  971392ms] [ERROR] ./src/app/api/inventory/requisitions/route.ts
+Module parse failed: Identifier 'page' has already been declared (47:81)
+|             });
+|         }
+>         const { requisitionNo, requestingDepartment, status, orderBy, sortOrder, page, pageSize } = {
+|             ...queryValidation.data,
+|             page,
+
+Import trace for requested module:
+./src/app/api/inventory/requisitions/route.ts @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/next-devtools/userspace/app/errors/intercept-console-error.js:56
+[  971620ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:3000/inventory/requisitions?_rsc=xso1a:0
+[  972020ms] [ERROR] ./src/app/api/inventory/requisitions/route.ts
+Module parse failed: Identifier 'page' has already been declared (47:81)
+|             });
+|         }
+>         const { requisitionNo, requestingDepartment, status, orderBy, sortOrder, page, pageSize } = {
+|             ...queryValidation.data,
+|             page,
+
+Import trace for requested module:
+./src/app/api/inventory/requisitions/route.ts @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/next-devtools/userspace/app/errors/intercept-console-error.js:56
+[  972367ms] [ERROR] ./src/app/api/inventory/requisitions/route.ts
+Module parse failed: Identifier 'page' has already been declared (47:81)
+|             });
+|         }
+>         const { requisitionNo, requestingDepartment, status, orderBy, sortOrder, page, pageSize } = {
+|             ...queryValidation.data,
+|             page,
+
+Import trace for requested module:
+./src/app/api/inventory/requisitions/route.ts @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/next-devtools/userspace/app/errors/intercept-console-error.js:56
+[  972590ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:3000/inventory/requisitions?_rsc=xso1a:0
+[  973000ms] [ERROR] ./src/app/api/inventory/requisitions/route.ts
+Module parse failed: Identifier 'page' has already been declared (47:81)
+|             });
+|         }
+>         const { requisitionNo, requestingDepartment, status, orderBy, sortOrder, page, pageSize } = {
+|             ...queryValidation.data,
+|             page,
+
+Import trace for requested module:
+./src/app/api/inventory/requisitions/route.ts @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/next-devtools/userspace/app/errors/intercept-console-error.js:56
+[  973322ms] [ERROR] ./src/app/api/inventory/requisitions/route.ts
+Module parse failed: Identifier 'page' has already been declared (47:81)
+|             });
+|         }
+>         const { requisitionNo, requestingDepartment, status, orderBy, sortOrder, page, pageSize } = {
+|             ...queryValidation.data,
+|             page,
+
+Import trace for requested module:
+./src/app/api/inventory/requisitions/route.ts @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/next-devtools/userspace/app/errors/intercept-console-error.js:56
+[  973541ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:3000/inventory/requisitions?_rsc=xso1a:0
+[  973888ms] [ERROR] ./src/app/api/inventory/requisitions/route.ts
+Module parse failed: Identifier 'page' has already been declared (47:81)
+|             });
+|         }
+>         const { requisitionNo, requestingDepartment, status, orderBy, sortOrder, page, pageSize } = {
+|             ...queryValidation.data,
+|             page,
+
+Import trace for requested module:
+./src/app/api/inventory/requisitions/route.ts @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/next-devtools/userspace/app/errors/intercept-console-error.js:56
+[  974206ms] [ERROR] ./src/app/api/inventory/requisitions/route.ts
+Module parse failed: Identifier 'page' has already been declared (47:81)
+|             });
+|         }
+>         const { requisitionNo, requestingDepartment, status, orderBy, sortOrder, page, pageSize } = {
+|             ...queryValidation.data,
+|             page,
+
+Import trace for requested module:
+./src/app/api/inventory/requisitions/route.ts @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/next-devtools/userspace/app/errors/intercept-console-error.js:56
+[  974437ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:3000/inventory/requisitions?_rsc=xso1a:0
+[  974802ms] [ERROR] ./src/app/api/inventory/requisitions/route.ts
+Module parse failed: Identifier 'page' has already been declared (47:81)
+|             });
+|         }
+>         const { requisitionNo, requestingDepartment, status, orderBy, sortOrder, page, pageSize } = {
+|             ...queryValidation.data,
+|             page,
+
+Import trace for requested module:
+./src/app/api/inventory/requisitions/route.ts @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/next-devtools/userspace/app/errors/intercept-console-error.js:56
+[  975127ms] [ERROR] ./src/app/api/inventory/requisitions/route.ts
+Module parse failed: Identifier 'page' has already been declared (47:81)
+|             });
+|         }
+>         const { requisitionNo, requestingDepartment, status, orderBy, sortOrder, page, pageSize } = {
+|             ...queryValidation.data,
+|             page,
+
+Import trace for requested module:
+./src/app/api/inventory/requisitions/route.ts @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/next-devtools/userspace/app/errors/intercept-console-error.js:56
+[  975343ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:3000/inventory/requisitions?_rsc=xso1a:0
+[  975698ms] [ERROR] ./src/app/api/inventory/requisitions/route.ts
+Module parse failed: Identifier 'page' has already been declared (47:81)
+|             });
+|         }
+>         const { requisitionNo, requestingDepartment, status, orderBy, sortOrder, page, pageSize } = {
+|             ...queryValidation.data,
+|             page,
+
+Import trace for requested module:
+./src/app/api/inventory/requisitions/route.ts @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/next-devtools/userspace/app/errors/intercept-console-error.js:56
+[  976013ms] [ERROR] ./src/app/api/inventory/requisitions/route.ts
+Module parse failed: Identifier 'page' has already been declared (47:81)
+|             });
+|         }
+>         const { requisitionNo, requestingDepartment, status, orderBy, sortOrder, page, pageSize } = {
+|             ...queryValidation.data,
+|             page,
+
+Import trace for requested module:
+./src/app/api/inventory/requisitions/route.ts @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/next-devtools/userspace/app/errors/intercept-console-error.js:56
+[  976229ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:3000/inventory/requisitions?_rsc=xso1a:0
+[  976626ms] [ERROR] ./src/app/api/inventory/requisitions/route.ts
+Module parse failed: Identifier 'page' has already been declared (47:81)
+|             });
+|         }
+>         const { requisitionNo, requestingDepartment, status, orderBy, sortOrder, page, pageSize } = {
+|             ...queryValidation.data,
+|             page,
+
+Import trace for requested module:
+./src/app/api/inventory/requisitions/route.ts @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/next-devtools/userspace/app/errors/intercept-console-error.js:56
+[  976992ms] [ERROR] ./src/app/api/inventory/requisitions/route.ts
+Module parse failed: Identifier 'page' has already been declared (47:81)
+|             });
+|         }
+>         const { requisitionNo, requestingDepartment, status, orderBy, sortOrder, page, pageSize } = {
+|             ...queryValidation.data,
+|             page,
+
+Import trace for requested module:
+./src/app/api/inventory/requisitions/route.ts @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/next-devtools/userspace/app/errors/intercept-console-error.js:56
+[  977251ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:3000/inventory/requisitions?_rsc=xso1a:0
+[  977647ms] [ERROR] ./src/app/api/inventory/requisitions/route.ts
+Module parse failed: Identifier 'page' has already been declared (47:81)
+|             });
+|         }
+>         const { requisitionNo, requestingDepartment, status, orderBy, sortOrder, page, pageSize } = {
+|             ...queryValidation.data,
+|             page,
+
+Import trace for requested module:
+./src/app/api/inventory/requisitions/route.ts @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/next-devtools/userspace/app/errors/intercept-console-error.js:56
+[  978008ms] [ERROR] ./src/app/api/inventory/requisitions/route.ts
+Module parse failed: Identifier 'page' has already been declared (47:81)
+|             });
+|         }
+>         const { requisitionNo, requestingDepartment, status, orderBy, sortOrder, page, pageSize } = {
+|             ...queryValidation.data,
+|             page,
+
+Import trace for requested module:
+./src/app/api/inventory/requisitions/route.ts @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/next-devtools/userspace/app/errors/intercept-console-error.js:56
+[  978274ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:3000/inventory/requisitions?_rsc=xso1a:0
+[  979074ms] [ERROR] ./src/app/api/inventory/requisitions/route.ts
+Module parse failed: Identifier 'page' has already been declared (47:81)
+|             });
+|         }
+>         const { requisitionNo, requestingDepartment, status, orderBy, sortOrder, page, pageSize } = {
+|             ...queryValidation.data,
+|             page,
+
+Import trace for requested module:
+./src/app/api/inventory/requisitions/route.ts @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/next-devtools/userspace/app/errors/intercept-console-error.js:56
+[  979437ms] [ERROR] ./src/app/api/inventory/requisitions/route.ts
+Module parse failed: Identifier 'page' has already been declared (47:81)
+|             });
+|         }
+>         const { requisitionNo, requestingDepartment, status, orderBy, sortOrder, page, pageSize } = {
+|             ...queryValidation.data,
+|             page,
+
+Import trace for requested module:
+./src/app/api/inventory/requisitions/route.ts @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/next-devtools/userspace/app/errors/intercept-console-error.js:56
+[  979676ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:3000/inventory/requisitions?_rsc=xso1a:0
+[  980072ms] [ERROR] ./src/app/api/inventory/requisitions/route.ts
+Module parse failed: Identifier 'page' has already been declared (47:81)
+|             });
+|         }
+>         const { requisitionNo, requestingDepartment, status, orderBy, sortOrder, page, pageSize } = {
+|             ...queryValidation.data,
+|             page,
+
+Import trace for requested module:
+./src/app/api/inventory/requisitions/route.ts @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/next-devtools/userspace/app/errors/intercept-console-error.js:56
+[  980437ms] [ERROR] ./src/app/api/inventory/requisitions/route.ts
+Module parse failed: Identifier 'page' has already been declared (47:81)
+|             });
+|         }
+>         const { requisitionNo, requestingDepartment, status, orderBy, sortOrder, page, pageSize } = {
+|             ...queryValidation.data,
+|             page,
+
+Import trace for requested module:
+./src/app/api/inventory/requisitions/route.ts @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/next-devtools/userspace/app/errors/intercept-console-error.js:56
+[  980659ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:3000/inventory/requisitions?_rsc=xso1a:0
+[  981019ms] [ERROR] ./src/app/api/inventory/requisitions/route.ts
+Module parse failed: Identifier 'page' has already been declared (47:81)
+|             });
+|         }
+>         const { requisitionNo, requestingDepartment, status, orderBy, sortOrder, page, pageSize } = {
+|             ...queryValidation.data,
+|             page,
+
+Import trace for requested module:
+./src/app/api/inventory/requisitions/route.ts @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/next-devtools/userspace/app/errors/intercept-console-error.js:56
+[  981358ms] [ERROR] ./src/app/api/inventory/requisitions/route.ts
+Module parse failed: Identifier 'page' has already been declared (47:81)
+|             });
+|         }
+>         const { requisitionNo, requestingDepartment, status, orderBy, sortOrder, page, pageSize } = {
+|             ...queryValidation.data,
+|             page,
+
+Import trace for requested module:
+./src/app/api/inventory/requisitions/route.ts @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/next-devtools/userspace/app/errors/intercept-console-error.js:56
+[  981575ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:3000/inventory/requisitions?_rsc=xso1a:0
+[  981933ms] [ERROR] ./src/app/api/inventory/requisitions/route.ts
+Module parse failed: Identifier 'page' has already been declared (47:81)
+|             });
+|         }
+>         const { requisitionNo, requestingDepartment, status, orderBy, sortOrder, page, pageSize } = {
+|             ...queryValidation.data,
+|             page,
+
+Import trace for requested module:
+./src/app/api/inventory/requisitions/route.ts @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/next-devtools/userspace/app/errors/intercept-console-error.js:56
+[  982256ms] [ERROR] ./src/app/api/inventory/requisitions/route.ts
+Module parse failed: Identifier 'page' has already been declared (47:81)
+|             });
+|         }
+>         const { requisitionNo, requestingDepartment, status, orderBy, sortOrder, page, pageSize } = {
+|             ...queryValidation.data,
+|             page,
+
+Import trace for requested module:
+./src/app/api/inventory/requisitions/route.ts @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/next-devtools/userspace/app/errors/intercept-console-error.js:56
+[  982449ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:3000/inventory/requisitions?_rsc=xso1a:0
+[  982819ms] [ERROR] ./src/app/api/inventory/requisitions/route.ts
+Module parse failed: Identifier 'page' has already been declared (47:81)
+|             });
+|         }
+>         const { requisitionNo, requestingDepartment, status, orderBy, sortOrder, page, pageSize } = {
+|             ...queryValidation.data,
+|             page,
+
+Import trace for requested module:
+./src/app/api/inventory/requisitions/route.ts @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/next-devtools/userspace/app/errors/intercept-console-error.js:56
+[  983135ms] [ERROR] ./src/app/api/inventory/requisitions/route.ts
+Module parse failed: Identifier 'page' has already been declared (47:81)
+|             });
+|         }
+>         const { requisitionNo, requestingDepartment, status, orderBy, sortOrder, page, pageSize } = {
+|             ...queryValidation.data,
+|             page,
+
+Import trace for requested module:
+./src/app/api/inventory/requisitions/route.ts @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/next-devtools/userspace/app/errors/intercept-console-error.js:56
+[  984352ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:3000/inventory/requisitions?_rsc=xso1a:0
+[ 1121089ms] [ERROR] ./src/app/inventory/requisitions/page.tsx
+Error:   × Expected ',', got ';'
+     ╭─[E:\NextJS\erp\src\app\inventory\requisitions\page.tsx:138:1]
+ 135 │             approvedQty: Math.min(Number(line.requestedQty || 0), Number(line.availableQty || 0)),
+ 136 │           })),
+ 137 │         }),
+ 138 │       });
+     ·         ─
+ 139 │ 
+ 140 │       const payload = await response.json();
+ 141 │       if (!response.ok || !payload.success) {
+     ╰────
+
+Caused by:
+    Syntax Error
+
+Import trace for requested module:
+./src/app/inventory/requisitions/page.tsx @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/next-devtools/userspace/app/errors/intercept-console-error.js:56
+[ 1121275ms] [ERROR] ./src/app/inventory/requisitions/page.tsx
+Error:   × Expected ',', got ';'
+     ╭─[E:\NextJS\erp\src\app\inventory\requisitions\page.tsx:138:1]
+ 135 │             approvedQty: Math.min(Number(line.requestedQty || 0), Number(line.availableQty || 0)),
+ 136 │           })),
+ 137 │         }),
+ 138 │       });
+     ·         ─
+ 139 │ 
+ 140 │       const payload = await response.json();
+ 141 │       if (!response.ok || !payload.success) {
+     ╰────
+
+Caused by:
+    Syntax Error
+
+Import trace for requested module:
+./src/app/inventory/requisitions/page.tsx @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/next-devtools/userspace/app/errors/intercept-console-error.js:56
+[ 1121963ms] [ERROR] ./src/app/inventory/requisitions/page.tsx
+Error:   × Expected ',', got ';'
+     ╭─[E:\NextJS\erp\src\app\inventory\requisitions\page.tsx:138:1]
+ 135 │             approvedQty: Math.min(Number(line.requestedQty || 0), Number(line.availableQty || 0)),
+ 136 │           })),
+ 137 │         }),
+ 138 │       });
+     ·         ─
+ 139 │ 
+ 140 │       const payload = await response.json();
+ 141 │       if (!response.ok || !payload.success) {
+     ╰────
+
+Caused by:
+    Syntax Error
+
+Import trace for requested module:
+./src/app/inventory/requisitions/page.tsx @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/next-devtools/userspace/app/errors/intercept-console-error.js:56
+[ 1122123ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:3000/inventory/requisitions?_rsc=xso1a:0
+[ 1122426ms] [ERROR] ./src/app/inventory/requisitions/page.tsx
+Error:   × Expected ',', got ';'
+     ╭─[E:\NextJS\erp\src\app\inventory\requisitions\page.tsx:138:1]
+ 135 │             approvedQty: Math.min(Number(line.requestedQty || 0), Number(line.availableQty || 0)),
+ 136 │           })),
+ 137 │         }),
+ 138 │       });
+     ·         ─
+ 139 │ 
+ 140 │       const payload = await response.json();
+ 141 │       if (!response.ok || !payload.success) {
+     ╰────
+
+Caused by:
+    Syntax Error
+
+Import trace for requested module:
+./src/app/inventory/requisitions/page.tsx @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/next-devtools/userspace/app/errors/intercept-console-error.js:56
+[ 1122641ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:3000/inventory/requisitions?_rsc=xso1a:0
+[ 1122992ms] [ERROR] ./src/app/inventory/requisitions/page.tsx
+Error:   × Expected ',', got ';'
+     ╭─[E:\NextJS\erp\src\app\inventory\requisitions\page.tsx:138:1]
+ 135 │             approvedQty: Math.min(Number(line.requestedQty || 0), Number(line.availableQty || 0)),
+ 136 │           })),
+ 137 │         }),
+ 138 │       });
+     ·         ─
+ 139 │ 
+ 140 │       const payload = await response.json();
+ 141 │       if (!response.ok || !payload.success) {
+     ╰────
+
+Caused by:
+    Syntax Error
+
+Import trace for requested module:
+./src/app/inventory/requisitions/page.tsx @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/next-devtools/userspace/app/errors/intercept-console-error.js:56
+[ 1123149ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:3000/inventory/requisitions?_rsc=xso1a:0
+[ 1123552ms] [ERROR] ./src/app/inventory/requisitions/page.tsx
+Error:   × Expected ',', got ';'
+     ╭─[E:\NextJS\erp\src\app\inventory\requisitions\page.tsx:138:1]
+ 135 │             approvedQty: Math.min(Number(line.requestedQty || 0), Number(line.availableQty || 0)),
+ 136 │           })),
+ 137 │         }),
+ 138 │       });
+     ·         ─
+ 139 │ 
+ 140 │       const payload = await response.json();
+ 141 │       if (!response.ok || !payload.success) {
+     ╰────
+
+Caused by:
+    Syntax Error
+
+Import trace for requested module:
+./src/app/inventory/requisitions/page.tsx @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/next-devtools/userspace/app/errors/intercept-console-error.js:56
+[ 1123820ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:3000/inventory/requisitions?_rsc=xso1a:0
+[ 1124294ms] [ERROR] ./src/app/inventory/requisitions/page.tsx
+Error:   × Expected ',', got ';'
+     ╭─[E:\NextJS\erp\src\app\inventory\requisitions\page.tsx:138:1]
+ 135 │             approvedQty: Math.min(Number(line.requestedQty || 0), Number(line.availableQty || 0)),
+ 136 │           })),
+ 137 │         }),
+ 138 │       });
+     ·         ─
+ 139 │ 
+ 140 │       const payload = await response.json();
+ 141 │       if (!response.ok || !payload.success) {
+     ╰────
+
+Caused by:
+    Syntax Error
+
+Import trace for requested module:
+./src/app/inventory/requisitions/page.tsx @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/next-devtools/userspace/app/errors/intercept-console-error.js:56
+[ 1124534ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:3000/inventory/requisitions?_rsc=xso1a:0
+[ 1124901ms] [ERROR] ./src/app/inventory/requisitions/page.tsx
+Error:   × Expected ',', got ';'
+     ╭─[E:\NextJS\erp\src\app\inventory\requisitions\page.tsx:138:1]
+ 135 │             approvedQty: Math.min(Number(line.requestedQty || 0), Number(line.availableQty || 0)),
+ 136 │           })),
+ 137 │         }),
+ 138 │       });
+     ·         ─
+ 139 │ 
+ 140 │       const payload = await response.json();
+ 141 │       if (!response.ok || !payload.success) {
+     ╰────
+
+Caused by:
+    Syntax Error
+
+Import trace for requested module:
+./src/app/inventory/requisitions/page.tsx @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/next-devtools/userspace/app/errors/intercept-console-error.js:56
+[ 1125140ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:3000/inventory/requisitions?_rsc=xso1a:0
+[ 1125873ms] [ERROR] ./src/app/inventory/requisitions/page.tsx
+Error:   × Expected ',', got ';'
+     ╭─[E:\NextJS\erp\src\app\inventory\requisitions\page.tsx:138:1]
+ 135 │             approvedQty: Math.min(Number(line.requestedQty || 0), Number(line.availableQty || 0)),
+ 136 │           })),
+ 137 │         }),
+ 138 │       });
+     ·         ─
+ 139 │ 
+ 140 │       const payload = await response.json();
+ 141 │       if (!response.ok || !payload.success) {
+     ╰────
+
+Caused by:
+    Syntax Error
+
+Import trace for requested module:
+./src/app/inventory/requisitions/page.tsx @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/next-devtools/userspace/app/errors/intercept-console-error.js:56
+[ 1126095ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:3000/inventory/requisitions?_rsc=xso1a:0
+[ 1126457ms] [ERROR] ./src/app/inventory/requisitions/page.tsx
+Error:   × Expected ',', got ';'
+     ╭─[E:\NextJS\erp\src\app\inventory\requisitions\page.tsx:138:1]
+ 135 │             approvedQty: Math.min(Number(line.requestedQty || 0), Number(line.availableQty || 0)),
+ 136 │           })),
+ 137 │         }),
+ 138 │       });
+     ·         ─
+ 139 │ 
+ 140 │       const payload = await response.json();
+ 141 │       if (!response.ok || !payload.success) {
+     ╰────
+
+Caused by:
+    Syntax Error
+
+Import trace for requested module:
+./src/app/inventory/requisitions/page.tsx @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/next-devtools/userspace/app/errors/intercept-console-error.js:56
+[ 1126656ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:3000/inventory/requisitions?_rsc=xso1a:0
+[ 1127006ms] [ERROR] ./src/app/inventory/requisitions/page.tsx
+Error:   × Expected ',', got ';'
+     ╭─[E:\NextJS\erp\src\app\inventory\requisitions\page.tsx:138:1]
+ 135 │             approvedQty: Math.min(Number(line.requestedQty || 0), Number(line.availableQty || 0)),
+ 136 │           })),
+ 137 │         }),
+ 138 │       });
+     ·         ─
+ 139 │ 
+ 140 │       const payload = await response.json();
+ 141 │       if (!response.ok || !payload.success) {
+     ╰────
+
+Caused by:
+    Syntax Error
+
+Import trace for requested module:
+./src/app/inventory/requisitions/page.tsx @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/next-devtools/userspace/app/errors/intercept-console-error.js:56
+[ 1127223ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:3000/inventory/requisitions?_rsc=xso1a:0
+[ 1127653ms] [ERROR] ./src/app/inventory/requisitions/page.tsx
+Error:   × Expected ',', got ';'
+     ╭─[E:\NextJS\erp\src\app\inventory\requisitions\page.tsx:138:1]
+ 135 │             approvedQty: Math.min(Number(line.requestedQty || 0), Number(line.availableQty || 0)),
+ 136 │           })),
+ 137 │         }),
+ 138 │       });
+     ·         ─
+ 139 │ 
+ 140 │       const payload = await response.json();
+ 141 │       if (!response.ok || !payload.success) {
+     ╰────
+
+Caused by:
+    Syntax Error
+
+Import trace for requested module:
+./src/app/inventory/requisitions/page.tsx @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/next-devtools/userspace/app/errors/intercept-console-error.js:56
+[ 1127922ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:3000/inventory/requisitions?_rsc=xso1a:0
+[ 1128675ms] [ERROR] ./src/app/inventory/requisitions/page.tsx
+Error:   × Expected ',', got ';'
+     ╭─[E:\NextJS\erp\src\app\inventory\requisitions\page.tsx:138:1]
+ 135 │             approvedQty: Math.min(Number(line.requestedQty || 0), Number(line.availableQty || 0)),
+ 136 │           })),
+ 137 │         }),
+ 138 │       });
+     ·         ─
+ 139 │ 
+ 140 │       const payload = await response.json();
+ 141 │       if (!response.ok || !payload.success) {
+     ╰────
+
+Caused by:
+    Syntax Error
+
+Import trace for requested module:
+./src/app/inventory/requisitions/page.tsx @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/next-devtools/userspace/app/errors/intercept-console-error.js:56
+[ 1129404ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:3000/inventory/requisitions?_rsc=xso1a:0
+[ 1130090ms] [ERROR] ./src/app/inventory/requisitions/page.tsx
+Error:   × Expected ',', got ';'
+     ╭─[E:\NextJS\erp\src\app\inventory\requisitions\page.tsx:138:1]
+ 135 │             approvedQty: Math.min(Number(line.requestedQty || 0), Number(line.availableQty || 0)),
+ 136 │           })),
+ 137 │         }),
+ 138 │       });
+     ·         ─
+ 139 │ 
+ 140 │       const payload = await response.json();
+ 141 │       if (!response.ok || !payload.success) {
+     ╰────
+
+Caused by:
+    Syntax Error
+
+Import trace for requested module:
+./src/app/inventory/requisitions/page.tsx @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/next-devtools/userspace/app/errors/intercept-console-error.js:56
+[ 1130332ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:3000/inventory/requisitions?_rsc=xso1a:0
+[ 1130632ms] [ERROR] ./src/app/inventory/requisitions/page.tsx
+Error:   × Expected ',', got ';'
+     ╭─[E:\NextJS\erp\src\app\inventory\requisitions\page.tsx:138:1]
+ 135 │             approvedQty: Math.min(Number(line.requestedQty || 0), Number(line.availableQty || 0)),
+ 136 │           })),
+ 137 │         }),
+ 138 │       });
+     ·         ─
+ 139 │ 
+ 140 │       const payload = await response.json();
+ 141 │       if (!response.ok || !payload.success) {
+     ╰────
+
+Caused by:
+    Syntax Error
+
+Import trace for requested module:
+./src/app/inventory/requisitions/page.tsx @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/next-devtools/userspace/app/errors/intercept-console-error.js:56
+[ 1130838ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:3000/inventory/requisitions?_rsc=xso1a:0
+[ 1131329ms] [ERROR] ./src/app/inventory/requisitions/page.tsx
+Error:   × Expected ',', got ';'
+     ╭─[E:\NextJS\erp\src\app\inventory\requisitions\page.tsx:138:1]
+ 135 │             approvedQty: Math.min(Number(line.requestedQty || 0), Number(line.availableQty || 0)),
+ 136 │           })),
+ 137 │         }),
+ 138 │       });
+     ·         ─
+ 139 │ 
+ 140 │       const payload = await response.json();
+ 141 │       if (!response.ok || !payload.success) {
+     ╰────
+
+Caused by:
+    Syntax Error
+
+Import trace for requested module:
+./src/app/inventory/requisitions/page.tsx @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/next-devtools/userspace/app/errors/intercept-console-error.js:56
+[ 1131730ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:3000/inventory/requisitions?_rsc=xso1a:0
+[ 1132037ms] [ERROR] ./src/app/inventory/requisitions/page.tsx
+Error:   × Expected ',', got ';'
+     ╭─[E:\NextJS\erp\src\app\inventory\requisitions\page.tsx:138:1]
+ 135 │             approvedQty: Math.min(Number(line.requestedQty || 0), Number(line.availableQty || 0)),
+ 136 │           })),
+ 137 │         }),
+ 138 │       });
+     ·         ─
+ 139 │ 
+ 140 │       const payload = await response.json();
+ 141 │       if (!response.ok || !payload.success) {
+     ╰────
+
+Caused by:
+    Syntax Error
+
+Import trace for requested module:
+./src/app/inventory/requisitions/page.tsx @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/next-devtools/userspace/app/errors/intercept-console-error.js:56
+[ 1132236ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:3000/inventory/requisitions?_rsc=xso1a:0
+[ 1132535ms] [ERROR] ./src/app/inventory/requisitions/page.tsx
+Error:   × Expected ',', got ';'
+     ╭─[E:\NextJS\erp\src\app\inventory\requisitions\page.tsx:138:1]
+ 135 │             approvedQty: Math.min(Number(line.requestedQty || 0), Number(line.availableQty || 0)),
+ 136 │           })),
+ 137 │         }),
+ 138 │       });
+     ·         ─
+ 139 │ 
+ 140 │       const payload = await response.json();
+ 141 │       if (!response.ok || !payload.success) {
+     ╰────
+
+Caused by:
+    Syntax Error
+
+Import trace for requested module:
+./src/app/inventory/requisitions/page.tsx @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/next-devtools/userspace/app/errors/intercept-console-error.js:56
+[ 1132718ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:3000/inventory/requisitions?_rsc=xso1a:0
+[ 1133016ms] [ERROR] ./src/app/inventory/requisitions/page.tsx
+Error:   × Expected ',', got ';'
+     ╭─[E:\NextJS\erp\src\app\inventory\requisitions\page.tsx:138:1]
+ 135 │             approvedQty: Math.min(Number(line.requestedQty || 0), Number(line.availableQty || 0)),
+ 136 │           })),
+ 137 │         }),
+ 138 │       });
+     ·         ─
+ 139 │ 
+ 140 │       const payload = await response.json();
+ 141 │       if (!response.ok || !payload.success) {
+     ╰────
+
+Caused by:
+    Syntax Error
+
+Import trace for requested module:
+./src/app/inventory/requisitions/page.tsx @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/next-devtools/userspace/app/errors/intercept-console-error.js:56
+[ 1133208ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:3000/inventory/requisitions?_rsc=xso1a:0
+[ 1133518ms] [ERROR] ./src/app/inventory/requisitions/page.tsx
+Error:   × Expected ',', got ';'
+     ╭─[E:\NextJS\erp\src\app\inventory\requisitions\page.tsx:138:1]
+ 135 │             approvedQty: Math.min(Number(line.requestedQty || 0), Number(line.availableQty || 0)),
+ 136 │           })),
+ 137 │         }),
+ 138 │       });
+     ·         ─
+ 139 │ 
+ 140 │       const payload = await response.json();
+ 141 │       if (!response.ok || !payload.success) {
+     ╰────
+
+Caused by:
+    Syntax Error
+
+Import trace for requested module:
+./src/app/inventory/requisitions/page.tsx @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/next-devtools/userspace/app/errors/intercept-console-error.js:56
+[ 1133700ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:3000/inventory/requisitions?_rsc=xso1a:0
+[ 1133993ms] [ERROR] ./src/app/inventory/requisitions/page.tsx
+Error:   × Expected ',', got ';'
+     ╭─[E:\NextJS\erp\src\app\inventory\requisitions\page.tsx:138:1]
+ 135 │             approvedQty: Math.min(Number(line.requestedQty || 0), Number(line.availableQty || 0)),
+ 136 │           })),
+ 137 │         }),
+ 138 │       });
+     ·         ─
+ 139 │ 
+ 140 │       const payload = await response.json();
+ 141 │       if (!response.ok || !payload.success) {
+     ╰────
+
+Caused by:
+    Syntax Error
+
+Import trace for requested module:
+./src/app/inventory/requisitions/page.tsx @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/next-devtools/userspace/app/errors/intercept-console-error.js:56
+[ 1134215ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:3000/inventory/requisitions?_rsc=xso1a:0
+[ 1134576ms] [ERROR] ./src/app/inventory/requisitions/page.tsx
+Error:   × Expected ',', got ';'
+     ╭─[E:\NextJS\erp\src\app\inventory\requisitions\page.tsx:138:1]
+ 135 │             approvedQty: Math.min(Number(line.requestedQty || 0), Number(line.availableQty || 0)),
+ 136 │           })),
+ 137 │         }),
+ 138 │       });
+     ·         ─
+ 139 │ 
+ 140 │       const payload = await response.json();
+ 141 │       if (!response.ok || !payload.success) {
+     ╰────
+
+Caused by:
+    Syntax Error
+
+Import trace for requested module:
+./src/app/inventory/requisitions/page.tsx @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/next-devtools/userspace/app/errors/intercept-console-error.js:56
+[ 1134778ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:3000/inventory/requisitions?_rsc=xso1a:0
+[ 1135117ms] [ERROR] ./src/app/inventory/requisitions/page.tsx
+Error:   × Expected ',', got ';'
+     ╭─[E:\NextJS\erp\src\app\inventory\requisitions\page.tsx:138:1]
+ 135 │             approvedQty: Math.min(Number(line.requestedQty || 0), Number(line.availableQty || 0)),
+ 136 │           })),
+ 137 │         }),
+ 138 │       });
+     ·         ─
+ 139 │ 
+ 140 │       const payload = await response.json();
+ 141 │       if (!response.ok || !payload.success) {
+     ╰────
+
+Caused by:
+    Syntax Error
+
+Import trace for requested module:
+./src/app/inventory/requisitions/page.tsx @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/next-devtools/userspace/app/errors/intercept-console-error.js:56
+[ 1135619ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:3000/inventory/requisitions?_rsc=xso1a:0
+[ 1136020ms] [ERROR] ./src/app/inventory/requisitions/page.tsx
+Error:   × Expected ',', got ';'
+     ╭─[E:\NextJS\erp\src\app\inventory\requisitions\page.tsx:138:1]
+ 135 │             approvedQty: Math.min(Number(line.requestedQty || 0), Number(line.availableQty || 0)),
+ 136 │           })),
+ 137 │         }),
+ 138 │       });
+     ·         ─
+ 139 │ 
+ 140 │       const payload = await response.json();
+ 141 │       if (!response.ok || !payload.success) {
+     ╰────
+
+Caused by:
+    Syntax Error
+
+Import trace for requested module:
+./src/app/inventory/requisitions/page.tsx @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/next-devtools/userspace/app/errors/intercept-console-error.js:56
+[ 1136225ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:3000/inventory/requisitions?_rsc=xso1a:0
+[ 1136587ms] [ERROR] ./src/app/inventory/requisitions/page.tsx
+Error:   × Expected ',', got ';'
+     ╭─[E:\NextJS\erp\src\app\inventory\requisitions\page.tsx:138:1]
+ 135 │             approvedQty: Math.min(Number(line.requestedQty || 0), Number(line.availableQty || 0)),
+ 136 │           })),
+ 137 │         }),
+ 138 │       });
+     ·         ─
+ 139 │ 
+ 140 │       const payload = await response.json();
+ 141 │       if (!response.ok || !payload.success) {
+     ╰────
+
+Caused by:
+    Syntax Error
+
+Import trace for requested module:
+./src/app/inventory/requisitions/page.tsx @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/next-devtools/userspace/app/errors/intercept-console-error.js:56
+[ 1136785ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:3000/inventory/requisitions?_rsc=xso1a:0
+[ 1137167ms] [ERROR] ./src/app/inventory/requisitions/page.tsx
+Error:   × Expected ',', got ';'
+     ╭─[E:\NextJS\erp\src\app\inventory\requisitions\page.tsx:138:1]
+ 135 │             approvedQty: Math.min(Number(line.requestedQty || 0), Number(line.availableQty || 0)),
+ 136 │           })),
+ 137 │         }),
+ 138 │       });
+     ·         ─
+ 139 │ 
+ 140 │       const payload = await response.json();
+ 141 │       if (!response.ok || !payload.success) {
+     ╰────
+
+Caused by:
+    Syntax Error
+
+Import trace for requested module:
+./src/app/inventory/requisitions/page.tsx @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/next-devtools/userspace/app/errors/intercept-console-error.js:56
+[ 1138412ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:3000/inventory/requisitions?_rsc=xso1a:0

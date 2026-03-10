@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { BadgeCheck, Phone, Store, X, Plus, Trash2, Check, Pencil, CheckCircle2, AlertCircle } from 'lucide-react';
+import { useState, useEffect, useMemo } from 'react';
+import Swal from 'sweetalert2';
+import { Store, X, Plus, Trash2, Check, Pencil, CheckCircle2, AlertCircle } from 'lucide-react';
 
 interface Seller {
   id: number;
@@ -17,8 +18,7 @@ interface Seller {
 
 export default function SellersPage() {
   const [sellers, setSellers] = useState<Seller[]>([]);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingSeller, setEditingSeller] = useState<Seller | null>(null);
+  const [addingNew, setAddingNew] = useState(false);
   const [formData, setFormData] = useState({
     code: '',
     prefix: '',
@@ -56,6 +56,26 @@ export default function SellersPage() {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
   const PAGE_SIZE_OPTIONS = [10, 20, 50];
+  const [filters, setFilters] = useState({
+    search: ''
+  });
+
+  const createEmptySellerRecord = () => ({
+    code: '',
+    prefix: '',
+    name: '',
+    business: '',
+    address: '',
+    phone: '',
+    fax: '',
+    mobile: ''
+  });
+
+  const createEmptyBulkSellerRecord = () => ({
+    id: Date.now() + Math.random(),
+    ...createEmptySellerRecord()
+  });
+
   useEffect(() => {
     fetchSellers();
   }, []);
@@ -85,72 +105,93 @@ export default function SellersPage() {
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
+  const openBulkForm = () => {
+    setShowBulkForm(true);
+    setBulkRecords([createEmptyBulkSellerRecord()]);
+  };
+
+  const addBulkRow = () => {
+    setBulkRecords((current) => [...current, createEmptyBulkSellerRecord()]);
+  };
+
+  const saveNewRecord = async () => {
+    if (!formData.code.trim() || !formData.name.trim()) {
+      setToast({
+        message: 'กรุณากรอกรหัสและชื่อผู้จำหน่าย',
+        type: 'error',
+        visible: true
+      });
+      setTimeout(() => {
+        setToast({ ...toast, visible: false });
+      }, 3000);
+      return;
+    }
+
     try {
-      if (editingSeller) {
-        // Update existing seller
-        const response = await fetch(`/api/sellers/${editingSeller.id}`, {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(formData),
+      const response = await fetch('/api/sellers', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          code: formData.code.trim(),
+          prefix: formData.prefix || '',
+          name: formData.name.trim(),
+          business: formData.business || '',
+          address: formData.address || '',
+          phone: formData.phone || '',
+          fax: formData.fax || '',
+          mobile: formData.mobile || ''
+        }),
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        await fetchSellers();
+        setAddingNew(false);
+        resetForm();
+        setToast({
+          message: 'เพิ่มผู้จำหน่ายใหม่สำเร็จ!',
+          type: 'success',
+          visible: true
         });
-        
-        const result = await response.json();
-        
-        if (result.success) {
-          await fetchSellers(); // Refresh the list
-        } else {
-          alert(result.error || 'Failed to update seller');
-          return;
-        }
       } else {
-        // Add new seller
-        const response = await fetch('/api/sellers', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(formData),
+        setToast({
+          message: result.error || 'เกิดข้อผิดพลาดในการเพิ่มผู้จำหน่าย',
+          type: 'error',
+          visible: true
         });
-        
-        const result = await response.json();
-        
-        if (result.success) {
-          await fetchSellers(); // Refresh the list
-        } else {
-          alert(result.error || 'Failed to create seller');
-          return;
-        }
       }
-      
-      resetForm();
+      setTimeout(() => {
+        setToast({ ...toast, visible: false });
+      }, 3000);
     } catch (err) {
       console.error('Error saving seller:', err);
-      alert('Failed to save seller');
+      setToast({
+        message: 'เกิดข้อผิดพลาดในการเพิ่มผู้จำหน่าย',
+        type: 'error',
+        visible: true
+      });
+      setTimeout(() => {
+        setToast({ ...toast, visible: false });
+      }, 3000);
     }
   };
 
-  const handleEdit = (seller: Seller) => {
-    setEditingSeller(seller);
-    setFormData({
-      code: seller.code,
-      prefix: seller.prefix || '',
-      name: seller.name,
-      business: seller.business || '',
-      address: seller.address || '',
-      phone: seller.phone || '',
-      fax: seller.fax || '',
-      mobile: seller.mobile || ''
-    });
-    setIsModalOpen(true);
-  };
-
   const handleDelete = async (id: number) => {
-    if (confirm('คุณต้องการลบผู้จำหน่ายนี้หรือไม่?')) {
+    const confirmation = await Swal.fire({
+      title: 'ลบข้อมูล?',
+      text: 'คุณต้องการลบผู้จำหน่ายนี้หรือไม่?',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonText: 'ลบ',
+      cancelButtonText: 'ยกเลิก',
+      confirmButtonColor: '#d33',
+      cancelButtonColor: '#3085d6',
+    });
+
+    if (confirmation.isConfirmed) {
       try {
         const response = await fetch(`/api/sellers/${id}`, {
           method: 'DELETE',
@@ -161,24 +202,48 @@ export default function SellersPage() {
         if (result.success) {
           await fetchSellers(); // Refresh the list
         } else {
-          alert(result.error || 'Failed to delete seller');
+          await Swal.fire('เกิดข้อผิดพลาด', result.error || 'Failed to delete seller', 'error');
         }
       } catch (err) {
         console.error('Error deleting seller:', err);
-        alert('Failed to delete seller');
+        await Swal.fire('เกิดข้อผิดพลาด', 'Failed to delete seller', 'error');
       }
     }
   };
 
-  const totalCount = sellers.length;
+  const filteredSellers = useMemo(() => {
+    if (!filters.search.trim()) return sellers;
+    const keyword = filters.search.trim().toLowerCase();
+    return sellers.filter((seller) => {
+      const target = [
+        seller.code,
+        seller.name,
+        seller.business,
+        seller.address,
+        seller.phone,
+        seller.mobile
+      ]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase();
+      return target.includes(keyword);
+    });
+  }, [filters.search, sellers]);
+
+  const totalCount = filteredSellers.length;
   const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
   const pageStart = totalCount === 0 ? 0 : (page - 1) * pageSize + 1;
   const pageEnd = totalCount === 0 ? 0 : Math.min(totalCount, pageStart + pageSize - 1);
 
-  const paginatedSellers = sellers.slice(
+  const paginatedSellers = filteredSellers.slice(
     (page - 1) * pageSize,
     (page - 1) * pageSize + pageSize
   );
+
+  const clearFilters = () => {
+    setFilters({ search: '' });
+    setPage(1);
+  };
 
   const goToPage = (newPage: number) => {
     if (newPage < 1 || newPage > totalPages) return;
@@ -191,18 +256,8 @@ export default function SellersPage() {
   };
 
   const resetForm = () => {
-    setFormData({
-      code: '',
-      prefix: '',
-      name: '',
-      business: '',
-      address: '',
-      phone: '',
-      fax: '',
-      mobile: ''
-    });
-    setEditingSeller(null);
-    setIsModalOpen(false);
+    setFormData(createEmptySellerRecord());
+    setAddingNew(false);
   };
 
   // Start inline editing
@@ -362,7 +417,7 @@ export default function SellersPage() {
   };
   return (
     <div className="min-h-screen pt-[52px]">
-      <div className="container mx-auto px-4 py-8">
+      <div className="container mx-auto px-4 py-6">
         {/* Toast Notification */}
         {toast.visible && (
           <div className={`fixed top-4 right-4 z-50 p-4 rounded-lg shadow-lg transition-all duration-300 ${
@@ -388,38 +443,62 @@ export default function SellersPage() {
         )}
 
         {/* Header */}
-        <div className="flex justify-between items-center mb-8">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-800 flex items-center gap-3">
-              <Store className="h-8 w-8 text-blue-600" />
-              จัดการผู้จำหน่าย
-            </h1>
-            <p className="text-gray-600 mt-2">จัดการข้อมูลผู้จำหน่ายเวชภัณฑ์และอุปกรณ์การแพทย์</p>
+        <div className="mb-4">
+          <h1 className="flex items-center gap-3 text-2xl font-semibold text-gray-900">
+            <Store className="h-7 w-7 text-blue-600" />
+            จัดการผู้จำหน่าย
+          </h1>
+        </div>
+
+        <div className="mb-4 rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-[minmax(0,1fr)_220px]">
+            <div>
+              <label className="mb-1 block text-sm font-medium text-gray-700">ค้นหา</label>
+              <input
+                type="text"
+                placeholder="ค้นหาจากรหัส ชื่อ หรือคำอธิบาย"
+                value={filters.search}
+                onChange={(e) => {
+                  setFilters({ search: e.target.value });
+                  setPage(1);
+                }}
+                className="w-full rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-sm font-medium text-gray-700">รีเซ็ต</label>
+              <button
+                onClick={clearFilters}
+                className="w-full rounded-md bg-slate-600 px-4 py-2 text-white transition-colors hover:bg-slate-700"
+              >
+                ล้างตัวกรอง
+              </button>
+            </div>
           </div>
         </div>
 
-        {/* Add New Record Button */}
-        <div className="flex justify-end mt-4 mb-4">
+        <div className="mb-4 flex items-center justify-end gap-2">
+          <button
+            onClick={openBulkForm}
+            className="rounded-md border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50"
+          >
+            Bulk insert
+          </button>
           <button
             onClick={() => {
-              setShowBulkForm(true);
-              setBulkRecords([
-                { id: 1, code: '', prefix: '', name: '', business: '', address: '', phone: '', fax: '', mobile: '' },
-                { id: 2, code: '', prefix: '', name: '', business: '', address: '', phone: '', fax: '', mobile: '' },
-                { id: 3, code: '', prefix: '', name: '', business: '', address: '', phone: '', fax: '', mobile: '' },
-                { id: 4, code: '', prefix: '', name: '', business: '', address: '', phone: '', fax: '', mobile: '' },
-                { id: 5, code: '', prefix: '', name: '', business: '', address: '', phone: '', fax: '', mobile: '' }
-              ]);
+              setAddingNew(true);
+              setFormData(createEmptySellerRecord());
             }}
-            className="bg-blue-600 text-white p-3 rounded-full hover:bg-blue-700 transition-colors shadow-lg"
+            disabled={addingNew}
+            className="rounded-md bg-blue-600 px-3 py-2 text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-blue-300"
             title="เพิ่มผู้จำหน่ายใหม่"
           >
-            <Plus className="h-6 w-6" />
+            <Plus className="h-5 w-5" />
           </button>
         </div>
 
         {/* Pagination Controls */}
-        <div className="mt-4 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+        <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
           <div className="text-sm text-gray-600">
             แสดง {pageStart}-{pageEnd} จาก {totalCount} รายการ
           </div>
@@ -458,45 +537,130 @@ export default function SellersPage() {
           </div>
         </div>
 
-        <div className="bg-white/80 backdrop-blur-sm rounded-lg shadow-md border border-white/20 overflow-hidden">
+        <div className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">รหัส</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ชื่อผู้จำหน่าย</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ประเภทธุรกิจ</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">เบอร์โทร</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">มือถือ</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ACTION</th>
+                  <th className="px-6 py-3 text-left text-[10px] font-medium text-gray-500 uppercase tracking-wider">รหัส</th>
+                  <th className="px-6 py-3 text-left text-[10px] font-medium text-gray-500 uppercase tracking-wider">ชื่อผู้จำหน่าย</th>
+                  <th className="px-6 py-3 text-left text-[10px] font-medium text-gray-500 uppercase tracking-wider">ประเภทธุรกิจ</th>
+                  <th className="px-6 py-3 text-left text-[10px] font-medium text-gray-500 uppercase tracking-wider">เบอร์โทร</th>
+                  <th className="px-6 py-3 text-left text-[10px] font-medium text-gray-500 uppercase tracking-wider">มือถือ</th>
+                  <th className="px-6 py-3 text-left text-[10px] font-medium text-gray-500 uppercase tracking-wider">ACTION</th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
+                {addingNew && (
+                  <tr className="bg-blue-50/60">
+                    <td className="px-6 py-4 whitespace-nowrap text-xs font-medium text-gray-900">
+                      <input
+                        type="text"
+                        value={formData.code}
+                        onChange={(e) => setFormData({ ...formData, code: e.target.value })}
+                        className="w-full px-2 py-1 border border-gray-300 rounded text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        placeholder="รหัส"
+                      />
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="space-y-2">
+                        <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
+                          <input
+                            type="text"
+                            value={formData.prefix}
+                            onChange={(e) => setFormData({ ...formData, prefix: e.target.value })}
+                            className="w-full px-2 py-1 border border-gray-300 rounded text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            placeholder="คำนำหน้า"
+                          />
+                          <input
+                            type="text"
+                            value={formData.name}
+                            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                            className="w-full px-2 py-1 border border-gray-300 rounded text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            placeholder="ชื่อผู้จำหน่าย"
+                          />
+                        </div>
+                        <textarea
+                          value={formData.address}
+                          onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                          className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 text-xs resize-none"
+                          rows={2}
+                          placeholder="ที่อยู่"
+                        />
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-xs text-gray-500">
+                      <input
+                        type="text"
+                        value={formData.business}
+                        onChange={(e) => setFormData({ ...formData, business: e.target.value })}
+                        className="w-full px-2 py-1 border border-gray-300 rounded text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        placeholder="ประเภทธุรกิจ"
+                      />
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-xs text-gray-500">
+                      <input
+                        type="tel"
+                        value={formData.phone}
+                        onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                        className="w-full px-2 py-1 border border-gray-300 rounded text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        placeholder="เบอร์โทร"
+                      />
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-xs text-gray-500">
+                      <input
+                        type="tel"
+                        value={formData.mobile}
+                        onChange={(e) => setFormData({ ...formData, mobile: e.target.value })}
+                        className="w-full px-2 py-1 border border-gray-300 rounded text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        placeholder="มือถือ"
+                      />
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-xs font-medium w-32">
+                      <div className="flex gap-1">
+                        <button
+                          onClick={saveNewRecord}
+                          className="text-green-600 hover:text-green-900 cursor-pointer"
+                          title="บันทึก"
+                        >
+                          <Check className="h-4 w-4" />
+                        </button>
+                        <button
+                          onClick={resetForm}
+                          className="text-red-600 hover:text-red-900 cursor-pointer"
+                          title="ยกเลิก"
+                        >
+                          <X className="h-4 w-4" />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                )}
                 {paginatedSellers.map((seller) => (
                   <tr key={seller.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                    <td className="px-6 py-4 whitespace-nowrap text-xs font-medium text-gray-900">
                       {seller.code}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div>
-                        <div className="text-sm font-medium text-gray-900">
+                        <div className="text-xs font-medium text-gray-900">
                           {editingId === seller.id ? (
                             <input
                               type="text"
                               value={editData.name}
                               onChange={(e) => setEditData({ ...editData, name: e.target.value })}
-                              className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                              className="w-full px-2 py-1 border border-gray-300 rounded text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
                             />
                           ) : (
                             `${seller.prefix || ''} ${seller.name}`.trim()
                           )}
                         </div>
-                        <div className="text-sm text-gray-500">
+                        <div className="text-xs text-gray-500">
                           {editingId === seller.id ? (
                             <textarea
                               value={editData.address || ''}
                               onChange={(e) => setEditData({ ...editData, address: e.target.value })}
-                              className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm resize-none"
+                              className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 text-xs resize-none"
                               rows={2}
                             />
                           ) : (
@@ -505,43 +669,43 @@ export default function SellersPage() {
                         </div>
                       </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    <td className="px-6 py-4 whitespace-nowrap text-xs text-gray-500">
                       {editingId === seller.id ? (
                         <input
                           type="text"
                           value={editData.business || ''}
                           onChange={(e) => setEditData({ ...editData, business: e.target.value })}
-                          className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          className="w-full px-2 py-1 border border-gray-300 rounded text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
                         />
                       ) : (
                         seller.business
                       )}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    <td className="px-6 py-4 whitespace-nowrap text-xs text-gray-500">
                       {editingId === seller.id ? (
                         <input
                           type="tel"
                           value={editData.phone || ''}
                           onChange={(e) => setEditData({ ...editData, phone: e.target.value })}
-                          className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          className="w-full px-2 py-1 border border-gray-300 rounded text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
                         />
                       ) : (
                         seller.phone
                       )}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    <td className="px-6 py-4 whitespace-nowrap text-xs text-gray-500">
                       {editingId === seller.id ? (
                         <input
                           type="tel"
                           value={editData.mobile || ''}
                           onChange={(e) => setEditData({ ...editData, mobile: e.target.value })}
-                          className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          className="w-full px-2 py-1 border border-gray-300 rounded text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
                         />
                       ) : (
                         seller.mobile
                       )}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium w-32">
+                    <td className="px-6 py-4 whitespace-nowrap text-xs font-medium w-32">
                       {editingId === seller.id ? (
                         <div className="flex gap-1">
                           <button
@@ -585,194 +749,17 @@ export default function SellersPage() {
           </div>
         </div>
 
-        {/* Stats */}
-        <div className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="bg-white/80 backdrop-blur-sm rounded-lg shadow-md p-6 border border-white/20">
-            <div className="flex items-center">
-              <div className="bg-blue-500 rounded-lg p-3 mr-4">
-                <Store className="h-6 w-6 text-white" />
-              </div>
-              <div>
-                <h3 className="text-lg font-semibold text-gray-800">ผู้จำหน่ายทั้งหมด</h3>
-                <p className="text-3xl font-bold text-blue-600">{sellers.length}</p>
-              </div>
-            </div>
-          </div>
-          <div className="bg-white/80 backdrop-blur-sm rounded-lg shadow-md p-6 border border-white/20">
-            <div className="flex items-center">
-              <div className="bg-green-500 rounded-lg p-3 mr-4">
-                <BadgeCheck className="h-6 w-6 text-white" />
-              </div>
-              <div>
-                <h3 className="text-lg font-semibold text-gray-800">ผู้จำหน่ายใช้งาน</h3>
-                <p className="text-3xl font-bold text-green-600">{sellers.length}</p>
-              </div>
-            </div>
-          </div>
-          <div className="bg-white/80 backdrop-blur-sm rounded-lg shadow-md p-6 border border-white/20">
-            <div className="flex items-center">
-              <div className="bg-purple-500 rounded-lg p-3 mr-4">
-                <Phone className="h-6 w-6 text-white" />
-              </div>
-              <div>
-                <h3 className="text-lg font-semibold text-gray-800">มีข้อมูลติดต่อ</h3>
-                <p className="text-3xl font-bold text-purple-600">{sellers.filter(s => s.phone || s.mobile).length}</p>
-              </div>
-            </div>
-          </div>
-        </div>
       </div>
-
-      {/* Modal */}
-      {isModalOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-2xl mx-4 max-h-[90vh] overflow-y-auto">
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-xl font-bold text-gray-800">
-                {editingSeller ? '✏️ แก้ไขผู้จำหน่าย' : '➕ เพิ่มผู้จำหน่าย'}
-              </h2>
-              <button
-                onClick={resetForm}
-                className="text-gray-400 hover:text-gray-600"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            </div>
-
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    รหัสผู้จำหน่าย *
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={formData.code}
-                    onChange={(e) => setFormData({...formData, code: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="เช่น S001"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    คำนำหน้า
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.prefix}
-                    onChange={(e) => setFormData({...formData, prefix: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="เช่น บริษัท, ห้างหุ้นส่วน"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  ชื่อผู้จำหน่าย *
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={formData.name}
-                  onChange={(e) => setFormData({...formData, name: e.target.value})}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="ชื่อบริษัทหรือร้านค้า"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  ประเภทธุรกิจ
-                </label>
-                <input
-                  type="text"
-                  value={formData.business}
-                  onChange={(e) => setFormData({...formData, business: e.target.value})}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="เช่น จำหน่ายเวชภัณฑ์"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  ที่อยู่
-                </label>
-                <textarea
-                  value={formData.address}
-                  onChange={(e) => setFormData({...formData, address: e.target.value})}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  rows={3}
-                  placeholder="ที่อยู่ผู้จำหน่าย"
-                />
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    เบอร์โทรศัพท์
-                  </label>
-                  <input
-                    type="tel"
-                    value={formData.phone}
-                    onChange={(e) => setFormData({...formData, phone: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="02-xxx-xxxx"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    แฟกซ์
-                  </label>
-                  <input
-                    type="tel"
-                    value={formData.fax}
-                    onChange={(e) => setFormData({...formData, fax: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="02-xxx-xxxx"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    มือถือ
-                  </label>
-                  <input
-                    type="tel"
-                    value={formData.mobile}
-                    onChange={(e) => setFormData({...formData, mobile: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="08x-xxx-xxxx"
-                  />
-                </div>
-              </div>
-
-              <div className="flex justify-end space-x-3 pt-6">
-                <button
-                  type="button"
-                  onClick={resetForm}
-                  className="px-6 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 transition-colors"
-                >
-                  ยกเลิก
-                </button>
-                <button
-                  type="submit"
-                  className="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
-                >
-                  {editingSeller ? 'บันทึกการแก้ไข' : 'เพิ่มผู้จำหน่าย'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
 
       {/* Bulk Add Sellers Modal */}
       {showBulkForm && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 w-full max-w-6xl max-h-[90vh] overflow-y-auto">
             <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-bold">เพิ่มผู้จำหน่ายใหม่ (5 รายการพร้อมแก้ไข)</h2>
+              <div>
+                <h2 className="text-xl font-bold">Bulk insert ผู้จำหน่าย</h2>
+                <p className="mt-1 text-sm text-gray-500">เพิ่มหลายรายการพร้อมกัน และกดปุ่ม + เพื่อเพิ่มแถวได้ตามต้องการ</p>
+              </div>
               <button
                 onClick={() => {
                   setShowBulkForm(false);
@@ -790,21 +777,21 @@ export default function SellersPage() {
                   <table className="w-full">
                     <thead className="bg-gray-100">
                       <tr>
-                        <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase">ลำดับ</th>
-                        <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase">รหัส</th>
-                        <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase">คำนำหน้า</th>
-                        <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase">ชื่อผู้จำหน่าย</th>
-                        <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase">ประเภทธุรกิจ</th>
-                        <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase">ที่อยู่</th>
-                        <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase">เบอร์โทร</th>
-                        <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase">มือถือ</th>
-                        <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase">จัดการ</th>
+                        <th className="px-2 py-2 text-left text-[10px] font-medium text-gray-500 uppercase">ลำดับ</th>
+                        <th className="px-2 py-2 text-left text-[10px] font-medium text-gray-500 uppercase">รหัส</th>
+                        <th className="px-2 py-2 text-left text-[10px] font-medium text-gray-500 uppercase">คำนำหน้า</th>
+                        <th className="px-2 py-2 text-left text-[10px] font-medium text-gray-500 uppercase">ชื่อผู้จำหน่าย</th>
+                        <th className="px-2 py-2 text-left text-[10px] font-medium text-gray-500 uppercase">ประเภทธุรกิจ</th>
+                        <th className="px-2 py-2 text-left text-[10px] font-medium text-gray-500 uppercase">ที่อยู่</th>
+                        <th className="px-2 py-2 text-left text-[10px] font-medium text-gray-500 uppercase">เบอร์โทร</th>
+                        <th className="px-2 py-2 text-left text-[10px] font-medium text-gray-500 uppercase">มือถือ</th>
+                        <th className="px-2 py-2 text-left text-[10px] font-medium text-gray-500 uppercase">จัดการ</th>
                       </tr>
                     </thead>
                     <tbody>
                       {bulkRecords.map((record, index) => (
                         <tr key={record.id} className="border-b border-gray-200">
-                          <td className="px-2 py-3 text-sm text-gray-900">{index + 1}</td>
+                          <td className="px-2 py-3 text-xs text-gray-900">{index + 1}</td>
                           <td className="px-2 py-3">
                             <input
                               type="text"
@@ -815,7 +802,7 @@ export default function SellersPage() {
                                 setBulkRecords(updated);
                               }}
                               placeholder="รหัส"
-                              className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                              className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 text-xs"
                             />
                           </td>
                           <td className="px-2 py-3">
@@ -828,7 +815,7 @@ export default function SellersPage() {
                                 setBulkRecords(updated);
                               }}
                               placeholder="คำนำหน้า"
-                              className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                              className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 text-xs"
                             />
                           </td>
                           <td className="px-2 py-3">
@@ -841,7 +828,7 @@ export default function SellersPage() {
                                 setBulkRecords(updated);
                               }}
                               placeholder="ชื่อผู้จำหน่าย"
-                              className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                              className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 text-xs"
                             />
                           </td>
                           <td className="px-2 py-3">
@@ -854,7 +841,7 @@ export default function SellersPage() {
                                 setBulkRecords(updated);
                               }}
                               placeholder="ประเภทธุรกิจ"
-                              className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                              className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 text-xs"
                             />
                           </td>
                           <td className="px-2 py-3">
@@ -866,7 +853,7 @@ export default function SellersPage() {
                                 setBulkRecords(updated);
                               }}
                               placeholder="ที่อยู่"
-                              className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm resize-none"
+                              className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 text-xs resize-none"
                               rows={2}
                             />
                           </td>
@@ -880,7 +867,7 @@ export default function SellersPage() {
                                 setBulkRecords(updated);
                               }}
                               placeholder="เบอร์โทร"
-                              className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                              className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 text-xs"
                             />
                           </td>
                           <td className="px-2 py-3">
@@ -893,26 +880,18 @@ export default function SellersPage() {
                                 setBulkRecords(updated);
                               }}
                               placeholder="มือถือ"
-                              className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                              className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 text-xs"
                             />
                           </td>
                           <td className="px-2 py-3">
                             <div className="flex gap-1">
-                              {bulkRecords.length < 5 && (
-                                <button
-                                  onClick={() => {
-                                    const newRecord = {
-                                      id: Math.max(...bulkRecords.map(r => r.id)) + 1,
-                                      code: '', prefix: '', name: '', business: '', address: '', phone: '', fax: '', mobile: ''
-                                    };
-                                    setBulkRecords([...bulkRecords, newRecord]);
-                                  }}
-                                  className="text-green-600 hover:text-green-900 p-1"
-                                  title="เพิ่มแถวใหม่"
-                                >
-                                  <Plus className="h-4 w-4" />
-                                </button>
-                              )}
+                              <button
+                                onClick={addBulkRow}
+                                className="text-green-600 hover:text-green-900 p-1"
+                                title="เพิ่มแถวใหม่"
+                              >
+                                <Plus className="h-4 w-4" />
+                              </button>
                               {bulkRecords.length > 1 && (
                                 <button
                                   onClick={() => {

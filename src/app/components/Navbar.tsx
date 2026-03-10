@@ -73,9 +73,9 @@ export default function Navbar() {
 
             {/* Other top-level links */}
             <Link
-              href="/surveys"
+              href="/usage-plans"
               className={`flex items-center px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                pathname === '/surveys'
+                pathname === '/usage-plans'
                   ? 'bg-blue-700 text-white'
                   : 'text-blue-100 hover:bg-blue-500 hover:text-white'
               }`}
@@ -106,15 +106,15 @@ export default function Navbar() {
               อนุมัติจัดซื้อ
             </Link>
             <Link
-              href="/warehouse"
+              href="/inventory"
               className={`flex items-center px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                pathname === '/warehouse'
+                pathname.startsWith('/inventory')
                   ? 'bg-blue-700 text-white'
                   : 'text-blue-100 hover:bg-blue-500 hover:text-white'
               }`}
             >
               <Warehouse className="mr-2 h-4 w-4" />
-              คลัง
+              ระบบคลัง
             </Link>
             <Link
               href="/gemini"
@@ -194,10 +194,10 @@ export default function Navbar() {
 
               {/* Other links */}
               <Link
-                href="/surveys"
+                href="/usage-plans"
                 onClick={() => setIsMenuOpen(false)}
                 className={`flex items-center px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                  pathname === '/surveys'
+                  pathname === '/usage-plans'
                     ? 'bg-blue-700 text-white'
                     : 'text-blue-100 hover:bg-blue-500 hover:text-white'
                 }`}
@@ -230,16 +230,16 @@ export default function Navbar() {
                 อนุมัติจัดซื้อ
               </Link>
               <Link
-                href="/warehouse"
+                href="/inventory"
                 onClick={() => setIsMenuOpen(false)}
                 className={`flex items-center px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                  pathname === '/warehouse'
+                  pathname.startsWith('/inventory')
                     ? 'bg-blue-700 text-white'
                     : 'text-blue-100 hover:bg-blue-500 hover:text-white'
                 }`}
               >
                 <Warehouse className="mr-2 h-4 w-4" />
-                คลัง
+                ระบบคลัง
               </Link>
               <Link
                 href="/gemini"

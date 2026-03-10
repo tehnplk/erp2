@@ -3,10 +3,12 @@ import { z } from 'zod';
 // Common validation patterns
 const positiveNumber = z.string().transform((val: string) => parseFloat(val)).pipe(z.number().min(0));
 const positiveInteger = z.string().transform((val: string) => parseInt(val)).pipe(z.number().int().min(0));
+const numberInput = z.union([z.string(), z.number()]).transform((val) => val === '' ? 0 : Number(val)).pipe(z.number().min(0));
+const nullableIntInput = z.union([z.string(), z.number(), z.null(), z.undefined()]).transform((val) => val === null || val === undefined || val === '' ? null : parseInt(String(val), 10)).pipe(z.number().int().min(0).nullable());
 const nonEmptyString = z.string().min(1, 'This field is required');
 const paginationFields = {
   page: z.coerce.number().int().min(1).optional(),
-  pageSize: z.coerce.number().int().min(1).max(200).optional()
+  page_size: z.coerce.number().int().min(1).max(200).optional()
 };
 
 // Product schemas
@@ -17,25 +19,123 @@ export const createProductSchema = z.object({
   type: z.string().optional(),
   subtype: z.string().optional(),
   unit: z.string().optional(),
-  costPrice: positiveNumber.optional(),
-  sellPrice: positiveNumber.optional(),
-  stockBalance: positiveInteger.optional(),
-  stockValue: positiveNumber.optional(),
-  sellerCode: z.string().optional(),
+  cost_price: positiveNumber.optional(),
+  sell_price: positiveNumber.optional(),
+  stock_balance: positiveInteger.optional(),
+  stock_value: positiveNumber.optional(),
+  seller_code: z.string().optional(),
   image: z.string().optional(),
-  adminNote: z.string().optional()
+  admin_note: z.string().optional()
 });
 
 export const updateProductSchema = createProductSchema.partial();
 
 export const productQuerySchema = z.object({
+  code: z.string().optional(),
   name: z.string().optional(),
+  search: z.string().optional(),
   category: z.string().optional(),
   type: z.string().optional(),
   subtype: z.string().optional(),
-  orderBy: z.enum(['id', 'code', 'name', 'category', 'type', 'subtype', 'costPrice', 'sellPrice']).optional(),
-  sortOrder: z.enum(['asc', 'desc']).optional(),
+  order_by: z.enum(['id', 'code', 'name', 'category', 'type', 'subtype', 'cost_price', 'sell_price']).optional(),
+  sort_order: z.enum(['asc', 'desc']).optional(),
   ...paginationFields
+});
+
+// Inventory schemas
+export const inventoryPendingPurchaseApprovalQuerySchema = z.object({
+  product_name: z.string().optional(),
+  department: z.string().optional(),
+  budget_year: z.string().optional(),
+  status: z.enum(['PENDING', 'PARTIAL', 'RECEIVED', 'CANCELLED']).optional(),
+  order_by: z.enum(['id', 'product_code', 'product_name', 'department', 'budget_year', 'requested_quantity', 'received_qty']).optional(),
+  sort_order: z.enum(['asc', 'desc']).optional(),
+  ...paginationFields
+});
+
+export const createInventoryReceiptFromPurchaseApprovalSchema = z.object({
+  purchase_approval_id: z.coerce.number().int().positive(),
+  warehouse_id: z.coerce.number().int().positive(),
+  location_id: z.coerce.number().int().positive().nullable().optional(),
+  qty: z.coerce.number().int().positive(),
+  unit_cost: z.union([z.string(), z.number(), z.null(), z.undefined()]).transform((val) => val === null || val === undefined || val === '' ? null : Number(val)).pipe(z.number().min(0).nullable()).optional(),
+  vendor_name: z.string().optional(),
+  receipt_date: z.string().optional(),
+  receipt_no: z.string().optional(),
+  lot_no: z.string().optional(),
+  expiry_date: z.string().optional(),
+  note: z.string().optional(),
+  created_by: z.string().optional()
+});
+
+export const inventoryBalanceQuerySchema = z.object({
+  product_name: z.string().optional(),
+  product_code: z.string().optional(),
+  category: z.string().optional(),
+  product_type: z.string().optional(),
+  warehouse_id: z.coerce.number().int().positive().optional(),
+  low_stock_only: z.enum(['true', 'false']).optional(),
+  order_by: z.enum(['id', 'product_code', 'product_name', 'category', 'product_type', 'on_hand_qty', 'available_qty', 'avg_cost']).optional(),
+  sort_order: z.enum(['asc', 'desc']).optional(),
+  ...paginationFields
+});
+
+export const inventoryMovementQuerySchema = z.object({
+  inventory_item_id: z.coerce.number().int().positive().optional(),
+  product_code: z.string().optional(),
+  movement_type: z.string().optional(),
+  reference_type: z.string().optional(),
+  date_from: z.string().optional(),
+  date_to: z.string().optional(),
+  order_by: z.enum(['id', 'movement_date', 'movement_type', 'product_code', 'product_name', 'qty_in', 'qty_out']).optional(),
+  sort_order: z.enum(['asc', 'desc']).optional(),
+  ...paginationFields
+});
+
+export const createInventoryRequisitionSchema = z.object({
+  requisition_no: z.string().optional(),
+  request_date: z.string().optional(),
+  requesting_department: nonEmptyString,
+  requested_by: z.string().nullable().optional(),
+  note: z.string().nullable().optional(),
+  items: z.array(z.object({
+    inventory_item_id: z.coerce.number().int().positive(),
+    requested_qty: z.coerce.number().int().positive(),
+    note: z.string().optional()
+  })).min(1)
+});
+
+export const inventoryRequisitionQuerySchema = z.object({
+  requisition_no: z.string().optional(),
+  requesting_department: z.string().optional(),
+  status: z.enum(['DRAFT', 'SUBMITTED', 'PARTIALLY_APPROVED', 'APPROVED', 'REJECTED', 'PARTIALLY_ISSUED', 'ISSUED', 'CANCELLED']).optional(),
+  order_by: z.enum(['id', 'requisition_no', 'request_date', 'requesting_department', 'status']).optional(),
+  sort_order: z.enum(['asc', 'desc']).optional(),
+  ...paginationFields
+});
+
+export const approveInventoryRequisitionSchema = z.object({
+  approved_by: z.string().nullable().optional(),
+  note: z.string().nullable().optional(),
+  items: z.array(z.object({
+    requisition_item_id: z.coerce.number().int().positive(),
+    approved_qty: z.coerce.number().int().min(0)
+  })).min(1)
+});
+
+export const createInventoryIssueSchema = z.object({
+  requisition_id: z.coerce.number().int().positive(),
+  issue_no: z.string().optional(),
+  issue_date: z.string().optional(),
+  requesting_department: nonEmptyString,
+  issued_by: z.string().nullable().optional(),
+  approved_by: z.string().nullable().optional(),
+  note: z.string().nullable().optional(),
+  items: z.array(z.object({
+    requisition_item_id: z.coerce.number().int().positive(),
+    inventory_item_id: z.coerce.number().int().positive(),
+    issued_qty: z.coerce.number().int().positive()
+  })).min(1)
 });
 
 // Seller schemas
@@ -71,6 +171,7 @@ export const departmentQuerySchema = z.object({
 
 // Category schemas
 export const createCategorySchema = z.object({
+  category_code: nonEmptyString,
   category: nonEmptyString,
   type: nonEmptyString,
   subtype: nonEmptyString
@@ -85,169 +186,144 @@ export const categoryQuerySchema = z.object({
   ...paginationFields
 });
 
-// Warehouse schemas
-export const createWarehouseSchema = z.object({
-  stockId: z.string().nullable().optional(),
-  transactionType: z.string().nullable().optional(),
-  transactionDate: z.string().nullable().optional(),
-  category: z.string().nullable().optional(),
-  productType: z.string().nullable().optional(),
-  productSubtype: z.string().nullable().optional(),
-  productCode: z.string().nullable().optional(),
-  productName: z.string().nullable().optional(),
-  productImage: z.string().nullable().optional(),
-  unit: z.string().nullable().optional(),
-  productLot: z.string().nullable().optional(),
-  productPrice: z.string().transform((val: string) => val === null || val === undefined || val === '' ? 0 : parseFloat(val)).pipe(z.number()).optional(),
-  receivedFromCompany: z.string().nullable().optional(),
-  receiptBillNumber: z.string().nullable().optional(),
-  requestingDepartment: z.string().nullable().optional(),
-  requisitionNumber: z.string().nullable().optional(),
-  quotaAmount: z.string().transform((val: string) => val === null || val === undefined || val === '' ? null : parseInt(val)).pipe(z.number().nullable()).optional(),
-  carriedForwardQty: z.string().transform((val: string) => val === null || val === undefined || val === '' ? null : parseInt(val)).pipe(z.number().nullable()).optional(),
-  carriedForwardValue: z.string().transform((val: string) => val === null || val === undefined || val === '' ? 0 : parseFloat(val)).pipe(z.number()).optional(),
-  transactionPrice: z.string().transform((val: string) => val === null || val === undefined || val === '' ? 0 : parseFloat(val)).pipe(z.number()).optional(),
-  transactionQuantity: z.string().transform((val: string) => val === null || val === undefined || val === '' ? null : parseInt(val)).pipe(z.number().nullable()).optional(),
-  transactionValue: z.string().transform((val: string) => val === null || val === undefined || val === '' ? 0 : parseFloat(val)).pipe(z.number()).optional(),
-  remainingQuantity: z.string().transform((val: string) => val === null || val === undefined || val === '' ? null : parseInt(val)).pipe(z.number().nullable()).optional(),
-  remainingValue: z.string().transform((val: string) => val === null || val === undefined || val === '' ? 0 : parseFloat(val)).pipe(z.number()).optional(),
-  inventoryStatus: z.string().nullable().optional()
-});
-
-export const warehouseQuerySchema = z.object({
-  productName: z.string().optional(),
-  category: z.string().optional(),
-  productType: z.string().optional(),
-  productSubtype: z.string().optional(),
-  requestingDepartment: z.string().optional(),
-  orderBy: z.enum([
-    'id', 'transactionDate', 'productCode', 'productName', 
-    'transactionQuantity', 'remainingQuantity', 'category', 
-    'productType', 'productSubtype', 'requestingDepartment'
-  ]).optional(),
-  sortOrder: z.enum(['asc', 'desc']).optional(),
-  ...paginationFields
-});
-
 // Purchase Plan schemas
 export const createPurchasePlanSchema = z.object({
-  productCode: z.string().optional(),
+  product_code: z.string().optional(),
   category: z.string().optional(),
-  productName: z.string().optional(),
-  productType: z.string().optional(),
-  productSubtype: z.string().optional(),
+  product_name: z.string().optional(),
+  product_type: z.string().optional(),
+  product_subtype: z.string().optional(),
   unit: z.string().optional(),
-  pricePerUnit: positiveNumber.optional(),
-  budgetYear: z.string().optional(),
-  planId: positiveInteger.optional(),
-  inPlan: z.string().optional(),
-  carriedForwardQuantity: positiveInteger.optional(),
-  carriedForwardValue: positiveNumber.optional(),
-  requiredQuantityForYear: positiveInteger.optional(),
-  totalRequiredValue: positiveNumber.optional(),
-  additionalPurchaseQty: positiveInteger.optional(),
-  additionalPurchaseValue: positiveNumber.optional(),
-  purchasingDepartment: z.string().optional()
+  price_per_unit: numberInput.optional(),
+  budget_year: z.string().optional(),
+  plan_id: nullableIntInput.optional(),
+  in_plan: z.string().optional(),
+  carried_forward_quantity: nullableIntInput.optional(),
+  carried_forward_value: numberInput.optional(),
+  required_quantity_for_year: nullableIntInput.optional(),
+  total_required_value: numberInput.optional(),
+  additional_purchase_qty: nullableIntInput.optional(),
+  additional_purchase_value: numberInput.optional(),
+  purchasing_department: z.string().optional()
 });
 
+export const updatePurchasePlanSchema = createPurchasePlanSchema.partial();
+
 export const purchasePlanQuerySchema = z.object({
-  productName: z.string().optional(),
+  product_name: z.string().optional(),
   category: z.string().optional(),
-  productType: z.string().optional(),
-  productSubtype: z.string().optional(),
-  purchasingDepartment: z.string().optional(),
-  budgetYear: z.string().optional(),
-  orderBy: z.enum([
+  type: z.string().optional(),
+  product_type: z.string().optional(),
+  product_subtype: z.string().optional(),
+  requesting_dept: z.string().optional(),
+  purchasing_department: z.string().optional(),
+  budget_year: z.string().optional(),
+  order_by: z.enum([
     'id',
-    'productCode',
-    'productName',
+    'product_code',
+    'product_name',
     'category',
-    'productType',
-    'productSubtype',
+    'product_type',
+    'product_subtype',
     'unit',
-    'pricePerUnit',
-    'requiredQuantityForYear',
-    'totalRequiredValue',
-    'budgetYear',
-    'purchasingDepartment'
+    'price_per_unit',
+    'required_quantity_for_year',
+    'total_required_value',
+    'budget_year',
+    'purchasing_department'
   ]).optional(),
-  sortOrder: z.enum(['asc', 'desc']).optional(),
+  sort_order: z.enum(['asc', 'desc']).optional(),
   ...paginationFields
 });
 
 // Purchase Approval schemas
 export const createPurchaseApprovalSchema = z.object({
-  approvalId: z.string().optional(),
+  approval_id: z.string().optional(),
   department: z.string().optional(),
-  recordNumber: z.string().optional(),
-  requestDate: z.string().optional(),
-  productName: z.string().optional(),
-  productCode: z.string().optional(),
+  budget_year: z.union([z.string(), z.number(), z.null(), z.undefined()])
+    .transform((val) => val === null || val === undefined || val === '' ? null : parseInt(String(val), 10))
+    .pipe(z.number().int().nullable())
+    .optional(),
+  record_number: z.string().optional(),
+  request_date: z.string().optional(),
+  product_name: z.string().optional(),
+  product_code: z.string().optional(),
   category: z.string().optional(),
-  productType: z.string().optional(),
-  productSubtype: z.string().optional(),
-  requestedQuantity: positiveInteger.optional(),
+  product_type: z.string().optional(),
+  product_subtype: z.string().optional(),
+  requested_quantity: positiveInteger.optional(),
   unit: z.string().optional(),
-  pricePerUnit: positiveNumber.optional(),
-  totalValue: positiveNumber.optional(),
-  overPlanCase: z.string().optional(),
+  price_per_unit: positiveNumber.optional(),
+  total_value: positiveNumber.optional(),
+  over_plan_case: z.string().optional(),
   requester: z.string().optional(),
   approver: z.string().optional()
 });
 
 export const purchaseApprovalQuerySchema = z.object({
-  productName: z.string().optional(),
+  product_name: z.string().optional(),
   category: z.string().optional(),
-  productType: z.string().optional(),
-  productSubtype: z.string().optional(),
+  product_type: z.string().optional(),
+  product_subtype: z.string().optional(),
   department: z.string().optional(),
-  orderBy: z.enum([
-    'id', 'department', 'recordNumber', 'requestDate', 
-    'productName', 'productCode', 'category', 'productType', 
-    'productSubtype', 'requester', 'approver'
+  budget_year: z.string().optional(),
+  order_by: z.enum([
+    'id', 'department', 'budget_year', 'record_number', 'request_date', 
+    'product_name', 'product_code', 'category', 'product_type', 
+    'product_subtype', 'requester', 'approver'
   ]).optional(),
-  sortOrder: z.enum(['asc', 'desc']).optional(),
+  sort_order: z.enum(['asc', 'desc']).optional(),
   ...paginationFields
 });
 
 // Survey schemas
 export const createSurveySchema = z.object({
-  productCode: z.string().nullable().optional(),
+  product_code: z.string().nullable().optional(),
   category: z.string().nullable().optional(),
   type: z.string().nullable().optional(),
   subtype: z.string().nullable().optional(),
-  productName: z.string().nullable().optional(),
-  requestedAmount: z.string().transform((val: string) => val === null || val === undefined || val === '' ? null : parseInt(val)).pipe(z.number().nullable()).optional(),
+  product_name: z.string().nullable().optional(),
+  requested_amount: nullableIntInput.optional(),
   unit: z.string().nullable().optional(),
-  pricePerUnit: z.string().transform((val: string) => val === null || val === undefined || val === '' ? 0 : parseFloat(val)).pipe(z.number()).optional(),
-  requestingDept: z.string().nullable().optional(),
-  approvedQuota: z.string().transform((val: string) => val === null || val === undefined || val === '' ? null : parseInt(val)).pipe(z.number().nullable()).optional()
+  price_per_unit: numberInput.optional(),
+  requesting_dept: z.string().nullable().optional(),
+  approved_quota: nullableIntInput.optional(),
+  budget_year: z.union([z.string(), z.number(), z.null(), z.undefined()])
+    .transform((val) => val === null || val === undefined || val === '' ? null : parseInt(String(val), 10))
+    .pipe(z.number().int().nullable())
+    .optional(),
+  sequence_no: z.union([z.string(), z.number(), z.null(), z.undefined()])
+    .transform((val) => val === null || val === undefined || val === '' ? null : parseInt(String(val), 10))
+    .pipe(z.number().int().min(1).max(2).nullable())
+    .optional()
 });
 
 export const updateSurveySchema = createSurveySchema.partial();
 
 export const surveyQuerySchema = z.object({
-  productName: z.string().optional(),
+  product_name: z.string().optional(),
   category: z.string().optional(),
   type: z.string().optional(),
-  requestingDept: z.string().optional(),
-  orderBy: z.enum([
+  requesting_dept: z.string().optional(),
+  budget_year: z.string().optional(),
+  order_by: z.enum([
     'id',
-    'productCode',
-    'productName',
+    'product_code',
+    'product_name',
     'category',
     'type',
     'subtype',
-    'requestingDept'
+    'requesting_dept',
+    'budget_year',
+    'sequence_no',
+    'created_at',
+    'updated_at'
   ]).optional(),
-  sortOrder: z.enum(['asc', 'desc']).optional(),
+  sort_order: z.enum(['asc', 'desc']).optional(),
   ...paginationFields
 });
 
-// Warehouse update schema
-export const updateWarehouseSchema = createWarehouseSchema.partial();
-
 // ID parameter validation
 export const idParamSchema = z.object({
-  id: z.string().transform((val: string) => parseInt(val)).pipe(z.number().int().positive('Invalid ID format'))
+  id: z.coerce.number().int().positive()
 });

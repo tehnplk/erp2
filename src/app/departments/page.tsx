@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Swal from 'sweetalert2';
 import { Plus, Check, X, Pencil, Trash2, CheckCircle2, AlertCircle, X as XIcon } from 'lucide-react';
 
 interface Department {
@@ -13,7 +14,6 @@ export default function DepartmentsPage() {
   const [filteredDepartments, setFilteredDepartments] = useState<Department[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
-  const [editingDepartment, setEditingDepartment] = useState<Department | null>(null);
   const [formData, setFormData] = useState({
     name: ''
   });
@@ -38,6 +38,16 @@ export default function DepartmentsPage() {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
   const PAGE_SIZE_OPTIONS = [10, 20, 50];
+
+  const createEmptyDepartmentRecord = () => ({
+    name: ''
+  });
+
+  const createEmptyBulkDepartmentRecord = () => ({
+    id: Date.now() + Math.random(),
+    ...createEmptyDepartmentRecord()
+  });
+
   const fetchDepartments = async () => {
     try {
       const response = await fetch('/api/departments');
@@ -59,6 +69,69 @@ export default function DepartmentsPage() {
       console.error('Error fetching departments:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const saveNewRecord = async () => {
+    if (!formData.name.trim()) {
+      setToast({
+        message: 'กรุณากรอกชื่อแผนก',
+        type: 'error',
+        visible: true
+      });
+
+      setTimeout(() => {
+        setToast({ ...toast, visible: false });
+      }, 3000);
+      return;
+    }
+
+    try {
+      const response = await fetch('/api/departments', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ name: formData.name.trim() }),
+      });
+
+      if (response.ok) {
+        await fetchDepartments();
+        setShowForm(false);
+        setFormData(createEmptyDepartmentRecord());
+
+        setToast({
+          message: 'เพิ่มแผนกใหม่สำเร็จ!',
+          type: 'success',
+          visible: true
+        });
+
+        setTimeout(() => {
+          setToast({ ...toast, visible: false });
+        }, 3000);
+      } else {
+        setToast({
+          message: 'เกิดข้อผิดพลาดในการเพิ่มแผนก',
+          type: 'error',
+          visible: true
+        });
+
+        setTimeout(() => {
+          setToast({ ...toast, visible: false });
+        }, 3000);
+      }
+    } catch (error) {
+      console.error('Error creating department:', error);
+
+      setToast({
+        message: 'เกิดข้อผิดพลาดในการเพิ่มแผนก',
+        type: 'error',
+        visible: true
+      });
+
+      setTimeout(() => {
+        setToast({ ...toast, visible: false });
+      }, 3000);
     }
   };
 
@@ -84,60 +157,28 @@ export default function DepartmentsPage() {
     });
   };
 
-  // Create new department
-  const createDepartment = async (e: React.FormEvent) => {
-    e.preventDefault();
-    try {
-      const response = await fetch('/api/departments', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(formData),
-      });
-
-      if (response.ok) {
-        await fetchDepartments();
-        setShowForm(false);
-        setFormData({ name: '' });
-      } else {
-        console.error('Failed to create department');
-      }
-    } catch (error) {
-      console.error('Error creating department:', error);
-    }
+  const openBulkForm = () => {
+    setShowBulkForm(true);
+    setBulkRecords([createEmptyBulkDepartmentRecord()]);
   };
 
-  // Update department
-  const updateDepartment = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!editingDepartment) return;
-
-    try {
-      const response = await fetch(`/api/departments/${editingDepartment.id}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(formData),
-      });
-
-      if (response.ok) {
-        await fetchDepartments();
-        setShowForm(false);
-        setEditingDepartment(null);
-        setFormData({ name: '' });
-      } else {
-        console.error('Failed to update department');
-      }
-    } catch (error) {
-      console.error('Error updating department:', error);
-    }
+  const addBulkRow = () => {
+    setBulkRecords((current) => [...current, createEmptyBulkDepartmentRecord()]);
   };
 
   // Delete department
   const deleteDepartment = async (id: number) => {
-    if (confirm('คุณแน่ใจหรือไม่ที่จะลบแผนกนี้?')) {
+    const confirmation = await Swal.fire({
+      title: 'ลบข้อมูล?',
+      text: 'คุณแน่ใจหรือไม่ที่จะลบแผนกนี้?',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonText: 'ลบ',
+      cancelButtonText: 'ยกเลิก',
+      confirmButtonColor: '#d33',
+      cancelButtonColor: '#3085d6',
+    });
+    if (confirmation.isConfirmed) {
       try {
         const response = await fetch(`/api/departments/${id}`, {
           method: 'DELETE',
@@ -152,15 +193,6 @@ export default function DepartmentsPage() {
         console.error('Error deleting department:', error);
       }
     }
-  };
-
-  // Start editing
-  const startEdit = (department: Department) => {
-    setEditingDepartment(department);
-    setFormData({
-      name: department.name
-    });
-    setShowForm(true);
   };
 
   // Start inline editing
@@ -302,7 +334,6 @@ export default function DepartmentsPage() {
   // Cancel form
   const cancelForm = () => {
     setShowForm(false);
-    setEditingDepartment(null);
     setFormData({ name: '' });
   };
 
@@ -344,7 +375,7 @@ export default function DepartmentsPage() {
   }
 
   return (
-    <div className="container mx-auto px-4 py-8">
+    <div className="container mx-auto px-4 py-6">
       {/* Toast Notification */}
       {toast.visible && (
         <div className={`fixed top-4 right-4 z-50 p-4 rounded-lg shadow-lg transition-all duration-300 ${
@@ -369,58 +400,19 @@ export default function DepartmentsPage() {
         </div>
       )}
 
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold text-gray-800">จัดการแผนก</h1>
+      <div className="mb-4">
+        <h1 className="text-2xl font-semibold text-gray-900">จัดการแผนก</h1>
       </div>
-
-      {/* Form Modal */}
-      {showForm && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-md">
-            <h2 className="text-xl font-bold mb-4">
-              {editingDepartment ? 'แก้ไขแผนก' : 'เพิ่มแผนกใหม่'}
-            </h2>
-            
-            <form onSubmit={editingDepartment ? updateDepartment : createDepartment}>
-              <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  ชื่อแผนก
-                </label>
-                <input
-                  type="text"
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  required
-                />
-              </div>
-
-              <div className="flex gap-2">
-                <button
-                  type="submit"
-                  className="flex-1 bg-blue-600 text-white py-2 rounded-md hover:bg-blue-700 transition-colors"
-                >
-                  {editingDepartment ? 'อัพเดท' : 'สร้าง'}
-                </button>
-                <button
-                  type="button"
-                  onClick={cancelForm}
-                  className="flex-1 bg-gray-500 text-white py-2 rounded-md hover:bg-gray-600 transition-colors"
-                >
-                  ยกเลิก
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
 
       {/* Bulk Add Departments Modal */}
       {showBulkForm && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 w-full max-w-2xl max-h-[80vh] overflow-y-auto">
             <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-bold">เพิ่มแผนกใหม่ (5 รายการพร้อมแก้ไข)</h2>
+              <div>
+                <h2 className="text-xl font-bold">Bulk insert แผนก</h2>
+                <p className="mt-1 text-sm text-gray-500">เพิ่มหลายรายการพร้อมกัน และกดปุ่ม + เพื่อเพิ่มแถวได้ตามต้องการ</p>
+              </div>
               <button
                 onClick={() => {
                   setShowBulkForm(false);
@@ -439,15 +431,15 @@ export default function DepartmentsPage() {
                 <table className="w-full">
                   <thead className="bg-gray-100">
                     <tr>
-                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">ลำดับ</th>
-                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">ชื่อแผนก</th>
-                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">จัดการ</th>
+                      <th className="px-4 py-2 text-left text-[10px] font-medium text-gray-500 uppercase">ลำดับ</th>
+                      <th className="px-4 py-2 text-left text-[10px] font-medium text-gray-500 uppercase">ชื่อแผนก</th>
+                      <th className="px-4 py-2 text-left text-[10px] font-medium text-gray-500 uppercase">จัดการ</th>
                     </tr>
                   </thead>
                   <tbody>
                     {bulkRecords.map((record, index) => (
                       <tr key={record.id} className="border-b border-gray-200">
-                        <td className="px-4 py-3 text-sm text-gray-900">{index + 1}</td>
+                        <td className="px-4 py-3 text-xs text-gray-900">{index + 1}</td>
                         <td className="px-4 py-3">
                           <input
                             type="text"
@@ -458,28 +450,18 @@ export default function DepartmentsPage() {
                               setBulkRecords(updated);
                             }}
                             placeholder="ชื่อแผนก"
-                            className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            className="w-full px-2 py-1 border border-gray-300 rounded text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
                           />
                         </td>
                         <td className="px-4 py-3">
                           <div className="flex gap-1">
-                            {bulkRecords.length < 5 && (
-                              <button
-                                onClick={() => {
-                                  const newRecord = {
-                                    id: Math.max(...bulkRecords.map(r => r.id)) + 1,
-                                    name: ''
-                                  };
-                                  setBulkRecords([...bulkRecords, newRecord]);
-                                }}
-                                className="text-green-600 hover:text-green-900 p-1"
-                                title="เพิ่มแถวใหม่"
-                              >
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                                  <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
-                                </svg>
-                              </button>
-                            )}
+                            <button
+                              onClick={addBulkRow}
+                              className="text-green-600 hover:text-green-900 p-1"
+                              title="เพิ่มแถวใหม่"
+                            >
+                              <Plus className="h-4 w-4" />
+                            </button>
                             {bulkRecords.length > 1 && (
                               <button
                                 onClick={() => {
@@ -525,13 +507,11 @@ export default function DepartmentsPage() {
       )}
 
       {/* Filter Section */}
-      <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-        <h3 className="text-lg font-semibold mb-4">ตัวกรอง</h3>
-        
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-4">
+      <div className="mb-4 rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-[minmax(0,1fr)_220px]">
           {/* Search Filter */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="mb-1 block text-sm font-medium text-gray-700">
               ค้นหา
             </label>
             <input
@@ -545,47 +525,41 @@ export default function DepartmentsPage() {
 
           {/* Clear Button */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              การดำเนินการ
+            <label className="mb-1 block text-sm font-medium text-gray-700">
+              รีเซ็ต
             </label>
             <button
               onClick={clearFilters}
-              className="w-full px-4 py-2 bg-gray-500 text-white rounded-md hover:bg-gray-600 transition-colors"
+              className="w-full rounded-md bg-slate-600 px-4 py-2 text-white transition-colors hover:bg-slate-700"
             >
               ล้างตัวกรอง
             </button>
           </div>
         </div>
-
       </div>
 
-      {/* Results Counter */}
-      <div className="mt-4 text-sm text-gray-600">
-        แสดง {pageStart}-{pageEnd} จาก {totalCount} รายการ (ทั้งหมด {departments.length})
-      </div>
-
-      {/* Add New Record Button */}
-      <div className="flex justify-end mt-2 mb-4">
+      <div className="mb-4 flex items-center justify-end gap-2">
+        <button
+          onClick={openBulkForm}
+          className="rounded-md border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50"
+        >
+          Bulk insert
+        </button>
         <button
           onClick={() => {
-            setShowBulkForm(true);
-            setBulkRecords([
-              { id: 1, name: '' },
-              { id: 2, name: '' },
-              { id: 3, name: '' },
-              { id: 4, name: '' },
-              { id: 5, name: '' }
-            ]);
+            setShowForm(true);
+            setFormData(createEmptyDepartmentRecord());
           }}
-          className="bg-blue-600 text-white p-3 rounded-full hover:bg-blue-700 transition-colors shadow-lg"
+          disabled={showForm}
+          className="rounded-md bg-blue-600 px-3 py-2 text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-blue-300"
           title="เพิ่มแผนกใหม่"
         >
-          <Plus className="h-6 w-6" />
+          <Plus className="h-5 w-5" />
         </button>
       </div>
 
       {/* Pagination Controls */}
-      <div className="mt-4 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+      <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <div className="text-sm text-gray-600">
           แสดง {pageStart}-{pageEnd} จาก {totalCount} รายการ
         </div>
@@ -625,7 +599,7 @@ export default function DepartmentsPage() {
       </div>
 
       {/* Departments Table */}
-      <div className="bg-white rounded-lg shadow-md overflow-hidden">
+      <div className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
         <div className="overflow-x-auto">
           <table className="w-full table-auto">
             <thead className="bg-gray-50">
@@ -642,6 +616,38 @@ export default function DepartmentsPage() {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
+              {showForm && (
+                <tr className="bg-blue-50/60">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">ใหม่</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm">
+                    <input
+                      type="text"
+                      value={formData.name}
+                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                      className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="ชื่อแผนก"
+                    />
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium w-32">
+                    <div className="flex gap-1">
+                      <button
+                        onClick={saveNewRecord}
+                        className="text-green-600 hover:text-green-900 cursor-pointer"
+                        title="บันทึก"
+                      >
+                        <Check className="h-4 w-4" />
+                      </button>
+                      <button
+                        onClick={cancelForm}
+                        className="text-red-600 hover:text-red-900 cursor-pointer"
+                        title="ยกเลิก"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              )}
               {paginatedDepartments.map((dept) => (
                 <tr key={dept.id} className="hover:bg-gray-50">
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
@@ -704,7 +710,7 @@ export default function DepartmentsPage() {
 
         {filteredDepartments.length === 0 && departments.length > 0 && (
           <div className="text-center py-8 text-gray-500">
-            ไม่พบแผนกที่ตรงกับตัวกรอง กรุณาปรับเกณฑ์การค้นหา
+            ไม่พบข้อมูลตามตัวกรอง
           </div>
         )}
 

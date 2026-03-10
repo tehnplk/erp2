@@ -1,0 +1,62 @@
+[  414991ms] [ERROR] ./src/app/api/inventory/receipts/from-purchase-approval/route.ts
+Error:   × Expected ';', '}' or <eof>
+     ╭─[E:\NextJS\erp\src\app\api\inventory\receipts\from-purchase-approval\route.ts:236:1]
+ 233 │           cacheDelByPattern('erp:inventory:receipts:pending:*'),
+ 234 │           cacheDelByPattern('erp:inventory:balances:*'),
+ 235 │         ]);
+ 236 │ ╭─▶       receiptId: receipt.id,
+ 237 │ ├─▶       receiptNo: receipt.receiptNo,
+     · ╰───               ─
+     · ╰──── This is the expression part of an expression statement
+ 238 │           inventoryItemId,
+ 239 │           purchaseApprovalId,
+ 240 │           receivedQty: qty,
+     ╰────
+
+Caused by:
+    Syntax Error
+
+Import trace for requested module:
+./src/app/api/inventory/receipts/from-purchase-approval/route.ts @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/next-devtools/userspace/app/errors/intercept-console-error.js:56
+[  417564ms] [ERROR] ./src/app/api/inventory/receipts/from-purchase-approval/route.ts
+Error:   × Expected ';', '}' or <eof>
+     ╭─[E:\NextJS\erp\src\app\api\inventory\receipts\from-purchase-approval\route.ts:236:1]
+ 233 │           cacheDelByPattern('erp:inventory:receipts:pending:*'),
+ 234 │           cacheDelByPattern('erp:inventory:balances:*'),
+ 235 │         ]);
+ 236 │ ╭─▶       receiptId: receipt.id,
+ 237 │ ├─▶       receiptNo: receipt.receiptNo,
+     · ╰───               ─
+     · ╰──── This is the expression part of an expression statement
+ 238 │           inventoryItemId,
+ 239 │           purchaseApprovalId,
+ 240 │           receivedQty: qty,
+     ╰────
+
+Caused by:
+    Syntax Error
+
+Import trace for requested module:
+./src/app/api/inventory/receipts/from-purchase-approval/route.ts @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/next-devtools/userspace/app/errors/intercept-console-error.js:56
+[  419698ms] [ERROR] ./src/app/api/inventory/receipts/from-purchase-approval/route.ts
+Error:   × Expected ';', '}' or <eof>
+     ╭─[E:\NextJS\erp\src\app\api\inventory\receipts\from-purchase-approval\route.ts:236:1]
+ 233 │           cacheDelByPattern('erp:inventory:receipts:pending:*'),
+ 234 │           cacheDelByPattern('erp:inventory:balances:*'),
+ 235 │         ]);
+ 236 │ ╭─▶       receiptId: receipt.id,
+ 237 │ ├─▶       receiptNo: receipt.receiptNo,
+     · ╰───               ─
+     · ╰──── This is the expression part of an expression statement
+ 238 │           inventoryItemId,
+ 239 │           purchaseApprovalId,
+ 240 │           receivedQty: qty,
+     ╰────
+
+Caused by:
+    Syntax Error
+
+Import trace for requested module:
+./src/app/api/inventory/receipts/from-purchase-approval/route.ts @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/next-devtools/userspace/app/errors/intercept-console-error.js:56
+[  420566ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:3000/inventory/requisitions?_rsc=xso1a:0
+[  422481ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:3000/inventory/requisitions?_rsc=xso1a:0

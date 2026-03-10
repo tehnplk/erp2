@@ -1,10 +1,12 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Swal from 'sweetalert2';
 import { Plus, Check, X, Pencil, Trash2 } from 'lucide-react';
 
 interface Category {
   id: number;
+  category_code: string;
   category: string;
   type: string;
   subtype: string;
@@ -14,21 +16,22 @@ export default function CategoriesPage() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [filteredCategories, setFilteredCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
-  const [showForm, setShowForm] = useState(false);
-  const [editingCategory, setEditingCategory] = useState<Category | null>(null);
   const [formData, setFormData] = useState({
+    category_code: '',
     category: '',
     type: '',
     subtype: ''
   });
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editData, setEditData] = useState({
+    category_code: '',
     category: '',
     type: '',
     subtype: ''
   });
   const [addingNew, setAddingNew] = useState(false);
   const [newRecordData, setNewRecordData] = useState({
+    category_code: '',
     category: '',
     type: '',
     subtype: ''
@@ -54,6 +57,18 @@ export default function CategoriesPage() {
   const [pageSize, setPageSize] = useState(20);
   const PAGE_SIZE_OPTIONS = [10, 20, 50];
 
+  const createEmptyCategoryRecord = () => ({
+    category_code: '',
+    category: '',
+    type: '',
+    subtype: ''
+  });
+
+  const createEmptyBulkCategoryRecord = () => ({
+    id: Date.now() + Math.random(),
+    ...createEmptyCategoryRecord()
+  });
+
   // Fetch categories
   const fetchCategories = async () => {
     try {
@@ -77,9 +92,10 @@ export default function CategoriesPage() {
     // Search filter
     if (filters.search) {
       filtered = filtered.filter(cat =>
-        cat.category.toLowerCase().includes(filters.search.toLowerCase()) ||
-        cat.type.toLowerCase().includes(filters.search.toLowerCase()) ||
-        cat.subtype.toLowerCase().includes(filters.search.toLowerCase())
+        String(cat.category_code || '').toLowerCase().includes(filters.search.toLowerCase()) ||
+        String(cat.category || '').toLowerCase().includes(filters.search.toLowerCase()) ||
+        String(cat.type || '').toLowerCase().includes(filters.search.toLowerCase()) ||
+        String(cat.subtype || '').toLowerCase().includes(filters.search.toLowerCase())
       );
     }
 
@@ -114,57 +130,47 @@ export default function CategoriesPage() {
     setFilteredCategories(categories);
   };
 
+  const openBulkForm = () => {
+    setShowBulkForm(true);
+    setBulkRecords([createEmptyBulkCategoryRecord()]);
+  };
+
+  const addBulkRow = () => {
+    setBulkRecords((current) => [...current, createEmptyBulkCategoryRecord()]);
+  };
+
   // Get unique values for filter dropdowns
   const getUniqueValues = (field: keyof Category) => {
     return [...new Set(categories.map(cat => cat[field]))].sort();
   };
 
-  // Create category
-  const createCategory = async (e: React.FormEvent) => {
-    e.preventDefault();
-    try {
-      const response = await fetch('/api/categories', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData)
-      });
-      
-      if (response.ok) {
-        setFormData({ category: '', type: '', subtype: '' });
-        setShowForm(false);
-        fetchCategories();
-      }
-    } catch (error) {
-      console.error('Error creating category:', error);
-    }
-  };
+  const filteredTypeOptions = [...new Set(
+    categories
+      .filter((cat) => !filters.category || cat.category === filters.category)
+      .map((cat) => cat.type)
+      .filter(Boolean)
+  )].sort();
 
-  // Update category
-  const updateCategory = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!editingCategory) return;
-
-    try {
-      const response = await fetch(`/api/categories/${editingCategory.id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData)
-      });
-      
-      if (response.ok) {
-        setEditingCategory(null);
-        setFormData({ category: '', type: '', subtype: '' });
-        setShowForm(false);
-        fetchCategories();
-      }
-    } catch (error) {
-      console.error('Error updating category:', error);
-    }
-  };
+  const filteredSubtypeOptions = [...new Set(
+    categories
+      .filter((cat) => (!filters.category || cat.category === filters.category) && (!filters.type || cat.type === filters.type))
+      .map((cat) => cat.subtype)
+      .filter(Boolean)
+  )].sort();
 
   // Delete category
   const deleteCategory = async (id: number) => {
-    if (!confirm('Are you sure you want to delete this category?')) return;
+    const confirmation = await Swal.fire({
+      title: 'Delete category?',
+      text: 'Are you sure you want to delete this category?',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonText: 'Delete',
+      cancelButtonText: 'Cancel',
+      confirmButtonColor: '#d33',
+      cancelButtonColor: '#3085d6',
+    });
+    if (!confirmation.isConfirmed) return;
 
     try {
       const response = await fetch(`/api/categories/${id}`, {
@@ -183,6 +189,7 @@ export default function CategoriesPage() {
   const startInlineEdit = (category: Category) => {
     setEditingId(category.id);
     setEditData({
+      category_code: category.category_code,
       category: category.category,
       type: category.type,
       subtype: category.subtype
@@ -200,7 +207,7 @@ export default function CategoriesPage() {
 
       if (response.ok) {
         setEditingId(null);
-        setEditData({ category: '', type: '', subtype: '' });
+        setEditData({ category_code: '', category: '', type: '', subtype: '' });
         fetchCategories();
 
         // Show success toast
@@ -246,16 +253,38 @@ export default function CategoriesPage() {
 
   // Save new record
   const saveNewRecord = async () => {
+    if (
+      !newRecordData.category_code.trim() ||
+      !newRecordData.category.trim() ||
+      !newRecordData.type.trim() ||
+      !newRecordData.subtype.trim()
+    ) {
+      setToast({
+        message: 'กรุณากรอกข้อมูลให้ครบถ้วน',
+        type: 'error',
+        visible: true
+      });
+      setTimeout(() => {
+        setToast({ ...toast, visible: false });
+      }, 3000);
+      return;
+    }
+
     try {
       const response = await fetch('/api/categories', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(newRecordData)
+        body: JSON.stringify({
+          category_code: newRecordData.category_code.trim(),
+          category: newRecordData.category.trim(),
+          type: newRecordData.type.trim(),
+          subtype: newRecordData.subtype.trim()
+        })
       });
 
       if (response.ok) {
         setAddingNew(false);
-        setNewRecordData({ category: '', type: '', subtype: '' });
+        setNewRecordData({ category_code: '', category: '', type: '', subtype: '' });
         fetchCategories();
 
         // Show success toast
@@ -304,6 +333,7 @@ export default function CategoriesPage() {
     try {
       // Filter out empty records
       const validRecords = bulkRecords.filter(record =>
+        record.category_code.trim() !== '' &&
         record.category.trim() !== '' &&
         record.type.trim() !== '' &&
         record.subtype.trim() !== ''
@@ -327,6 +357,7 @@ export default function CategoriesPage() {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
+            category_code: record.category_code.trim(),
             category: record.category.trim(),
             type: record.type.trim(),
             subtype: record.subtype.trim()
@@ -383,14 +414,12 @@ export default function CategoriesPage() {
   // Cancel inline edit
   const cancelInlineEdit = () => {
     setEditingId(null);
-    setEditData({ category: '', type: '', subtype: '' });
+    setEditData({ category_code: '', category: '', type: '', subtype: '' });
   };
 
-  // Cancel form
-  const cancelForm = () => {
-    setShowForm(false);
-    setEditingCategory(null);
-    setFormData({ category: '', type: '', subtype: '' });
+  const cancelNewRecord = () => {
+    setAddingNew(false);
+    setNewRecordData(createEmptyCategoryRecord());
   };
 
   useEffect(() => {
@@ -430,7 +459,7 @@ export default function CategoriesPage() {
   }
 
   return (
-    <div className="container mx-auto px-4 py-8">
+    <div className="container mx-auto px-4 py-6">
       {/* Toast Notification */}
       {toast.visible && (
         <div className={`fixed top-4 right-4 z-50 p-4 rounded-lg shadow-lg transition-all duration-300 ${
@@ -463,84 +492,19 @@ export default function CategoriesPage() {
           </div>
         </div>
       )}
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold text-gray-800">จัดการหมวดหมู่สินค้า</h1>
+      <div className="mb-4">
+        <h1 className="text-2xl font-semibold text-gray-900">จัดการหมวดสินค้า</h1>
       </div>
-
-      {/* Form Modal */}
-      {showForm && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-md">
-            <h2 className="text-xl font-bold mb-4">
-              {editingCategory ? 'แก้ไขหมวดหมู่' : 'เพิ่มหมวดหมู่ใหม่'}
-            </h2>
-            
-            <form onSubmit={editingCategory ? updateCategory : createCategory}>
-              <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  หมวดหมู่
-                </label>
-                <input
-                  type="text"
-                  value={formData.category}
-                  onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  required
-                />
-              </div>
-
-              <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  ประเภท
-                </label>
-                <input
-                  type="text"
-                  value={formData.type}
-                  onChange={(e) => setFormData({ ...formData, type: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  required
-                />
-              </div>
-
-              <div className="mb-6">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  ประเภทย่อย
-                </label>
-                <input
-                  type="text"
-                  value={formData.subtype}
-                  onChange={(e) => setFormData({ ...formData, subtype: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  required
-                />
-              </div>
-
-              <div className="flex gap-3">
-                <button
-                  type="submit"
-                  className="flex-1 bg-blue-600 text-white py-2 rounded-md hover:bg-blue-700 transition-colors"
-                >
-                  {editingCategory ? 'อัพเดท' : 'สร้าง'}
-                </button>
-                <button
-                  type="button"
-                  onClick={cancelForm}
-                  className="flex-1 bg-gray-500 text-white py-2 rounded-md hover:bg-gray-600 transition-colors"
-                >
-                  ยกเลิก
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
 
       {/* Bulk Add Form Modal */}
       {showBulkForm && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 w-full max-w-4xl max-h-[80vh] overflow-y-auto">
             <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-bold">เพิ่มหมวดหมู่ใหม่ (5 รายการพร้อมแก้ไข)</h2>
+              <div>
+                <h2 className="text-xl font-bold">Bulk insert หมวดสินค้า</h2>
+                <p className="mt-1 text-sm text-gray-500">เพิ่มหลายรายการพร้อมกัน และกดปุ่ม + เพื่อเพิ่มแถวได้ตามต้องการ</p>
+              </div>
               <button
                 onClick={() => {
                   setShowBulkForm(false);
@@ -560,7 +524,8 @@ export default function CategoriesPage() {
                   <thead className="bg-gray-100">
                     <tr>
                       <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">ลำดับ</th>
-                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">หมวดหมู่</th>
+                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">รหัสหมวด</th>
+                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">หมวด</th>
                       <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">ประเภท</th>
                       <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">ประเภทย่อย</th>
                       <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">จัดการ</th>
@@ -573,13 +538,26 @@ export default function CategoriesPage() {
                         <td className="px-4 py-3">
                           <input
                             type="text"
+                            value={record.category_code}
+                            onChange={(e) => {
+                              const updated = [...bulkRecords];
+                              updated[index].category_code = e.target.value;
+                              setBulkRecords(updated);
+                            }}
+                            placeholder="รหัสหมวด"
+                            className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          />
+                        </td>
+                        <td className="px-4 py-3">
+                          <input
+                            type="text"
                             value={record.category}
                             onChange={(e) => {
                               const updated = [...bulkRecords];
                               updated[index].category = e.target.value;
                               setBulkRecords(updated);
                             }}
-                            placeholder="หมวดหมู่"
+                            placeholder="หมวด"
                             className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
                           />
                         </td>
@@ -611,25 +589,13 @@ export default function CategoriesPage() {
                         </td>
                         <td className="px-4 py-3">
                           <div className="flex gap-1">
-                            {bulkRecords.length < 5 && (
-                              <button
-                                onClick={() => {
-                                  const newRecord = {
-                                    id: Math.max(...bulkRecords.map(r => r.id)) + 1,
-                                    category: '',
-                                    type: '',
-                                    subtype: ''
-                                  };
-                                  setBulkRecords([...bulkRecords, newRecord]);
-                                }}
-                                className="text-green-600 hover:text-green-900 p-1"
-                                title="เพิ่มแถวใหม่"
-                              >
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                                  <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
-                                </svg>
-                              </button>
-                            )}
+                            <button
+                              onClick={addBulkRow}
+                              className="text-green-600 hover:text-green-900 p-1"
+                              title="เพิ่มแถวใหม่"
+                            >
+                              <Plus className="h-4 w-4" />
+                            </button>
                             {bulkRecords.length > 1 && (
                               <button
                                 onClick={() => {
@@ -675,18 +641,16 @@ export default function CategoriesPage() {
       )}
 
       {/* Filter Section */}
-      <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-        <h3 className="text-lg font-semibold mb-4">ตัวกรอง</h3>
-        
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+      <div className="mb-4 rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-5">
           {/* Search Filter */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="mb-1 block text-sm font-medium text-gray-700">
               ค้นหา
             </label>
             <input
               type="text"
-              placeholder="ค้นหาหมวดหมู่..."
+              placeholder="ค้นหารหัสหมวด / หมวด / ประเภท / ประเภทย่อย..."
               value={filters.search}
               onChange={(e) => setFilters({ ...filters, search: e.target.value })}
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -695,15 +659,15 @@ export default function CategoriesPage() {
 
           {/* Category Filter */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              หมวดหมู่
+            <label className="mb-1 block text-sm font-medium text-gray-700">
+              หมวด
             </label>
             <select
               value={filters.category}
-              onChange={(e) => setFilters({ ...filters, category: e.target.value })}
+              onChange={(e) => setFilters({ ...filters, category: e.target.value, type: '', subtype: '' })}
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
-              <option value="">หมวดหมู่ทั้งหมด</option>
+              <option value="">หมวดทั้งหมด</option>
               {getUniqueValues('category').map((cat) => (
                 <option key={cat} value={cat}>{cat}</option>
               ))}
@@ -712,16 +676,16 @@ export default function CategoriesPage() {
 
           {/* Type Filter */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="mb-1 block text-sm font-medium text-gray-700">
               ประเภท
             </label>
             <select
               value={filters.type}
-              onChange={(e) => setFilters({ ...filters, type: e.target.value })}
+              onChange={(e) => setFilters({ ...filters, type: e.target.value, subtype: '' })}
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               <option value="">ประเภททั้งหมด</option>
-              {getUniqueValues('type').map((type) => (
+              {filteredTypeOptions.map((type) => (
                 <option key={type} value={type}>{type}</option>
               ))}
             </select>
@@ -729,7 +693,7 @@ export default function CategoriesPage() {
 
           {/* Subtype Filter */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="mb-1 block text-sm font-medium text-gray-700">
               ประเภทย่อย
             </label>
             <select
@@ -738,7 +702,7 @@ export default function CategoriesPage() {
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               <option value="">ประเภทย่อยทั้งหมด</option>
-              {getUniqueValues('subtype').map((subtype) => (
+              {filteredSubtypeOptions.map((subtype) => (
                 <option key={subtype} value={subtype}>{subtype}</option>
               ))}
             </select>
@@ -746,42 +710,41 @@ export default function CategoriesPage() {
 
           {/* Clear Button */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              การดำเนินการ
+            <label className="mb-1 block text-sm font-medium text-gray-700">
+              รีเซ็ต
             </label>
             <button
               onClick={clearFilters}
-              className="w-full px-4 py-2 bg-gray-500 text-white rounded-md hover:bg-gray-600 transition-colors"
+              className="w-full rounded-md bg-slate-600 px-4 py-2 text-white transition-colors hover:bg-slate-700"
             >
               ล้างตัวกรอง
             </button>
           </div>
         </div>
-
       </div>
 
-      {/* Add New Record Button */}
-      <div className="flex justify-end mt-4 mb-4">
+      <div className="mb-4 flex items-center justify-end gap-2">
+        <button
+          onClick={openBulkForm}
+          className="rounded-md border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50"
+        >
+          Bulk insert
+        </button>
         <button
           onClick={() => {
-            setShowBulkForm(true);
-            setBulkRecords([
-              { id: 1, category: '', type: '', subtype: '' },
-              { id: 2, category: '', type: '', subtype: '' },
-              { id: 3, category: '', type: '', subtype: '' },
-              { id: 4, category: '', type: '', subtype: '' },
-              { id: 5, category: '', type: '', subtype: '' }
-            ]);
+            setAddingNew(true);
+            setNewRecordData(createEmptyCategoryRecord());
           }}
-          className="bg-blue-600 text-white p-3 rounded-full hover:bg-blue-700 transition-colors shadow-lg"
-          title="เพิ่มหมวดหมู่ใหม่"
+          disabled={addingNew}
+          className="rounded-md bg-blue-600 px-3 py-2 text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-blue-300"
+          title="เพิ่มหมวดใหม่"
         >
-          <Plus className="h-6 w-6" />
+          <Plus className="h-5 w-5" />
         </button>
       </div>
 
       {/* Pagination Controls (survey-style) */}
-      <div className="mt-4 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+      <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <div className="text-sm text-gray-600">
           แสดง {pageStart}-{pageEnd} จาก {totalCount} รายการ
         </div>
@@ -821,72 +784,145 @@ export default function CategoriesPage() {
       </div>
 
       {/* Categories Table */}
-      <div className="bg-white rounded-lg shadow-md overflow-hidden">
+      <div className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
         <div className="overflow-x-auto">
           <table className="w-full table-auto">
             <thead className="bg-gray-50">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  รหัส
+                <th className="px-6 py-3 text-left text-[10px] font-medium text-gray-500 uppercase tracking-wider">
+                  ลำดับที่
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  หมวดหมู่
+                <th className="px-6 py-3 text-left text-[10px] font-medium text-gray-500 uppercase tracking-wider">
+                  รหัสหมวด
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-[10px] font-medium text-gray-500 uppercase tracking-wider">
+                  หมวด
+                </th>
+                <th className="px-6 py-3 text-left text-[10px] font-medium text-gray-500 uppercase tracking-wider">
                   ประเภท
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-[10px] font-medium text-gray-500 uppercase tracking-wider">
                   ประเภทย่อย
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-[10px] font-medium text-gray-500 uppercase tracking-wider">
                   ACTION
                 </th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {/* Existing Categories Rows */}
+              {addingNew && (
+                <tr className="bg-blue-50/60">
+                  <td className="px-6 py-4 whitespace-nowrap text-xs text-gray-500">ใหม่</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-xs">
+                    <input
+                      type="text"
+                      value={newRecordData.category_code}
+                      onChange={(e) => setNewRecordData({ ...newRecordData, category_code: e.target.value })}
+                      className="w-full px-2 py-1 border border-gray-300 rounded text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="รหัสหมวด"
+                    />
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-xs">
+                    <input
+                      type="text"
+                      value={newRecordData.category}
+                      onChange={(e) => setNewRecordData({ ...newRecordData, category: e.target.value })}
+                      className="w-full px-2 py-1 border border-gray-300 rounded text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="หมวด"
+                    />
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-xs">
+                    <input
+                      type="text"
+                      value={newRecordData.type}
+                      onChange={(e) => setNewRecordData({ ...newRecordData, type: e.target.value })}
+                      className="w-full px-2 py-1 border border-gray-300 rounded text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="ประเภท"
+                    />
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-xs">
+                    <input
+                      type="text"
+                      value={newRecordData.subtype}
+                      onChange={(e) => setNewRecordData({ ...newRecordData, subtype: e.target.value })}
+                      className="w-full px-2 py-1 border border-gray-300 rounded text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="ประเภทย่อย"
+                    />
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-xs font-medium w-32">
+                    <div className="flex gap-1">
+                      <button
+                        onClick={saveNewRecord}
+                        className="text-green-600 hover:text-green-900 cursor-pointer"
+                        title="บันทึก"
+                      >
+                        <Check className="h-4 w-4" />
+                      </button>
+                      <button
+                        onClick={cancelNewRecord}
+                        className="text-red-600 hover:text-red-900 cursor-pointer"
+                        title="ยกเลิก"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              )}
               {paginatedCategories.map((cat) => (
                 <tr key={cat.id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                  <td className="px-6 py-4 whitespace-nowrap text-xs text-gray-900">
                     {cat.id}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm">
+                  <td className="px-6 py-4 whitespace-nowrap text-xs text-gray-900">
+                    {editingId === cat.id ? (
+                      <input
+                        type="text"
+                        value={editData.category_code}
+                        onChange={(e) => setEditData({ ...editData, category_code: e.target.value })}
+                        className="w-full px-2 py-1 border border-gray-300 rounded text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    ) : (
+                      cat.category_code
+                    )}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-xs">
                     {editingId === cat.id ? (
                       <input
                         type="text"
                         value={editData.category}
                         onChange={(e) => setEditData({ ...editData, category: e.target.value })}
-                        className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full px-2 py-1 border border-gray-300 rounded text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
                       />
                     ) : (
                       cat.category
                     )}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm">
+                  <td className="px-6 py-4 whitespace-nowrap text-xs">
                     {editingId === cat.id ? (
                       <input
                         type="text"
                         value={editData.type}
                         onChange={(e) => setEditData({ ...editData, type: e.target.value })}
-                        className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full px-2 py-1 border border-gray-300 rounded text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
                       />
                     ) : (
                       cat.type
                     )}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm">
+                  <td className="px-6 py-4 whitespace-nowrap text-xs">
                     {editingId === cat.id ? (
                       <input
                         type="text"
                         value={editData.subtype}
                         onChange={(e) => setEditData({ ...editData, subtype: e.target.value })}
-                        className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full px-2 py-1 border border-gray-300 rounded text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
                       />
                     ) : (
                       cat.subtype
                     )}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium w-32">
+                  <td className="px-6 py-4 whitespace-nowrap text-xs font-medium w-32">
                     {editingId === cat.id ? (
                       <div className="flex gap-1">
                         <button
@@ -931,19 +967,19 @@ export default function CategoriesPage() {
 
         {filteredCategories.length === 0 && categories.length > 0 && (
           <div className="text-center py-8 text-gray-500">
-            ไม่พบหมวดหมู่ที่ตรงกับตัวกรอง กรุณาปรับเกณฑ์การค้นหา
+            ไม่พบข้อมูลตามตัวกรอง
           </div>
         )}
 
         {categories.length === 0 && (
           <div className="text-center py-8 text-gray-500">
-            ไม่พบหมวดหมู่ เพิ่มหมวดหมู่แรกเพื่อเริ่มต้น
+            ไม่พบหมวดสินค้า เพิ่มหมวดแรกเพื่อเริ่มต้น
           </div>
         )}
       </div>
 
       <div className="mt-4 text-sm text-gray-600">
-        หมวดหมู่ทั้งหมด: {categories.length}
+        หมวดทั้งหมด: {categories.length}
       </div>
     </div>
   );

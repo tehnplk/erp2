@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { pgQuery } from '@/lib/pg';
+import { cacheDel, cacheGet, cacheSet, cacheDelByPattern } from '@/lib/redis';
 
 // GET /api/categories/[id] - Get category by ID
 export async function GET(
@@ -8,7 +9,7 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
-    const numericId = parseInt(id);
+    const numericId = parseInt(id, 10);
     
     if (isNaN(numericId)) {
       return NextResponse.json(
@@ -17,9 +18,20 @@ export async function GET(
       );
     }
 
-    const category = await prisma.category.findUnique({
-      where: { id: numericId }
-    });
+    const cacheKey = `erp:categories:detail:${numericId}`;
+    const cached = await cacheGet<any>(cacheKey);
+    if (cached) {
+      return NextResponse.json({
+        success: true,
+        data: cached
+      });
+    }
+
+    const result = await pgQuery(
+      'SELECT id, category_code, category, type, subtype FROM public.category WHERE id = $1 LIMIT 1',
+      [numericId]
+    );
+    const category = result.rows[0];
 
     if (!category) {
       return NextResponse.json(
@@ -27,6 +39,8 @@ export async function GET(
         { status: 404 }
       );
     }
+
+    await cacheSet(cacheKey, category, 3600);
 
     return NextResponse.json({
       success: true,
@@ -48,9 +62,9 @@ export async function PUT(
 ) {
   try {
     const { id } = await params;
-    const numericId = parseInt(id);
+    const numericId = parseInt(id, 10);
     const body = await request.json();
-    const { category, type, subtype } = body;
+    const { category_code, category, type, subtype } = body;
 
     if (isNaN(numericId)) {
       return NextResponse.json(
@@ -59,36 +73,39 @@ export async function PUT(
       );
     }
 
-    // Validate required fields
-    if (!category || !type || !subtype) {
+    if (!category_code || !category || !type || !subtype) {
       return NextResponse.json(
-        { success: false, error: 'Category, type, and subtype are required' },
+        { success: false, error: 'Category code, category, type, and subtype are required' },
         { status: 400 }
       );
     }
 
-    const updatedCategory = await prisma.category.update({
-      where: { id: numericId },
-      data: {
-        category,
-        type,
-        subtype
-      }
-    });
-
-    return NextResponse.json({
-      success: true,
-      data: updatedCategory,
-      message: 'Category updated successfully'
-    });
-  } catch (error: any) {
-    console.error('Error updating category:', error);
-    if (error.code === 'P2025') {
+    const existingResult = await pgQuery('SELECT id FROM public.category WHERE id = $1 LIMIT 1', [numericId]);
+    if (existingResult.rows.length === 0) {
       return NextResponse.json(
         { success: false, error: 'Category not found' },
         { status: 404 }
       );
     }
+
+    const updatedResult = await pgQuery(
+      `UPDATE public.category
+       SET category_code = $1, category = $2, type = $3, subtype = $4
+       WHERE id = $5
+       RETURNING id, category_code, category, type, subtype`,
+      [category_code, category, type, subtype, numericId]
+    );
+
+    await cacheDelByPattern('erp:categories:list:*');
+    await cacheDel(`erp:categories:detail:${numericId}`);
+
+    return NextResponse.json({
+      success: true,
+      data: updatedResult.rows[0],
+      message: 'Category updated successfully'
+    });
+  } catch (error) {
+    console.error('Error updating category:', error);
     return NextResponse.json(
       { success: false, error: 'Failed to update category' },
       { status: 500 }
@@ -103,7 +120,7 @@ export async function DELETE(
 ) {
   try {
     const { id } = await params;
-    const numericId = parseInt(id);
+    const numericId = parseInt(id, 10);
 
     if (isNaN(numericId)) {
       return NextResponse.json(
@@ -112,22 +129,25 @@ export async function DELETE(
       );
     }
 
-    await prisma.category.delete({
-      where: { id: numericId }
-    });
-
-    return NextResponse.json({
-      success: true,
-      message: 'Category deleted successfully'
-    });
-  } catch (error: any) {
-    console.error('Error deleting category:', error);
-    if (error.code === 'P2025') {
+    const existingResult = await pgQuery('SELECT id FROM public.category WHERE id = $1 LIMIT 1', [numericId]);
+    if (existingResult.rows.length === 0) {
       return NextResponse.json(
         { success: false, error: 'Category not found' },
         { status: 404 }
       );
     }
+
+    await pgQuery('DELETE FROM public.category WHERE id = $1', [numericId]);
+
+    await cacheDelByPattern('erp:categories:list:*');
+    await cacheDel(`erp:categories:detail:${numericId}`);
+
+    return NextResponse.json({
+      success: true,
+      message: 'Category deleted successfully'
+    });
+  } catch (error) {
+    console.error('Error deleting category:', error);
     return NextResponse.json(
       { success: false, error: 'Failed to delete category' },
       { status: 500 }

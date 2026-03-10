@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { pgQuery } from '@/lib/pg';
 import { apiSuccess, apiError } from '@/lib/api-response';
+import { cacheGet, cacheSet, cacheDelByPattern } from '@/lib/redis';
 import { validateRequest, validateQuery } from '@/lib/validation/validate';
 import { createDepartmentSchema, departmentQuerySchema } from '@/lib/validation/schemas';
 
@@ -14,38 +15,50 @@ export async function GET(request: NextRequest) {
       return queryValidation.error;
     }
 
-    const { name, page, pageSize } = queryValidation.data as any;
+    const { name, page, page_size: pageSize } = queryValidation.data as any;
 
-    const where: any = {};
+    const whereClauses: string[] = [];
+    const params: unknown[] = [];
     if (name) {
-      where.name = {
-        contains: name,
-        mode: 'insensitive'
-      };
+      params.push(`%${name}%`);
+      whereClauses.push(`name ILIKE $${params.length}`);
     }
 
-    // If no pagination params, return all departments (backwards compatible)
+    const whereSql = whereClauses.length ? `WHERE ${whereClauses.join(' AND ')}` : '';
+    const baseSelect = 'SELECT id, name FROM public.department';
+
+    const cacheKeyAll = `erp:departments:list:all:${JSON.stringify(params)}`;
     if (!page || !pageSize) {
-      const departments = await prisma.department.findMany({
-        where,
-        orderBy: { id: 'asc' }
-      });
-      return apiSuccess(departments, undefined, departments.length);
+      const cachedAll = await cacheGet<any>(cacheKeyAll);
+      if (cachedAll) return apiSuccess(cachedAll.rows, undefined, cachedAll.rows.length);
+
+      const result = await pgQuery(`${baseSelect} ${whereSql} ORDER BY id ASC`, params);
+      await cacheSet(cacheKeyAll, { rows: result.rows }, 3600);
+      return apiSuccess(result.rows, undefined, result.rows.length);
     }
 
     const skip = (page - 1) * pageSize;
 
-    const [totalCount, departments] = await Promise.all([
-      prisma.department.count({ where }),
-      prisma.department.findMany({
-        where,
-        orderBy: { id: 'asc' },
-        skip,
-        take: pageSize
-      })
+    // --- Redis Caching Logic (Paginated) ---
+    const cacheKey = `erp:departments:list:${JSON.stringify({ ...queryValidation.data, page, page_size: pageSize })}`;
+    const cached = await cacheGet<any>(cacheKey);
+    if (cached) {
+      return apiSuccess(cached.items, undefined, cached.totalCount, 200, { page, page_size: pageSize });
+    }
+
+    const [countResult, result] = await Promise.all([
+      pgQuery(`SELECT COUNT(*)::int AS count FROM public.department ${whereSql}`, params),
+      pgQuery(`${baseSelect} ${whereSql} ORDER BY id ASC LIMIT $${params.length + 1} OFFSET $${params.length + 2}`, [...params, pageSize, skip]),
     ]);
     
-    return apiSuccess(departments, undefined, totalCount, 200, { page, pageSize });
+    const finalResult = {
+      items: result.rows,
+      totalCount: countResult.rows[0]?.count || 0
+    };
+
+    await cacheSet(cacheKey, finalResult, 3600);
+
+    return apiSuccess(finalResult.items, undefined, finalResult.totalCount, 200, { page, page_size: pageSize });
   } catch (error) {
     console.error('Error fetching departments:', error);
     return apiError('Failed to fetch departments');
@@ -63,11 +76,16 @@ export async function POST(request: NextRequest) {
       return validation.error;
     }
 
-    const department = await prisma.department.create({
-      data: validation.data as any
-    });
+    const result = await pgQuery(
+      `INSERT INTO public.department (name)
+       VALUES ($1)
+       RETURNING id, name`,
+      [validation.data.name]
+    );
 
-    return apiSuccess(department, 'Department created successfully', undefined, 201);
+    await cacheDelByPattern('erp:departments:list:*');
+
+    return apiSuccess(result.rows[0], 'Department created successfully', undefined, 201);
   } catch (error) {
     console.error('Error creating department:', error);
     return apiError('Failed to create department');

@@ -1,9 +1,38 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { Product } from '@prisma/client';
+import { useState, useEffect, useMemo } from 'react';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import Swal from 'sweetalert2';
 import { Check, X, Pencil, Trash2, ChevronUp, ChevronDown, ArrowUpDown } from 'lucide-react';
+
+type Product = {
+  id: number;
+  code: string;
+  category: string;
+  name: string;
+  type: string;
+  subtype: string;
+  unit: string;
+  cost_price?: number | null;
+  sell_price?: number | null;
+  stock_balance?: number | null;
+  stock_value?: number | null;
+  seller_code?: string | null;
+  image?: string | null;
+  flag_activate?: boolean;
+  admin_note?: string | null;
+};
+
+interface CategoryOption {
+  category: string;
+  type: string;
+  subtype: string | null;
+}
+
+interface SellerOption {
+  code: string;
+  name: string;
+}
 
 interface ProductFormData {
   code: string;
@@ -12,18 +41,30 @@ interface ProductFormData {
   type: string;
   subtype: string;
   unit: string;
-  costPrice?: number;
-  sellPrice?: number;
-  stockBalance?: number;
-  stockValue?: number;
-  sellerCode?: string;
+  cost_price?: number;
+  sell_price?: number;
+  stock_balance?: number;
+  stock_value?: number;
+  seller_code?: string;
   image?: string;
-  adminNote?: string;
+  admin_note?: string;
 }
 
 const PAGE_SIZE_OPTIONS = [10, 20, 50];
 
 export default function ProductsPage() {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const initialCodeFilter = searchParams.get('code') || '';
+  const initialNameFilter = searchParams.get('name') || '';
+  const initialCategoryFilter = searchParams.get('category') || '';
+  const initialTypeFilter = searchParams.get('type') || '';
+  const initialSubtypeFilter = searchParams.get('subtype') || '';
+  const initialSortBy = searchParams.get('order_by') || 'code';
+  const initialSortOrder = (searchParams.get('sort_order') === 'desc' ? 'desc' : 'asc') as 'asc' | 'desc';
+  const initialPage = Math.max(1, parseInt(searchParams.get('page') || '1', 10) || 1);
+  const initialPageSize = Math.max(1, parseInt(searchParams.get('page_size') || '20', 10) || 20);
   const [products, setProducts] = useState<Product[]>([]);
   const [totalCount, setTotalCount] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -36,29 +77,30 @@ export default function ProductsPage() {
     type: '',
     subtype: '',
     unit: '',
-    costPrice: undefined,
-    sellPrice: undefined,
-    stockBalance: undefined,
-    stockValue: undefined,
-    sellerCode: '',
+    cost_price: undefined,
+    sell_price: undefined,
+    stock_balance: undefined,
+    stock_value: undefined,
+    seller_code: '',
     image: '',
-    adminNote: ''
+    admin_note: ''
   });
   
   // Validation state
   const [errors, setErrors] = useState<Record<string, string>>({});
   
   // Filter states
-  const [nameFilter, setNameFilter] = useState('');
-  const [categoryFilter, setCategoryFilter] = useState('');
-  const [typeFilter, setTypeFilter] = useState('');
-  const [subtypeFilter, setSubtypeFilter] = useState('');
+  const [codeFilter, setCodeFilter] = useState(initialCodeFilter);
+  const [nameFilter, setNameFilter] = useState(initialNameFilter);
+  const [categoryFilter, setCategoryFilter] = useState(initialCategoryFilter);
+  const [typeFilter, setTypeFilter] = useState(initialTypeFilter);
+  const [subtypeFilter, setSubtypeFilter] = useState(initialSubtypeFilter);
   
   // Sorting states
-  const [sortBy, setSortBy] = useState('code');
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
-  const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(20);
+  const [sortBy, setSortBy] = useState(initialSortBy);
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>(initialSortOrder);
+  const [page, setPage] = useState(initialPage);
+  const [pageSize, setPageSize] = useState(initialPageSize);
 
   // Toast state for notifications
   const [toast, setToast] = useState<{
@@ -80,13 +122,13 @@ export default function ProductsPage() {
     type: '',
     subtype: '',
     unit: '',
-    costPrice: undefined,
-    sellPrice: undefined,
-    stockBalance: undefined,
-    stockValue: undefined,
-    sellerCode: '',
+    cost_price: undefined,
+    sell_price: undefined,
+    stock_balance: undefined,
+    stock_value: undefined,
+    seller_code: '',
     image: '',
-    adminNote: ''
+    admin_note: ''
   });
 
   // Bulk add state
@@ -97,12 +139,10 @@ export default function ProductsPage() {
   const [categories, setCategories] = useState<string[]>([]);
   const [types, setTypes] = useState<string[]>([]);
   const [subtypes, setSubtypes] = useState<string[]>([]);
+  const [units, setUnits] = useState<string[]>([]);
   const [sellerCodes, setSellerCodes] = useState<string[]>([]);
-
-  // Initialize data on component mount
-  useEffect(() => {
-    fetchProducts();
-  }, []);
+  const [sellerOptions, setSellerOptions] = useState<SellerOption[]>([]);
+  const [categoryOptions, setCategoryOptions] = useState<CategoryOption[]>([]);
 
   useEffect(() => {
     fetchFilterOptions();
@@ -111,18 +151,61 @@ export default function ProductsPage() {
   // Fetch products when filters or sorting change
   useEffect(() => {
     fetchProducts();
-  }, [nameFilter, categoryFilter, typeFilter, subtypeFilter, sortBy, sortOrder, page, pageSize]);
+  }, [codeFilter, nameFilter, categoryFilter, typeFilter, subtypeFilter, sortBy, sortOrder, page, pageSize]);
 
   useEffect(() => {
     setPage(1);
-  }, [nameFilter, categoryFilter, typeFilter, subtypeFilter, sortBy, sortOrder]);
+  }, [codeFilter, nameFilter, categoryFilter, typeFilter, subtypeFilter, sortBy, sortOrder]);
+
+  useEffect(() => {
+    const nextCode = searchParams.get('code') || '';
+    const nextName = searchParams.get('name') || '';
+    const nextCategory = searchParams.get('category') || '';
+    const nextType = searchParams.get('type') || '';
+    const nextSubtype = searchParams.get('subtype') || '';
+    const nextSortBy = searchParams.get('order_by') || 'code';
+    const nextSortOrder = (searchParams.get('sort_order') === 'desc' ? 'desc' : 'asc') as 'asc' | 'desc';
+    const nextPage = Math.max(1, parseInt(searchParams.get('page') || '1', 10) || 1);
+    const nextPageSize = Math.max(1, parseInt(searchParams.get('page_size') || '20', 10) || 20);
+
+    setCodeFilter((prev) => (prev === nextCode ? prev : nextCode));
+    setNameFilter((prev) => (prev === nextName ? prev : nextName));
+    setCategoryFilter((prev) => (prev === nextCategory ? prev : nextCategory));
+    setTypeFilter((prev) => (prev === nextType ? prev : nextType));
+    setSubtypeFilter((prev) => (prev === nextSubtype ? prev : nextSubtype));
+    setSortBy((prev) => (prev === nextSortBy ? prev : nextSortBy));
+    setSortOrder((prev) => (prev === nextSortOrder ? prev : nextSortOrder));
+    setPage((prev) => (prev === nextPage ? prev : nextPage));
+    setPageSize((prev) => (prev === nextPageSize ? prev : nextPageSize));
+  }, [searchParams]);
+
+  useEffect(() => {
+    const params = new URLSearchParams();
+
+    if (codeFilter) params.set('code', codeFilter);
+    if (nameFilter) params.set('name', nameFilter);
+    if (categoryFilter) params.set('category', categoryFilter);
+    if (typeFilter) params.set('type', typeFilter);
+    if (subtypeFilter) params.set('subtype', subtypeFilter);
+    if (sortBy !== 'code') params.set('order_by', sortBy);
+    if (sortOrder !== 'asc') params.set('sort_order', sortOrder);
+    if (page > 1) params.set('page', page.toString());
+    if (pageSize !== 20) params.set('page_size', pageSize.toString());
+
+    const nextUrl = params.toString() ? `${pathname}?${params.toString()}` : pathname;
+    const currentUrl = searchParams.toString() ? `${pathname}?${searchParams.toString()}` : pathname;
+
+    if (nextUrl !== currentUrl) {
+      router.replace(nextUrl, { scroll: false });
+    }
+  }, [pathname, router, searchParams, codeFilter, nameFilter, categoryFilter, typeFilter, subtypeFilter, sortBy, sortOrder, page, pageSize]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({
       ...prev,
-      [name]: name.includes('Price') || name.includes('Value') ? (value ? parseFloat(value) : undefined) :
-               name === 'stockBalance' ? (value ? parseInt(value) : undefined) : value
+      [name]: name.includes('price') || name.includes('value') ? (value ? parseFloat(value) : undefined) :
+               name === 'stock_balance' ? (value ? parseInt(value) : undefined) : value
     }));
 
     // Clear error when user starts typing
@@ -140,13 +223,118 @@ export default function ProductsPage() {
       const response = await fetch('/api/products/filters');
       if (response.ok) {
         const data = await response.json();
-        setCategories(data.categories);
-        setTypes(data.types);
-        setSubtypes(data.subtypes);
-        setSellerCodes(data.sellerCodes);
+        setCategories(data.categories || []);
+        setTypes(data.types || []);
+        setSubtypes(data.subtypes || []);
+        setUnits(data.units || []);
+        setSellerCodes(data.seller_codes || []);
+        setSellerOptions(data.seller_options || []);
+        setCategoryOptions(data.category_options || []);
       }
     } catch (error) {
       console.error('Error fetching filter options:', error);
+    }
+  };
+
+  const availableFilterTypes = useMemo(() => {
+    if (!categoryFilter) {
+      return types;
+    }
+
+    return Array.from(
+      new Set(
+        categoryOptions
+          .filter((option) => option.category === categoryFilter)
+          .map((option) => option.type)
+          .filter(Boolean)
+      )
+    );
+  }, [categoryFilter, categoryOptions, types]);
+
+  const availableFilterSubtypes = useMemo(() => {
+    return Array.from(
+      new Set(
+        categoryOptions
+          .filter((option) => {
+            const categoryMatched = categoryFilter ? option.category === categoryFilter : true;
+            const typeMatched = typeFilter ? option.type === typeFilter : true;
+            return categoryMatched && typeMatched;
+          })
+          .map((option) => option.subtype)
+          .filter(Boolean)
+      )
+    ) as string[];
+  }, [categoryFilter, typeFilter, categoryOptions]);
+
+  useEffect(() => {
+    if (typeFilter && !availableFilterTypes.includes(typeFilter)) {
+      setTypeFilter('');
+      setSubtypeFilter('');
+    }
+  }, [availableFilterTypes, typeFilter]);
+
+  useEffect(() => {
+    if (subtypeFilter && !availableFilterSubtypes.includes(subtypeFilter)) {
+      setSubtypeFilter('');
+    }
+  }, [availableFilterSubtypes, subtypeFilter]);
+
+  const filteredTypeOptions = formData.category
+    ? Array.from(
+        new Set(
+          categoryOptions
+            .filter((option) => option.category === formData.category)
+            .map((option) => option.type)
+            .filter(Boolean)
+        )
+      )
+    : types;
+
+  const filteredSubtypeOptions = formData.type
+    ? Array.from(
+        new Set(
+          categoryOptions
+            .filter((option) => {
+              const categoryMatched = formData.category ? option.category === formData.category : true;
+              return categoryMatched && option.type === formData.type;
+            })
+            .map((option) => option.subtype)
+            .filter(Boolean)
+        )
+      ) as string[]
+    : subtypes;
+
+  const handleLookupChange = (name: 'category' | 'type' | 'subtype', value: string) => {
+    setFormData((prev) => {
+      if (name === 'category') {
+        return {
+          ...prev,
+          category: value,
+          type: '',
+          subtype: '',
+        };
+      }
+
+      if (name === 'type') {
+        return {
+          ...prev,
+          type: value,
+          subtype: '',
+        };
+      }
+
+      return {
+        ...prev,
+        subtype: value,
+      };
+    });
+
+    if (errors[name]) {
+      setErrors((prev) => {
+        const newErrors = { ...prev };
+        delete newErrors[name];
+        return newErrors;
+      });
     }
   };
 
@@ -157,16 +345,17 @@ export default function ProductsPage() {
       // Build query string with filters and sorting
       const params = new URLSearchParams();
       
+      if (codeFilter) params.append('code', codeFilter);
       if (nameFilter) params.append('name', nameFilter);
       if (categoryFilter) params.append('category', categoryFilter);
       if (typeFilter) params.append('type', typeFilter);
       if (subtypeFilter) params.append('subtype', subtypeFilter);
       
       // Add sorting parameters
-      params.append('orderBy', sortBy);
-      params.append('sortOrder', sortOrder);
+      params.append('order_by', sortBy);
+      params.append('sort_order', sortOrder);
       params.append('page', page.toString());
-      params.append('pageSize', pageSize.toString());
+      params.append('page_size', pageSize.toString());
       
       const response = await fetch(`/api/products?${params.toString()}`);
       if (!response.ok) throw new Error('Failed to fetch products');
@@ -176,8 +365,8 @@ export default function ProductsPage() {
       if (data.page && data.page !== page) {
         setPage(data.page);
       }
-      if (data.pageSize && data.pageSize !== pageSize) {
-        setPageSize(data.pageSize);
+      if (data.page_size && data.page_size !== pageSize) {
+        setPageSize(data.page_size);
       }
     } catch (err) {
       console.error('Error fetching products:', err);
@@ -199,7 +388,7 @@ export default function ProductsPage() {
     setPageSize(parseInt(e.target.value, 10));
     setPage(1);
   };
-  
+
   // Sorting function
   const handleSort = (column: string) => {
     if (sortBy === column) {
@@ -233,8 +422,10 @@ export default function ProductsPage() {
   };
   
   // Function to get header class
-  const getHeaderClass = (column: string) => {
-    return `px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 ${column === sortBy ? 'bg-gray-100' : ''}`;
+  const getHeaderClass = (field: string) => {
+    return `px-3 py-3 text-left text-[10px] font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 ${
+      sortBy === field ? 'bg-gray-100' : ''
+    }`;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -289,11 +480,11 @@ export default function ProductsPage() {
         resetForm();
       } else {
         const error = await response.json();
-        alert(error.error || 'เกิดข้อผิดพลาดในการบันทึกข้อมูล');
+        await Swal.fire('เกิดข้อผิดพลาด', error.error || 'เกิดข้อผิดพลาดในการบันทึกข้อมูล', 'error');
       }
     } catch (error) {
       console.error('Error saving product:', error);
-      alert('เกิดข้อผิดพลาดในการบันทึกข้อมูล');
+      await Swal.fire('เกิดข้อผิดพลาด', 'เกิดข้อผิดพลาดในการบันทึกข้อมูล', 'error');
     }
   };
 
@@ -306,13 +497,13 @@ export default function ProductsPage() {
       type: product.type || '',
       subtype: product.subtype || '',
       unit: product.unit || '',
-      costPrice: product.costPrice ? Number(product.costPrice) : undefined,
-      sellPrice: product.sellPrice ? Number(product.sellPrice) : undefined,
-      stockBalance: product.stockBalance || undefined,
-      stockValue: product.stockValue ? Number(product.stockValue) : undefined,
-      sellerCode: product.sellerCode || '',
+      cost_price: product.cost_price ? Number(product.cost_price) : undefined,
+      sell_price: product.sell_price ? Number(product.sell_price) : undefined,
+      stock_balance: product.stock_balance || undefined,
+      stock_value: product.stock_value ? Number(product.stock_value) : undefined,
+      seller_code: product.seller_code || '',
       image: product.image || '',
-      adminNote: product.adminNote || ''
+      admin_note: product.admin_note || ''
     });
     setShowForm(true);
   };
@@ -372,17 +563,21 @@ export default function ProductsPage() {
       type: '',
       subtype: '',
       unit: '',
-      costPrice: undefined,
-      sellPrice: undefined,
-      stockBalance: undefined,
-      stockValue: undefined,
-      sellerCode: '',
+      cost_price: undefined,
+      sell_price: undefined,
+      stock_balance: undefined,
+      stock_value: undefined,
+      seller_code: '',
       image: '',
-      adminNote: ''
+      admin_note: ''
     });
     setErrors({});
     setShowForm(false);
   };
+
+  const modalInputClassName = 'mt-2 block w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-900 shadow-sm outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100';
+  const modalErrorInputClassName = 'border-red-500 focus:border-red-500 focus:ring-red-100';
+  const modalCardClassName = 'rounded-2xl border border-gray-100 bg-gray-50/80 p-4';
 
   // Inline editing functions
   const startInlineEdit = (product: Product) => {
@@ -394,13 +589,13 @@ export default function ProductsPage() {
       type: product.type || '',
       subtype: product.subtype || '',
       unit: product.unit || '',
-      costPrice: product.costPrice ? Number(product.costPrice) : undefined,
-      sellPrice: product.sellPrice ? Number(product.sellPrice) : undefined,
-      stockBalance: product.stockBalance || undefined,
-      stockValue: product.stockValue ? Number(product.stockValue) : undefined,
-      sellerCode: product.sellerCode || '',
+      cost_price: product.cost_price ? Number(product.cost_price) : undefined,
+      sell_price: product.sell_price ? Number(product.sell_price) : undefined,
+      stock_balance: product.stock_balance || undefined,
+      stock_value: product.stock_value ? Number(product.stock_value) : undefined,
+      seller_code: product.seller_code || '',
       image: product.image || '',
-      adminNote: product.adminNote || ''
+      admin_note: product.admin_note || ''
     });
   };
 
@@ -416,8 +611,8 @@ export default function ProductsPage() {
         setEditingId(null);
         setEditData({
           code: '', category: '', name: '', type: '', subtype: '', unit: '',
-          costPrice: undefined, sellPrice: undefined, stockBalance: undefined,
-          stockValue: undefined, sellerCode: '', image: '', adminNote: ''
+          cost_price: undefined, sell_price: undefined, stock_balance: undefined,
+          stock_value: undefined, seller_code: '', image: '', admin_note: ''
         });
         fetchProducts();
 
@@ -460,8 +655,8 @@ export default function ProductsPage() {
     setEditingId(null);
     setEditData({
       code: '', category: '', name: '', type: '', subtype: '', unit: '',
-      costPrice: undefined, sellPrice: undefined, stockBalance: undefined,
-      stockValue: undefined, sellerCode: '', image: '', adminNote: ''
+      cost_price: undefined, sell_price: undefined, stock_balance: undefined,
+      stock_value: undefined, seller_code: '', image: '', admin_note: ''
     });
   };
 
@@ -502,13 +697,13 @@ export default function ProductsPage() {
             type: record.type.trim(),
             subtype: record.subtype.trim(),
             unit: record.unit.trim(),
-            costPrice: record.costPrice,
-            sellPrice: record.sellPrice,
-            stockBalance: record.stockBalance,
-            stockValue: record.stockValue,
-            sellerCode: record.sellerCode || '',
+            cost_price: record.cost_price,
+            sell_price: record.sell_price,
+            stock_balance: record.stock_balance,
+            stock_value: record.stock_value,
+            seller_code: record.seller_code || '',
             image: record.image || '',
-            adminNote: record.adminNote || ''
+            admin_note: record.admin_note || ''
           })
         })
       );
@@ -614,14 +809,16 @@ export default function ProductsPage() {
 
       {showForm && (
         <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-          <div className="relative top-20 mx-auto p-5 border w-11/12 md:w-3/4 lg:w-1/2 shadow-lg rounded-md bg-white">
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-medium">
-                {editingProduct ? 'แก้ไขสินค้า' : 'เพิ่มสินค้าใหม่'}
-              </h3>
+          <div className="relative top-10 mx-auto w-11/12 max-w-5xl rounded-3xl bg-white shadow-2xl ring-1 ring-black/5">
+            <div className="flex items-start justify-between border-b border-gray-100 px-6 py-5 md:px-8">
+              <div>
+                <h3 className="text-xl font-semibold text-gray-900">
+                  {editingProduct ? 'แก้ไขสินค้า' : 'เพิ่มสินค้าใหม่'}
+                </h3>
+              </div>
               <button
                 onClick={resetForm}
-                className="text-gray-400 hover:text-gray-600"
+                className="rounded-full p-2 text-gray-400 transition hover:bg-gray-100 hover:text-gray-600"
               >
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -629,165 +826,202 @@ export default function ProductsPage() {
               </button>
             </div>
 
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">รหัสสินค้า *</label>
-                  <input
-                    type="text"
-                    name="code"
-                    value={formData.code}
-                    onChange={handleInputChange}
-                    required
-                    className={`mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 ${errors.code ? 'border-red-500' : ''}`}
-                  />
-                  {errors.code && <p className="mt-1 text-sm text-red-600">{errors.code}</p>}
+            <form onSubmit={handleSubmit} className="space-y-6 px-6 py-6 md:px-8 md:py-8">
+              <div className="grid grid-cols-1 gap-6 xl:grid-cols-[1.3fr_0.9fr]">
+                <div className="space-y-4">
+                  <div className={modalCardClassName}>
+                    <div className="mb-4">
+                      <h4 className="text-sm font-semibold text-gray-900">ข้อมูลหลัก</h4>
+                      <p className="text-xs text-gray-500">กำหนดรหัส ชื่อ หมวด ประเภท และหน่วยของสินค้า</p>
+                    </div>
+                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700">รหัสสินค้า *</label>
+                        <input
+                          type="text"
+                          name="code"
+                          value={formData.code}
+                          onChange={handleInputChange}
+                          required
+                          className={`${modalInputClassName} ${errors.code ? modalErrorInputClassName : ''}`}
+                        />
+                        {errors.code && <p className="mt-1 text-sm text-red-600">{errors.code}</p>}
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700">ชื่อสินค้า *</label>
+                        <input
+                          type="text"
+                          name="name"
+                          value={formData.name}
+                          onChange={handleInputChange}
+                          required
+                          className={`${modalInputClassName} ${errors.name ? modalErrorInputClassName : ''}`}
+                        />
+                        {errors.name && <p className="mt-1 text-sm text-red-600">{errors.name}</p>}
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700">หมวดหมู่ *</label>
+                        <select
+                          name="category"
+                          value={formData.category}
+                          onChange={(e) => handleLookupChange('category', e.target.value)}
+                          required
+                          className={`${modalInputClassName} ${errors.category ? modalErrorInputClassName : ''}`}
+                        >
+                          <option value="">เลือกหมวดหมู่</option>
+                          {categories.map((category) => (
+                            <option key={category} value={category}>{category}</option>
+                          ))}
+                        </select>
+                        {errors.category && <p className="mt-1 text-sm text-red-600">{errors.category}</p>}
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700">ประเภท *</label>
+                        <select
+                          name="type"
+                          value={formData.type}
+                          onChange={(e) => handleLookupChange('type', e.target.value)}
+                          required
+                          disabled={!formData.category && filteredTypeOptions.length === 0}
+                          className={`${modalInputClassName} ${errors.type ? modalErrorInputClassName : ''}`}
+                        >
+                          <option value="">เลือกประเภท</option>
+                          {filteredTypeOptions.map((type) => (
+                            <option key={type} value={type}>{type}</option>
+                          ))}
+                        </select>
+                        {errors.type && <p className="mt-1 text-sm text-red-600">{errors.type}</p>}
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700">ชนิดย่อย *</label>
+                        <select
+                          name="subtype"
+                          value={formData.subtype}
+                          onChange={(e) => handleLookupChange('subtype', e.target.value)}
+                          required
+                          disabled={!formData.type && filteredSubtypeOptions.length === 0}
+                          className={`${modalInputClassName} ${errors.subtype ? modalErrorInputClassName : ''}`}
+                        >
+                          <option value="">เลือกชนิดย่อย</option>
+                          {filteredSubtypeOptions.map((subtype) => (
+                            <option key={subtype} value={subtype}>{subtype}</option>
+                          ))}
+                        </select>
+                        {errors.subtype && <p className="mt-1 text-sm text-red-600">{errors.subtype}</p>}
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700">หน่วยนับ *</label>
+                        <input
+                          list="product-units"
+                          type="text"
+                          name="unit"
+                          value={formData.unit}
+                          onChange={handleInputChange}
+                          required
+                          className={`${modalInputClassName} ${errors.unit ? modalErrorInputClassName : ''}`}
+                        />
+                        <datalist id="product-units">
+                          {units.map((unit) => (
+                            <option key={unit} value={unit} />
+                          ))}
+                        </datalist>
+                        {errors.unit && <p className="mt-1 text-sm text-red-600">{errors.unit}</p>}
+                      </div>
+                    </div>
+                  </div>
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">ชื่อสินค้า *</label>
-                  <input
-                    type="text"
-                    name="name"
-                    value={formData.name}
-                    onChange={handleInputChange}
-                    required
-                    className={`mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 ${errors.name ? 'border-red-500' : ''}`}
-                  />
-                  {errors.name && <p className="mt-1 text-sm text-red-600">{errors.name}</p>}
+
+                <div className="space-y-6">
+                  <div className={modalCardClassName}>
+                    <div className="mb-4">
+                      <h4 className="text-sm font-semibold text-gray-900">ข้อมูลราคา</h4>
+                      <p className="text-xs text-gray-500">กำหนดราคาทุนและราคาขายของสินค้า</p>
+                    </div>
+                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700">ราคาทุน</label>
+                        <input
+                          type="number"
+                          name="cost_price"
+                          value={formData.cost_price || ''}
+                          onChange={handleInputChange}
+                          className={modalInputClassName}
+                          step="0.01"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700">ราคาขาย</label>
+                        <input
+                          type="number"
+                          name="sell_price"
+                          value={formData.sell_price || ''}
+                          onChange={handleInputChange}
+                          className={modalInputClassName}
+                          step="0.01"
+                        />
+                      </div>
+                    </div>
+                  </div>
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">หมวดหมู่ *</label>
-                  <input
-                    type="text"
-                    name="category"
-                    value={formData.category}
-                    onChange={handleInputChange}
-                    required
-                    className={`mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 ${errors.category ? 'border-red-500' : ''}`}
-                  />
-                  {errors.category && <p className="mt-1 text-sm text-red-600">{errors.category}</p>}
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">ประเภท *</label>
-                  <input
-                    type="text"
-                    name="type"
-                    value={formData.type}
-                    onChange={handleInputChange}
-                    required
-                    className={`mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 ${errors.type ? 'border-red-500' : ''}`}
-                  />
-                  {errors.type && <p className="mt-1 text-sm text-red-600">{errors.type}</p>}
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">ชนิดย่อย *</label>
-                  <input
-                    type="text"
-                    name="subtype"
-                    value={formData.subtype}
-                    onChange={handleInputChange}
-                    required
-                    className={`mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 ${errors.subtype ? 'border-red-500' : ''}`}
-                  />
-                  {errors.subtype && <p className="mt-1 text-sm text-red-600">{errors.subtype}</p>}
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">หน่วย *</label>
-                  <input
-                    type="text"
-                    name="unit"
-                    value={formData.unit}
-                    onChange={handleInputChange}
-                    required
-                    className={`mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 ${errors.unit ? 'border-red-500' : ''}`}
-                  />
-                  {errors.unit && <p className="mt-1 text-sm text-red-600">{errors.unit}</p>}
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">ราคาทุน</label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    name="costPrice"
-                    value={formData.costPrice || ''}
-                    onChange={handleInputChange}
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">ราคาขาย</label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    name="sellPrice"
-                    value={formData.sellPrice || ''}
-                    onChange={handleInputChange}
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">จำนวนคงคลัง</label>
-                  <input
-                    type="number"
-                    name="stockBalance"
-                    value={formData.stockBalance || ''}
-                    onChange={handleInputChange}
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">มูลค่าสต็อก</label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    name="stockValue"
-                    value={formData.stockValue || ''}
-                    onChange={handleInputChange}
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">รหัสผู้ขาย</label>
-                  <input
-                    type="text"
-                    name="sellerCode"
-                    value={formData.sellerCode}
-                    onChange={handleInputChange}
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">รูปภาพ</label>
-                  <input
-                    type="text"
-                    name="image"
-                    value={formData.image}
-                    onChange={handleInputChange}
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                  />
+
+                <div className="space-y-6">
+                  <div className={modalCardClassName}>
+                    <div className="mb-4">
+                      <h4 className="text-sm font-semibold text-gray-900">ข้อมูลเพิ่มเติม</h4>
+                      <p className="text-xs text-gray-500">ข้อมูลผู้ขาย รูปภาพ และหมายเหตุการดูแลสินค้า</p>
+                    </div>
+                    <div className="space-y-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700">รหัสผู้ขาย</label>
+                        <select
+                          name="seller_code"
+                          value={formData.seller_code}
+                          onChange={handleInputChange}
+                          className={modalInputClassName}
+                        >
+                          <option value="">เลือกผู้ขาย</option>
+                          {sellerOptions.map((seller) => (
+                            <option key={seller.code} value={seller.code}>{seller.code} - {seller.name}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700">รูปสินค้า (URL)</label>
+                        <input
+                          type="text"
+                          name="image"
+                          value={formData.image}
+                          onChange={handleInputChange}
+                          className={modalInputClassName}
+                          placeholder="เช่น https://example.com/image.jpg"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700">หมายเหตุ</label>
+                        <textarea
+                          name="admin_note"
+                          value={formData.admin_note}
+                          onChange={handleInputChange}
+                          className={`${modalInputClassName} h-24`}
+                          placeholder="ข้อมูลเพิ่มเติม ข้อสังเกต หรือการดูแล"
+                        />
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700">หมายเหตุ</label>
-                <textarea
-                  name="adminNote"
-                  value={formData.adminNote}
-                  onChange={handleInputChange}
-                  rows={3}
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                />
-              </div>
-              <div className="flex justify-end space-x-3">
+
+              <div className="flex flex-col-reverse gap-3 border-t border-gray-100 pt-5 sm:flex-row sm:justify-end">
                 <button
                   type="button"
                   onClick={resetForm}
-                  className="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50"
+                  className="inline-flex items-center justify-center rounded-xl border border-gray-300 px-5 py-3 text-sm font-medium text-gray-700 transition hover:bg-gray-50"
                 >
                   ยกเลิก
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700"
+                  className="inline-flex items-center justify-center rounded-xl bg-blue-600 px-5 py-3 text-sm font-medium text-white shadow-sm transition hover:bg-blue-700"
                 >
                   {editingProduct ? 'บันทึกการแก้ไข' : 'เพิ่มสินค้า'}
                 </button>
@@ -822,24 +1056,24 @@ export default function ProductsPage() {
                   <table className="w-full">
                     <thead className="bg-gray-100">
                       <tr>
-                        <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase">ลำดับ</th>
-                        <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase">รหัสสินค้า</th>
-                        <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase">ชื่อสินค้า</th>
-                        <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase">หมวดหมู่</th>
-                        <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase">ประเภท</th>
-                        <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase">ชนิดย่อย</th>
-                        <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase">หน่วย</th>
-                        <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase">ราคาทุน</th>
-                        <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase">ราคาขาย</th>
-                        <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase">คงคลัง</th>
-                        <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase">มูลค่า</th>
-                        <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase">จัดการ</th>
+                        <th className="px-2 py-2 text-left text-[10px] font-medium text-gray-500 uppercase">ลำดับ</th>
+                        <th className="px-2 py-2 text-left text-[10px] font-medium text-gray-500 uppercase">รหัสสินค้า</th>
+                        <th className="px-2 py-2 text-left text-[10px] font-medium text-gray-500 uppercase">ชื่อสินค้า</th>
+                        <th className="px-2 py-2 text-left text-[10px] font-medium text-gray-500 uppercase">หมวดหมู่</th>
+                        <th className="px-2 py-2 text-left text-[10px] font-medium text-gray-500 uppercase">ประเภท</th>
+                        <th className="px-2 py-2 text-left text-[10px] font-medium text-gray-500 uppercase">ชนิดย่อย</th>
+                        <th className="px-2 py-2 text-left text-[10px] font-medium text-gray-500 uppercase">หน่วย</th>
+                        <th className="px-2 py-2 text-left text-[10px] font-medium text-gray-500 uppercase">ราคาทุน</th>
+                        <th className="px-2 py-2 text-left text-[10px] font-medium text-gray-500 uppercase">ราคาขาย</th>
+                        <th className="px-2 py-2 text-left text-[10px] font-medium text-gray-500 uppercase">คงคลัง</th>
+                        <th className="px-2 py-2 text-left text-[10px] font-medium text-gray-500 uppercase">มูลค่า</th>
+                        <th className="px-2 py-2 text-left text-[10px] font-medium text-gray-500 uppercase">จัดการ</th>
                       </tr>
                     </thead>
                     <tbody>
                       {bulkRecords.map((record, index) => (
                         <tr key={record.id} className="border-b border-gray-200">
-                          <td className="px-2 py-3 text-sm text-gray-900">{index + 1}</td>
+                          <td className="px-2 py-3 text-xs text-gray-900">{index + 1}</td>
                           <td className="px-2 py-3">
                             <input
                               type="text"
@@ -850,7 +1084,7 @@ export default function ProductsPage() {
                                 setBulkRecords(updated);
                               }}
                               placeholder="รหัสสินค้า"
-                              className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                              className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 text-xs"
                             />
                           </td>
                           <td className="px-2 py-3">
@@ -863,7 +1097,7 @@ export default function ProductsPage() {
                                 setBulkRecords(updated);
                               }}
                               placeholder="ชื่อสินค้า"
-                              className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                              className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 text-xs"
                             />
                           </td>
                           <td className="px-2 py-3">
@@ -876,7 +1110,7 @@ export default function ProductsPage() {
                                 setBulkRecords(updated);
                               }}
                               placeholder="หมวดหมู่"
-                              className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                              className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 text-xs"
                             />
                           </td>
                           <td className="px-2 py-3">
@@ -889,7 +1123,7 @@ export default function ProductsPage() {
                                 setBulkRecords(updated);
                               }}
                               placeholder="ประเภท"
-                              className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                              className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 text-xs"
                             />
                           </td>
                           <td className="px-2 py-3">
@@ -902,7 +1136,7 @@ export default function ProductsPage() {
                                 setBulkRecords(updated);
                               }}
                               placeholder="ชนิดย่อย"
-                              className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                              className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 text-xs"
                             />
                           </td>
                           <td className="px-2 py-3">
@@ -922,10 +1156,10 @@ export default function ProductsPage() {
                             <input
                               type="number"
                               step="0.01"
-                              value={record.costPrice || ''}
+                              value={record.cost_price || ''}
                               onChange={(e) => {
                                 const updated = [...bulkRecords];
-                                updated[index].costPrice = e.target.value ? parseFloat(e.target.value) : undefined;
+                                updated[index].cost_price = e.target.value ? parseFloat(e.target.value) : undefined;
                                 setBulkRecords(updated);
                               }}
                               placeholder="ราคาทุน"
@@ -936,10 +1170,10 @@ export default function ProductsPage() {
                             <input
                               type="number"
                               step="0.01"
-                              value={record.sellPrice || ''}
+                              value={record.sell_price || ''}
                               onChange={(e) => {
                                 const updated = [...bulkRecords];
-                                updated[index].sellPrice = e.target.value ? parseFloat(e.target.value) : undefined;
+                                updated[index].sell_price = e.target.value ? parseFloat(e.target.value) : undefined;
                                 setBulkRecords(updated);
                               }}
                               placeholder="ราคาขาย"
@@ -949,10 +1183,10 @@ export default function ProductsPage() {
                           <td className="px-2 py-3">
                             <input
                               type="number"
-                              value={record.stockBalance || ''}
+                              value={record.stock_balance || ''}
                               onChange={(e) => {
                                 const updated = [...bulkRecords];
-                                updated[index].stockBalance = e.target.value ? parseInt(e.target.value) : undefined;
+                                updated[index].stock_balance = e.target.value ? parseInt(e.target.value) : undefined;
                                 setBulkRecords(updated);
                               }}
                               placeholder="คงคลัง"
@@ -963,10 +1197,10 @@ export default function ProductsPage() {
                             <input
                               type="number"
                               step="0.01"
-                              value={record.stockValue || ''}
+                              value={record.stock_value || ''}
                               onChange={(e) => {
                                 const updated = [...bulkRecords];
-                                updated[index].stockValue = e.target.value ? parseFloat(e.target.value) : undefined;
+                                updated[index].stock_value = e.target.value ? parseFloat(e.target.value) : undefined;
                                 setBulkRecords(updated);
                               }}
                               placeholder="มูลค่า"
@@ -981,8 +1215,8 @@ export default function ProductsPage() {
                                     const newRecord = {
                                       id: Math.max(...bulkRecords.map(r => r.id)) + 1,
                                       code: '', name: '', category: '', type: '', subtype: '', unit: '',
-                                      costPrice: undefined, sellPrice: undefined, stockBalance: undefined,
-                                      stockValue: undefined, sellerCode: '', image: '', adminNote: ''
+                                      cost_price: undefined, sell_price: undefined, stock_balance: undefined,
+                                      stock_value: undefined, seller_code: '', image: '', admin_note: ''
                                     };
                                     setBulkRecords([...bulkRecords, newRecord]);
                                   }}
@@ -1042,63 +1276,85 @@ export default function ProductsPage() {
       <div className="bg-white shadow-md rounded-lg overflow-hidden mb-4">
         {/* Filter Section */}
         <div className="px-4 py-3 bg-gray-50 border-b border-gray-200">
-          <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">ชื่อสินค้า</label>
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 mb-4">
+            <div className="lg:col-span-2">
+              <input
+                type="text"
+                value={codeFilter}
+                onChange={(e) => {
+                  setCodeFilter(e.target.value);
+                  setPage(1);
+                }}
+                placeholder="ค้นหารหัสสินค้า..."
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+              />
+            </div>
+            <div className="lg:col-span-2">
               <input
                 type="text"
                 value={nameFilter}
-                onChange={(e) => setNameFilter(e.target.value)}
+                onChange={(e) => {
+                  setNameFilter(e.target.value);
+                  setPage(1);
+                }}
                 placeholder="ค้นหาชื่อสินค้า..."
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
               />
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">หมวดสินค้า</label>
+            <div className="lg:col-span-2">
               <select
                 value={categoryFilter}
-                onChange={(e) => setCategoryFilter(e.target.value)}
+                onChange={(e) => {
+                  setCategoryFilter(e.target.value);
+                  setTypeFilter('');
+                  setSubtypeFilter('');
+                }}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
               >
-                <option value="">ทั้งหมด</option>
-                {categories.map((category) => (
-                  <option key={category} value={category}>{category}</option>
+                <option value="">หมวด</option>
+                {categories.map((cat) => (
+                  <option key={cat} value={cat}>{cat}</option>
                 ))}
               </select>
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">ประเภทสินค้า</label>
+            <div className="lg:col-span-2">
               <select
                 value={typeFilter}
-                onChange={(e) => setTypeFilter(e.target.value)}
+                onChange={(e) => {
+                  setTypeFilter(e.target.value);
+                  setSubtypeFilter('');
+                }}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
               >
-                <option value="">ทั้งหมด</option>
-                {types.map((type) => (
+                <option value="">ประเภทสินค้า</option>
+                {availableFilterTypes.map((type) => (
                   <option key={type} value={type}>{type}</option>
                 ))}
               </select>
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">ประเภทย่อย</label>
+            <div className="lg:col-span-2">
               <select
                 value={subtypeFilter}
                 onChange={(e) => setSubtypeFilter(e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
               >
-                <option value="">ทั้งหมด</option>
-                {subtypes.map((subtype) => (
+                <option value="">ประเภทย่อย</option>
+                {availableFilterSubtypes.map((subtype) => (
                   <option key={subtype} value={subtype}>{subtype}</option>
                 ))}
               </select>
             </div>
-            <div className="flex items-end">
+            <div className="lg:col-span-2 flex items-end">
               <button
                 onClick={() => {
+                  setCodeFilter('');
                   setNameFilter('');
                   setCategoryFilter('');
                   setTypeFilter('');
                   setSubtypeFilter('');
+                  setPage(1);
+                  setSortBy('code');
+                  setSortOrder('asc');
                 }}
                 className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
               >
@@ -1110,22 +1366,16 @@ export default function ProductsPage() {
         
         {/* Summary Section */}
         <div className="px-4 py-3 bg-gray-50 border-b border-gray-200">
-          <div className="flex justify-between items-center">
-            <h3 className="text-lg font-medium text-gray-900">สรุปข้อมูล</h3>
-            <div className="flex items-center space-x-6">
-              <div className="text-sm">
-                <span className="text-gray-500">จำนวนทั้งสิ้น: </span>
-                <span className="font-semibold text-gray-900">{(products || []).length.toLocaleString()} รายการ</span>
-              </div>
-              <div className="text-sm">
-                <span className="text-gray-500">มูลค่ายกมาทั้งหมด: </span>
-                <span className="font-semibold text-gray-900">
-                  ฿{(products || []).reduce((total, product) => total + (product.stockValue ? Number(product.stockValue) : 0), 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                </span>
+            <div className="flex justify-between items-center">
+              <h3 className="text-lg font-medium text-gray-900">สรุปข้อมูล</h3>
+              <div className="flex items-center space-x-6">
+                <div className="text-sm">
+                  <span className="text-gray-500">จำนวนทั้งสิ้น: </span>
+                  <span className="font-semibold text-gray-900">{(products || []).length.toLocaleString()} รายการ</span>
+                </div>
               </div>
             </div>
           </div>
-        </div>
       </div>
 
       {/* Pagination Controls (survey-style) */}
@@ -1175,37 +1425,31 @@ export default function ProductsPage() {
               <th onClick={() => handleSort('code')} className={getHeaderClass('code')}>
                 รหัสสินค้า {getSortIcon('code')}
               </th>
-              <th onClick={() => handleSort('category')} className={getHeaderClass('category')}>
-                หมวดสินค้า {getSortIcon('category')}
-              </th>
               <th onClick={() => handleSort('name')} className={getHeaderClass('name')}>
                 ชื่อสินค้า {getSortIcon('name')}
               </th>
+              <th onClick={() => handleSort('category')} className={getHeaderClass('category')}>
+                หมวด {getSortIcon('category')}
+              </th>
               <th onClick={() => handleSort('type')} className={getHeaderClass('type')}>
-                ประเภทสินค้า {getSortIcon('type')}
+                ประเภท {getSortIcon('type')}
               </th>
               <th onClick={() => handleSort('subtype')} className={getHeaderClass('subtype')}>
-                ประเภทสินค้าย่อย {getSortIcon('subtype')}
+                ประเภทย่อย {getSortIcon('subtype')}
               </th>
               <th onClick={() => handleSort('unit')} className={getHeaderClass('unit')}>
                 หน่วยนับ {getSortIcon('unit')}
               </th>
-              <th onClick={() => handleSort('costPrice')} className={getHeaderClass('costPrice')}>
-                ราคาทุนต่อหน่วย {getSortIcon('costPrice')}
+              <th onClick={() => handleSort('cost_price')} className={getHeaderClass('cost_price')}>
+                ราคาทุนต่อหน่วย {getSortIcon('cost_price')}
               </th>
-              <th onClick={() => handleSort('sellPrice')} className={getHeaderClass('sellPrice')}>
-                ราคาขายต่อหน่วย {getSortIcon('sellPrice')}
+              <th onClick={() => handleSort('sell_price')} className={getHeaderClass('sell_price')}>
+                ราคาขายต่อหน่วย {getSortIcon('sell_price')}
               </th>
-              <th onClick={() => handleSort('stockBalance')} className={getHeaderClass('stockBalance')}>
-                ยอดยกมา {getSortIcon('stockBalance')}
-              </th>
-              <th onClick={() => handleSort('stockValue')} className={getHeaderClass('stockValue')}>
-                มูลค่ายกมา {getSortIcon('stockValue')}
-              </th>
-              <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-20">
+              <th className="px-3 py-3 text-left text-[10px] font-medium text-gray-500 uppercase tracking-wider w-20">
                 สถานะ
               </th>
-              <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-24">
+              <th className="px-3 py-3 text-left text-[10px] font-medium text-gray-500 uppercase tracking-wider w-24">
                 Action
               </th>
             </tr>
@@ -1213,50 +1457,38 @@ export default function ProductsPage() {
           <tbody className="bg-white divide-y divide-gray-200">
             {(products || []).map((product) => (
               <tr key={product.id}>
-                <td className="px-3 py-4 whitespace-nowrap text-sm font-medium text-gray-900 w-24">
+                <td className="px-3 py-4 whitespace-nowrap text-xs font-medium text-gray-900 w-24">
                   {product.code}
                 </td>
-                <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-500 w-28">
-                  {product.category}
-                </td>
-                <td className="px-4 py-4 text-sm text-gray-900">
-                  <div className="whitespace-normal break-words" title={product.name}>
-                    {product.name}
-                  </div>
-                </td>
-                <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-500 w-28">
+                <td className="px-3 py-4 text-xs text-gray-900 max-w-xs break-words">{product.name}</td>
+                <td className="px-3 py-4 whitespace-nowrap text-xs text-gray-900">{product.category}</td>
+                <td className="px-3 py-4 whitespace-nowrap text-xs text-gray-500 w-28">
                   {product.type || '-'}
                 </td>
-                <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-500 w-28">
+                <td className="px-3 py-4 whitespace-nowrap text-xs text-gray-500 w-28">
                   {product.subtype || '-'}
                 </td>
-                <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-500 w-20">
+                <td className="px-3 py-4 whitespace-nowrap text-xs text-gray-500 w-20">
                   {product.unit || '-'}
                 </td>
-                <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-500 w-24">
-                  {product.costPrice ? `฿${Number(product.costPrice).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '-'}
+                <td className="px-3 py-4 whitespace-nowrap text-xs text-gray-500 w-24">
+                  {product.cost_price ? `฿${Number(product.cost_price).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '-'}
                 </td>
-                <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-500 w-24">
-                  {product.sellPrice ? `฿${Number(product.sellPrice).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '-'}
-                </td>
-                <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-500 w-20">
-                  {product.stockBalance || 0}
-                </td>
-                <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-500 w-24">
-                  {product.stockValue ? `฿${Number(product.stockValue).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '-'}
+                <td className="px-3 py-4 whitespace-nowrap text-xs text-gray-500 w-24">
+                  {product.sell_price ? `฿${Number(product.sell_price).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '-'}
                 </td>
                 <td className="px-3 py-4 whitespace-nowrap w-20">
-                  <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                    product.flagActivate ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                  <span className={`px-2 inline-flex text-[10px] leading-4 font-semibold rounded-full ${
+                    product.flag_activate ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
                   }`}>
-                    {product.flagActivate ? (
+                    {product.flag_activate ? (
                       <Check className="h-4 w-4" />
                     ) : (
                       <X className="h-4 w-4" />
                     )}
                   </span>
                 </td>
-                <td className="px-3 py-4 whitespace-nowrap text-sm font-medium w-24">
+                <td className="px-3 py-4 whitespace-nowrap text-xs font-medium w-24">
                   <button
                     onClick={() => handleEdit(product)}
                     className="text-indigo-600 hover:text-indigo-900 mr-2 cursor-pointer"

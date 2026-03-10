@@ -1,39 +1,54 @@
 import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { pgQuery } from '@/lib/pg';
+import { cacheGet, cacheSet } from '@/lib/redis';
 
 export async function GET() {
   try {
-    // Get distinct values for each filter field
-    const [categories, types, subtypes, sellerCodes] = await Promise.all([
-      prisma.product.findMany({
-        select: { category: true },
-        distinct: ['category'],
-        orderBy: { category: 'asc' }
-      }),
-      prisma.product.findMany({
-        select: { type: true },
-        distinct: ['type'],
-        orderBy: { type: 'asc' }
-      }),
-      prisma.product.findMany({
-        select: { subtype: true },
-        distinct: ['subtype'],
-        orderBy: { subtype: 'asc' }
-      }),
-      prisma.product.findMany({
-        select: { sellerCode: true },
-        distinct: ['sellerCode'],
-        where: { sellerCode: { not: null } },
-        orderBy: { sellerCode: 'asc' }
-      })
+    const cacheKey = 'erp:products:filters';
+    const cached = await cacheGet<any>(cacheKey);
+    if (cached) return NextResponse.json(cached);
+
+    const [categoryRowsResult, unitRowsResult, sellerRowsResult] = await Promise.all([
+      pgQuery(
+        `SELECT category, type, subtype
+         FROM public.category
+         ORDER BY category ASC, type ASC, subtype ASC`
+      ),
+      pgQuery(
+        `SELECT DISTINCT unit
+         FROM public.product
+         WHERE unit IS NOT NULL
+         ORDER BY unit ASC`
+      ),
+      pgQuery(
+        `SELECT code, name
+         FROM public.seller
+         ORDER BY code ASC`
+      ),
     ]);
 
-    return NextResponse.json({
-      categories: categories.map(item => item.category).filter(Boolean),
-      types: types.map(item => item.type).filter(Boolean),
-      subtypes: subtypes.map(item => item.subtype).filter(Boolean),
-      sellerCodes: sellerCodes.map(item => item.sellerCode).filter(Boolean)
-    });
+    const categoryRows = categoryRowsResult.rows;
+    const unitRows = unitRowsResult.rows;
+    const sellerRows = sellerRowsResult.rows;
+
+    const categories = Array.from(new Set(categoryRows.map((item: any) => item.category).filter(Boolean)));
+    const types = Array.from(new Set(categoryRows.map((item: any) => item.type).filter(Boolean)));
+    const subtypes = Array.from(new Set(categoryRows.map((item: any) => item.subtype).filter(Boolean)));
+    const units = unitRows.map((item: any) => item.unit).filter(Boolean);
+    const sellerCodes = sellerRows.map((seller: any) => seller.code).filter(Boolean);
+
+    const result = {
+      categories,
+      types,
+      subtypes,
+      units,
+      seller_codes: sellerCodes,
+      category_options: categoryRows,
+      seller_options: sellerRows,
+    };
+
+    await cacheSet(cacheKey, result, 3600);
+    return NextResponse.json(result);
   } catch (error) {
     console.error('Error fetching product filter options:', error);
     return NextResponse.json(

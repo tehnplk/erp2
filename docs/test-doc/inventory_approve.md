@@ -1,0 +1,137 @@
+- generic [ref=e1]:
+  - navigation [ref=e2]:
+    - generic [ref=e4]:
+      - link "Hospital ERP" [ref=e5] [cursor=pointer]:
+        - /url: /
+        - img [ref=e6]
+        - generic [ref=e10]: Hospital ERP
+      - generic [ref=e11]:
+        - link "หน้าหลัก" [ref=e12] [cursor=pointer]:
+          - /url: /
+          - img [ref=e13]
+          - text: หน้าหลัก
+        - link "แผนการใช้" [ref=e16] [cursor=pointer]:
+          - /url: /surveys
+          - img [ref=e17]
+          - text: แผนการใช้
+        - link "แผนจัดซื้อ" [ref=e20] [cursor=pointer]:
+          - /url: /purchase-plans
+          - img [ref=e21]
+          - text: แผนจัดซื้อ
+        - link "อนุมัติจัดซื้อ" [ref=e23] [cursor=pointer]:
+          - /url: /purchase-approvals
+          - img [ref=e24]
+          - text: อนุมัติจัดซื้อ
+        - link "ระบบคลังสินค้า" [ref=e27] [cursor=pointer]:
+          - /url: /inventory
+          - img [ref=e28]
+          - text: ระบบคลังสินค้า
+        - link "Gemini AI" [ref=e31] [cursor=pointer]:
+          - /url: /gemini
+          - img [ref=e32]
+          - text: Gemini AI
+        - button "ตั้งค่า ▾" [ref=e36]:
+          - img [ref=e37]
+          - text: ตั้งค่า
+          - generic [ref=e40]: ▾
+  - generic [ref=e43]:
+    - generic [ref=e44]:
+      - generic [ref=e45]:
+        - paragraph [ref=e46]: Inventory Requisitions
+        - heading "คำขอเบิกสินค้า" [level=1] [ref=e47]
+        - paragraph [ref=e48]: จัดทำคำขอเบิกจากยอดคงเหลือในคลัง เพื่อส่งต่อเข้าสู่กระบวนการอนุมัติและจ่ายสินค้า
+      - link "กลับหน้าหลักระบบคลังสินค้า" [ref=e49] [cursor=pointer]:
+        - /url: /inventory
+    - generic [ref=e50]:
+      - generic [ref=e51]:
+        - text: หน่วยงานที่ขอ
+        - textbox "หน่วยงานที่ขอ" [ref=e52]: กลุ่มงานบริหารทั่วไป
+      - generic [ref=e53]:
+        - text: ผู้ขอ
+        - textbox "ผู้ขอ" [ref=e54]: Test User
+      - generic [ref=e55]:
+        - text: สินค้า
+        - combobox "สินค้า" [ref=e56]:
+          - option "เลือกสินค้า" [selected]
+          - option "P230-000937 - หมึก Printer Laser PANTUM P2500 (พร้อมใช้ 3)"
+          - option "P230-001093 - หมึก Printer Laser TN-2560 (พร้อมใช้ 5)"
+          - option "P230-000440 - กระดาษเทอร์มอล ขนาด 80*80 มม. (พร้อมใช้ 199)"
+          - option "P230-000438 - กระดาษเทอร์มอล สำหรับเครื่อง EDC ขนาด 57*40 มม. (พร้อมใช้ 99)"
+      - generic [ref=e57]:
+        - text: จำนวนที่ขอ
+        - spinbutton "จำนวนที่ขอ" [ref=e58]: "1"
+      - button "บันทึกคำขอเบิก" [ref=e60]
+      - generic [ref=e61]:
+        - paragraph [ref=e62]: รายการที่เลือก
+        - paragraph [ref=e63]: ยังไม่ได้เลือกสินค้า
+        - paragraph [ref=e64]: "จำนวนพร้อมใช้: 0"
+    - generic [ref=e180]: อนุมัติ REQ-1772881083435 สำเร็จ
+    - table [ref=e67]:
+      - rowgroup [ref=e68]:
+        - row "เลขที่เอกสาร วันที่ขอ หน่วยงาน สถานะ ที่ขอ อนุมัติ จ่ายแล้ว จัดการ" [ref=e69]:
+          - columnheader "เลขที่เอกสาร" [ref=e70]
+          - columnheader "วันที่ขอ" [ref=e71]
+          - columnheader "หน่วยงาน" [ref=e72]
+          - columnheader "สถานะ" [ref=e73]
+          - columnheader "ที่ขอ" [ref=e74]
+          - columnheader "อนุมัติ" [ref=e75]
+          - columnheader "จ่ายแล้ว" [ref=e76]
+          - columnheader "จัดการ" [ref=e77]
+      - rowgroup [ref=e78]:
+        - row "REQ-1772881083435 7/3/2569 10:58:03 กลุ่มงานบริหารทั่วไป APPROVED 2 2 0 ดูรายการ ยกเลิก ไปหน้าจ่าย" [ref=e255]:
+          - cell "REQ-1772881083435" [ref=e182]
+          - cell "7/3/2569 10:58:03" [ref=e183]
+          - cell "กลุ่มงานบริหารทั่วไป" [ref=e184]
+          - cell "APPROVED" [ref=e185]
+          - cell "2" [ref=e186]
+          - cell "2" [ref=e187]
+          - cell "0" [ref=e188]
+          - cell "ดูรายการ ยกเลิก ไปหน้าจ่าย" [ref=e256]:
+            - generic [ref=e190]:
+              - button "ดูรายการ" [active] [ref=e257]
+              - button "ยกเลิก" [ref=e192]
+              - link "ไปหน้าจ่าย" [ref=e193] [cursor=pointer]:
+                - /url: /inventory/issues?requisitionId=4
+        - row "REQ-1772879277656 7/3/2569 10:27:57 กลุ่มงานบริหารทั่วไป CANCELLED 1 1 0 ดูรายการ ไปหน้าจ่าย" [ref=e218]:
+          - cell "REQ-1772879277656" [ref=e219]
+          - cell "7/3/2569 10:27:57" [ref=e220]
+          - cell "กลุ่มงานบริหารทั่วไป" [ref=e221]
+          - cell "CANCELLED" [ref=e222]
+          - cell "1" [ref=e223]
+          - cell "1" [ref=e224]
+          - cell "0" [ref=e225]
+          - cell "ดูรายการ ไปหน้าจ่าย" [ref=e226]:
+            - generic [ref=e227]:
+              - button "ดูรายการ" [ref=e228]
+              - link "ไปหน้าจ่าย" [ref=e229] [cursor=pointer]:
+                - /url: /inventory/issues?requisitionId=3
+        - row "REQ-1772878821224 7/3/2569 10:20:21 กลุ่มงานบริหารทั่วไป ISSUED 1 1 1 ดูรายการ ไปหน้าจ่าย" [ref=e230]:
+          - cell "REQ-1772878821224" [ref=e231]
+          - cell "7/3/2569 10:20:21" [ref=e232]
+          - cell "กลุ่มงานบริหารทั่วไป" [ref=e233]
+          - cell "ISSUED" [ref=e234]
+          - cell "1" [ref=e235]
+          - cell "1" [ref=e236]
+          - cell "1" [ref=e237]
+          - cell "ดูรายการ ไปหน้าจ่าย" [ref=e238]:
+            - generic [ref=e239]:
+              - button "ดูรายการ" [ref=e240]
+              - link "ไปหน้าจ่าย" [ref=e241] [cursor=pointer]:
+                - /url: /inventory/issues?requisitionId=2
+        - row "REQ-1772876918097 7/3/2569 09:48:38 กลุ่มงานบริหารทั่วไป APPROVED 1 1 0 ดูรายการ ยกเลิก ไปหน้าจ่าย" [ref=e242]:
+          - cell "REQ-1772876918097" [ref=e243]
+          - cell "7/3/2569 09:48:38" [ref=e244]
+          - cell "กลุ่มงานบริหารทั่วไป" [ref=e245]
+          - cell "APPROVED" [ref=e246]
+          - cell "1" [ref=e247]
+          - cell "1" [ref=e248]
+          - cell "0" [ref=e249]
+          - cell "ดูรายการ ยกเลิก ไปหน้าจ่าย" [ref=e250]:
+            - generic [ref=e251]:
+              - button "ดูรายการ" [ref=e252]
+              - button "ยกเลิก" [ref=e253]
+              - link "ไปหน้าจ่าย" [ref=e254] [cursor=pointer]:
+                - /url: /inventory/issues?requisitionId=1
+  - button "Open Next.js Dev Tools" [ref=e123] [cursor=pointer]:
+    - img [ref=e124]
+  - alert [ref=e127]
