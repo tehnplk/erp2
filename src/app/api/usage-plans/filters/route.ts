@@ -22,12 +22,16 @@ export async function GET(request: NextRequest) {
 
     const categoryRows = categoryRowsResult.rows;
 
+    const sortedCategories = Array.from(new Set(categoryRows.map((item: any) => item.category).filter(Boolean))).sort((a, b) => a.localeCompare(b));
+    const sortedTypes = Array.from(new Set(categoryRows.map((item: any) => item.type).filter(Boolean))).sort((a, b) => a.localeCompare(b));
+    const sortedSubtypes = Array.from(new Set(categoryRows.map((item: any) => item.subtype).filter(Boolean))).sort((a, b) => a.localeCompare(b));
+
     const result = {
-      categories: Array.from(new Set(categoryRows.map((item: any) => item.category).filter(Boolean))),
-      types: Array.from(new Set(categoryRows.map((item: any) => item.type).filter(Boolean))),
-      subtypes: Array.from(new Set(categoryRows.map((item: any) => item.subtype).filter(Boolean))),
+      categories: sortedCategories,
+      types: sortedTypes,
+      subtypes: sortedSubtypes,
       category_options: categoryRows,
-      departments: departments.rows.map((d: any) => d.requesting_dept).filter(Boolean),
+      departments: departments.rows.map((d: any) => d.requesting_dept).filter(Boolean).sort((a: string, b: string) => a.localeCompare(b)),
       budget_years: budgetYears.rows.map((year: any) => year.budget_year).filter((value: number | null) => value !== null)
     };
 

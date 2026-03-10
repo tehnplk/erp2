@@ -394,11 +394,14 @@ function SurveysPageContent() {
       const response = await fetch('/api/usage-plans/filters');
       if (response.ok) {
         const data = await response.json();
-        setCategories(data.categories);
-        setTypes(data.types);
-        setSubtypes(data.subtypes);
+        const sortedCategories = (data.categories || []).slice().sort((a: string, b: string) => a.localeCompare(b));
+        const sortedTypes = (data.product_types || []).slice().sort((a: string, b: string) => a.localeCompare(b));
+        const sortedSubtypes = (data.product_subtypes || []).slice().sort((a: string, b: string) => a.localeCompare(b));
         setCategoryOptions(data.category_options || []);
-        setDepartments(data.departments);
+        setCategories(sortedCategories);
+        setTypes(sortedTypes);
+        setSubtypes(sortedSubtypes);
+        setDepartments((data.departments || []).slice().sort((a: string, b: string) => a.localeCompare(b)));
         setBudgetYears((data.budget_years || []).sort((a: number, b: number) => b - a));
       }
     } catch (error) {

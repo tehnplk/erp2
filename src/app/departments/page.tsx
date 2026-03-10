@@ -7,6 +7,7 @@ import { Plus, Check, X, Pencil, Trash2, CheckCircle2, AlertCircle, X as XIcon }
 interface Department {
   id: number;
   name: string;
+  department_code: string;
 }
 
 export default function DepartmentsPage() {
@@ -15,11 +16,13 @@ export default function DepartmentsPage() {
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [formData, setFormData] = useState({
-    name: ''
+    name: '',
+    department_code: ''
   });
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editData, setEditData] = useState({
-    name: ''
+    name: '',
+    department_code: ''
   });
   const [showBulkForm, setShowBulkForm] = useState(false);
   const [bulkRecords, setBulkRecords] = useState<any[]>([]);
@@ -38,9 +41,11 @@ export default function DepartmentsPage() {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
   const PAGE_SIZE_OPTIONS = [10, 20, 50];
+  const DEPARTMENT_CODE_PATTERN = /^\d{4}$/;
 
   const createEmptyDepartmentRecord = () => ({
-    name: ''
+    name: '',
+    department_code: ''
   });
 
   const createEmptyBulkDepartmentRecord = () => ({
@@ -86,13 +91,29 @@ export default function DepartmentsPage() {
       return;
     }
 
+    if (!DEPARTMENT_CODE_PATTERN.test(formData.department_code.trim())) {
+      setToast({
+        message: 'กรุณากรอกรหัสแผนก 4 หลัก',
+        type: 'error',
+        visible: true
+      });
+
+      setTimeout(() => {
+        setToast({ ...toast, visible: false });
+      }, 3000);
+      return;
+    }
+
     try {
       const response = await fetch('/api/departments', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ name: formData.name.trim() }),
+        body: JSON.stringify({
+          name: formData.name.trim(),
+          department_code: formData.department_code.trim()
+        }),
       });
 
       if (response.ok) {
@@ -110,8 +131,9 @@ export default function DepartmentsPage() {
           setToast({ ...toast, visible: false });
         }, 3000);
       } else {
+        const errorData = await response.json().catch(() => null);
         setToast({
-          message: 'เกิดข้อผิดพลาดในการเพิ่มแผนก',
+          message: errorData?.error || 'เกิดข้อผิดพลาดในการเพิ่มแผนก',
           type: 'error',
           visible: true
         });
@@ -141,8 +163,10 @@ export default function DepartmentsPage() {
 
     // Search filter
     if (filters.search) {
+      const searchValue = filters.search.toLowerCase();
       filtered = filtered.filter(dept =>
-        dept.name.toLowerCase().includes(filters.search.toLowerCase())
+        dept.name.toLowerCase().includes(searchValue) ||
+        (dept.department_code || '').toLowerCase().includes(searchValue)
       );
     }
 
@@ -199,22 +223,52 @@ export default function DepartmentsPage() {
   const startInlineEdit = (department: Department) => {
     setEditingId(department.id);
     setEditData({
-      name: department.name
+      name: department.name,
+      department_code: department.department_code
     });
   };
 
   // Save inline edit
   const saveInlineEdit = async (id: number) => {
+    if (!editData.name.trim()) {
+      setToast({
+        message: 'กรุณากรอกชื่อแผนก',
+        type: 'error',
+        visible: true
+      });
+
+      setTimeout(() => {
+        setToast({ ...toast, visible: false });
+      }, 3000);
+      return;
+    }
+
+    if (!DEPARTMENT_CODE_PATTERN.test(editData.department_code.trim())) {
+      setToast({
+        message: 'กรุณากรอกรหัสแผนก 4 หลัก',
+        type: 'error',
+        visible: true
+      });
+
+      setTimeout(() => {
+        setToast({ ...toast, visible: false });
+      }, 3000);
+      return;
+    }
+
     try {
       const response = await fetch(`/api/departments/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(editData)
+        body: JSON.stringify({
+          name: editData.name.trim(),
+          department_code: editData.department_code.trim()
+        })
       });
 
       if (response.ok) {
         setEditingId(null);
-        setEditData({ name: '' });
+        setEditData({ name: '', department_code: '' });
         fetchDepartments();
 
         setToast({
@@ -227,8 +281,9 @@ export default function DepartmentsPage() {
           setToast({ ...toast, visible: false });
         }, 3000);
       } else {
+        const errorData = await response.json().catch(() => null);
         setToast({
-          message: 'เกิดข้อผิดพลาดในการบันทึกข้อมูล',
+          message: errorData?.error || 'เกิดข้อผิดพลาดในการบันทึกข้อมูล',
           type: 'error',
           visible: true
         });
@@ -255,7 +310,7 @@ export default function DepartmentsPage() {
   // Cancel inline edit
   const cancelInlineEdit = () => {
     setEditingId(null);
-    setEditData({ name: '' });
+    setEditData({ name: '', department_code: '' });
   };
 
   // Save bulk departments
@@ -334,7 +389,7 @@ export default function DepartmentsPage() {
   // Cancel form
   const cancelForm = () => {
     setShowForm(false);
-    setFormData({ name: '' });
+    setFormData({ name: '', department_code: '' });
   };
 
   // Initialize data on component mount
@@ -516,7 +571,7 @@ export default function DepartmentsPage() {
             </label>
             <input
               type="text"
-              placeholder="ค้นหาแผนก..."
+              placeholder="ค้นหาแผนกหรือรหัส..."
               value={filters.search}
               onChange={(e) => setFilters({ ...filters, search: e.target.value })}
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -604,8 +659,11 @@ export default function DepartmentsPage() {
           <table className="w-full table-auto">
             <thead className="bg-gray-50">
               <tr>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  ลำดับที่
+                </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  รหัส
+                  รหัสแผนก
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   ชื่อแผนก
@@ -618,7 +676,17 @@ export default function DepartmentsPage() {
             <tbody className="bg-white divide-y divide-gray-200">
               {showForm && (
                 <tr className="bg-blue-50/60">
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">ใหม่</td>
+                  <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">ใหม่</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm">
+                    <input
+                      type="text"
+                      value={formData.department_code}
+                      onChange={(e) => setFormData({ ...formData, department_code: e.target.value })}
+                      maxLength={4}
+                      className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="รหัส 4 หลัก"
+                    />
+                  </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm">
                     <input
                       type="text"
@@ -648,10 +716,23 @@ export default function DepartmentsPage() {
                   </td>
                 </tr>
               )}
-              {paginatedDepartments.map((dept) => (
+              {paginatedDepartments.map((dept, index) => (
                 <tr key={dept.id} className="hover:bg-gray-50">
+                  <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
+                    {pageStart + index}
+                  </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {dept.id}
+                    {editingId === dept.id ? (
+                      <input
+                        type="text"
+                        value={editData.department_code}
+                        onChange={(e) => setEditData({ ...editData, department_code: e.target.value })}
+                        maxLength={4}
+                        className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    ) : (
+                      dept.department_code || '-'
+                    )}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm">
                     {editingId === dept.id ? (

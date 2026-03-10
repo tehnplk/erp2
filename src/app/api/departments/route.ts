@@ -15,7 +15,7 @@ export async function GET(request: NextRequest) {
       return queryValidation.error;
     }
 
-    const { name, page, page_size: pageSize } = queryValidation.data as any;
+    const { name, department_code: departmentCode, page, page_size: pageSize } = queryValidation.data as any;
 
     const whereClauses: string[] = [];
     const params: unknown[] = [];
@@ -24,8 +24,13 @@ export async function GET(request: NextRequest) {
       whereClauses.push(`name ILIKE $${params.length}`);
     }
 
+    if (departmentCode) {
+      params.push(`%${departmentCode}%`);
+      whereClauses.push(`department_code ILIKE $${params.length}`);
+    }
+
     const whereSql = whereClauses.length ? `WHERE ${whereClauses.join(' AND ')}` : '';
-    const baseSelect = 'SELECT id, name FROM public.department';
+    const baseSelect = 'SELECT id, name, department_code FROM public.department';
 
     const cacheKeyAll = `erp:departments:list:all:${JSON.stringify(params)}`;
     if (!page || !pageSize) {
@@ -76,16 +81,23 @@ export async function POST(request: NextRequest) {
       return validation.error;
     }
 
-    const result = await pgQuery(
-      `INSERT INTO public.department (name)
-       VALUES ($1)
-       RETURNING id, name`,
-      [validation.data.name]
-    );
+    try {
+      const result = await pgQuery(
+        `INSERT INTO public.department (name, department_code)
+         VALUES ($1, $2)
+         RETURNING id, name, department_code`,
+        [validation.data.name.trim(), validation.data.department_code.trim()]
+      );
 
-    await cacheDelByPattern('erp:departments:list:*');
+      await cacheDelByPattern('erp:departments:list:*');
 
-    return apiSuccess(result.rows[0], 'Department created successfully', undefined, 201);
+      return apiSuccess(result.rows[0], 'Department created successfully', undefined, 201);
+    } catch (error: any) {
+      if (error?.code === '23505') {
+        return apiError('รหัสแผนกนี้ถูกใช้งานแล้ว', 409);
+      }
+      throw error;
+    }
   } catch (error) {
     console.error('Error creating department:', error);
     return apiError('Failed to create department');

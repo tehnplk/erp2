@@ -10,6 +10,7 @@ const pendingPurchaseApprovalSelect = `
     pa.id,
     pa.approval_id,
     pa.department,
+    pa.department_code,
     pa.budget_year,
     pa.record_number,
     pa.request_date,

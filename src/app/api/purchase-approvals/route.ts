@@ -4,8 +4,9 @@ import { apiSuccess, apiError } from '@/lib/api-response';
 import { cacheGet, cacheSet, cacheDelByPattern } from '@/lib/redis';
 import { validateQuery, validateRequest } from '@/lib/validation/validate';
 import { purchaseApprovalQuerySchema, createPurchaseApprovalSchema } from '@/lib/validation/schemas';
+import { findDepartmentCodeByName } from '@/lib/department-code';
 
-const purchaseApprovalSelect = `SELECT id, approval_id, department, budget_year, record_number, request_date, product_name, product_code, category, product_type, product_subtype, requested_quantity, unit, price_per_unit::float8 AS price_per_unit, total_value::float8 AS total_value, over_plan_case, requester, approver, created_at, updated_at FROM public.purchase_approval`;
+const purchaseApprovalSelect = `SELECT id, approval_id, department, department_code, budget_year, record_number, request_date, product_name, product_code, category, product_type, product_subtype, requested_quantity, unit, price_per_unit::float8 AS price_per_unit, total_value::float8 AS total_value, over_plan_case, requester, approver, created_at, updated_at FROM public.purchase_approval`;
 
 export async function GET(request: NextRequest) {
   try {
@@ -60,6 +61,7 @@ export async function GET(request: NextRequest) {
 
     const allowedOrderFields: Record<string, string> = {
       id: 'id',
+      approval_id: 'approval_id',
       department: 'department',
       budget_year: 'budget_year',
       record_number: 'record_number',
@@ -141,13 +143,16 @@ export async function POST(request: NextRequest) {
       return validation.error;
     }
 
+    const departmentCode = await findDepartmentCodeByName(validation.data.department || null);
+
     const item = await pgQuery(
-      `INSERT INTO public.purchase_approval (approval_id, department, budget_year, record_number, request_date, product_name, product_code, category, product_type, product_subtype, requested_quantity, unit, price_per_unit, total_value, over_plan_case, requester, approver)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
-       RETURNING id, approval_id, department, budget_year, record_number, request_date, product_name, product_code, category, product_type, product_subtype, requested_quantity, unit, price_per_unit::float8 AS price_per_unit, total_value::float8 AS total_value, over_plan_case, requester, approver, created_at, updated_at`,
+      `INSERT INTO public.purchase_approval (approval_id, department, department_code, budget_year, record_number, request_date, product_name, product_code, category, product_type, product_subtype, requested_quantity, unit, price_per_unit, total_value, over_plan_case, requester, approver)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
+       RETURNING id, approval_id, department, department_code, budget_year, record_number, request_date, product_name, product_code, category, product_type, product_subtype, requested_quantity, unit, price_per_unit::float8 AS price_per_unit, total_value::float8 AS total_value, over_plan_case, requester, approver, created_at, updated_at`,
       [
         validation.data.approval_id || null,
         validation.data.department || null,
+        departmentCode,
         validation.data.budget_year ?? null,
         validation.data.record_number || null,
         validation.data.request_date || null,

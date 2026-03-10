@@ -38,6 +38,7 @@ export async function POST(request: NextRequest) {
       `SELECT
         pa.id,
         pa.department,
+        pa.department_code,
         pa.budget_year,
         pa.record_number,
         pa.request_date,

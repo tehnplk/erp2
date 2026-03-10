@@ -4,6 +4,7 @@ import { cacheGet, cacheSet, cacheDelByPattern } from '@/lib/redis';
 import { apiConflict, apiError, apiNotFound, apiSuccess } from '@/lib/api-response';
 import { validateRequest } from '@/lib/validation/validate';
 import { createInventoryIssueSchema } from '@/lib/validation/schemas';
+import { findDepartmentCodeByName } from '@/lib/department-code';
 
 export async function GET() {
   try {
@@ -18,6 +19,7 @@ export async function GET() {
         ii.issue_date,
         ii.requisition_id,
         ii.requesting_department,
+        ii.requesting_department_code,
         ii.status,
         ii.issued_by,
         ii.approved_by,
@@ -52,6 +54,7 @@ export async function POST(request: NextRequest) {
     const { requisition_id, issue_no, issue_date, requesting_department, issued_by, approved_by, note, items } = validation.data;
     const resolvedIssueNo = issue_no || `ISS-${Date.now()}`;
     const resolvedIssueDate = issue_date || new Date().toISOString();
+    const requestingDepartmentCode = await findDepartmentCodeByName(requesting_department);
 
     await client.query('BEGIN');
 
@@ -72,10 +75,10 @@ export async function POST(request: NextRequest) {
     }
 
     const issueResult = await client.query(
-      `INSERT INTO public.inventory_issue (issue_no, issue_date, requisition_id, requesting_department, status, issued_by, approved_by, note)
-       VALUES ($1, $2, $3, $4, 'POSTED', $5, $6, $7)
+      `INSERT INTO public.inventory_issue (issue_no, issue_date, requisition_id, requesting_department, requesting_department_code, status, issued_by, approved_by, note)
+       VALUES ($1, $2, $3, $4, $5, 'POSTED', $6, $7, $8)
        RETURNING id, issue_no, issue_date`,
-      [resolvedIssueNo, resolvedIssueDate, requisition_id, requesting_department, issued_by || null, approved_by || null, note || null]
+      [resolvedIssueNo, resolvedIssueDate, requisition_id, requesting_department, requestingDepartmentCode, issued_by || null, approved_by || null, note || null]
     );
 
     const issue = issueResult.rows[0];

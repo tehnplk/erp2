@@ -3,6 +3,7 @@ import { pgQuery } from '@/lib/pg';
 import { cacheDelByPattern } from '@/lib/redis';
 import { validateRequest } from '@/lib/validation/validate';
 import { createPurchaseApprovalSchema, idParamSchema } from '@/lib/validation/schemas';
+import { findDepartmentCodeByName } from '@/lib/department-code';
 
 export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -27,6 +28,9 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     const data: Record<string, unknown> = {
       approval_id: validation.data.approval_id ?? null,
       department: validation.data.department ?? null,
+      department_code: validation.data.department === undefined
+        ? undefined
+        : await findDepartmentCodeByName(validation.data.department ?? null),
       budget_year: validation.data.budget_year ?? null,
       record_number: validation.data.record_number ?? null,
       request_date: validation.data.request_date ?? null,
@@ -47,6 +51,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     const columnMap: Record<string, string> = {
       approval_id: 'approval_id',
       department: 'department',
+      department_code: 'department_code',
       budget_year: 'budget_year',
       record_number: 'record_number',
       request_date: 'request_date',
@@ -75,7 +80,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     });
 
     if (assignments.length === 0) {
-      const unchanged = await pgQuery('SELECT id, approval_id, department, budget_year, record_number, request_date, product_name, product_code, category, product_type, product_subtype, requested_quantity, unit, price_per_unit::float8 AS price_per_unit, total_value::float8 AS total_value, over_plan_case, requester, approver, created_at, updated_at FROM public.purchase_approval WHERE id = $1 LIMIT 1', [numericId]);
+      const unchanged = await pgQuery('SELECT id, approval_id, department, department_code, budget_year, record_number, request_date, product_name, product_code, category, product_type, product_subtype, requested_quantity, unit, price_per_unit::float8 AS price_per_unit, total_value::float8 AS total_value, over_plan_case, requester, approver, created_at, updated_at FROM public.purchase_approval WHERE id = $1 LIMIT 1', [numericId]);
       return NextResponse.json(unchanged.rows[0]);
     }
 
@@ -83,7 +88,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     values.push(numericId);
     const updated = await pgQuery(
       `UPDATE public.purchase_approval SET ${assignments.join(', ')} WHERE id = $${values.length}
-       RETURNING id, approval_id, department, budget_year, record_number, request_date, product_name, product_code, category, product_type, product_subtype, requested_quantity, unit, price_per_unit::float8 AS price_per_unit, total_value::float8 AS total_value, over_plan_case, requester, approver, created_at, updated_at`,
+       RETURNING id, approval_id, department, department_code, budget_year, record_number, request_date, product_name, product_code, category, product_type, product_subtype, requested_quantity, unit, price_per_unit::float8 AS price_per_unit, total_value::float8 AS total_value, over_plan_case, requester, approver, created_at, updated_at`,
       values
     );
     await cacheDelByPattern('erp:purchase:approvals:list:*');

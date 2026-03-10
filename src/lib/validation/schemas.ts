@@ -158,14 +158,18 @@ export const sellerQuerySchema = z.object({
 });
 
 // Department schemas
+const departmentCodeSchema = z.string().regex(/^\d{4}$/, 'กรุณากรอกรหัสแผนก 4 หลัก');
+
 export const createDepartmentSchema = z.object({
-  name: nonEmptyString
+  name: nonEmptyString,
+  department_code: departmentCodeSchema
 });
 
-export const updateDepartmentSchema = createDepartmentSchema.partial();
+export const updateDepartmentSchema = createDepartmentSchema;
 
 export const departmentQuerySchema = z.object({
   name: z.string().optional(),
+  department_code: z.string().optional(),
   ...paginationFields
 });
 
@@ -268,7 +272,7 @@ export const purchaseApprovalQuerySchema = z.object({
   department: z.string().optional(),
   budget_year: z.string().optional(),
   order_by: z.enum([
-    'id', 'department', 'budget_year', 'record_number', 'request_date', 
+    'id', 'approval_id', 'department', 'budget_year', 'record_number', 'request_date', 
     'product_name', 'product_code', 'category', 'product_type', 
     'product_subtype', 'requester', 'approver'
   ]).optional(),

@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import Swal from 'sweetalert2';
-import { Pencil, Search, Trash2, X } from 'lucide-react';
+import { Pencil, Search, Trash2, X, FileText } from 'lucide-react';
 
 const getCurrentBudgetYear = () => {
   const now = new Date();
@@ -587,15 +587,10 @@ export default function PurchaseApprovalsPage() {
         <div className="flex gap-2">
           <button
             onClick={openCreateForm}
-            className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
+            className="inline-flex items-center gap-2 rounded-lg bg-orange-500 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-orange-600"
           >
-            เพิ่มรายการ
-          </button>
-          <button
-            onClick={() => setShowMemo(true)}
-            className="bg-emerald-500 hover:bg-emerald-700 text-white font-bold py-2 px-4 rounded"
-          >
-            ขอความเห็นชอบจัดซื้อ
+            <FileText className="h-5 w-5" aria-hidden="true" />
+            ทำชุดอนุมัติจัดซื้อ
           </button>
         </div>
       </div>
@@ -893,7 +888,7 @@ export default function PurchaseApprovalsPage() {
       <div className="bg-white shadow-md rounded-lg overflow-hidden mb-4">
         <div className="px-4 py-3 bg-gray-50 border-b border-gray-200">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-            <h3 className="text-lg font-medium text-gray-900">สรุปมูลค่าการขออนุมัติจัดซื้อ</h3>
+            <h3 className="text-lg font-medium text-gray-900">รายการชุดอนุมัติจัดซื้อ</h3>
             <div className="flex flex-wrap items-center gap-6 text-sm">
               <div>
                 <span className="text-gray-500">มูลค่ารวม (total_value): </span>
@@ -960,7 +955,7 @@ export default function PurchaseApprovalsPage() {
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
-                <th onClick={()=>handleSort('approval_id')} className={getHeaderClass('approval_id')}>เลขอนุมัติ</th>
+                <th onClick={()=>handleSort('approval_id')} className={getHeaderClass('approval_id')}>เลขที่ชุดขออนุมัติ</th>
                 <th onClick={()=>handleSort('department')} className={getHeaderClass('department')}>หน่วยงาน</th>
                 <th onClick={()=>handleSort('budget_year')} className={getHeaderClass('budget_year')}>ปีงบ</th>
                 <th onClick={()=>handleSort('product_name')} className={getHeaderClass('product_name')}>ชื่อสินค้า</th>

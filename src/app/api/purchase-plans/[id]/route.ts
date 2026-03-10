@@ -3,8 +3,9 @@ import { pgQuery } from '@/lib/pg';
 import { cacheDelByPattern } from '@/lib/redis';
 import { validateRequest } from '@/lib/validation/validate';
 import { idParamSchema, updatePurchasePlanSchema } from '@/lib/validation/schemas';
+import { findDepartmentCodeByName } from '@/lib/department-code';
 
-const purchasePlanSelect = `SELECT id, product_code, category, product_name, product_type, product_subtype, unit, price_per_unit::float8 AS price_per_unit, budget_year, plan_id, in_plan, carried_forward_quantity, carried_forward_value::float8 AS carried_forward_value, required_quantity_for_year, total_required_value::float8 AS total_required_value, additional_purchase_qty, additional_purchase_value::float8 AS additional_purchase_value, purchasing_department FROM public.purchase_plan`;
+const purchasePlanSelect = `SELECT id, product_code, category, product_name, product_type, product_subtype, unit, price_per_unit::float8 AS price_per_unit, budget_year, plan_id, in_plan, carried_forward_quantity, carried_forward_value::float8 AS carried_forward_value, required_quantity_for_year, total_required_value::float8 AS total_required_value, additional_purchase_qty, additional_purchase_value::float8 AS additional_purchase_value, purchasing_department, purchasing_department_code FROM public.purchase_plan`;
 
 type PurchasePlanPayload = {
   plan_id?: number | null;
@@ -12,6 +13,7 @@ type PurchasePlanPayload = {
   carried_forward_quantity?: number | null;
   carried_forward_value?: number | null;
   purchasing_department?: string | null;
+  purchasing_department_code?: string | null;
 };
 
 async function buildPurchasePlanPayload(input: PurchasePlanPayload) {
@@ -22,7 +24,7 @@ async function buildPurchasePlanPayload(input: PurchasePlanPayload) {
   }
 
   const surveyResult = await pgQuery(
-    `SELECT id, product_code, category, type, subtype, product_name, requested_amount, unit, price_per_unit::float8 AS price_per_unit, requesting_dept, approved_quota, budget_year
+    `SELECT id, product_code, category, type, subtype, product_name, requested_amount, unit, price_per_unit::float8 AS price_per_unit, requesting_dept, requesting_dept_code, approved_quota, budget_year
      FROM public.usage_plan
      WHERE id = $1
      LIMIT 1`,
@@ -84,6 +86,9 @@ async function buildPurchasePlanPayload(input: PurchasePlanPayload) {
       additional_purchase_qty: additionalPurchaseQty,
       additional_purchase_value: additionalPurchaseValue,
       purchasing_department: purchasingDepartment || null,
+      purchasing_department_code: purchasingDepartment
+        ? await findDepartmentCodeByName(purchasingDepartment)
+        : survey.requesting_dept_code || await findDepartmentCodeByName(survey.requesting_dept || null),
     },
   };
 }
@@ -143,6 +148,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
       additional_purchase_qty: 'additional_purchase_qty',
       additional_purchase_value: 'additional_purchase_value',
       purchasing_department: 'purchasing_department',
+      purchasing_department_code: 'purchasing_department_code',
     };
 
     Object.entries(resolved.payload).forEach(([key, value]) => {
@@ -162,7 +168,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     values.push(numericId);
 
     const updated = await pgQuery(
-      `UPDATE public.purchase_plan SET ${assignments.join(', ')} WHERE id = $${values.length} RETURNING id, product_code, category, product_name, product_type, product_subtype, unit, price_per_unit::float8 AS price_per_unit, budget_year, plan_id, in_plan, carried_forward_quantity, carried_forward_value::float8 AS carried_forward_value, required_quantity_for_year, total_required_value::float8 AS total_required_value, additional_purchase_qty, additional_purchase_value::float8 AS additional_purchase_value, purchasing_department`,
+      `UPDATE public.purchase_plan SET ${assignments.join(', ')} WHERE id = $${values.length} RETURNING id, product_code, category, product_name, product_type, product_subtype, unit, price_per_unit::float8 AS price_per_unit, budget_year, plan_id, in_plan, carried_forward_quantity, carried_forward_value::float8 AS carried_forward_value, required_quantity_for_year, total_required_value::float8 AS total_required_value, additional_purchase_qty, additional_purchase_value::float8 AS additional_purchase_value, purchasing_department, purchasing_department_code`,
       values
     );
 

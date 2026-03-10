@@ -40,7 +40,7 @@ export async function GET(request: NextRequest) {
       const cachedAll = await cacheGet<any>(cacheKeyAll);
       if (cachedAll) return apiSuccess(cachedAll.rows, undefined, cachedAll.rows.length);
 
-      const categoriesResult = await pgQuery(`${baseSelect} ${whereSql} ORDER BY id ASC`, params);
+      const categoriesResult = await pgQuery(`${baseSelect} ${whereSql} ORDER BY category ASC, type ASC, subtype ASC`, params);
       await cacheSet(cacheKeyAll, { rows: categoriesResult.rows }, 3600);
       return apiSuccess(categoriesResult.rows, undefined, categoriesResult.rows.length);
     }
@@ -56,7 +56,7 @@ export async function GET(request: NextRequest) {
 
     const [totalCountResult, categoriesResult] = await Promise.all([
       pgQuery(`SELECT COUNT(*)::int AS count FROM public.category ${whereSql}`, params),
-      pgQuery(`${baseSelect} ${whereSql} ORDER BY id ASC LIMIT $${params.length + 1} OFFSET $${params.length + 2}`, [...params, pageSize, skip]),
+      pgQuery(`${baseSelect} ${whereSql} ORDER BY category ASC, type ASC, subtype ASC LIMIT $${params.length + 1} OFFSET $${params.length + 2}`, [...params, pageSize, skip]),
     ]);
 
     const result = {

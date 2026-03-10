@@ -4,6 +4,7 @@ import { apiError, apiSuccess } from '@/lib/api-response';
 import { cacheGet, cacheSet, cacheDelByPattern } from '@/lib/redis';
 import { validateQuery, validateRequest } from '@/lib/validation/validate';
 import { createInventoryRequisitionSchema, inventoryRequisitionQuerySchema } from '@/lib/validation/schemas';
+import { findDepartmentCodeByName } from '@/lib/department-code';
 
 type InventoryRequisitionItemRow = {
   id: number;
@@ -25,6 +26,7 @@ const inventoryRequisitionSelect = `
     ir.requisition_no,
     ir.request_date,
     ir.requesting_department,
+    ir.requesting_department_code,
     ir.status,
     ir.requested_by,
     ir.approved_by,
@@ -169,14 +171,15 @@ export async function POST(request: NextRequest) {
     const { requisition_no, request_date, requesting_department, requested_by, note, items } = validation.data;
     const resolvedRequisitionNo = requisition_no || `REQ-${Date.now()}`;
     const resolvedRequestDate = request_date || new Date().toISOString();
+    const requestingDepartmentCode = await findDepartmentCodeByName(requesting_department);
 
     await client.query('BEGIN');
 
     const requisitionResult = await client.query(
-      `INSERT INTO public.inventory_requisition (requisition_no, request_date, requesting_department, status, requested_by, note)
-       VALUES ($1, $2, $3, 'DRAFT', $4, $5)
-       RETURNING id, requisition_no, request_date, requesting_department, status`,
-      [resolvedRequisitionNo, resolvedRequestDate, requesting_department, requested_by || null, note || null]
+      `INSERT INTO public.inventory_requisition (requisition_no, request_date, requesting_department, requesting_department_code, status, requested_by, note)
+       VALUES ($1, $2, $3, $4, 'DRAFT', $5, $6)
+       RETURNING id, requisition_no, request_date, requesting_department, requesting_department_code, status`,
+      [resolvedRequisitionNo, resolvedRequestDate, requesting_department, requestingDepartmentCode, requested_by || null, note || null]
     );
 
     const requisition = requisitionResult.rows[0];

@@ -3,7 +3,7 @@
 import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import Swal from 'sweetalert2';
-import { Pencil, Trash2, X } from 'lucide-react';
+import { Pencil, Trash2, X, Plus } from 'lucide-react';
 
 const PURCHASE_PLAN_PRODUCT_SUGGESTION_LIMIT = 12;
 
@@ -903,12 +903,15 @@ function PurchasePlansPageContent() {
 
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold text-gray-800">แผนจัดซื้อ</h1>
-        <button
-          onClick={openCreateForm}
-          className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
-        >
-          เพิ่มรายการ
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={openCreateForm}
+            className="flex items-center gap-2 rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-blue-700"
+          >
+            <Plus className="h-5 w-5" aria-hidden="true" />
+            เพิ่มรายการ
+          </button>
+        </div>
       </div>
 
       {showForm && (

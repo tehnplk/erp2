@@ -3,6 +3,7 @@ import { pgQuery } from '@/lib/pg';
 import { cacheGet, cacheSet, cacheDelByPattern } from '@/lib/redis';
 import { validateQuery, validateRequest } from '@/lib/validation/validate';
 import { surveyQuerySchema, createSurveySchema } from '@/lib/validation/schemas';
+import { findDepartmentCodeByName } from '@/lib/department-code';
 
 const buildSurveyConstraintError = () =>
   NextResponse.json(
@@ -90,7 +91,7 @@ export async function GET(request: NextRequest) {
     if (!hasPagination) {
       const [surveysResult, totalCountResult] = await Promise.all([
         pgQuery(
-          `SELECT id, product_code, category, type, subtype, product_name, requested_amount, unit, price_per_unit::float8 AS price_per_unit, requesting_dept, approved_quota, budget_year, sequence_no, created_at, updated_at FROM public.usage_plan ${whereSql} ORDER BY ${safeOrderField} ${orderDirection}`,
+          `SELECT id, product_code, category, type, subtype, product_name, requested_amount, unit, price_per_unit::float8 AS price_per_unit, requesting_dept, requesting_dept_code, approved_quota, budget_year, sequence_no, created_at, updated_at FROM public.usage_plan ${whereSql} ORDER BY ${safeOrderField} ${orderDirection}`,
           params
         ),
         pgQuery(`SELECT COUNT(*)::int AS count FROM public.usage_plan ${whereSql}`, params),
@@ -122,7 +123,7 @@ export async function GET(request: NextRequest) {
 
     const [surveysResult, totalCountResult, summaryResult] = await Promise.all([
       pgQuery(
-        `SELECT id, product_code, category, type, subtype, product_name, requested_amount, unit, price_per_unit::float8 AS price_per_unit, requesting_dept, approved_quota, budget_year, sequence_no, created_at, updated_at FROM public.usage_plan ${whereSql} ORDER BY ${safeOrderField} ${orderDirection} LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,
+        `SELECT id, product_code, category, type, subtype, product_name, requested_amount, unit, price_per_unit::float8 AS price_per_unit, requesting_dept, requesting_dept_code, approved_quota, budget_year, sequence_no, created_at, updated_at FROM public.usage_plan ${whereSql} ORDER BY ${safeOrderField} ${orderDirection} LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,
         paginatedParams
       ),
       pgQuery(`SELECT COUNT(*)::int AS count FROM public.usage_plan ${whereSql}`, params),
@@ -200,10 +201,13 @@ export async function POST(request: NextRequest) {
       surveyData.sequence_no = 1;
     }
 
+    const requestingDept = surveyData.requesting_dept || null;
+    const requestingDeptCode = await findDepartmentCodeByName(requestingDept);
+
     const survey = await pgQuery(
-      `INSERT INTO public.usage_plan (product_code, category, type, subtype, product_name, requested_amount, unit, price_per_unit, requesting_dept, approved_quota, budget_year, sequence_no)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
-       RETURNING id, product_code, category, type, subtype, product_name, requested_amount, unit, price_per_unit::float8 AS price_per_unit, requesting_dept, approved_quota, budget_year, sequence_no, created_at, updated_at`,
+      `INSERT INTO public.usage_plan (product_code, category, type, subtype, product_name, requested_amount, unit, price_per_unit, requesting_dept, requesting_dept_code, approved_quota, budget_year, sequence_no)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+       RETURNING id, product_code, category, type, subtype, product_name, requested_amount, unit, price_per_unit::float8 AS price_per_unit, requesting_dept, requesting_dept_code, approved_quota, budget_year, sequence_no, created_at, updated_at`,
       [
         surveyData.product_code || null,
         surveyData.category || null,
@@ -213,7 +217,8 @@ export async function POST(request: NextRequest) {
         surveyData.requested_amount ?? null,
         surveyData.unit || null,
         surveyData.price_per_unit ?? 0,
-        surveyData.requesting_dept || null,
+        requestingDept,
+        requestingDeptCode,
         surveyData.approved_quota ?? null,
         surveyData.budget_year ?? null,
         surveyData.sequence_no ?? null,

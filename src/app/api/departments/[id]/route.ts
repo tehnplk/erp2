@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { pgQuery } from '@/lib/pg';
 import { cacheDel, cacheGet, cacheSet, cacheDelByPattern } from '@/lib/redis';
+import { validateRequest } from '@/lib/validation/validate';
+import { updateDepartmentSchema } from '@/lib/validation/schemas';
 
 // GET /api/departments/[id] - Get a specific department
 export async function GET(
@@ -24,7 +26,7 @@ export async function GET(
       return NextResponse.json(cached);
     }
 
-    const result = await pgQuery('SELECT id, name FROM public.department WHERE id = $1 LIMIT 1', [numericId]);
+    const result = await pgQuery('SELECT id, name, department_code FROM public.department WHERE id = $1 LIMIT 1', [numericId]);
     const department = result.rows[0];
 
     if (!department) {
@@ -63,14 +65,11 @@ export async function PUT(
     }
 
     const body = await request.json();
-    const { name } = body;
-
-    if (!name) {
-      return NextResponse.json(
-        { error: 'Name is required' },
-        { status: 400 }
-      );
+    const validation = await validateRequest(updateDepartmentSchema, body);
+    if (!validation.success) {
+      return validation.error;
     }
+    const { name, department_code: departmentCode } = validation.data;
 
     const existingResult = await pgQuery('SELECT id FROM public.department WHERE id = $1 LIMIT 1', [numericId]);
 
@@ -81,14 +80,21 @@ export async function PUT(
       );
     }
 
-    const updatedResult = await pgQuery(
-      'UPDATE public.department SET name = $1 WHERE id = $2 RETURNING id, name',
-      [name, numericId]
-    );
+    try {
+      const updatedResult = await pgQuery(
+        'UPDATE public.department SET name = $1, department_code = $2 WHERE id = $3 RETURNING id, name, department_code',
+        [name.trim(), departmentCode.trim(), numericId]
+      );
 
-    await cacheDelByPattern('erp:departments:list:*');
-    await cacheDel(`erp:departments:detail:${numericId}`);
-    return NextResponse.json(updatedResult.rows[0]);
+      await cacheDelByPattern('erp:departments:list:*');
+      await cacheDel(`erp:departments:detail:${numericId}`);
+      return NextResponse.json(updatedResult.rows[0]);
+    } catch (error: any) {
+      if (error?.code === '23505') {
+        return NextResponse.json({ error: 'รหัสแผนกนี้ถูกใช้งานแล้ว' }, { status: 409 });
+      }
+      throw error;
+    }
   } catch (error) {
     console.error('Error updating department:', error);
     return NextResponse.json(
