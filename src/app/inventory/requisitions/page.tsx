@@ -62,6 +62,7 @@ export default function InventoryRequisitionsPage() {
   const [showProductSuggestions, setShowProductSuggestions] = useState(false);
   const [highlightedProductIndex, setHighlightedProductIndex] = useState(-1);
   const [requested_qty, setRequestedQty] = useState('');
+  const [pending_focus_target, setPendingFocusTarget] = useState<'product_search' | 'requested_qty' | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [approving_id, setApprovingId] = useState<number | null>(null);
   const [expanded_requisition_id, setExpandedRequisitionId] = useState<number | null>(null);
@@ -70,6 +71,7 @@ export default function InventoryRequisitionsPage() {
   const [loading, setLoading] = useState(true);
 
   const [cancelling_id, setCancellingId] = useState<number | null>(null);
+  const suggestionListRef = useRef<HTMLDivElement | null>(null);
   const productSearchInputRef = useRef<HTMLInputElement | null>(null);
   const requestedQtyInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -135,10 +137,7 @@ export default function InventoryRequisitionsPage() {
     setHighlightedProductIndex(-1);
     setRequestedQty('');
     setMessage('');
-
-    window.setTimeout(() => {
-      productSearchInputRef.current?.focus();
-    }, 0);
+    setPendingFocusTarget('product_search');
   };
 
   const handleSelectProduct = (item: BalanceOption) => {
@@ -148,10 +147,7 @@ export default function InventoryRequisitionsPage() {
     setHighlightedProductIndex(-1);
     setIsError(false);
     setMessage('');
-
-    window.setTimeout(() => {
-      requestedQtyInputRef.current?.focus();
-    }, 0);
+    setPendingFocusTarget('requested_qty');
   };
 
   const handleClearProductSearch = () => {
@@ -343,6 +339,44 @@ export default function InventoryRequisitionsPage() {
     setHighlightedProductIndex(filteredBalanceOptions.length > 0 ? 0 : -1);
   }, [filteredBalanceOptions]);
 
+  useEffect(() => {
+    if (!showProductSuggestions || highlightedProductIndex < 0) {
+      return;
+    }
+
+    const highlightedItem = filteredBalanceOptions[highlightedProductIndex];
+    if (!highlightedItem || !suggestionListRef.current) {
+      return;
+    }
+
+    const element = suggestionListRef.current.querySelector<HTMLElement>(`[data-suggestion-id="${highlightedItem.inventory_item_id}"]`);
+    element?.scrollIntoView({ block: 'nearest' });
+  }, [filteredBalanceOptions, highlightedProductIndex, showProductSuggestions]);
+
+  useEffect(() => {
+    if (!pending_focus_target) {
+      return;
+    }
+
+    const focusTarget = pending_focus_target === 'requested_qty'
+      ? requestedQtyInputRef.current
+      : productSearchInputRef.current;
+
+    if (!focusTarget) {
+      return;
+    }
+
+    const timer = window.setTimeout(() => {
+      focusTarget.focus();
+      if (focusTarget instanceof HTMLInputElement) {
+        focusTarget.select();
+      }
+      setPendingFocusTarget(null);
+    }, 0);
+
+    return () => window.clearTimeout(timer);
+  }, [pending_focus_target, selected_item_id, requested_qty, cart.length]);
+
   const handleCreate = async () => {
     if (cart.length === 0) {
       setIsError(true);
@@ -448,22 +482,25 @@ export default function InventoryRequisitionsPage() {
                     </button>
                   ) : null}
                   {showProductSuggestions && filteredBalanceOptions.length > 0 ? (
-                    <div className="absolute z-20 mt-2 max-h-72 w-full overflow-y-auto rounded-2xl border border-slate-200 bg-white shadow-lg">
+                    <div ref={suggestionListRef} className="absolute z-20 mt-2 max-h-72 w-full overflow-y-auto rounded-2xl border border-slate-200 bg-white shadow-lg">
                       {filteredBalanceOptions.map((item) => (
                         <button
                           key={item.inventory_item_id}
+                          data-suggestion-id={item.inventory_item_id}
                           type="button"
                           onMouseDown={(event) => event.preventDefault()}
                           onClick={() => handleSelectProduct(item)}
                           onMouseEnter={() => setHighlightedProductIndex(filteredBalanceOptions.findIndex((option) => option.inventory_item_id === item.inventory_item_id))}
-                          className={`flex w-full flex-col gap-1 border-b border-slate-100 px-4 py-3 text-left last:border-b-0 hover:bg-slate-50 ${
+                          className={`block w-full truncate border-b border-slate-100 px-4 py-3 text-left text-sm last:border-b-0 hover:bg-slate-50 ${
                             highlightedProductIndex >= 0 && filteredBalanceOptions[highlightedProductIndex]?.inventory_item_id === item.inventory_item_id
                               ? 'bg-slate-100'
                               : ''
                           }`}
                         >
-                          <span className="text-sm font-medium text-slate-900">{item.product_code}</span>
-                          <span className="text-sm text-slate-600">{item.product_name}</span>
+                          <span className="block truncate text-sm text-slate-900">
+                            <span className="font-medium">({item.product_code})</span>
+                            <span className="text-slate-600"> {item.product_name}</span>
+                          </span>
                         </button>
                       ))}
                     </div>
@@ -507,7 +544,7 @@ export default function InventoryRequisitionsPage() {
             {message ? (
               <div
                 className={`mt-4 rounded-2xl border px-4 py-3 text-sm ${
-                  isError ? 'border-red-200 bg-red-50 text-red-800' : 'border-emerald-200 bg-emerald-50 text-emerald-800'
+                  isError ? 'border-red-200 bg-red-50 text-red-700' : 'border-emerald-200 bg-emerald-50 text-emerald-700'
                 }`}
               >
                 {message}
@@ -526,21 +563,25 @@ export default function InventoryRequisitionsPage() {
                     <th className="px-4 py-2 text-right">จัดการ</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {cart.map((item) => (
-                    <tr key={item.inventory_item_id}>
+                <tbody>
+                  {cart.map(item => (
+                    <tr key={item.inventory_item_id} className="border-b border-slate-100 last:border-b-0">
                       <td className="px-4 py-3">
-                        <div className="font-medium text-slate-900">{item.product_code}</div>
-                        <div className="text-xs text-slate-500">{item.product_name}</div>
+                        <div className="truncate text-sm text-slate-900">
+                          <span className="font-medium">({item.product_code})</span>
+                          <span className="text-slate-600"> {item.product_name}</span>
+                        </div>
                       </td>
-                      <td className="px-4 py-3 text-right font-medium">{formatNumber(item.requested_qty)}</td>
+                      <td className="px-4 py-3 text-right text-sm text-slate-700">{formatNumber(item.requested_qty)}</td>
                       <td className="px-4 py-3 text-right">
-                        <button type="button" onClick={() => handleRemoveFromCart(item.inventory_item_id)} className="text-red-600 hover:text-red-800">ลบ</button>
+                        <button type="button" onClick={() => handleRemoveFromCart(item.inventory_item_id)} className="rounded-lg border border-red-200 px-3 py-1.5 text-xs font-medium text-red-600 transition hover:bg-red-50">
+                          ลบ
+                        </button>
                       </td>
                     </tr>
                   ))}
                 </tbody>
-                <tfoot className="bg-slate-50">
+                <tfoot>
                   <tr>
                     <td colSpan={3} className="px-4 py-3">
                       <button type="button" onClick={handleCreate} disabled={submitting} className="w-full rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-blue-700 disabled:bg-slate-300">
@@ -617,7 +658,7 @@ export default function InventoryRequisitionsPage() {
                                 type="button"
                                 onClick={() => handleCancel(item)}
                                 disabled={cancelling_id === item.id}
-                                className="rounded-xl border border-red-200 bg-red-50 text-red-600 px-3 py-2 text-xs font-medium shadow-sm transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50"
+                                className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs font-medium text-red-600 shadow-sm transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50"
                               >
                                 {cancelling_id === item.id ? 'กำลังยกเลิก...' : 'ยกเลิก'}
                               </button>
