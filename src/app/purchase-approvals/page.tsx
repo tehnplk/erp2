@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import Swal from 'sweetalert2';
 import { Pencil, Search, Trash2, X, FileText } from 'lucide-react';
 
@@ -66,7 +67,7 @@ interface PurchasePlanOption {
   price_per_unit?: number | null;
   budget_year?: string | number | null;
   required_quantity_for_year?: number | null;
-  purchasing_department?: string | null;
+  usageplan_dept?: string | null;
 }
 
 interface CategoryOption {
@@ -76,11 +77,16 @@ interface CategoryOption {
 }
 
 export default function PurchaseApprovalsPage() {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const [items, setItems] = useState<PurchaseApprovalItem[]>([]);
   const [summaryItems, setSummaryItems] = useState<PurchaseApprovalItem[]>([]);
   const [totalCount, setTotalCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [filtersLoading, setFiltersLoading] = useState(true);
+  const hasSyncedSearchParamsRef = useRef(false);
+  const filtersLoadedRef = useRef(false);
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<PurchaseApprovalItem | null>(null);
   const [formData, setFormData] = useState<PurchaseApprovalFormData>({});
@@ -133,18 +139,18 @@ export default function PurchaseApprovalsPage() {
   );
 
   // filters
-  const [nameFilter, setNameFilter] = useState('');
-  const [categoryFilter, setCategoryFilter] = useState('');
-  const [typeFilter, setTypeFilter] = useState('');
-  const [subtypeFilter, setSubtypeFilter] = useState('');
-  const [departmentFilter, setDepartmentFilter] = useState('');
-  const [budgetYearFilter, setBudgetYearFilter] = useState('');
+  const [nameFilter, setNameFilter] = useState(searchParams.get('product_name') || '');
+  const [categoryFilter, setCategoryFilter] = useState(searchParams.get('category') || '');
+  const [typeFilter, setTypeFilter] = useState(searchParams.get('product_type') || '');
+  const [subtypeFilter, setSubtypeFilter] = useState(searchParams.get('product_subtype') || '');
+  const [departmentFilter, setDepartmentFilter] = useState(searchParams.get('department') || '');
+  const [budgetYearFilter, setBudgetYearFilter] = useState(searchParams.get('budget_year') || '');
 
   // sort
-  const [sortBy, setSortBy] = useState('id');
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
-  const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(20);
+  const [sortBy, setSortBy] = useState(searchParams.get('order_by') || 'id');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>((searchParams.get('sort_order') === 'asc' ? 'asc' : 'desc'));
+  const [page, setPage] = useState(Math.max(1, parseInt(searchParams.get('page') || '1', 10) || 1));
+  const [pageSize, setPageSize] = useState(Math.max(1, parseInt(searchParams.get('page_size') || '20', 10) || 20));
 
   // dynamic options
   const [categories, setCategories] = useState<string[]>([]);
@@ -191,6 +197,9 @@ export default function PurchaseApprovalsPage() {
   }, [categoryFilter, typeFilter, categoryOptions]);
 
   useEffect(() => {
+    if (!filtersLoadedRef.current) {
+      return;
+    }
     if (typeFilter && !availableTypes.includes(typeFilter)) {
       setTypeFilter('');
       setSubtypeFilter('');
@@ -198,6 +207,9 @@ export default function PurchaseApprovalsPage() {
   }, [availableTypes, typeFilter]);
 
   useEffect(() => {
+    if (!filtersLoadedRef.current) {
+      return;
+    }
     if (subtypeFilter && !availableSubtypes.includes(subtypeFilter)) {
       setSubtypeFilter('');
     }
@@ -207,11 +219,64 @@ export default function PurchaseApprovalsPage() {
 
   // When filters or sorting change, reset to first page and refresh summary data
   useEffect(() => {
+    if (!hasSyncedSearchParamsRef.current) {
+      return;
+    }
     setPage(1);
     fetchSummaryData();
   }, [nameFilter, categoryFilter, typeFilter, subtypeFilter, departmentFilter, budgetYearFilter, sortBy, sortOrder]);
 
   useEffect(() => { fetchFilters(); fetchSummaryData(); fetchPurchasePlanOptions(); }, []);
+
+  useEffect(() => {
+    const nextName = searchParams.get('product_name') || '';
+    const nextCategory = searchParams.get('category') || '';
+    const nextType = searchParams.get('product_type') || '';
+    const nextSubtype = searchParams.get('product_subtype') || '';
+    const nextDepartment = searchParams.get('department') || '';
+    const nextBudgetYear = searchParams.get('budget_year') || '';
+    const nextSortBy = searchParams.get('order_by') || 'id';
+    const nextSortOrder = (searchParams.get('sort_order') === 'asc' ? 'asc' : 'desc') as 'asc' | 'desc';
+    const nextPage = Math.max(1, parseInt(searchParams.get('page') || '1', 10) || 1);
+    const nextPageSize = Math.max(1, parseInt(searchParams.get('page_size') || '20', 10) || 20);
+
+    setNameFilter((prev) => (prev === nextName ? prev : nextName));
+    setCategoryFilter((prev) => (prev === nextCategory ? prev : nextCategory));
+    setTypeFilter((prev) => (prev === nextType ? prev : nextType));
+    setSubtypeFilter((prev) => (prev === nextSubtype ? prev : nextSubtype));
+    setDepartmentFilter((prev) => (prev === nextDepartment ? prev : nextDepartment));
+    setBudgetYearFilter((prev) => (prev === nextBudgetYear ? prev : nextBudgetYear));
+    setSortBy((prev) => (prev === nextSortBy ? prev : nextSortBy));
+    setSortOrder((prev) => (prev === nextSortOrder ? prev : nextSortOrder));
+    setPage((prev) => (prev === nextPage ? prev : nextPage));
+    setPageSize((prev) => (prev === nextPageSize ? prev : nextPageSize));
+    hasSyncedSearchParamsRef.current = true;
+  }, [searchParams]);
+
+  useEffect(() => {
+    if (!hasSyncedSearchParamsRef.current) {
+      return;
+    }
+
+    const params = new URLSearchParams();
+    if (nameFilter) params.set('product_name', nameFilter);
+    if (categoryFilter) params.set('category', categoryFilter);
+    if (typeFilter) params.set('product_type', typeFilter);
+    if (subtypeFilter) params.set('product_subtype', subtypeFilter);
+    if (departmentFilter) params.set('department', departmentFilter);
+    if (budgetYearFilter) params.set('budget_year', budgetYearFilter);
+    if (sortBy && sortBy !== 'id') params.set('order_by', sortBy);
+    if (sortOrder !== 'desc') params.set('sort_order', sortOrder);
+    if (page > 1) params.set('page', page.toString());
+    if (pageSize !== 20) params.set('page_size', pageSize.toString());
+
+    const nextUrl = params.toString() ? `${pathname}?${params.toString()}` : pathname;
+    const currentUrl = searchParams.toString() ? `${pathname}?${searchParams.toString()}` : pathname;
+
+    if (nextUrl !== currentUrl) {
+      router.replace(nextUrl, { scroll: false });
+    }
+  }, [pathname, router, searchParams, nameFilter, categoryFilter, typeFilter, subtypeFilter, departmentFilter, budgetYearFilter, sortBy, sortOrder, page, pageSize]);
 
   useEffect(() => {
     setFormData((prev) => {
@@ -281,6 +346,7 @@ export default function PurchaseApprovalsPage() {
         setRequesters(data.requesters || []);
         setApprovers(data.approvers || []);
         setYears(data.budget_years || []);
+        filtersLoadedRef.current = true;
       }
     } catch (e) { console.error(e); }
     finally { setFiltersLoading(false); }
@@ -471,7 +537,7 @@ export default function PurchaseApprovalsPage() {
       price_per_unit: plan.price_per_unit != null ? Number(plan.price_per_unit) : undefined,
       budget_year: plan.budget_year != null ? String(plan.budget_year) : prev.budget_year || String(getCurrentBudgetYear()),
       requested_quantity: plan.required_quantity_for_year != null ? Number(plan.required_quantity_for_year) : prev.requested_quantity ?? null,
-      department: plan.purchasing_department || prev.department || '',
+      department: plan.usageplan_dept || prev.department || '',
     }));
 
     window.requestAnimationFrame(() => {
@@ -711,7 +777,7 @@ export default function PurchaseApprovalsPage() {
                               >
                                 <div className="font-medium text-gray-900">{plan.product_code || '-'} - {plan.product_name || 'ไม่ระบุชื่อสินค้า'}</div>
                                 <div className="mt-1 text-xs text-gray-500">
-                                  หน่วยงาน: {plan.purchasing_department || '-'} | ปีงบ: {plan.budget_year || '-'} | ราคา/หน่วย: {(Number(plan.price_per_unit) || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                  หน่วยงาน: {plan.usageplan_dept || '-'} | ปีงบ: {plan.budget_year || '-'} | ราคา/หน่วย: {(Number(plan.price_per_unit) || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                 </div>
                               </button>
                             ))
@@ -958,7 +1024,7 @@ export default function PurchaseApprovalsPage() {
                 <th onClick={()=>handleSort('approval_id')} className={getHeaderClass('approval_id')}>เลขที่ชุดขออนุมัติ</th>
                 <th onClick={()=>handleSort('department')} className={getHeaderClass('department')}>หน่วยงาน</th>
                 <th onClick={()=>handleSort('budget_year')} className={getHeaderClass('budget_year')}>ปีงบ</th>
-                <th onClick={()=>handleSort('product_name')} className={getHeaderClass('product_name')}>ชื่อสินค้า</th>
+                <th onClick={()=>handleSort('product_name')} className={`${getHeaderClass('product_name')} min-w-[280px] w-2/5`}>ชื่อสินค้า</th>
                 <th onClick={()=>handleSort('requested_quantity')} className={getHeaderClass('requested_quantity')}>จำนวน</th>
                 <th onClick={()=>handleSort('price_per_unit')} className={getHeaderClass('price_per_unit')}>ราคา/หน่วย</th>
                 <th onClick={()=>handleSort('total_value')} className={getHeaderClass('total_value')}>มูลค่ารวม</th>
@@ -971,9 +1037,14 @@ export default function PurchaseApprovalsPage() {
                   <td className="px-3 py-2 text-xs">{row.approval_id}</td>
                   <td className="px-3 py-2 text-xs">{row.department}</td>
                   <td className="px-3 py-2 text-xs">{row.budget_year || '-'}</td>
-                  <td className="px-3 py-2 text-xs">
-                    <div className="whitespace-normal break-words" title={row.product_name}>
+                  <td className="px-3 py-2 text-sm min-w-[280px]">
+                    <div className="font-medium text-gray-900 whitespace-normal break-words" title={row.product_name}>
                       {row.product_name}
+                    </div>
+                    <div className="mt-1 text-[11px] text-emerald-600/80">
+                      {[row.category || '-', row.product_type || '-', row.product_subtype || '-']
+                        .filter((value, index, arr) => !(value === '-' && arr.every(v => v === '-')))
+                        .join(' · ')}
                     </div>
                   </td>
                   <td className="px-3 py-2 text-xs">{row.requested_quantity ?? '-'}</td>

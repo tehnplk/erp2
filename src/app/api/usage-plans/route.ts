@@ -24,6 +24,7 @@ export async function GET(request: NextRequest) {
       product_name,
       category,
       type,
+      subtype,
       requesting_dept,
       budget_year,
       order_by,
@@ -49,6 +50,15 @@ export async function GET(request: NextRequest) {
     };
     const safeOrderField = allowedOrderFields[orderField] || 'id';
 
+    const matches_exact_filter = (row: Record<string, any>) => {
+      if (category && row.category !== category) return false;
+      if (type && row.type !== type) return false;
+      if (subtype && row.subtype !== subtype) return false;
+      if (requesting_dept && row.requesting_dept !== requesting_dept) return false;
+      if (budget_year && Number(row.budget_year) !== parseInt(budget_year, 10)) return false;
+      return true;
+    };
+
     const whereClauses: string[] = [];
     const params: unknown[] = [];
 
@@ -67,6 +77,11 @@ export async function GET(request: NextRequest) {
       whereClauses.push(`type = $${params.length}`);
     }
 
+    if (subtype) {
+      params.push(subtype);
+      whereClauses.push(`subtype = $${params.length}`);
+    }
+
     if (requesting_dept) {
       params.push(requesting_dept);
       whereClauses.push(`requesting_dept = $${params.length}`);
@@ -80,7 +95,7 @@ export async function GET(request: NextRequest) {
     const whereSql = whereClauses.length > 0 ? `WHERE ${whereClauses.join(' AND ')}` : '';
 
     // --- Redis Caching Logic (Non-paginated) ---
-    const cacheKey = `erp:surveys:list:${JSON.stringify({ product_name, category, type, requesting_dept, budget_year, order_by, sort_order })}`;
+    const cacheKey = `erp:surveys:list:${JSON.stringify({ product_name, category, type, subtype, requesting_dept, budget_year, order_by, sort_order })}`;
     const cached = await cacheGet<any>(cacheKey);
     if (cached) {
       return NextResponse.json(cached);
@@ -97,9 +112,11 @@ export async function GET(request: NextRequest) {
         pgQuery(`SELECT COUNT(*)::int AS count FROM public.usage_plan ${whereSql}`, params),
       ]);
 
+      const filteredSurveys = surveysResult.rows.filter(matches_exact_filter);
+
       const result = {
-        surveys: surveysResult.rows,
-        totalCount: totalCountResult.rows[0]?.count || 0,
+        surveys: filteredSurveys,
+        totalCount: subtype ? filteredSurveys.length : totalCountResult.rows[0]?.count || 0,
       };
 
       // Save to Cache
@@ -121,7 +138,7 @@ export async function GET(request: NextRequest) {
 
     const paginatedParams = [...params, pageSize, offset];
 
-    const [surveysResult, totalCountResult, summaryResult] = await Promise.all([
+    const [surveysResult, totalCountResult, summaryResult, filteredSummaryResult] = await Promise.all([
       pgQuery(
         `SELECT id, product_code, category, type, subtype, product_name, requested_amount, unit, price_per_unit::float8 AS price_per_unit, requesting_dept, requesting_dept_code, approved_quota, budget_year, sequence_no, created_at, updated_at FROM public.usage_plan ${whereSql} ORDER BY ${safeOrderField} ${orderDirection} LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,
         paginatedParams
@@ -131,13 +148,20 @@ export async function GET(request: NextRequest) {
         `SELECT COALESCE(SUM(COALESCE(requested_amount,0) * COALESCE(price_per_unit,0)),0)::float8 AS total_requested_value, COALESCE(SUM(COALESCE(approved_quota,0) * COALESCE(price_per_unit,0)),0)::float8 AS total_approved_value FROM public.usage_plan ${whereSql}`,
         params
       ),
+      pgQuery(
+        `SELECT COUNT(*)::int AS count, COALESCE(SUM(COALESCE(requested_amount,0) * COALESCE(price_per_unit,0)),0)::float8 AS total_requested_value, COALESCE(SUM(COALESCE(approved_quota,0) * COALESCE(price_per_unit,0)),0)::float8 AS total_approved_value FROM public.usage_plan ${whereSql}`,
+        params
+      ),
     ]);
 
+    const filteredSurveys = surveysResult.rows.filter(matches_exact_filter);
+    const filteredSummaryRow = filteredSummaryResult.rows[0];
+
     const paginatedResult = {
-      surveys: surveysResult.rows,
-      totalCount: totalCountResult.rows[0]?.count || 0,
-      total_requested_value: summaryResult.rows[0]?.total_requested_value || 0,
-      total_approved_value: summaryResult.rows[0]?.total_approved_value || 0,
+      surveys: filteredSurveys,
+      totalCount: filteredSummaryRow?.count || totalCountResult.rows[0]?.count || 0,
+      total_requested_value: filteredSummaryRow?.total_requested_value ?? summaryResult.rows[0]?.total_requested_value ?? 0,
+      total_approved_value: filteredSummaryRow?.total_approved_value ?? summaryResult.rows[0]?.total_approved_value ?? 0,
       page,
       page_size: pageSize,
     };

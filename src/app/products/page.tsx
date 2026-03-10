@@ -1324,9 +1324,11 @@ function ProductsPageContent() {
                   setTypeFilter(e.target.value);
                   setSubtypeFilter('');
                 }}
+                aria-label="ประเภท"
+                title="ประเภท"
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
               >
-                <option value="">ประเภทสินค้า</option>
+                <option value="">ประเภท</option>
                 {availableFilterTypes.map((type) => (
                   <option key={type} value={type}>{type}</option>
                 ))}
@@ -1422,34 +1424,25 @@ function ProductsPageContent() {
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">
             <tr>
-              <th onClick={() => handleSort('code')} className={getHeaderClass('code')}>
+              <th onClick={() => handleSort('code')} className={`${getHeaderClass('code')} w-28`}>
                 รหัสสินค้า {getSortIcon('code')}
               </th>
-              <th onClick={() => handleSort('name')} className={getHeaderClass('name')}>
+              <th onClick={() => handleSort('name')} className={`${getHeaderClass('name')} min-w-[280px] w-2/5`}>
                 ชื่อสินค้า {getSortIcon('name')}
               </th>
-              <th onClick={() => handleSort('category')} className={getHeaderClass('category')}>
-                หมวด {getSortIcon('category')}
-              </th>
-              <th onClick={() => handleSort('type')} className={getHeaderClass('type')}>
-                ประเภท {getSortIcon('type')}
-              </th>
-              <th onClick={() => handleSort('subtype')} className={getHeaderClass('subtype')}>
-                ประเภทย่อย {getSortIcon('subtype')}
-              </th>
-              <th onClick={() => handleSort('unit')} className={getHeaderClass('unit')}>
+              <th onClick={() => handleSort('unit')} className={`${getHeaderClass('unit')} w-24`}>
                 หน่วยนับ {getSortIcon('unit')}
               </th>
-              <th onClick={() => handleSort('cost_price')} className={getHeaderClass('cost_price')}>
+              <th onClick={() => handleSort('cost_price')} className={`${getHeaderClass('cost_price')} w-28`}>
                 ราคาทุนต่อหน่วย {getSortIcon('cost_price')}
               </th>
-              <th onClick={() => handleSort('sell_price')} className={getHeaderClass('sell_price')}>
+              <th onClick={() => handleSort('sell_price')} className={`${getHeaderClass('sell_price')} w-28`}>
                 ราคาขายต่อหน่วย {getSortIcon('sell_price')}
               </th>
-              <th className="px-3 py-3 text-left text-[10px] font-medium text-gray-500 uppercase tracking-wider w-20">
+              <th className="px-3 py-3 text-left text-[10px] font-medium text-gray-500 uppercase tracking-wider w-24">
                 สถานะ
               </th>
-              <th className="px-3 py-3 text-left text-[10px] font-medium text-gray-500 uppercase tracking-wider w-24">
+              <th className="px-3 py-3 text-left text-[10px] font-medium text-gray-500 uppercase tracking-wider w-28">
                 Action
               </th>
             </tr>
@@ -1457,27 +1450,27 @@ function ProductsPageContent() {
           <tbody className="bg-white divide-y divide-gray-200">
             {(products || []).map((product) => (
               <tr key={product.id}>
-                <td className="px-3 py-4 whitespace-nowrap text-xs font-medium text-gray-900 w-24">
+                <td className="px-3 py-4 whitespace-nowrap text-sm font-medium text-gray-900 w-28">
                   {product.code}
                 </td>
-                <td className="px-3 py-4 text-xs text-gray-900 max-w-xs break-words">{product.name}</td>
-                <td className="px-3 py-4 whitespace-nowrap text-xs text-gray-900">{product.category}</td>
-                <td className="px-3 py-4 whitespace-nowrap text-xs text-gray-500 w-28">
-                  {product.type || '-'}
+                <td className="px-3 py-4 text-sm text-gray-900 break-words min-w-[280px]">
+                  <div className="font-medium text-gray-900 break-words">{product.name}</div>
+                  <div className="mt-1 text-[11px] text-emerald-600/80">
+                    {[product.category || '-', product.type || '-', product.subtype || '-']
+                      .filter((value, index, arr) => !(value === '-' && arr.every(v => v === '-')))
+                      .join(' · ')}
+                  </div>
                 </td>
-                <td className="px-3 py-4 whitespace-nowrap text-xs text-gray-500 w-28">
-                  {product.subtype || '-'}
-                </td>
-                <td className="px-3 py-4 whitespace-nowrap text-xs text-gray-500 w-20">
+                <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-600 w-24">
                   {product.unit || '-'}
                 </td>
-                <td className="px-3 py-4 whitespace-nowrap text-xs text-gray-500 w-24">
+                <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-600 w-28">
                   {product.cost_price ? `฿${Number(product.cost_price).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '-'}
                 </td>
-                <td className="px-3 py-4 whitespace-nowrap text-xs text-gray-500 w-24">
+                <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-600 w-28">
                   {product.sell_price ? `฿${Number(product.sell_price).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '-'}
                 </td>
-                <td className="px-3 py-4 whitespace-nowrap w-20">
+                <td className="px-3 py-4 whitespace-nowrap w-24">
                   <span className={`px-2 inline-flex text-[10px] leading-4 font-semibold rounded-full ${
                     product.flag_activate ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
                   }`}>
@@ -1488,7 +1481,7 @@ function ProductsPageContent() {
                     )}
                   </span>
                 </td>
-                <td className="px-3 py-4 whitespace-nowrap text-xs font-medium w-24">
+                <td className="px-3 py-4 whitespace-nowrap text-xs font-medium w-28">
                   <button
                     onClick={() => handleEdit(product)}
                     className="text-indigo-600 hover:text-indigo-900 mr-2 cursor-pointer"

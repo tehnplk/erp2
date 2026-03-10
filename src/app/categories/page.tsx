@@ -667,7 +667,7 @@ export default function CategoriesPage() {
               onChange={(e) => setFilters({ ...filters, category: e.target.value, type: '', subtype: '' })}
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
-              <option value="">หมวดทั้งหมด</option>
+              <option value="">หมวด</option>
               {getUniqueValues('category').map((cat) => (
                 <option key={cat} value={cat}>{cat}</option>
               ))}
@@ -684,7 +684,7 @@ export default function CategoriesPage() {
               onChange={(e) => setFilters({ ...filters, type: e.target.value, subtype: '' })}
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
-              <option value="">ประเภททั้งหมด</option>
+              <option value="">ประเภท</option>
               {filteredTypeOptions.map((type) => (
                 <option key={type} value={type}>{type}</option>
               ))}
@@ -701,7 +701,7 @@ export default function CategoriesPage() {
               onChange={(e) => setFilters({ ...filters, subtype: e.target.value })}
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
-              <option value="">ประเภทย่อยทั้งหมด</option>
+              <option value="">ประเภทย่อย</option>
               {filteredSubtypeOptions.map((subtype) => (
                 <option key={subtype} value={subtype}>{subtype}</option>
               ))}

@@ -16,7 +16,7 @@ export async function GET() {
          FROM public.category
          ORDER BY category ASC, type ASC, subtype ASC`
       ),
-      pgQuery(`SELECT DISTINCT purchasing_department FROM public.purchase_plan WHERE purchasing_department IS NOT NULL AND purchasing_department <> '' ORDER BY purchasing_department ASC`),
+      pgQuery(`SELECT DISTINCT usageplan_dept FROM public.purchase_plan WHERE usageplan_dept IS NOT NULL AND usageplan_dept <> '' ORDER BY usageplan_dept ASC`),
       pgQuery(`SELECT DISTINCT budget_year FROM public.purchase_plan WHERE budget_year IS NOT NULL AND budget_year <> '' ORDER BY budget_year DESC`)
     ]);
 
@@ -27,7 +27,7 @@ export async function GET() {
       product_types: Array.from(new Set(categoryRows.map((item: any) => item.type).filter(Boolean))),
       product_subtypes: Array.from(new Set(categoryRows.map((item: any) => item.subtype).filter(Boolean))),
       category_options: categoryRows,
-      departments: departments.rows.map((item: any) => item.purchasing_department).filter(Boolean),
+      departments: departments.rows.map((item: any) => item.usageplan_dept).filter(Boolean),
       budget_years: budgetYears.rows.map((item: any) => item.budget_year).filter(Boolean)
     };
 

@@ -94,6 +94,186 @@ interface CategoryOption {
   subtype: string | null;
 }
 
+interface DepartmentComboboxProps {
+  id: string;
+  name: string;
+  aria_label: string;
+  value: string;
+  departments: string[];
+  placeholder: string;
+  on_change: (value: string) => void;
+  on_clear_error?: () => void;
+  required?: boolean;
+  class_name?: string;
+  list_class_name?: string;
+}
+
+function DepartmentCombobox({
+  id,
+  name,
+  aria_label,
+  value,
+  departments,
+  placeholder,
+  on_change,
+  on_clear_error,
+  required = false,
+  class_name = '',
+  list_class_name = '',
+}: DepartmentComboboxProps) {
+  const [input_value, setInputValue] = useState(value || '');
+  const [is_open, setIsOpen] = useState(false);
+  const [highlighted_index, setHighlightedIndex] = useState(-1);
+  const list_ref = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    setInputValue(value || '');
+  }, [value]);
+
+  const filtered_departments = useMemo(() => {
+    const normalized_value = input_value.trim().toLowerCase();
+    if (!normalized_value) {
+      return departments;
+    }
+
+    return departments.filter((department) => department.toLowerCase().includes(normalized_value));
+  }, [departments, input_value]);
+
+  useEffect(() => {
+    if (!is_open || highlighted_index < 0) {
+      return;
+    }
+
+    const list_element = list_ref.current;
+    if (!list_element) {
+      return;
+    }
+
+    const active_option = list_element.querySelector<HTMLElement>(`[data-department-option-index="${highlighted_index}"]`);
+    active_option?.scrollIntoView({ block: 'nearest' });
+  }, [highlighted_index, is_open]);
+
+  const select_department = (department: string) => {
+    setInputValue(department);
+    setIsOpen(false);
+    setHighlightedIndex(-1);
+    on_change(department);
+    on_clear_error?.();
+  };
+
+  const active_descendant = is_open && highlighted_index >= 0 ? `${id}-option-${highlighted_index}` : undefined;
+
+  return (
+    <div className="relative">
+      <input
+        id={id}
+        name={name}
+        type="text"
+        role="combobox"
+        required={required}
+        value={input_value}
+        placeholder={placeholder}
+        autoComplete="off"
+        aria-label={aria_label}
+        aria-autocomplete="list"
+        aria-controls={`${id}-listbox`}
+        aria-expanded={is_open}
+        aria-activedescendant={active_descendant}
+        onFocus={() => {
+          setIsOpen(true);
+          setHighlightedIndex(filtered_departments.length > 0 ? 0 : -1);
+        }}
+        onChange={(event) => {
+          const next_value = event.target.value;
+          setInputValue(next_value);
+          setIsOpen(true);
+          setHighlightedIndex(0);
+          on_change(next_value);
+          on_clear_error?.();
+        }}
+        onKeyDown={(event) => {
+          if (!is_open && (event.key === 'ArrowDown' || event.key === 'ArrowUp')) {
+            event.preventDefault();
+            setIsOpen(true);
+            setHighlightedIndex(filtered_departments.length > 0 ? 0 : -1);
+            return;
+          }
+
+          if (!is_open || filtered_departments.length === 0) {
+            if (event.key === 'Escape') {
+              setIsOpen(false);
+              setHighlightedIndex(-1);
+            }
+            return;
+          }
+
+          if (event.key === 'ArrowDown') {
+            event.preventDefault();
+            setHighlightedIndex((prev) => (prev + 1) % filtered_departments.length);
+            return;
+          }
+
+          if (event.key === 'ArrowUp') {
+            event.preventDefault();
+            setHighlightedIndex((prev) => (prev <= 0 ? filtered_departments.length - 1 : prev - 1));
+            return;
+          }
+
+          if (event.key === 'Enter') {
+            event.preventDefault();
+            const selected_department = filtered_departments[highlighted_index >= 0 ? highlighted_index : 0];
+            if (selected_department) {
+              select_department(selected_department);
+            }
+            return;
+          }
+
+          if (event.key === 'Escape') {
+            event.preventDefault();
+            setIsOpen(false);
+            setHighlightedIndex(-1);
+          }
+        }}
+        onBlur={() => {
+          window.setTimeout(() => {
+            setIsOpen(false);
+            setHighlightedIndex(-1);
+          }, 120);
+        }}
+        className={class_name}
+      />
+      {is_open && (
+        <div
+          id={`${id}-listbox`}
+          ref={list_ref}
+          role="listbox"
+          className={list_class_name}
+        >
+          {filtered_departments.length === 0 ? (
+            <div className="px-3 py-2 text-sm text-gray-500">ไม่พบหน่วยงาน</div>
+          ) : (
+            filtered_departments.map((department, index) => (
+              <button
+                key={`${id}-${department}`}
+                id={`${id}-option-${index}`}
+                data-department-option-index={index}
+                type="button"
+                role="option"
+                aria-selected={value === department}
+                onMouseDown={(event) => event.preventDefault()}
+                onClick={() => select_department(department)}
+                className={`block w-full px-3 py-2 text-left text-sm ${index === highlighted_index ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-50'}`}
+              >
+                {department}
+              </button>
+            ))
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function SurveysPageContent() {
   const router = useRouter();
   const pathname = usePathname();
@@ -186,6 +366,7 @@ function SurveysPageContent() {
   const [categoryOptions, setCategoryOptions] = useState<CategoryOption[]>([]);
   const [departments, setDepartments] = useState<string[]>([]);
   const [budgetYears, setBudgetYears] = useState<number[]>([]);
+  const [filters_loaded, setFiltersLoaded] = useState(false);
   const [productOptions, setProductOptions] = useState<ProductOption[]>([]);
   const [productSearch, setProductSearch] = useState('');
   const [showProductSuggestions, setShowProductSuggestions] = useState(false);
@@ -240,24 +421,25 @@ function SurveysPageContent() {
   }, [categoryFilter, typeFilter, categoryOptions]);
 
   useEffect(() => {
+    if (!filters_loaded) {
+      return;
+    }
     if (typeFilter && !availableTypes.includes(typeFilter)) {
       setTypeFilter('');
       setSubtypeFilter('');
     }
-  }, [availableTypes, typeFilter]);
+  }, [availableTypes, typeFilter, filters_loaded]);
 
   useEffect(() => {
+    if (!filters_loaded) {
+      return;
+    }
     if (subtypeFilter && !availableSubtypes.includes(subtypeFilter)) {
       setSubtypeFilter('');
     }
-  }, [availableSubtypes, subtypeFilter]);
+  }, [availableSubtypes, subtypeFilter, filters_loaded]);
 
   useEffect(() => {
-    if (!hasSyncedSearchParamsRef.current) {
-      hasSyncedSearchParamsRef.current = true;
-      return;
-    }
-
     const nextProductName = searchParams.get('product_name') || '';
     const nextCategory = searchParams.get('category') || '';
     const nextType = searchParams.get('type') || '';
@@ -279,9 +461,14 @@ function SurveysPageContent() {
     setSortOrder((prev) => prev === nextSortOrder ? prev : nextSortOrder);
     setPage((prev) => prev === nextPage ? prev : nextPage);
     setPageSize((prev) => prev === nextPageSize ? prev : nextPageSize);
+
+    hasSyncedSearchParamsRef.current = true;
   }, [searchParams]);
 
   useEffect(() => {
+    if (!hasSyncedSearchParamsRef.current) {
+      return;
+    }
     const params = new URLSearchParams();
 
     if (productNameFilter) params.set('product_name', productNameFilter);
@@ -303,7 +490,7 @@ function SurveysPageContent() {
   }, [pathname, router, productNameFilter, categoryFilter, typeFilter, subtypeFilter, requestingDeptFilter, budgetYearFilter, sortField, sortOrder, page, pageSize]);
 
   useEffect(() => {
-    fetchFilterOptions();
+    fetchUsagePlanFilterOptions();
   }, []);
 
   useEffect(() => {
@@ -386,23 +573,24 @@ function SurveysPageContent() {
 
   // Fetch surveys when filters, sorting or pagination change (current page only)
   useEffect(() => {
-    fetchSurveys();
+    fetchUsagePlans();
   }, [productNameFilter, categoryFilter, typeFilter, subtypeFilter, requestingDeptFilter, budgetYearFilter, sortField, sortOrder, page, pageSize]);
 
-  const fetchFilterOptions = async () => {
+  const fetchUsagePlanFilterOptions = async () => {
     try {
       const response = await fetch('/api/usage-plans/filters');
       if (response.ok) {
         const data = await response.json();
         const sortedCategories = (data.categories || []).slice().sort((a: string, b: string) => a.localeCompare(b));
-        const sortedTypes = (data.product_types || []).slice().sort((a: string, b: string) => a.localeCompare(b));
-        const sortedSubtypes = (data.product_subtypes || []).slice().sort((a: string, b: string) => a.localeCompare(b));
+        const sortedTypes = (data.types || []).slice().sort((a: string, b: string) => a.localeCompare(b));
+        const sortedSubtypes = (data.subtypes || []).slice().sort((a: string, b: string) => a.localeCompare(b));
         setCategoryOptions(data.category_options || []);
         setCategories(sortedCategories);
         setTypes(sortedTypes);
         setSubtypes(sortedSubtypes);
         setDepartments((data.departments || []).slice().sort((a: string, b: string) => a.localeCompare(b)));
         setBudgetYears((data.budget_years || []).sort((a: number, b: number) => b - a));
+        setFiltersLoaded(true);
       }
     } catch (error) {
       console.error('Error fetching filter options:', error);
@@ -493,30 +681,30 @@ function SurveysPageContent() {
   const pageStart = totalCount === 0 ? 0 : (page - 1) * pageSize + 1;
   const pageEnd = totalCount === 0 ? 0 : Math.min(totalCount, pageStart + (surveys.length || 0) - 1);
 
-  const goToPage = (newPage: number) => {
+  const goToUsagePlanPage = (newPage: number) => {
     if (newPage < 1 || newPage > totalPages) return;
     setPage(newPage);
   };
 
-  const resetToNewestFirst = () => {
+  const resetUsagePlanSortToNewestFirst = () => {
     setSortField('id');
     setSortOrder('desc');
     setPage(1);
   };
 
-  const hideToastLater = () => {
+  const hideUsagePlanToastLater = () => {
     setTimeout(() => {
       setToast((prev) => ({ ...prev, visible: false }));
     }, 3000);
   };
 
-  const handlePageSizeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+  const handleUsagePlanPageSizeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const newSize = parseInt(e.target.value, 10);
     setPageSize(newSize);
     setPage(1);
   };
 
-  const fetchSurveys = async () => {
+  const fetchUsagePlans = async () => {
     const requestId = ++dataRequestIdRef.current;
     try {
       setLoading(true);
@@ -548,7 +736,23 @@ function SurveysPageContent() {
         if (requestId !== dataRequestIdRef.current) {
           return;
         }
-        setSurveys(data.surveys);
+        const fetchedSurveys = Array.isArray(data.surveys) ? data.surveys : [];
+        const exactFilteredSurveys = fetchedSurveys.filter((survey: Survey) => {
+          if (categoryFilter && survey.category !== categoryFilter) return false;
+          if (typeFilter && survey.type !== typeFilter) return false;
+          if (subtypeFilter && survey.subtype !== subtypeFilter) return false;
+          if (requestingDeptFilter && survey.requesting_dept !== requestingDeptFilter) return false;
+          if (budgetYearFilter && String(survey.budget_year) !== budgetYearFilter) return false;
+          return true;
+        });
+        const shouldUseExactFiltered =
+          Boolean(categoryFilter) ||
+          Boolean(typeFilter) ||
+          Boolean(subtypeFilter) ||
+          Boolean(requestingDeptFilter) ||
+          Boolean(budgetYearFilter);
+        const surveysToUse = shouldUseExactFiltered ? exactFilteredSurveys : fetchedSurveys;
+        setSurveys(surveysToUse);
         setTotalCount(data.totalCount || 0);
         setTotalRequestedValue(data.total_requested_value || 0);
         setTotalApprovedValue(data.total_approved_value || 0);
@@ -677,8 +881,8 @@ function SurveysPageContent() {
         const savedSurvey = await response.json();
         
         closeForm();
-        resetToNewestFirst();
-        await fetchSurveys();
+        resetUsagePlanSortToNewestFirst();
+        await fetchUsagePlans();
         if (savedSurvey?.id) {
           setEditingSurvey(null);
         }
@@ -746,8 +950,8 @@ function SurveysPageContent() {
             icon: 'success',
             confirmButtonText: 'ตกลง'
           });
-          resetToNewestFirst();
-          fetchSurveys();
+          resetUsagePlanSortToNewestFirst();
+          fetchUsagePlans();
         } else {
           throw new Error('Failed to delete survey');
         }
@@ -844,8 +1048,8 @@ function SurveysPageContent() {
         icon: 'success',
         confirmButtonText: 'ตกลง'
       });
-      resetToNewestFirst();
-      fetchSurveys();
+      resetUsagePlanSortToNewestFirst();
+      fetchUsagePlans();
     } catch (err) {
       console.error('Error importing excel:', err);
       await Swal.fire({
@@ -926,7 +1130,7 @@ function SurveysPageContent() {
           visible: true
         });
 
-        hideToastLater();
+        hideUsagePlanToastLater();
         setIsInlineSaving(false);
       }
     } catch (error) {
@@ -938,7 +1142,7 @@ function SurveysPageContent() {
         visible: true
       });
 
-      hideToastLater();
+      hideUsagePlanToastLater();
       setIsInlineSaving(false);
     }
   };
@@ -1112,7 +1316,7 @@ function SurveysPageContent() {
           type: 'error',
           visible: true
         });
-        hideToastLater();
+        hideUsagePlanToastLater();
         return;
       }
 
@@ -1159,8 +1363,8 @@ function SurveysPageContent() {
         setBulkValidationErrors({});
         setBulkProductSearch('');
         setBulkProductOptions([]);
-        resetToNewestFirst();
-        await fetchSurveys();
+        resetUsagePlanSortToNewestFirst();
+        await fetchUsagePlans();
 
         setToast({
           message: `บันทึกสำเร็จ ${successful} รายการ${failed > 0 ? `, ไม่สำเร็จ ${failed} รายการ` : ''}`,
@@ -1168,7 +1372,7 @@ function SurveysPageContent() {
           visible: true
         });
 
-        hideToastLater();
+        hideUsagePlanToastLater();
       }
 
       if (failed > 0 && successful === 0) {
@@ -1178,7 +1382,7 @@ function SurveysPageContent() {
           visible: true
         });
 
-        hideToastLater();
+        hideUsagePlanToastLater();
       }
     } catch (error) {
       console.error('Error saving bulk surveys:', error);
@@ -1189,7 +1393,7 @@ function SurveysPageContent() {
         visible: true
       });
 
-      hideToastLater();
+      hideUsagePlanToastLater();
     }
   };
   const getSortIcon = (field: string) => {
@@ -1419,7 +1623,7 @@ function SurveysPageContent() {
                 id="surveys-page-size"
                 name="page_size"
                 value={pageSize}
-                onChange={handlePageSizeChange}
+                onChange={handleUsagePlanPageSizeChange}
                 className="rounded border border-gray-300 px-2 py-1 text-sm"
               >
                 {[10, 20, 50].map((size) => (
@@ -1430,7 +1634,7 @@ function SurveysPageContent() {
             <div className="flex items-center gap-2">
               <button
                 type="button"
-                onClick={() => goToPage(page - 1)}
+                onClick={() => goToUsagePlanPage(page - 1)}
                 disabled={page === 1}
                 className={`px-3 py-1 rounded border text-sm ${page === 1 ? 'text-gray-400 border-gray-200 cursor-not-allowed' : 'text-gray-700 border-gray-300 hover:bg-gray-100'}`}
               >
@@ -1441,7 +1645,7 @@ function SurveysPageContent() {
               </span>
               <button
                 type="button"
-                onClick={() => goToPage(page + 1)}
+                onClick={() => goToUsagePlanPage(page + 1)}
                 disabled={page >= totalPages}
                 className={`px-3 py-1 rounded border text-sm ${page >= totalPages ? 'text-gray-400 border-gray-200 cursor-not-allowed' : 'text-gray-700 border-gray-300 hover:bg-gray-100'}`}
               >
@@ -1472,28 +1676,22 @@ function SurveysPageContent() {
                     <th onClick={() => handleSort('sequence_no')} className={getHeaderClass('sequence_no')}>
                       ครั้งที่ {getSortIcon('sequence_no')}
                     </th>
-                    <th onClick={() => handleSort('product_code')} className={getHeaderClass('product_code') + ' w-24'}>
+                    <th onClick={() => handleSort('product_code')} className={`${getHeaderClass('product_code')} w-28`}>
                       รหัสสินค้า {getSortIcon('product_code')}
                     </th>
-                    <th onClick={() => handleSort('product_name')} className={getHeaderClass('product_name')}>
+                    <th onClick={() => handleSort('product_name')} className={`${getHeaderClass('product_name')} min-w-[280px] w-2/5`}>
                       ชื่อสินค้า {getSortIcon('product_name')}
                     </th>
-                    <th onClick={() => handleSort('category')} className={getHeaderClass('category')}>
-                      หมวด {getSortIcon('category')}
-                    </th>
-                    <th onClick={() => handleSort('type')} className={getHeaderClass('type')}>
-                      ประเภท {getSortIcon('type')}
-                    </th>
-                    <th onClick={() => handleSort('requested_amount')} className={getHeaderClass('requested_amount')}>
-                      จำนวนที่ขอ {getSortIcon('requested_amount')}
-                    </th>
-                    <th onClick={() => handleSort('price_per_unit')} className={getHeaderClass('price_per_unit')}>
+                    <th onClick={() => handleSort('price_per_unit')} className={`${getHeaderClass('price_per_unit')} w-28`}>
                       ราคาต่อหน่วย {getSortIcon('price_per_unit')}
                     </th>
-                    <th onClick={() => handleSort('requesting_dept')} className={getHeaderClass('requesting_dept')}>
+                    <th onClick={() => handleSort('requesting_dept')} className={`${getHeaderClass('requesting_dept')} w-40`}>
                       หน่วยงานที่ขอ {getSortIcon('requesting_dept')}
                     </th>
-                    <th onClick={() => handleSort('approved_quota')} className={getHeaderClass('approved_quota')}>
+                    <th onClick={() => handleSort('requested_amount')} className={`${getHeaderClass('requested_amount')} w-32`}>
+                      จำนวนที่ขอ {getSortIcon('requested_amount')}
+                    </th>
+                    <th onClick={() => handleSort('approved_quota')} className={`${getHeaderClass('approved_quota')} w-32`}>
                       โควต้าที่ได้รับ {getSortIcon('approved_quota')}
                     </th>
                     <th className="px-3 py-3 text-left text-[10px] font-medium text-gray-500 uppercase tracking-wider w-24">
@@ -1510,51 +1708,23 @@ function SurveysPageContent() {
                       <td className="px-6 py-4 whitespace-nowrap text-xs text-gray-900">
                         {survey.sequence_no || '-'}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-xs text-gray-900">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 w-28">
                         {survey.product_code}
                       </td>
-                      <td className="px-6 py-4 text-xs text-gray-900 break-words max-w-xs">
-                        {survey.product_name}
+                      <td className="px-6 py-4 text-sm text-gray-900 break-words min-w-[280px]">
+                        <div className="font-medium text-gray-900 break-words">{survey.product_name}</div>
+                        <div className="mt-1 text-[11px] text-emerald-600/80">
+                          {[survey.category || '-', survey.type || '-', survey.subtype || '-']
+                            .filter((value, index, arr) => !(value === '-' && arr.every(v => v === '-')))
+                            .join(' · ')}
+                        </div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-xs text-gray-900">
-                        {survey.category}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-xs text-gray-900">
-                        {survey.type}
-                      </td>
-                      <td className={`px-6 py-4 whitespace-nowrap text-xs text-gray-900 ${editingId !== survey.id || editingField === 'requestedAmount' ? inlineEditableCellClassName : ''}`}>
-                        {editingId === survey.id && editingField === 'requestedAmount' ? (
-                          <div className="flex items-center gap-2">
-                            <input
-                              id={`survey-inline-requested-amount-${survey.id}`}
-                              name={`inlineRequestedAmount-${survey.id}`}
-                              aria-label={`จำนวนที่ขอ รายการ ${survey.id}`}
-                              type="number"
-                              min="0"
-                              value={editData.requested_amount}
-                              onChange={(e) => updateInlineField('requestedAmount', e.target.value)}
-                              onBlur={(e) => handleInlineEditorBlur(e, survey.id)}
-                              autoFocus
-                              className="w-24 rounded border border-gray-300 px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
-                            />
-                            <span className="text-[10px] text-gray-500">{survey.unit || ''}</span>
-                          </div>
-                        ) : (
-                          <button
-                            type="button"
-                            onClick={() => startInlineEdit(survey, 'requestedAmount')}
-                            className="w-full text-left cursor-text"
-                          >
-                            {survey.requested_amount?.toLocaleString() || ''} {survey.unit}
-                          </button>
-                        )}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-xs text-gray-900">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 w-28">
                         <>฿{survey.price_per_unit?.toLocaleString() || '0'}</>
                       </td>
                       <td
                         ref={editingId === survey.id && editingField === 'requestingDept' ? inlineEditContainerRef : null}
-                        className={`px-6 py-4 whitespace-nowrap text-xs text-gray-900 ${editingId !== survey.id || editingField === 'requestingDept' ? inlineEditableCellClassName : ''}`}
+                        className={`px-6 py-4 whitespace-nowrap text-sm text-gray-900 ${editingId !== survey.id || editingField === 'requestingDept' ? inlineEditableCellClassName : ''}`}
                       >
                         {editingId === survey.id && editingField === 'requestingDept' ? (
                           <select
@@ -1582,7 +1752,34 @@ function SurveysPageContent() {
                           </button>
                         )}
                       </td>
-                      <td className={`px-6 py-4 whitespace-nowrap text-xs text-gray-900 ${editingId !== survey.id || editingField === 'approvedQuota' ? inlineEditableCellClassName : ''}`}>
+                      <td className={`px-6 py-4 whitespace-nowrap text-sm text-gray-900 ${editingId !== survey.id || editingField === 'requestedAmount' ? inlineEditableCellClassName : ''}`}>
+                        {editingId === survey.id && editingField === 'requestedAmount' ? (
+                          <div className="flex items-center gap-2">
+                            <input
+                              id={`survey-inline-requested-amount-${survey.id}`}
+                              name={`inlineRequestedAmount-${survey.id}`}
+                              aria-label={`จำนวนที่ขอ รายการ ${survey.id}`}
+                              type="number"
+                              min="0"
+                              value={editData.requested_amount}
+                              onChange={(e) => updateInlineField('requestedAmount', e.target.value)}
+                              onBlur={(e) => handleInlineEditorBlur(e, survey.id)}
+                              autoFocus
+                              className="w-24 rounded border border-gray-300 px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            />
+                            <span className="text-[10px] text-gray-500">{survey.unit || ''}</span>
+                          </div>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => startInlineEdit(survey, 'requestedAmount')}
+                            className="w-full text-left cursor-text"
+                          >
+                            {survey.requested_amount?.toLocaleString() || ''} {survey.unit}
+                          </button>
+                        )}
+                      </td>
+                      <td className={`px-6 py-4 whitespace-nowrap text-sm text-gray-900 ${editingId !== survey.id || editingField === 'approvedQuota' ? inlineEditableCellClassName : ''}`}>
                         {editingId === survey.id && editingField === 'approvedQuota' ? (
                           <input
                             id={`survey-inline-approved-quota-${survey.id}`}
@@ -1768,12 +1965,22 @@ function SurveysPageContent() {
                               <input id="survey-price-per-unit" type="number" name="price_per_unit" aria-label="ราคาต่อหน่วย" value={formData.price_per_unit} onChange={handleInputChange} min="0" step="0.01" className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="ราคาต่อหน่วย" />
                             </td>
                             <td className="px-4 py-3 min-w-[220px]">
-                              <select id="survey-requesting-dept" name="requesting_dept" aria-label="หน่วยงานที่ขอ" value={formData.requesting_dept} onChange={handleInputChange} className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-                                <option value="">เลือกหน่วยงานที่ขอ</option>
-                                {departments.map((dept) => (
-                                  <option key={dept} value={dept}>{dept}</option>
-                                ))}
-                              </select>
+                              <DepartmentCombobox
+                                id="survey-requesting-dept"
+                                name="requesting_dept"
+                                aria_label="หน่วยงานที่ขอ"
+                                value={formData.requesting_dept}
+                                departments={departments}
+                                placeholder="เลือกหน่วยงานที่ขอ"
+                                on_change={(value) => {
+                                  setFormData((prev) => ({ ...prev, requesting_dept: value }));
+                                  if (errors.requesting_dept) {
+                                    setErrors((prev) => ({ ...prev, requesting_dept: '' }));
+                                  }
+                                }}
+                                class_name="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                list_class_name="absolute z-30 mt-1 max-h-60 w-full overflow-auto rounded-md border border-gray-200 bg-white shadow-lg"
+                              />
                             </td>
                             <td className="px-4 py-3 min-w-[140px]">
                               <input id="survey-approved-quota" type="number" name="approved_quota" aria-label="โควต้าที่ได้รับ" value={formData.approved_quota} onChange={handleInputChange} min="0" className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="โควต้าที่ได้รับ" />
@@ -2007,23 +2214,21 @@ function SurveysPageContent() {
                               />
                             </td>
                             <td className="min-w-[14rem] px-2 py-3">
-                              <select
+                              <DepartmentCombobox
                                 id={`survey-bulk-requesting-dept-${record.id}`}
                                 name={`bulkRequestingDept-${record.id}`}
-                                aria-label={`หน่วยงานที่ขอ แถว ${index + 1}`}
+                                aria_label={`หน่วยงานที่ขอ แถว ${index + 1}`}
                                 required
                                 value={record.requesting_dept || ''}
-                                onChange={(e) => {
-                                  updateBulkRecord(record.id, (current) => ({ ...current, requesting_dept: e.target.value }));
-                                  clearBulkValidationError(record.id, 'requestingDept');
+                                departments={departments}
+                                placeholder="เลือกหน่วยงาน"
+                                on_change={(value) => {
+                                  updateBulkRecord(record.id, (current) => ({ ...current, requesting_dept: value }));
                                 }}
-                                className={`w-full px-2 py-1 border rounded focus:outline-none focus:ring-2 text-sm ${bulkValidationErrors[record.id]?.requestingDept ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 focus:ring-blue-500'}`}
-                              >
-                                <option value="">เลือกหน่วยงาน</option>
-                                {departments.map((dept) => (
-                                  <option key={dept} value={dept}>{dept}</option>
-                                ))}
-                              </select>
+                                on_clear_error={() => clearBulkValidationError(record.id, 'requestingDept')}
+                                class_name={`w-full px-2 py-1 border rounded focus:outline-none focus:ring-2 text-sm ${bulkValidationErrors[record.id]?.requestingDept ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 focus:ring-blue-500'}`}
+                                list_class_name="absolute z-40 mt-1 max-h-60 w-full overflow-auto rounded-md border border-gray-200 bg-white shadow-xl"
+                              />
                               {bulkValidationErrors[record.id]?.requestingDept && (
                                 <p className="mt-1 text-xs text-red-600">{bulkValidationErrors[record.id]?.requestingDept}</p>
                               )}

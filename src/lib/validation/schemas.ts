@@ -208,7 +208,8 @@ export const createPurchasePlanSchema = z.object({
   total_required_value: numberInput.optional(),
   additional_purchase_qty: nullableIntInput.optional(),
   additional_purchase_value: numberInput.optional(),
-  purchasing_department: z.string().optional()
+  usageplan_dept: z.string().optional(),
+  usageplan_dept_code: z.string().optional()
 });
 
 export const updatePurchasePlanSchema = createPurchasePlanSchema.partial();
@@ -220,7 +221,7 @@ export const purchasePlanQuerySchema = z.object({
   product_type: z.string().optional(),
   product_subtype: z.string().optional(),
   requesting_dept: z.string().optional(),
-  purchasing_department: z.string().optional(),
+  usageplan_dept: z.string().optional(),
   budget_year: z.string().optional(),
   order_by: z.enum([
     'id',
@@ -234,7 +235,7 @@ export const purchasePlanQuerySchema = z.object({
     'required_quantity_for_year',
     'total_required_value',
     'budget_year',
-    'purchasing_department'
+    'usageplan_dept'
   ]).optional(),
   sort_order: z.enum(['asc', 'desc']).optional(),
   ...paginationFields
@@ -308,6 +309,7 @@ export const surveyQuerySchema = z.object({
   product_name: z.string().optional(),
   category: z.string().optional(),
   type: z.string().optional(),
+  subtype: z.string().optional(),
   requesting_dept: z.string().optional(),
   budget_year: z.string().optional(),
   order_by: z.enum([

@@ -47,7 +47,8 @@ interface PurchasePlanFormData {
   total_required_value?: number;
   additional_purchase_qty?: number | null;
   additional_purchase_value?: number;
-  purchasing_department?: string;
+  usageplan_dept?: string;
+  usageplan_dept_code?: string;
 }
 
 interface BulkPurchasePlanRecord {
@@ -68,7 +69,8 @@ interface BulkPurchasePlanRecord {
   total_required_value: string;
   additional_purchase_qty: string;
   additional_purchase_value: string;
-  purchasing_department: string;
+  usageplan_dept: string;
+  usageplan_dept_code: string;
 }
 
 interface CategoryOption {
@@ -76,6 +78,11 @@ interface CategoryOption {
   type: string;
   subtype: string | null;
 }
+
+type InventorySnapshot = {
+  carried_forward_quantity: number;
+  carried_forward_value: number;
+};
 
 function PurchasePlansPageContent() {
   const router = useRouter();
@@ -103,6 +110,8 @@ function PurchasePlansPageContent() {
   const dataRequestIdRef = useRef(0);
   const summaryRequestIdRef = useRef(0);
   const hasMountedSummaryRef = useRef(false);
+  const hasSyncedSearchParamsRef = useRef(false);
+  const filtersLoadedRef = useRef(false);
   const [totalCount, setTotalCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [filtersLoading, setFiltersLoading] = useState(true);
@@ -111,7 +120,7 @@ function PurchasePlansPageContent() {
   const [formData, setFormData] = useState<PurchasePlanFormData>({});
   const isEditing = Boolean(editing);
   const [bulkRecords, setBulkRecords] = useState<BulkPurchasePlanRecord[]>([]);
-  const [bulkValidationErrors, setBulkValidationErrors] = useState<Record<number, { inPlan?: string; carriedForwardQuantity?: string; purchasingDepartment?: string }>>({});
+  const [bulkValidationErrors, setBulkValidationErrors] = useState<Record<number, { inPlan?: string; carriedForwardQuantity?: string; usageplanDept?: string }>>({});
   const [toast, setToast] = useState<{
     message: string;
     type: 'success' | 'error';
@@ -241,6 +250,9 @@ function PurchasePlansPageContent() {
   }, [categoryFilter, typeFilter, categoryOptions]);
 
   useEffect(() => {
+    if (!filtersLoadedRef.current) {
+      return;
+    }
     if (typeFilter && !availableTypes.includes(typeFilter)) {
       setTypeFilter('');
       setSubtypeFilter('');
@@ -248,6 +260,9 @@ function PurchasePlansPageContent() {
   }, [availableTypes, typeFilter]);
 
   useEffect(() => {
+    if (!filtersLoadedRef.current) {
+      return;
+    }
     if (subtypeFilter && !availableSubtypes.includes(subtypeFilter)) {
       setSubtypeFilter('');
     }
@@ -258,6 +273,9 @@ function PurchasePlansPageContent() {
   }, [productNameFilter, categoryFilter, typeFilter, subtypeFilter, requestingDeptFilter, budgetYearFilter, sortBy, sortOrder]);
 
   useEffect(() => {
+    if (!hasSyncedSearchParamsRef.current) {
+      return;
+    }
     if (!hasMountedSummaryRef.current) {
       hasMountedSummaryRef.current = true;
       return;
@@ -288,9 +306,13 @@ function PurchasePlansPageContent() {
     setSortOrder((prev) => (prev === nextSortOrder ? prev : nextSortOrder));
     setPage((prev) => (prev === nextPage ? prev : nextPage));
     setPageSize((prev) => (prev === nextPageSize ? prev : nextPageSize));
+    hasSyncedSearchParamsRef.current = true;
   }, [searchParams]);
 
   useEffect(() => {
+    if (!hasSyncedSearchParamsRef.current) {
+      return;
+    }
     const params = new URLSearchParams();
 
     if (productNameFilter) params.set('product_name', productNameFilter);
@@ -324,6 +346,7 @@ function PurchasePlansPageContent() {
         setCategoryOptions(data.category_options || []);
         setDepartments(data.departments || []);
         setYears(data.budget_years || []);
+        filtersLoadedRef.current = true;
       }
     } catch (e) {
       console.error(e);
@@ -470,14 +493,15 @@ function PurchasePlansPageContent() {
     total_required_value: '',
     additional_purchase_qty: '',
     additional_purchase_value: '',
-    purchasing_department: '',
+    usageplan_dept: '',
+    usageplan_dept_code: '',
   });
 
   const updateBulkRecord = (id: number, updater: (record: BulkPurchasePlanRecord) => BulkPurchasePlanRecord) => {
     setBulkRecords((prev) => prev.map((record) => (record.id === id ? updater(record) : record)));
   };
 
-  const clearBulkValidationError = (id: number, field: 'inPlan' | 'carriedForwardQuantity' | 'purchasingDepartment') => {
+  const clearBulkValidationError = (id: number, field: 'inPlan' | 'carriedForwardQuantity' | 'usageplanDept') => {
     setBulkValidationErrors((prev) => {
       const current = prev[id];
       if (!current?.[field]) {
@@ -546,7 +570,8 @@ function PurchasePlansPageContent() {
       total_required_value: row.total_required_value ? Number(row.total_required_value) : undefined,
       additional_purchase_qty: row.additional_purchase_qty ?? null,
       additional_purchase_value: row.additional_purchase_value ? Number(row.additional_purchase_value) : undefined,
-      purchasing_department: row.purchasing_department || '',
+      usageplan_dept: row.usageplan_dept || '',
+      usageplan_dept_code: row.usageplan_dept_code || '',
     });
     setSurveySearchTerm(
       row.product_code || row.product_name
@@ -556,7 +581,46 @@ function PurchasePlansPageContent() {
     setShowForm(true);
   };
 
-  const purchasingDepartmentOptions = Array.from(new Set([...(formData.purchasing_department ? [formData.purchasing_department] : []), ...departments].filter(Boolean)));
+  const fetchInventorySnapshot = async (productCode?: string | null): Promise<InventorySnapshot> => {
+    if (!productCode) {
+      return {
+        carried_forward_quantity: 0,
+        carried_forward_value: 0,
+      };
+    }
+
+    const params = new URLSearchParams();
+    params.append('product_code', productCode);
+    params.append('page', '1');
+    params.append('page_size', '200');
+
+    const res = await fetch(`/api/inventory/balances?${params.toString()}`);
+    if (!res.ok) {
+      throw new Error('fetch inventory snapshot failed');
+    }
+
+    const data = await res.json();
+    const items = Array.isArray(data?.data)
+      ? data.data
+      : Array.isArray(data?.items)
+        ? data.items
+        : [];
+
+    return items.reduce(
+      (acc: InventorySnapshot, item: any) => {
+        const onHandQty = Number(item?.on_hand_qty || 0);
+        const avgCost = Number(item?.avg_cost || 0);
+        acc.carried_forward_quantity += onHandQty;
+        acc.carried_forward_value += onHandQty * avgCost;
+        return acc;
+      },
+      {
+        carried_forward_quantity: 0,
+        carried_forward_value: 0,
+      }
+    );
+  };
+
   const selectedSearchLabel = formData.product_code || formData.product_name
     ? `${formData.product_code || '-'} | ${formData.product_name || '-'}`
     : '';
@@ -586,12 +650,31 @@ function PurchasePlansPageContent() {
     closeBulkForm();
   };
 
-  const handleSurveySelect = (survey: SurveyOption) => {
+  const handleSurveySelect = async (survey: SurveyOption) => {
     if (isEditing) {
       return;
     }
 
+    let inventorySnapshot: InventorySnapshot = {
+      carried_forward_quantity: 0,
+      carried_forward_value: 0,
+    };
+
+    try {
+      inventorySnapshot = await fetchInventorySnapshot(survey.product_code || null);
+    } catch (error) {
+      console.error(error);
+    }
+
     const selectedLabel = `${survey.product_code || '-'} | ${survey.product_name || '-'}`;
+    const approvedQuota = Number(survey.approved_quota) || 0;
+    const pricePerUnit = Number(survey.price_per_unit) || 0;
+    const carriedForwardQuantity = inventorySnapshot.carried_forward_quantity;
+    const carriedForwardValue = Number(inventorySnapshot.carried_forward_value.toFixed(2));
+    const totalRequiredValue = Number((approvedQuota * pricePerUnit).toFixed(2));
+    const additionalPurchaseQty = Math.max(approvedQuota - carriedForwardQuantity, 0);
+    const additionalPurchaseValue = Number((additionalPurchaseQty * pricePerUnit).toFixed(2));
+
     setFormData((prev) => ({
       ...prev,
       plan_id: survey.id,
@@ -601,12 +684,16 @@ function PurchasePlansPageContent() {
       product_type: survey.type || '',
       product_subtype: survey.subtype || '',
       unit: survey.unit || '',
-      price_per_unit: survey.price_per_unit ? Number(survey.price_per_unit) : undefined,
+      price_per_unit: pricePerUnit || undefined,
       budget_year: survey.budget_year !== null && survey.budget_year !== undefined ? String(survey.budget_year) : getCurrentBudgetYear().toString(),
-      required_quantity_for_year: survey.requested_amount ?? null,
-      total_required_value: Number(((survey.approved_quota ?? 0) * (survey.price_per_unit ?? 0)).toFixed(2)),
-      additional_purchase_qty: survey.requested_amount ?? null,
-      additional_purchase_value: Number(((survey.requested_amount ?? 0) * (survey.price_per_unit ?? 0)).toFixed(2)),
+      carried_forward_quantity: carriedForwardQuantity,
+      carried_forward_value: carriedForwardValue,
+      required_quantity_for_year: approvedQuota,
+      total_required_value: totalRequiredValue,
+      additional_purchase_qty: additionalPurchaseQty,
+      additional_purchase_value: additionalPurchaseValue,
+      usageplan_dept: survey.requesting_dept || '',
+      usageplan_dept_code: '',
     }));
     setSurveySearchTerm(selectedLabel);
     setShowSurveySuggestions(false);
@@ -619,11 +706,6 @@ function PurchasePlansPageContent() {
       }
 
       const nextId = prev.length > 0 ? Math.max(...prev.map((record) => record.id)) + 1 : 1;
-      const approvedQuota = survey.approved_quota ?? 0;
-      const requestedAmount = survey.requested_amount ?? 0;
-      const pricePerUnit = Number(survey.price_per_unit) || 0;
-      const totalRequiredValue = Number((approvedQuota * pricePerUnit).toFixed(2));
-      const additionalPurchaseValue = Number((requestedAmount * pricePerUnit).toFixed(2));
 
       return [
         ...prev,
@@ -639,13 +721,14 @@ function PurchasePlansPageContent() {
           budget_year: survey.budget_year !== null && survey.budget_year !== undefined ? String(survey.budget_year) : getCurrentBudgetYear().toString(),
           plan_id: survey.id,
           in_plan: 'ในแผน',
-          carried_forward_quantity: '',
-          carried_forward_value: '0',
-          required_quantity_for_year: requestedAmount ? requestedAmount.toString() : '0',
+          carried_forward_quantity: carriedForwardQuantity.toString(),
+          carried_forward_value: carriedForwardValue.toString(),
+          required_quantity_for_year: approvedQuota.toString(),
           total_required_value: totalRequiredValue ? totalRequiredValue.toString() : '0',
-          additional_purchase_qty: requestedAmount ? requestedAmount.toString() : '0',
+          additional_purchase_qty: additionalPurchaseQty.toString(),
           additional_purchase_value: additionalPurchaseValue ? additionalPurchaseValue.toString() : '0',
-          purchasing_department: survey.requesting_dept || '',
+          usageplan_dept: survey.requesting_dept || '',
+          usageplan_dept_code: '',
         },
       ];
     });
@@ -676,11 +759,14 @@ function PurchasePlansPageContent() {
       unit: '',
       price_per_unit: undefined,
       budget_year: '',
+      carried_forward_quantity: null,
+      carried_forward_value: undefined,
       required_quantity_for_year: null,
       total_required_value: undefined,
       additional_purchase_qty: null,
       additional_purchase_value: undefined,
-      purchasing_department: '',
+      usageplan_dept: '',
+      usageplan_dept_code: '',
     }));
   };
 
@@ -747,7 +833,7 @@ function PurchasePlansPageContent() {
       const pricePerUnit = Number(nextRecord.price_per_unit) || 0;
       const requiredQuantityForYear = Number(nextRecord.required_quantity_for_year) || 0;
       const carriedForwardQuantity = Number(nextRecord.carried_forward_quantity) || 0;
-      const carriedForwardValue = Number((carriedForwardQuantity * pricePerUnit).toFixed(2));
+      const carriedForwardValue = Number(nextRecord.carried_forward_value) || 0;
       const additionalPurchaseQty = Math.max(requiredQuantityForYear - carriedForwardQuantity, 0);
       const totalRequiredValue = Number((requiredQuantityForYear * pricePerUnit).toFixed(2));
       const additionalPurchaseValue = Number((additionalPurchaseQty * pricePerUnit).toFixed(2));
@@ -763,7 +849,7 @@ function PurchasePlansPageContent() {
 
   const saveBulkPurchasePlans = async () => {
     try {
-      const nextValidationErrors: Record<number, { inPlan?: string; carriedForwardQuantity?: string; purchasingDepartment?: string }> = {};
+      const nextValidationErrors: Record<number, { inPlan?: string; carriedForwardQuantity?: string; usageplanDept?: string }> = {};
 
       const validRecords = bulkRecords.filter((record) => {
         const hasProduct = record.product_code.trim() !== '' && record.product_name.trim() !== '';
@@ -771,7 +857,7 @@ function PurchasePlansPageContent() {
           return false;
         }
 
-        const recordErrors: { inPlan?: string; carriedForwardQuantity?: string; purchasingDepartment?: string } = {};
+        const recordErrors: { inPlan?: string; carriedForwardQuantity?: string; usageplanDept?: string } = {};
 
         if (!record.in_plan.trim()) {
           recordErrors.inPlan = 'กรุณาเลือกประเภทในแผน/นอกแผน';
@@ -781,8 +867,8 @@ function PurchasePlansPageContent() {
           recordErrors.carriedForwardQuantity = 'กรุณากรอกจำนวนยกยอดมาให้ถูกต้อง';
         }
 
-        if (!record.purchasing_department.trim()) {
-          recordErrors.purchasingDepartment = 'กรุณาเลือกหน่วยงานจัดซื้อ';
+        if (!record.usageplan_dept.trim()) {
+          recordErrors.usageplanDept = 'กรุณาเลือกหน่วยงานที่ขอ';
         }
 
         if (Object.keys(recordErrors).length > 0) {
@@ -826,7 +912,8 @@ function PurchasePlansPageContent() {
             total_required_value: record.total_required_value ? Number(record.total_required_value) : 0,
             additional_purchase_qty: record.additional_purchase_qty ? Number(record.additional_purchase_qty) : 0,
             additional_purchase_value: record.additional_purchase_value ? Number(record.additional_purchase_value) : 0,
-            purchasing_department: record.purchasing_department,
+            usageplan_dept: record.usageplan_dept,
+            usageplan_dept_code: record.usageplan_dept_code || undefined,
           }),
         })
       );
@@ -940,7 +1027,7 @@ function PurchasePlansPageContent() {
                   </label>
                   <label className="flex flex-col gap-1 text-sm text-gray-700">
                     <span className="font-medium">จำนวนยกยอดมา</span>
-                    <input id="purchase-plan-carriedForwardQuantity" type="number" name="carried_forward_quantity" value={formData.carried_forward_quantity ?? ''} onChange={handleInputChange} className={modalFieldClassName} min="0" />
+                    <input id="purchase-plan-carriedForwardQuantity" type="number" name="carried_forward_quantity" value={formData.carried_forward_quantity ?? ''} className={`${modalFieldClassName} bg-gray-50`} min="0" readOnly />
                   </label>
                   <label className="flex flex-col gap-1 text-sm text-gray-700">
                     <span className="font-medium">มูลค่ายกยอดมา</span>
@@ -995,13 +1082,8 @@ function PurchasePlansPageContent() {
                     <input id="purchase-plan-budgetYear" name="budget_year" value={formData.budget_year || ''} className={`${modalFieldClassName} bg-gray-50`} readOnly />
                   </label>
                   <label className="flex flex-col gap-1 text-sm text-gray-700">
-                    <span className="font-medium">หน่วยงานจัดซื้อ</span>
-                    <select id="purchase-plan-purchasingDepartment" name="purchasing_department" value={formData.purchasing_department || ''} onChange={handleInputChange} className={modalFieldClassName}>
-                      <option value="">เลือกหน่วยงานจัดซื้อ</option>
-                      {purchasingDepartmentOptions.map((department) => (
-                        <option key={department} value={department}>{department}</option>
-                      ))}
-                    </select>
+                    <span className="font-medium">หน่วยงานที่ขอ</span>
+                    <input id="purchase-plan-usageplanDept" name="usageplan_dept" value={formData.usageplan_dept || ''} className={`${modalFieldClassName} bg-gray-50`} readOnly />
                   </label>
                 </div>
                 <div className="flex justify-end space-x-3 border-t border-slate-200 pt-5">
@@ -1080,7 +1162,7 @@ function PurchasePlansPageContent() {
                           <th className="w-28 px-2 py-2 text-left text-[10px] font-medium text-gray-500 uppercase">มูลค่ายกยอด</th>
                           <th className="w-28 px-2 py-2 text-left text-[10px] font-medium text-gray-500 uppercase">ต้องใช้/ปี</th>
                           <th className="w-28 px-2 py-2 text-left text-[10px] font-medium text-gray-500 uppercase">ซื้อเพิ่ม</th>
-                          <th className="w-32 px-2 py-2 text-left text-[10px] font-medium text-gray-500 uppercase">หน่วยงานจัดซื้อ</th>
+                          <th className="w-32 px-2 py-2 text-left text-[10px] font-medium text-gray-500 uppercase">หน่วยงานที่ขอ</th>
                           <th className="w-24 px-2 py-2 text-left text-[10px] font-medium text-gray-500 uppercase">จัดการ</th>
                         </tr>
                       </thead>
@@ -1114,11 +1196,8 @@ function PurchasePlansPageContent() {
                                 type="number"
                                 min="0"
                                 value={record.carried_forward_quantity}
-                                onChange={(e) => {
-                                  handleBulkFieldChange(record.id, 'carried_forward_quantity', e.target.value);
-                                  clearBulkValidationError(record.id, 'carriedForwardQuantity');
-                                }}
-                                className={`w-full rounded border px-2 py-1 text-xs ${bulkValidationErrors[record.id]?.carriedForwardQuantity ? 'border-red-500' : 'border-gray-300'}`}
+                                readOnly
+                                className={`w-full rounded border bg-gray-100 px-2 py-1 text-xs ${bulkValidationErrors[record.id]?.carriedForwardQuantity ? 'border-red-500' : 'border-gray-300'}`}
                               />
                               {bulkValidationErrors[record.id]?.carriedForwardQuantity && <p className="mt-1 text-[10px] text-red-600">{bulkValidationErrors[record.id]?.carriedForwardQuantity}</p>}
                             </td>
@@ -1133,19 +1212,16 @@ function PurchasePlansPageContent() {
                             </td>
                             <td className="w-32 px-2 py-3">
                               <select
-                                value={record.purchasing_department}
-                                onChange={(e) => {
-                                  handleBulkFieldChange(record.id, 'purchasing_department', e.target.value);
-                                  clearBulkValidationError(record.id, 'purchasingDepartment');
-                                }}
-                                className={`w-full rounded border px-2 py-1 text-xs ${bulkValidationErrors[record.id]?.purchasingDepartment ? 'border-red-500' : 'border-gray-300'}`}
+                                value={record.usageplan_dept}
+                                disabled
+                                className={`w-full rounded border bg-gray-100 px-2 py-1 text-xs ${bulkValidationErrors[record.id]?.usageplanDept ? 'border-red-500' : 'border-gray-300'}`}
                               >
                                 <option value="">เลือกหน่วยงาน</option>
                                 {departments.map((department) => (
                                   <option key={department} value={department}>{department}</option>
                                 ))}
                               </select>
-                              {bulkValidationErrors[record.id]?.purchasingDepartment && <p className="mt-1 text-[10px] text-red-600">{bulkValidationErrors[record.id]?.purchasingDepartment}</p>}
+                              {bulkValidationErrors[record.id]?.usageplanDept && <p className="mt-1 text-[10px] text-red-600">{bulkValidationErrors[record.id]?.usageplanDept}</p>}
                             </td>
                             <td className="w-24 px-2 py-3">
                               <button
@@ -1288,13 +1364,12 @@ function PurchasePlansPageContent() {
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
-                <th onClick={()=>handleSort('product_code')} className={getHeaderClass('product_code')}>รหัส</th>
-                <th onClick={()=>handleSort('product_name')} className={getHeaderClass('product_name')}>ชื่อสินค้า</th>
-                <th onClick={()=>handleSort('category')} className={getHeaderClass('category')}>หมวด</th>
-                <th onClick={()=>handleSort('product_type')} className={getHeaderClass('product_type')}>ประเภท</th>
+                <th onClick={()=>handleSort('product_code')} className={`${getHeaderClass('product_code')} w-28`}>รหัส</th>
+                <th onClick={()=>handleSort('product_name')} className={`${getHeaderClass('product_name')} min-w-[280px] w-2/5`}>ชื่อสินค้า</th>
+                <th onClick={()=>handleSort('usageplan_dept')} className={getHeaderClass('usageplan_dept')}>หน่วยงานที่ขอ</th>
                 <th onClick={()=>handleSort('unit')} className={getHeaderClass('unit')}>หน่วย</th>
                 <th onClick={()=>handleSort('price_per_unit')} className={getHeaderClass('price_per_unit')}>ราคา/หน่วย</th>
-                <th onClick={()=>handleSort('required_quantity_for_year')} className={getHeaderClass('required_quantity_for_year')}>ต้องการ/ปี</th>
+                <th onClick={()=>handleSort('required_quantity_for_year')} className={getHeaderClass('required_quantity_for_year')}>แผนใช้</th>
                 <th onClick={()=>handleSort('total_required_value')} className={getHeaderClass('total_required_value')}>มูลค่ารวม</th>
                 <th onClick={()=>handleSort('budget_year')} className={getHeaderClass('budget_year')}>ปีงบ</th>
                 <th className="px-3 py-3 text-left text-[10px] font-medium text-gray-500 uppercase tracking-wider w-24">Action</th>
@@ -1303,14 +1378,18 @@ function PurchasePlansPageContent() {
             <tbody className="bg-white divide-y divide-gray-200">
               {items.map((row) => (
                 <tr key={row.id}>
-                  <td className="px-3 py-2 text-xs">{row.product_code}</td>
-                  <td className="px-3 py-2 text-xs">
-                    <div className="whitespace-normal break-words" title={row.product_name}>
+                  <td className="px-3 py-2 text-sm w-28">{row.product_code}</td>
+                  <td className="px-3 py-2 text-sm min-w-[280px]">
+                    <div className="font-medium text-gray-900 whitespace-normal break-words" title={row.product_name}>
                       {row.product_name}
                     </div>
+                    <div className="mt-1 text-[11px] text-emerald-600/80">
+                      {[row.category || '-', row.product_type || '-', row.product_subtype || '-']
+                        .filter((value, index, arr) => !(value === '-' && arr.every(v => v === '-')))
+                        .join(' · ')}
+                    </div>
                   </td>
-                  <td className="px-3 py-2 text-xs">{row.category}</td>
-                  <td className="px-3 py-2 text-xs">{row.product_type}</td>
+                  <td className="px-3 py-2 text-xs">{row.usageplan_dept || '-'}</td>
                   <td className="px-3 py-2 text-xs">{row.unit}</td>
                   <td className="px-3 py-2 text-xs">{row.price_per_unit ? Number(row.price_per_unit).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '-'}</td>
                   <td className="px-3 py-2 text-xs">{row.required_quantity_for_year ?? '-'}</td>

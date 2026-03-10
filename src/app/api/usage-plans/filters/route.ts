@@ -4,42 +4,42 @@ import { cacheGet, cacheSet } from '@/lib/redis';
 
 export async function GET(request: NextRequest) {
   try {
-    const cacheKey = 'erp:surveys:filters';
-    const cached = await cacheGet<any>(cacheKey);
-    if (cached) {
-      return NextResponse.json(cached);
+    const usage_plan_filters_cache_key = 'erp:usage_plans:filters:v1';
+    const cached_usage_plan_filters = await cacheGet<any>(usage_plan_filters_cache_key);
+    if (cached_usage_plan_filters) {
+      return NextResponse.json(cached_usage_plan_filters);
     }
 
-    const [categoryRowsResult, departments, budgetYears] = await Promise.all([
+    const [categoryRowsResult, departmentRowsResult, budgetYearRowsResult] = await Promise.all([
       pgQuery(
         `SELECT category, type, subtype
          FROM public.category
          ORDER BY category ASC, type ASC, subtype ASC`
       ),
-      pgQuery('SELECT DISTINCT requesting_dept FROM public.usage_plan WHERE requesting_dept IS NOT NULL ORDER BY requesting_dept ASC'),
+      pgQuery('SELECT name FROM public.department WHERE name IS NOT NULL ORDER BY name ASC'),
       pgQuery('SELECT DISTINCT budget_year FROM public.usage_plan WHERE budget_year IS NOT NULL ORDER BY budget_year DESC')
     ]);
 
-    const categoryRows = categoryRowsResult.rows;
+    const category_rows = categoryRowsResult.rows;
 
-    const sortedCategories = Array.from(new Set(categoryRows.map((item: any) => item.category).filter(Boolean))).sort((a, b) => a.localeCompare(b));
-    const sortedTypes = Array.from(new Set(categoryRows.map((item: any) => item.type).filter(Boolean))).sort((a, b) => a.localeCompare(b));
-    const sortedSubtypes = Array.from(new Set(categoryRows.map((item: any) => item.subtype).filter(Boolean))).sort((a, b) => a.localeCompare(b));
+    const categories = Array.from(new Set(category_rows.map((item: any) => item.category).filter(Boolean))).sort((a, b) => a.localeCompare(b));
+    const types = Array.from(new Set(category_rows.map((item: any) => item.type).filter(Boolean))).sort((a, b) => a.localeCompare(b));
+    const subtypes = Array.from(new Set(category_rows.map((item: any) => item.subtype).filter(Boolean))).sort((a, b) => a.localeCompare(b));
 
-    const result = {
-      categories: sortedCategories,
-      types: sortedTypes,
-      subtypes: sortedSubtypes,
-      category_options: categoryRows,
-      departments: departments.rows.map((d: any) => d.requesting_dept).filter(Boolean).sort((a: string, b: string) => a.localeCompare(b)),
-      budget_years: budgetYears.rows.map((year: any) => year.budget_year).filter((value: number | null) => value !== null)
+    const usage_plan_filters = {
+      categories,
+      types,
+      subtypes,
+      category_options: category_rows,
+      departments: departmentRowsResult.rows.map((department: any) => department.name).filter(Boolean).sort((a: string, b: string) => a.localeCompare(b)),
+      budget_years: budgetYearRowsResult.rows.map((budget_year: any) => budget_year.budget_year).filter((value: number | null) => value !== null)
     };
 
-    await cacheSet(cacheKey, result, 3600);
+    await cacheSet(usage_plan_filters_cache_key, usage_plan_filters, 3600);
 
-    return NextResponse.json(result);
+    return NextResponse.json(usage_plan_filters);
   } catch (error) {
-    console.error('Error fetching filter options:', error);
+    console.error('Error fetching usage_plan filter options:', error);
     return NextResponse.json(
       { error: 'Failed to fetch filter options' },
       { status: 500 }

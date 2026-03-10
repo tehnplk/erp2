@@ -79,9 +79,9 @@ const normalizeChartRows = (rows: ChartRow[]) => rows.map((row) => ({
          GROUP BY COALESCE(requesting_dept, 'ไม่ระบุ')
        ),
        plan_counts AS (
-         SELECT COALESCE(purchasing_department, 'ไม่ระบุ') AS name, COUNT(*)::int AS "planCount"
+         SELECT COALESCE(usageplan_dept, 'ไม่ระบุ') AS name, COUNT(*)::int AS "planCount"
          FROM public.purchase_plan
-         GROUP BY COALESCE(purchasing_department, 'ไม่ระบุ')
+         GROUP BY COALESCE(usageplan_dept, 'ไม่ระบุ')
        ),
        approval_counts AS (
          SELECT COALESCE(department, 'ไม่ระบุ') AS name, COUNT(*)::int AS "approvalCount"
@@ -107,10 +107,10 @@ const normalizeChartRows = (rows: ChartRow[]) => rows.map((row) => ({
          GROUP BY COALESCE(requesting_dept, 'ไม่ระบุ')
        ),
        plan_values AS (
-         SELECT COALESCE(purchasing_department, 'ไม่ระบุ') AS name,
+         SELECT COALESCE(usageplan_dept, 'ไม่ระบุ') AS name,
                 COALESCE(SUM(COALESCE(total_required_value, 0)), 0)::float8 AS "planValue"
          FROM public.purchase_plan
-         GROUP BY COALESCE(purchasing_department, 'ไม่ระบุ')
+         GROUP BY COALESCE(usageplan_dept, 'ไม่ระบุ')
        ),
        approval_values AS (
          SELECT COALESCE(department, 'ไม่ระบุ') AS name,
