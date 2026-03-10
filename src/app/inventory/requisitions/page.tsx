@@ -1,7 +1,8 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react';
 import Link from 'next/link';
+import { X } from 'lucide-react';
 import Swal from 'sweetalert2';
 
 type RequisitionRow = {
@@ -38,6 +39,7 @@ type BalanceOption = {
   product_name: string;
   available_qty: number;
   avg_cost: number;
+  unit?: string | null;
 };
 
 type ApiResponse<T> = {
@@ -56,7 +58,10 @@ export default function InventoryRequisitionsPage() {
   const [department, setDepartment] = useState('กลุ่มงานบริหารทั่วไป');
   const [requested_by, setRequestedBy] = useState('');
   const [selected_item_id, setSelectedItemId] = useState('');
-  const [requested_qty, setRequestedQty] = useState('1');
+  const [product_search, setProductSearch] = useState('');
+  const [showProductSuggestions, setShowProductSuggestions] = useState(false);
+  const [highlightedProductIndex, setHighlightedProductIndex] = useState(-1);
+  const [requested_qty, setRequestedQty] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [approving_id, setApprovingId] = useState<number | null>(null);
   const [expanded_requisition_id, setExpandedRequisitionId] = useState<number | null>(null);
@@ -65,6 +70,8 @@ export default function InventoryRequisitionsPage() {
   const [loading, setLoading] = useState(true);
 
   const [cancelling_id, setCancellingId] = useState<number | null>(null);
+  const productSearchInputRef = useRef<HTMLInputElement | null>(null);
+  const requestedQtyInputRef = useRef<HTMLInputElement | null>(null);
 
   const [cart, setCart] = useState<{ inventory_item_id: number; product_code: string; product_name: string; requested_qty: number }[]>([]);
 
@@ -73,12 +80,29 @@ export default function InventoryRequisitionsPage() {
     [balance_options, selected_item_id]
   );
 
+  const filteredBalanceOptions = useMemo(() => {
+    const keyword = product_search.trim().toLowerCase();
+    if (!keyword) {
+      return balance_options.slice(0, 20);
+    }
+
+    return balance_options
+      .filter((item) => `${item.product_code} ${item.product_name}`.toLowerCase().includes(keyword))
+      .slice(0, 20);
+  }, [balance_options, product_search]);
+
   const handleAddToCart = () => {
     if (!selected_item_id || !selectedOption) {
       setIsError(true);
       setMessage('กรุณาเลือกสินค้า');
       return;
     }
+    if (!requested_qty.trim()) {
+      setIsError(true);
+      setMessage('กรุณากรอกจำนวนที่ต้องการ');
+      return;
+    }
+
     const qty = Number(requested_qty);
     if (qty <= 0) {
       setIsError(true);
@@ -106,8 +130,76 @@ export default function InventoryRequisitionsPage() {
     }
     
     setSelectedItemId('');
-    setRequestedQty('1');
+    setProductSearch('');
+    setShowProductSuggestions(false);
+    setHighlightedProductIndex(-1);
+    setRequestedQty('');
     setMessage('');
+
+    window.setTimeout(() => {
+      productSearchInputRef.current?.focus();
+    }, 0);
+  };
+
+  const handleSelectProduct = (item: BalanceOption) => {
+    setSelectedItemId(String(item.inventory_item_id));
+    setProductSearch(`${item.product_code} - ${item.product_name}`);
+    setShowProductSuggestions(false);
+    setHighlightedProductIndex(-1);
+    setIsError(false);
+    setMessage('');
+
+    window.setTimeout(() => {
+      requestedQtyInputRef.current?.focus();
+    }, 0);
+  };
+
+  const handleClearProductSearch = () => {
+    setSelectedItemId('');
+    setProductSearch('');
+    setShowProductSuggestions(false);
+    setHighlightedProductIndex(-1);
+  };
+
+  const handleProductSearchKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
+    if (!showProductSuggestions && (event.key === 'ArrowDown' || event.key === 'ArrowUp')) {
+      setShowProductSuggestions(true);
+    }
+
+    if (event.key === 'ArrowDown') {
+      event.preventDefault();
+      if (filteredBalanceOptions.length === 0) {
+        return;
+      }
+      setHighlightedProductIndex((prev) => (prev + 1) % filteredBalanceOptions.length);
+      return;
+    }
+
+    if (event.key === 'ArrowUp') {
+      event.preventDefault();
+      if (filteredBalanceOptions.length === 0) {
+        return;
+      }
+      setHighlightedProductIndex((prev) => (prev <= 0 ? filteredBalanceOptions.length - 1 : prev - 1));
+      return;
+    }
+
+    if (event.key === 'Enter') {
+      if (!showProductSuggestions || filteredBalanceOptions.length === 0) {
+        return;
+      }
+      event.preventDefault();
+      const selectedItem = filteredBalanceOptions[highlightedProductIndex >= 0 ? highlightedProductIndex : 0];
+      if (selectedItem) {
+        handleSelectProduct(selectedItem);
+      }
+      return;
+    }
+
+    if (event.key === 'Escape') {
+      setShowProductSuggestions(false);
+      setHighlightedProductIndex(-1);
+    }
   };
 
   const handleRemoveFromCart = (id: number) => {
@@ -226,6 +318,7 @@ export default function InventoryRequisitionsPage() {
           product_name: item.product_name,
           available_qty: Number(item.available_qty || 0),
           avg_cost: Number(item.avg_cost || 0),
+          unit: item.unit || null,
         }))
       );
     } catch (error) {
@@ -237,6 +330,18 @@ export default function InventoryRequisitionsPage() {
     fetchRequisitions();
     fetchBalances();
   }, []);
+
+  useEffect(() => {
+    if (!selectedOption) {
+      return;
+    }
+
+    setProductSearch(`${selectedOption.product_code} - ${selectedOption.product_name}`);
+  }, [selectedOption]);
+
+  useEffect(() => {
+    setHighlightedProductIndex(filteredBalanceOptions.length > 0 ? 0 : -1);
+  }, [filteredBalanceOptions]);
 
   const handleCreate = async () => {
     if (cart.length === 0) {
@@ -307,34 +412,107 @@ export default function InventoryRequisitionsPage() {
             </label>
           </div>
 
-          <div className="grid grid-cols-1 gap-4 rounded-2xl bg-slate-50 p-4 lg:grid-cols-5">
-            <div className="lg:col-span-2">
-              <label className="text-sm font-medium text-slate-700">สินค้าที่ต้องการเบิก</label>
-              <select value={selected_item_id} onChange={(e) => setSelectedItemId(e.target.value)} className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 focus:border-blue-500">
-                <option value="">เลือกสินค้า</option>
-                {balance_options.map((item) => (
-                  <option key={item.inventory_item_id} value={item.inventory_item_id}>
-                    {item.product_code} - {item.product_name} (พร้อมใช้ {formatNumber(item.available_qty)})
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="text-sm font-medium text-slate-700">จำนวน</label>
-              <input value={requested_qty} onChange={(e) => setRequestedQty(e.target.value)} type="number" min="1" className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 focus:border-blue-500" />
-            </div>
-            <div className="flex items-end">
-              <button type="button" onClick={handleAddToCart} className="w-full rounded-xl bg-slate-800 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-slate-900">
-                เพิ่มลงรายการ
-              </button>
-            </div>
-            <div className="flex items-end">
-                <div className="text-xs text-slate-500">
-                    {selectedOption && (
-                        <span>พร้อมใช้: {formatNumber(selectedOption.available_qty)}</span>
-                    )}
+          <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+            <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_180px_140px_150px] lg:items-end">
+              <div className="min-w-0">
+                <label className="text-sm font-medium text-slate-700">สินค้าที่ต้องการเบิก</label>
+                <div className="relative mt-2">
+                  <input
+                    ref={productSearchInputRef}
+                    value={product_search}
+                    onChange={(e) => {
+                      setProductSearch(e.target.value);
+                      setSelectedItemId('');
+                      setShowProductSuggestions(true);
+                      setHighlightedProductIndex(0);
+                    }}
+                    onFocus={() => setShowProductSuggestions(true)}
+                    onKeyDown={handleProductSearchKeyDown}
+                    onBlur={() => {
+                      window.setTimeout(() => {
+                        setShowProductSuggestions(false);
+                      }, 150);
+                    }}
+                    placeholder="ค้นหาจากรหัสหรือชื่อสินค้า"
+                    className="w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 pr-11 text-sm focus:border-blue-500"
+                  />
+                  {product_search ? (
+                    <button
+                      type="button"
+                      onMouseDown={(event) => event.preventDefault()}
+                      onClick={handleClearProductSearch}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full p-1 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
+                      aria-label="ล้างคำค้นสินค้า"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  ) : null}
+                  {showProductSuggestions && filteredBalanceOptions.length > 0 ? (
+                    <div className="absolute z-20 mt-2 max-h-72 w-full overflow-y-auto rounded-2xl border border-slate-200 bg-white shadow-lg">
+                      {filteredBalanceOptions.map((item) => (
+                        <button
+                          key={item.inventory_item_id}
+                          type="button"
+                          onMouseDown={(event) => event.preventDefault()}
+                          onClick={() => handleSelectProduct(item)}
+                          onMouseEnter={() => setHighlightedProductIndex(filteredBalanceOptions.findIndex((option) => option.inventory_item_id === item.inventory_item_id))}
+                          className={`flex w-full flex-col gap-1 border-b border-slate-100 px-4 py-3 text-left last:border-b-0 hover:bg-slate-50 ${
+                            highlightedProductIndex >= 0 && filteredBalanceOptions[highlightedProductIndex]?.inventory_item_id === item.inventory_item_id
+                              ? 'bg-slate-100'
+                              : ''
+                          }`}
+                        >
+                          <span className="text-sm font-medium text-slate-900">{item.product_code}</span>
+                          <span className="text-sm text-slate-600">{item.product_name}</span>
+                        </button>
+                      ))}
+                    </div>
+                  ) : null}
                 </div>
+              </div>
+              <div className="min-w-0">
+                <label className="text-sm font-medium text-slate-700">สถานะคงเหลือ</label>
+                <div className="mt-2 flex h-[50px] items-center rounded-2xl border border-slate-200 bg-slate-50 px-4 text-sm font-semibold text-slate-900">
+                  {selectedOption ? `${formatNumber(selectedOption.available_qty)} ${selectedOption.unit || ''}` : ''}
+                </div>
+              </div>
+              <div className="min-w-0">
+                <label className="text-sm font-medium text-slate-700">จำนวนขอเบิก</label>
+                <input
+                  ref={requestedQtyInputRef}
+                  value={requested_qty}
+                  onChange={(e) => setRequestedQty(e.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter') {
+                      event.preventDefault();
+                      handleAddToCart();
+                    }
+                  }}
+                  type="number"
+                  min="1"
+                  className="mt-2 h-[50px] w-full rounded-2xl border border-slate-300 bg-white px-4 text-sm focus:border-blue-500"
+                />
+              </div>
+              <div className="min-w-0">
+                <div className="h-5" aria-hidden="true" />
+                <button
+                  type="button"
+                  onClick={handleAddToCart}
+                  className="mt-2 h-[50px] w-full rounded-2xl bg-slate-900 px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-800"
+                >
+                  เพิ่มลงรายการ
+                </button>
+              </div>
             </div>
+            {message ? (
+              <div
+                className={`mt-4 rounded-2xl border px-4 py-3 text-sm ${
+                  isError ? 'border-red-200 bg-red-50 text-red-800' : 'border-emerald-200 bg-emerald-50 text-emerald-800'
+                }`}
+              >
+                {message}
+              </div>
+            ) : null}
           </div>
 
           {cart.length > 0 && (
@@ -375,14 +553,6 @@ export default function InventoryRequisitionsPage() {
             </div>
           )}
         </div>
-
-        {message ? (
-          <div className={`mb-4 rounded-2xl border px-4 py-3 text-sm ${
-            isError ? 'border-red-200 bg-red-50 text-red-800' : 'border-emerald-200 bg-emerald-50 text-emerald-800'
-          }`}>
-            {message}
-          </div>
-        ) : null}
 
         <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
           <div className="overflow-x-auto">

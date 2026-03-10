@@ -31,6 +31,12 @@ type ApiResponse<T> = {
   error?: string;
 };
 
+type WarehouseOption = {
+  id: number;
+  warehouse_code: string;
+  warehouse_name: string;
+};
+
 function formatNumber(value: number) {
   return new Intl.NumberFormat('th-TH').format(value);
 }
@@ -49,6 +55,9 @@ export default function InventoryReceiptsPage() {
   const [submitting_id, setSubmittingId] = useState<number | null>(null);
   const [message, setMessage] = useState<string>('');
   const [warehouse_id, setWarehouseId] = useState('1');
+  const [warehouses, setWarehouses] = useState<WarehouseOption[]>([]);
+  const [warehousesLoading, setWarehousesLoading] = useState(false);
+  const [warehousesError, setWarehousesError] = useState('');
   const [product_name_filter, setProductNameFilter] = useState('');
 
   const filteredItems = useMemo(() => {
@@ -78,6 +87,32 @@ export default function InventoryReceiptsPage() {
 
   useEffect(() => {
     fetchItems();
+  }, []);
+
+  const fetchWarehouses = async () => {
+    try {
+      setWarehousesLoading(true);
+      setWarehousesError('');
+      const response = await fetch('/api/inventory/warehouses');
+      const payload: ApiResponse<WarehouseOption[]> = await response.json();
+      if (!response.ok || !payload.success) {
+        throw new Error(payload.error || 'โหลดรายชื่อคลังสินค้าไม่สำเร็จ');
+      }
+      const data = payload.data || [];
+      setWarehouses(data);
+      if (data.length > 0) {
+        setWarehouseId(String(data[0].id));
+      }
+    } catch (error) {
+      console.error(error);
+      setWarehousesError(error instanceof Error ? error.message : 'เกิดข้อผิดพลาดในการโหลดรายชื่อคลังสินค้า');
+    } finally {
+      setWarehousesLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchWarehouses();
   }, []);
 
   const handleReceive = async (item: PendingReceiptRow) => {
@@ -139,11 +174,25 @@ export default function InventoryReceiptsPage() {
           </label>
           <label className="text-sm text-slate-600">
             รหัสคลัง
-            <input
+            <select
               value={warehouse_id}
               onChange={(e) => setWarehouseId(e.target.value)}
-              className="mt-2 w-full rounded-xl border border-slate-300 px-3 py-2 text-slate-900 outline-none ring-0 focus:border-blue-500"
-            />
+              className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-slate-900 outline-none ring-0 focus:border-blue-500"
+              disabled={warehousesLoading || warehouses.length === 0}
+            >
+              {warehousesLoading ? (
+                <option value="">กำลังโหลด...</option>
+              ) : warehouses.length === 0 ? (
+                <option value="">ไม่มีคลังสินค้า</option>
+              ) : (
+                warehouses.map((warehouse) => (
+                  <option key={warehouse.id} value={warehouse.id}>
+                    {warehouse.warehouse_code} - {warehouse.warehouse_name}
+                  </option>
+                ))
+              )}
+            </select>
+            {warehousesError ? <p className="mt-2 text-xs text-red-600">{warehousesError}</p> : null}
           </label>
           <div className="rounded-xl bg-slate-50 p-4 text-sm text-slate-600">
             <p className="font-medium text-slate-900">คำแนะนำการใช้งาน</p>
