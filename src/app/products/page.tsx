@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { Suspense, useState, useEffect, useMemo } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import Swal from 'sweetalert2';
 import { Check, X, Pencil, Trash2, ChevronUp, ChevronDown, ArrowUpDown } from 'lucide-react';
@@ -52,7 +52,7 @@ interface ProductFormData {
 
 const PAGE_SIZE_OPTIONS = [10, 20, 50];
 
-export default function ProductsPage() {
+function ProductsPageContent() {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -1522,5 +1522,13 @@ export default function ProductsPage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function ProductsPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-gray-50" />}>
+      <ProductsPageContent />
+    </Suspense>
   );
 }

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import Swal from 'sweetalert2';
 import { Pencil, Trash2, X } from 'lucide-react';
@@ -1340,5 +1340,9 @@ function PurchasePlansPageContent() {
 }
 
 export default function PurchasePlansPage() {
-  return <PurchasePlansPageContent />;
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-gray-50" />}>
+      <PurchasePlansPageContent />
+    </Suspense>
+  );
 }
