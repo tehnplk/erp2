@@ -1463,13 +1463,13 @@ export default function ProductsPage() {
                 ชื่อสินค้า {getSortIcon('name')}
               </th>
               <th onClick={() => handleSort('category')} className={getHeaderClass('category')}>
-                หมวดสินค้า {getSortIcon('category')}
+                หมวด {getSortIcon('category')}
               </th>
               <th onClick={() => handleSort('type')} className={getHeaderClass('type')}>
-                ประเภทสินค้า {getSortIcon('type')}
+                ประเภท {getSortIcon('type')}
               </th>
               <th onClick={() => handleSort('subtype')} className={getHeaderClass('subtype')}>
-                ประเภทสินค้าย่อย {getSortIcon('subtype')}
+                ประเภทย่อย {getSortIcon('subtype')}
               </th>
               <th onClick={() => handleSort('unit')} className={getHeaderClass('unit')}>
                 หน่วยนับ {getSortIcon('unit')}

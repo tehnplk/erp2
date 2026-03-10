@@ -96,6 +96,20 @@ const iconMap = {
   departments: Hospital,
 };
 
+const overviewUnitMap: Record<string, string> = {
+  สินค้า: 'รายการ',
+  แผนการใช้: 'รายการ',
+  แผนจัดซื้อ: 'รายการ',
+  อนุมัติจัดซื้อ: 'รายการ',
+  แผนก: 'หน่วยงาน',
+};
+
+const valueStatUnitMap: Record<string, string> = {
+  มูลค่าแผนการใช้: 'บาท',
+  มูลค่าแผนจัดซื้อ: 'บาท',
+  มูลค่าอนุมัติจัดซื้อ: 'บาท',
+};
+
 const departmentValueLegendItems: LegendItem[] = [
   { key: 'surveyValue', label: 'มูลค่าแผนการใช้', color: '#0f766e' },
   { key: 'planValue', label: 'มูลค่าแผนจัดซื้อ', color: '#2563eb' },
@@ -240,7 +254,14 @@ export default function HomeDashboard({
               className="rounded-2xl border border-slate-200 bg-white px-5 py-4 shadow-sm"
             >
               <p className="text-xs font-semibold uppercase tracking-widest text-slate-500">{stat.label}</p>
-              <p className="mt-3 text-2xl font-bold text-slate-900">{currencyFormatter.format(stat.value)}</p>
+              <p className="mt-3 text-2xl font-bold text-slate-900">
+                {currencyFormatter.format(stat.value)}
+                {valueStatUnitMap[stat.label] && (
+                  <span className="ml-2 align-middle text-base font-medium text-slate-500">
+                    {valueStatUnitMap[stat.label]}
+                  </span>
+                )}
+              </p>
             </div>
           ))}
         </div>
@@ -256,7 +277,14 @@ export default function HomeDashboard({
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm text-slate-500">{item.label}</p>
-                    <p className="mt-2 text-3xl font-bold text-slate-900">{numberFormatter.format(item.value)}</p>
+                    <p className="mt-2 text-3xl font-bold text-slate-900">
+                      {numberFormatter.format(item.value)}
+                      {overviewUnitMap[item.label] && (
+                        <span className="ml-2 align-middle text-base font-medium text-slate-500">
+                          {overviewUnitMap[item.label]}
+                        </span>
+                      )}
+                    </p>
                   </div>
                   <div className={`rounded-2xl p-3 text-white ${item.color}`}>
                     <Icon className="h-6 w-6" />

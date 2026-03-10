@@ -139,8 +139,10 @@ const normalizeChartRows = (rows: ChartRow[]) => rows.map((row) => ({
     { label: 'แผนก', value: departmentCountResult.rows[0]?.count || 0, color: 'bg-green-500', icon: 'departments' as const },
   ];
 
+  const visibleOverview = overview.filter((item) => item.label !== 'สินค้า');
+
   const valueStats = [
-    { label: 'มูลค่าความต้องการ', value: Number(surveyValueResult.rows[0]?.total) || 0 },
+    { label: 'มูลค่าแผนการใช้', value: Number(surveyValueResult.rows[0]?.total) || 0 },
     { label: 'มูลค่าแผนจัดซื้อ', value: Number(planValueResult.rows[0]?.total) || 0 },
     { label: 'มูลค่าอนุมัติจัดซื้อ', value: Number(approvalValueResult.rows[0]?.total) || 0 },
   ];
@@ -150,7 +152,7 @@ const normalizeChartRows = (rows: ChartRow[]) => rows.map((row) => ({
       <div className="container mx-auto px-4 py-8">
         {/* Header */}
         <HomeDashboard
-          overview={overview}
+          overview={visibleOverview}
           valueStats={valueStats}
           productsByCategory={normalizeChartRows(productsByCategoryResult.rows)}
           surveysByDepartment={normalizeChartRows(surveysByDepartmentResult.rows)}

@@ -109,7 +109,8 @@ function SurveysPageContent() {
   const initialPage = Math.max(1, parseInt(searchParams.get('page') || '1', 10) || 1);
   const initialPageSize = Math.max(1, parseInt(searchParams.get('page_size') || '20', 10) || 20);
   const [surveys, setSurveys] = useState<Survey[]>([]);
-  const [summarySurveys, setSummarySurveys] = useState<Survey[]>([]);
+  const [totalRequestedValue, setTotalRequestedValue] = useState(0);
+  const [totalApprovedValue, setTotalApprovedValue] = useState(0);
   const [totalCount, setTotalCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -191,16 +192,16 @@ function SurveysPageContent() {
   const [highlightedProductIndex, setHighlightedProductIndex] = useState(-1);
   const [selectedProductLabel, setSelectedProductLabel] = useState('');
   const [bulkProductSearch, setBulkProductSearch] = useState('');
+  const [bulkProductOptions, setBulkProductOptions] = useState<ProductOption[]>([]);
   const [showBulkProductSuggestions, setShowBulkProductSuggestions] = useState(false);
   const [highlightedBulkProductIndex, setHighlightedBulkProductIndex] = useState(-1);
   const [selectedBulkProductLabel, setSelectedBulkProductLabel] = useState('');
   const [bulkValidationErrors, setBulkValidationErrors] = useState<Record<number, { requestedAmount?: string; requestingDept?: string }>>({});
   const bulkProductSearchAbortRef = useRef<AbortController | null>(null);
   const dataRequestIdRef = useRef(0);
-  const summaryRequestIdRef = useRef(0);
-  const hasMountedSummaryRef = useRef(false);
+  const lastPushedUrlRef = useRef('');
+  const prevFilterKeyRef = useRef('');
 
-  const fallbackBudgetYears = Array.from({ length: 6 }, (_, index) => getCurrentBudgetYear() - index);
   const availableBudgetYears = useMemo(() => {
     return Array.from(new Set([
       ...budgetYears,
@@ -295,7 +296,10 @@ function SurveysPageContent() {
     if (pageSize !== 20) params.set('page_size', pageSize.toString());
 
     const nextUrl = params.toString() ? `${pathname}?${params.toString()}` : pathname;
-    router.replace(nextUrl, { scroll: false });
+    if (lastPushedUrlRef.current !== nextUrl) {
+      lastPushedUrlRef.current = nextUrl;
+      router.replace(nextUrl, { scroll: false });
+    }
   }, [pathname, router, productNameFilter, categoryFilter, typeFilter, subtypeFilter, requestingDeptFilter, budgetYearFilter, sortField, sortOrder, page, pageSize]);
 
   useEffect(() => {
@@ -303,13 +307,9 @@ function SurveysPageContent() {
   }, []);
 
   useEffect(() => {
-    if (!showBulkForm) {
-      return;
-    }
-
     const searchValue = bulkProductSearch.trim();
     if (searchValue.length === 0) {
-      setProductOptions([]);
+      setBulkProductOptions([]);
       setShowBulkProductSuggestions(false);
       setHighlightedBulkProductIndex(-1);
       bulkProductSearchAbortRef.current?.abort();
@@ -340,7 +340,7 @@ function SurveysPageContent() {
         }
 
         const data = await response.json();
-        setProductOptions((data.data || []) as ProductOption[]);
+        setBulkProductOptions((data.data || []) as ProductOption[]);
         setShowBulkProductSuggestions(true);
         setHighlightedBulkProductIndex(-1);
       } catch (error) {
@@ -348,15 +348,15 @@ function SurveysPageContent() {
           return;
         }
         console.error('Error searching bulk product options:', error);
-        setProductOptions([]);
+        setBulkProductOptions([]);
       }
-    }, 250);
+    }, 150);
 
     return () => {
       window.clearTimeout(timeoutId);
       bulkProductSearchAbortRef.current?.abort();
     };
-  }, [bulkProductSearch, showBulkForm]);
+  }, [bulkProductSearch]);
 
   useEffect(() => {
     if (!showBulkForm) {
@@ -388,20 +388,6 @@ function SurveysPageContent() {
   useEffect(() => {
     fetchSurveys();
   }, [productNameFilter, categoryFilter, typeFilter, subtypeFilter, requestingDeptFilter, budgetYearFilter, sortField, sortOrder, page, pageSize]);
-
-  // Fetch summary data when filters change (independent of pagination)
-  useEffect(() => {
-    fetchSummarySurveys();
-  }, [productNameFilter, categoryFilter, typeFilter, subtypeFilter, requestingDeptFilter, budgetYearFilter, sortField, sortOrder]);
-
-  useEffect(() => {
-    if (!hasMountedSummaryRef.current) {
-      hasMountedSummaryRef.current = true;
-      return;
-    }
-
-    setPage((prev) => (prev === 1 ? prev : 1));
-  }, [productNameFilter, categoryFilter, typeFilter, subtypeFilter, requestingDeptFilter, budgetYearFilter, sortField, sortOrder]);
 
   const fetchFilterOptions = async () => {
     try {
@@ -435,9 +421,10 @@ function SurveysPageContent() {
       setHighlightedBulkProductIndex((prev) => (prev <= 0 ? filteredBulkProductOptions.length - 1 : prev - 1));
     }
 
-    if (event.key === 'Enter' && highlightedBulkProductIndex >= 0) {
+    if (event.key === 'Enter') {
       event.preventDefault();
-      const selectedOption = filteredBulkProductOptions[highlightedBulkProductIndex];
+      const selectedIndex = highlightedBulkProductIndex >= 0 ? highlightedBulkProductIndex : 0;
+      const selectedOption = filteredBulkProductOptions[selectedIndex];
       if (selectedOption) {
         handleBulkProductSelect(selectedOption.id, `${selectedOption.code} - ${selectedOption.name}`);
       }
@@ -463,7 +450,7 @@ function SurveysPageContent() {
     && productSearch.trim() !== selectedProductLabel.trim()
     && filteredProductOptions.length === 0;
 
-  const filteredBulkProductOptions = productOptions.slice(0, PRODUCT_SUGGESTION_LIMIT);
+  const filteredBulkProductOptions = bulkProductOptions.slice(0, PRODUCT_SUGGESTION_LIMIT);
 
   const shouldShowBulkProductNoResults = showBulkProductSuggestions
     && bulkProductSearch.trim().length > 0
@@ -540,7 +527,16 @@ function SurveysPageContent() {
       if (budgetYearFilter) params.append('budget_year', budgetYearFilter);
       if (sortField) params.append('order_by', sortField);
       if (sortOrder) params.append('sort_order', sortOrder);
-      params.append('page', page.toString());
+
+      const filterKey = `${productNameFilter}|${categoryFilter}|${typeFilter}|${subtypeFilter}|${requestingDeptFilter}|${budgetYearFilter}|${sortField}|${sortOrder}`;
+      const isFilterChanged = prevFilterKeyRef.current !== '' && prevFilterKeyRef.current !== filterKey;
+      const effectivePage = isFilterChanged ? 1 : page;
+      if (isFilterChanged) {
+        setPage(1);
+      }
+      prevFilterKeyRef.current = filterKey;
+
+      params.append('page', effectivePage.toString());
       params.append('page_size', pageSize.toString());
       
       const response = await fetch(`/api/usage-plans?${params.toString()}`);
@@ -551,6 +547,8 @@ function SurveysPageContent() {
         }
         setSurveys(data.surveys);
         setTotalCount(data.totalCount || 0);
+        setTotalRequestedValue(data.total_requested_value || 0);
+        setTotalApprovedValue(data.total_approved_value || 0);
         if (data.page && data.page !== page) {
           setPage(data.page);
         }
@@ -567,33 +565,6 @@ function SurveysPageContent() {
     }
   };
 
-  // Fetch full filtered dataset for summary (not paginated)
-  const fetchSummarySurveys = async () => {
-    const requestId = ++summaryRequestIdRef.current;
-    try {
-      const params = new URLSearchParams();
-
-      if (productNameFilter) params.append('product_name', productNameFilter);
-      if (categoryFilter) params.append('category', categoryFilter);
-      if (typeFilter) params.append('type', typeFilter);
-      if (subtypeFilter) params.append('subtype', subtypeFilter);
-      if (requestingDeptFilter) params.append('requesting_dept', requestingDeptFilter);
-      if (budgetYearFilter) params.append('budget_year', budgetYearFilter);
-      if (sortField) params.append('order_by', sortField);
-      if (sortOrder) params.append('sort_order', sortOrder);
-
-      const response = await fetch(`/api/usage-plans?${params.toString()}`);
-      if (response.ok) {
-        const data = await response.json();
-        if (requestId !== summaryRequestIdRef.current) {
-          return;
-        }
-        setSummarySurveys(data.surveys || []);
-      }
-    } catch (error) {
-      console.error('Error fetching summary surveys:', error);
-    }
-  };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -705,7 +676,6 @@ function SurveysPageContent() {
         closeForm();
         resetToNewestFirst();
         await fetchSurveys();
-        await fetchSummarySurveys();
         if (savedSurvey?.id) {
           setEditingSurvey(null);
         }
@@ -934,10 +904,17 @@ function SurveysPageContent() {
       });
 
       if (response.ok) {
+        setSurveys((prev) => prev.map((survey) => (
+          survey.id === id
+            ? {
+                ...survey,
+                requested_amount: editData.requested_amount === '' ? null : Number(editData.requested_amount),
+                approved_quota: editData.approved_quota === '' ? null : Number(editData.approved_quota),
+                requesting_dept: editData.requesting_dept || null,
+              }
+            : survey
+        )));
         resetInlineEdit();
-        resetToNewestFirst();
-        await fetchSurveys();
-        await fetchSummarySurveys();
       } else {
         const errorData = await response.json().catch(() => null);
         setToast({
@@ -974,7 +951,17 @@ function SurveysPageContent() {
       return;
     }
 
-    void saveInlineEdit(surveyId);
+    if (!nextFocusedElement) {
+      cancelInlineEdit();
+      return;
+    }
+
+    const nextElement = nextFocusedElement as HTMLElement;
+    if (nextElement.closest('button[title="บันทึก"]') || nextElement.closest('button[title="ยกเลิก"]')) {
+      return;
+    }
+
+    cancelInlineEdit();
   };
 
   const inlineEditableCellClassName = useMemo(
@@ -1028,7 +1015,7 @@ function SurveysPageContent() {
 
   const handleBulkProductSelect = (id: number, value: string) => {
     const normalizedValue = value.trim().toLowerCase();
-    const selectedProduct = productOptions.find((product) => {
+    const selectedProduct = bulkProductOptions.find((product) => {
       const label = `${product.code} - ${product.name}`.toLowerCase();
       return label === normalizedValue || product.code.toLowerCase() === normalizedValue || product.name.toLowerCase() === normalizedValue;
     });
@@ -1167,9 +1154,10 @@ function SurveysPageContent() {
         setShowBulkForm(false);
         setBulkRecords([]);
         setBulkValidationErrors({});
+        setBulkProductSearch('');
+        setBulkProductOptions([]);
         resetToNewestFirst();
         await fetchSurveys();
-        await fetchSummarySurveys();
 
         setToast({
           message: `บันทึกสำเร็จ ${successful} รายการ${failed > 0 ? `, ไม่สำเร็จ ${failed} รายการ` : ''}`,
@@ -1403,13 +1391,13 @@ function SurveysPageContent() {
                 <div className="text-sm">
                 <span className="text-gray-500">มูลค่ารวมที่ขอ: </span>
                 <span className="font-semibold text-gray-900">
-                    ฿{summarySurveys.reduce((sum, s) => sum + ((s.requested_amount || 0) * (s.price_per_unit || 0)), 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    ฿{totalRequestedValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </span>
               </div>
               <div className="text-sm">
                 <span className="text-gray-500">มูลค่ารวมที่อนุมัติ: </span>
                 <span className="font-semibold text-gray-900">
-                    ฿{summarySurveys.reduce((sum, s) => sum + ((s.approved_quota || 0) * (s.price_per_unit || 0)), 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    ฿{totalApprovedValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </span>
               </div>
               </div>
@@ -1488,7 +1476,7 @@ function SurveysPageContent() {
                       ชื่อสินค้า {getSortIcon('product_name')}
                     </th>
                     <th onClick={() => handleSort('category')} className={getHeaderClass('category')}>
-                      หมวดสินค้า {getSortIcon('category')}
+                      หมวด {getSortIcon('category')}
                     </th>
                     <th onClick={() => handleSort('type')} className={getHeaderClass('type')}>
                       ประเภท {getSortIcon('type')}
@@ -1857,6 +1845,8 @@ function SurveysPageContent() {
                   onClick={() => {
                     setShowBulkForm(false);
                     setBulkRecords([]);
+                    setBulkProductSearch('');
+                    setBulkProductOptions([]);
                   }}
                   className="rounded-full p-1.5 text-slate-500 transition-colors hover:bg-white hover:text-slate-700"
                 >
@@ -2086,6 +2076,8 @@ function SurveysPageContent() {
                     setShowBulkForm(false);
                     setBulkRecords([]);
                     setBulkValidationErrors({});
+                    setBulkProductSearch('');
+                    setBulkProductOptions([]);
                   }}
                   className="rounded-lg bg-slate-500 px-6 py-2.5 text-white transition-colors hover:bg-slate-600"
                 >

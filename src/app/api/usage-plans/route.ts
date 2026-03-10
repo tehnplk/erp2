@@ -120,17 +120,23 @@ export async function GET(request: NextRequest) {
 
     const paginatedParams = [...params, pageSize, offset];
 
-    const [surveysResult, totalCountResult] = await Promise.all([
+    const [surveysResult, totalCountResult, summaryResult] = await Promise.all([
       pgQuery(
         `SELECT id, product_code, category, type, subtype, product_name, requested_amount, unit, price_per_unit::float8 AS price_per_unit, requesting_dept, approved_quota, budget_year, sequence_no, created_at, updated_at FROM public.usage_plan ${whereSql} ORDER BY ${safeOrderField} ${orderDirection} LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,
         paginatedParams
       ),
       pgQuery(`SELECT COUNT(*)::int AS count FROM public.usage_plan ${whereSql}`, params),
+      pgQuery(
+        `SELECT COALESCE(SUM(COALESCE(requested_amount,0) * COALESCE(price_per_unit,0)),0)::float8 AS total_requested_value, COALESCE(SUM(COALESCE(approved_quota,0) * COALESCE(price_per_unit,0)),0)::float8 AS total_approved_value FROM public.usage_plan ${whereSql}`,
+        params
+      ),
     ]);
 
     const paginatedResult = {
       surveys: surveysResult.rows,
       totalCount: totalCountResult.rows[0]?.count || 0,
+      total_requested_value: summaryResult.rows[0]?.total_requested_value || 0,
+      total_approved_value: summaryResult.rows[0]?.total_approved_value || 0,
       page,
       page_size: pageSize,
     };
