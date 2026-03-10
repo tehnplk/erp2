@@ -828,7 +828,7 @@ export default function ProductsPage() {
 
             <form onSubmit={handleSubmit} className="space-y-6 px-6 py-6 md:px-8 md:py-8">
               <div className="grid grid-cols-1 gap-6 xl:grid-cols-[1.3fr_0.9fr]">
-                <div className="space-y-6">
+                <div className="space-y-4">
                   <div className={modalCardClassName}>
                     <div className="mb-4">
                       <h4 className="text-sm font-semibold text-gray-900">ข้อมูลหลัก</h4>
@@ -861,57 +861,56 @@ export default function ProductsPage() {
                       </div>
                       <div>
                         <label className="block text-sm font-medium text-gray-700">หมวดหมู่ *</label>
-                        <input
-                          list="product-categories"
+                        <select
                           name="category"
                           value={formData.category}
                           onChange={(e) => handleLookupChange('category', e.target.value)}
                           required
                           className={`${modalInputClassName} ${errors.category ? modalErrorInputClassName : ''}`}
-                        />
-                        <datalist id="product-categories">
+                        >
+                          <option value="">เลือกหมวดหมู่</option>
                           {categories.map((category) => (
-                            <option key={category} value={category} />
+                            <option key={category} value={category}>{category}</option>
                           ))}
-                        </datalist>
+                        </select>
                         {errors.category && <p className="mt-1 text-sm text-red-600">{errors.category}</p>}
                       </div>
                       <div>
                         <label className="block text-sm font-medium text-gray-700">ประเภท *</label>
-                        <input
-                          list="product-types"
+                        <select
                           name="type"
                           value={formData.type}
                           onChange={(e) => handleLookupChange('type', e.target.value)}
                           required
+                          disabled={!formData.category && filteredTypeOptions.length === 0}
                           className={`${modalInputClassName} ${errors.type ? modalErrorInputClassName : ''}`}
-                        />
-                        <datalist id="product-types">
+                        >
+                          <option value="">เลือกประเภท</option>
                           {filteredTypeOptions.map((type) => (
-                            <option key={type} value={type} />
+                            <option key={type} value={type}>{type}</option>
                           ))}
-                        </datalist>
+                        </select>
                         {errors.type && <p className="mt-1 text-sm text-red-600">{errors.type}</p>}
                       </div>
                       <div>
                         <label className="block text-sm font-medium text-gray-700">ชนิดย่อย *</label>
-                        <input
-                          list="product-subtypes"
+                        <select
                           name="subtype"
                           value={formData.subtype}
                           onChange={(e) => handleLookupChange('subtype', e.target.value)}
                           required
+                          disabled={!formData.type && filteredSubtypeOptions.length === 0}
                           className={`${modalInputClassName} ${errors.subtype ? modalErrorInputClassName : ''}`}
-                        />
-                        <datalist id="product-subtypes">
+                        >
+                          <option value="">เลือกชนิดย่อย</option>
                           {filteredSubtypeOptions.map((subtype) => (
-                            <option key={subtype} value={subtype} />
+                            <option key={subtype} value={subtype}>{subtype}</option>
                           ))}
-                        </datalist>
+                        </select>
                         {errors.subtype && <p className="mt-1 text-sm text-red-600">{errors.subtype}</p>}
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-gray-700">หน่วย *</label>
+                        <label className="block text-sm font-medium text-gray-700">หน่วยนับ *</label>
                         <input
                           list="product-units"
                           type="text"
@@ -930,54 +929,35 @@ export default function ProductsPage() {
                       </div>
                     </div>
                   </div>
+                </div>
 
+                <div className="space-y-6">
                   <div className={modalCardClassName}>
                     <div className="mb-4">
-                      <h4 className="text-sm font-semibold text-gray-900">ราคาและคงคลัง</h4>
-                      <p className="text-xs text-gray-500">บันทึกราคาทุน ราคาขาย และข้อมูลสต็อกให้ครบถ้วน</p>
+                      <h4 className="text-sm font-semibold text-gray-900">ข้อมูลราคา</h4>
+                      <p className="text-xs text-gray-500">กำหนดราคาทุนและราคาขายของสินค้า</p>
                     </div>
                     <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                       <div>
                         <label className="block text-sm font-medium text-gray-700">ราคาทุน</label>
                         <input
                           type="number"
-                          step="0.01"
                           name="cost_price"
                           value={formData.cost_price || ''}
                           onChange={handleInputChange}
                           className={modalInputClassName}
+                          step="0.01"
                         />
                       </div>
                       <div>
                         <label className="block text-sm font-medium text-gray-700">ราคาขาย</label>
                         <input
                           type="number"
-                          step="0.01"
                           name="sell_price"
                           value={formData.sell_price || ''}
                           onChange={handleInputChange}
                           className={modalInputClassName}
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700">จำนวนคงคลัง</label>
-                        <input
-                          type="number"
-                          name="stock_balance"
-                          value={formData.stock_balance || ''}
-                          onChange={handleInputChange}
-                          className={modalInputClassName}
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700">มูลค่าสต็อก</label>
-                        <input
-                          type="number"
                           step="0.01"
-                          name="stock_value"
-                          value={formData.stock_value || ''}
-                          onChange={handleInputChange}
-                          className={modalInputClassName}
                         />
                       </div>
                     </div>
@@ -993,35 +973,27 @@ export default function ProductsPage() {
                     <div className="space-y-4">
                       <div>
                         <label className="block text-sm font-medium text-gray-700">รหัสผู้ขาย</label>
-                        <input
-                          list="product-seller-codes"
-                          type="text"
+                        <select
                           name="seller_code"
                           value={formData.seller_code}
                           onChange={handleInputChange}
                           className={modalInputClassName}
-                        />
-                        <datalist id="product-seller-codes">
-                          {sellerOptions.length > 0
-                            ? sellerOptions.map((seller) => (
-                                <option key={seller.code} value={seller.code}>
-                                  {seller.name}
-                                </option>
-                              ))
-                            : sellerCodes.map((sellerCode) => (
-                                <option key={sellerCode} value={sellerCode} />
-                              ))}
-                        </datalist>
+                        >
+                          <option value="">เลือกผู้ขาย</option>
+                          {sellerOptions.map((seller) => (
+                            <option key={seller.code} value={seller.code}>{seller.code} - {seller.name}</option>
+                          ))}
+                        </select>
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-gray-700">รูปภาพ</label>
+                        <label className="block text-sm font-medium text-gray-700">รูปสินค้า (URL)</label>
                         <input
                           type="text"
                           name="image"
                           value={formData.image}
                           onChange={handleInputChange}
-                          placeholder="URL หรือ path ของรูปภาพ"
                           className={modalInputClassName}
+                          placeholder="เช่น https://example.com/image.jpg"
                         />
                       </div>
                       <div>
@@ -1030,8 +1002,8 @@ export default function ProductsPage() {
                           name="admin_note"
                           value={formData.admin_note}
                           onChange={handleInputChange}
-                          rows={8}
-                          className={`${modalInputClassName} min-h-[220px] resize-y`}
+                          className={`${modalInputClassName} h-24`}
+                          placeholder="ข้อมูลเพิ่มเติม ข้อสังเกต หรือการดูแล"
                         />
                       </div>
                     </div>
@@ -1394,22 +1366,16 @@ export default function ProductsPage() {
         
         {/* Summary Section */}
         <div className="px-4 py-3 bg-gray-50 border-b border-gray-200">
-          <div className="flex justify-between items-center">
-            <h3 className="text-lg font-medium text-gray-900">สรุปข้อมูล</h3>
-            <div className="flex items-center space-x-6">
-              <div className="text-sm">
-                <span className="text-gray-500">จำนวนทั้งสิ้น: </span>
-                <span className="font-semibold text-gray-900">{(products || []).length.toLocaleString()} รายการ</span>
-              </div>
-              <div className="text-sm">
-                <span className="text-gray-500">มูลค่ายกมาทั้งหมด: </span>
-                <span className="font-semibold text-gray-900">
-                  ฿{(products || []).reduce((total, product) => total + (product.stock_value ? Number(product.stock_value) : 0), 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                </span>
+            <div className="flex justify-between items-center">
+              <h3 className="text-lg font-medium text-gray-900">สรุปข้อมูล</h3>
+              <div className="flex items-center space-x-6">
+                <div className="text-sm">
+                  <span className="text-gray-500">จำนวนทั้งสิ้น: </span>
+                  <span className="font-semibold text-gray-900">{(products || []).length.toLocaleString()} รายการ</span>
+                </div>
               </div>
             </div>
           </div>
-        </div>
       </div>
 
       {/* Pagination Controls (survey-style) */}
