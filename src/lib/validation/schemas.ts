@@ -192,24 +192,11 @@ export const categoryQuerySchema = z.object({
 
 // Purchase Plan schemas
 export const createPurchasePlanSchema = z.object({
-  product_code: z.string().optional(),
-  category: z.string().optional(),
-  product_name: z.string().optional(),
-  product_type: z.string().optional(),
-  product_subtype: z.string().optional(),
-  unit: z.string().optional(),
-  price_per_unit: numberInput.optional(),
-  budget_year: z.string().optional(),
-  plan_id: nullableIntInput.optional(),
-  in_plan: z.string().optional(),
-  carried_forward_quantity: nullableIntInput.optional(),
-  carried_forward_value: numberInput.optional(),
-  required_quantity_for_year: nullableIntInput.optional(),
-  total_required_value: numberInput.optional(),
-  additional_purchase_qty: nullableIntInput.optional(),
-  additional_purchase_value: numberInput.optional(),
-  usageplan_dept: z.string().optional(),
-  usageplan_dept_code: z.string().optional()
+  usage_plan_id: nullableIntInput.optional(),
+  inventory_qty: nullableIntInput.optional(),
+  inventory_value: numberInput.optional(),
+  purchase_qty: nullableIntInput.optional(),
+  purchase_value: numberInput.optional()
 });
 
 export const updatePurchasePlanSchema = createPurchasePlanSchema.partial();
@@ -217,14 +204,13 @@ export const updatePurchasePlanSchema = createPurchasePlanSchema.partial();
 export const purchasePlanQuerySchema = z.object({
   product_name: z.string().optional(),
   category: z.string().optional(),
-  type: z.string().optional(),
   product_type: z.string().optional(),
   product_subtype: z.string().optional(),
-  requesting_dept: z.string().optional(),
-  usageplan_dept: z.string().optional(),
   budget_year: z.string().optional(),
+  requesting_dept: z.string().optional(),
   order_by: z.enum([
     'id',
+    'sequence_no',
     'product_code',
     'product_name',
     'category',
@@ -232,10 +218,14 @@ export const purchasePlanQuerySchema = z.object({
     'product_subtype',
     'unit',
     'price_per_unit',
-    'required_quantity_for_year',
-    'total_required_value',
+    'requested_amount',
+    'approved_quota',
+    'inventory_qty',
+    'inventory_value',
+    'purchase_qty',
+    'purchase_value',
     'budget_year',
-    'usageplan_dept'
+    'requesting_dept'
   ]).optional(),
   sort_order: z.enum(['asc', 'desc']).optional(),
   ...paginationFields

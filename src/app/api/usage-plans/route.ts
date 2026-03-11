@@ -64,7 +64,7 @@ export async function GET(request: NextRequest) {
 
     if (product_name) {
       params.push(`%${product_name}%`);
-      whereClauses.push(`product_name ILIKE $${params.length}`);
+      whereClauses.push(`(product_name ILIKE $${params.length} OR product_code ILIKE $${params.length})`);
     }
 
     if (category) {

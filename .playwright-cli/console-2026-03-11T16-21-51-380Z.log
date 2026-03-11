@@ -1,0 +1,553 @@
+[  130043ms] [ERROR] Failed to load resource: the server responded with a status of 400 (Bad Request) @ http://localhost:3000/api/products/search?q=P230-001328:0
+[  130043ms] [ERROR] Error searching bulk product options: Error: Failed to search products
+    at PurchasePlansPageContent.useEffect.timeoutId (webpack-internal:///(app-pages-browser)/./src/app/purchase-plans/page.tsx:752:35) @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/next-devtools/userspace/app/errors/intercept-console-error.js:56
+[  142228ms] [ERROR] Failed to load resource: the server responded with a status of 400 (Bad Request) @ http://localhost:3000/api/products/search?q=P230:0
+[  142228ms] [ERROR] Error searching bulk product options: Error: Failed to search products
+    at PurchasePlansPageContent.useEffect.timeoutId (webpack-internal:///(app-pages-browser)/./src/app/purchase-plans/page.tsx:752:35) @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/next-devtools/userspace/app/errors/intercept-console-error.js:56
+[  266585ms] [ERROR] ./src/app/purchase-plans/page.tsx
+Error:   × Expression expected
+     ╭─[E:\NextJS\erp\src\app\purchase-plans\page.tsx:728:1]
+ 725 │ 
+ 726 │       setBulkProductOptions([]);
+ 727 │     }
+ 728 │   }, 150);
+     ·   ─
+ 729 │ 
+ 730 │   return () => {
+ 731 │     window.clearTimeout(timeoutId);
+     ╰────
+
+Caused by:
+    Syntax Error
+
+Import trace for requested module:
+./src/app/purchase-plans/page.tsx @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/next-devtools/userspace/app/errors/intercept-console-error.js:56
+[  266861ms] [ERROR] ./src/app/purchase-plans/page.tsx
+Error:   × Expression expected
+     ╭─[E:\NextJS\erp\src\app\purchase-plans\page.tsx:728:1]
+ 725 │ 
+ 726 │       setBulkProductOptions([]);
+ 727 │     }
+ 728 │   }, 150);
+     ·   ─
+ 729 │ 
+ 730 │   return () => {
+ 731 │     window.clearTimeout(timeoutId);
+     ╰────
+
+Caused by:
+    Syntax Error
+
+Import trace for requested module:
+./src/app/purchase-plans/page.tsx @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/next-devtools/userspace/app/errors/intercept-console-error.js:56
+[  271257ms] [ERROR] ./src/app/purchase-plans/page.tsx
+Error:   × Expression expected
+     ╭─[E:\NextJS\erp\src\app\purchase-plans\page.tsx:728:1]
+ 725 │ 
+ 726 │       setBulkProductOptions([]);
+ 727 │     }
+ 728 │   }, 150);
+     ·   ─
+ 729 │ 
+ 730 │   return () => {
+ 731 │     window.clearTimeout(timeoutId);
+     ╰────
+
+Caused by:
+    Syntax Error
+
+Import trace for requested module:
+./src/app/purchase-plans/page.tsx @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/next-devtools/userspace/app/errors/intercept-console-error.js:56
+[  271563ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:3000/purchase-plans?_rsc=1y53n:0
+[  272213ms] [ERROR] ./src/app/purchase-plans/page.tsx
+Error:   × Expression expected
+     ╭─[E:\NextJS\erp\src\app\purchase-plans\page.tsx:728:1]
+ 725 │ 
+ 726 │       setBulkProductOptions([]);
+ 727 │     }
+ 728 │   }, 150);
+     ·   ─
+ 729 │ 
+ 730 │   return () => {
+ 731 │     window.clearTimeout(timeoutId);
+     ╰────
+
+Caused by:
+    Syntax Error
+
+Import trace for requested module:
+./src/app/purchase-plans/page.tsx @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/next-devtools/userspace/app/errors/intercept-console-error.js:56
+[  272440ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:3000/purchase-plans?_rsc=1y53n:0
+[  272657ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:3000/purchase-plans?_rsc=1y53n:0
+[  272871ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:3000/purchase-plans?_rsc=1y53n:0
+[  273068ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:3000/purchase-plans?_rsc=1y53n:0
+[  273318ms] [ERROR] ./src/app/purchase-plans/page.tsx
+Error:   × Expression expected
+     ╭─[E:\NextJS\erp\src\app\purchase-plans\page.tsx:728:1]
+ 725 │ 
+ 726 │       setBulkProductOptions([]);
+ 727 │     }
+ 728 │   }, 150);
+     ·   ─
+ 729 │ 
+ 730 │   return () => {
+ 731 │     window.clearTimeout(timeoutId);
+     ╰────
+
+Caused by:
+    Syntax Error
+
+Import trace for requested module:
+./src/app/purchase-plans/page.tsx @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/next-devtools/userspace/app/errors/intercept-console-error.js:56
+[  273525ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:3000/purchase-plans?_rsc=1y53n:0
+[  273704ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:3000/_next/static/webpack/e67c3d2542c9ea46.webpack.hot-update.json:0
+[  273818ms] [ERROR] ./src/app/purchase-plans/page.tsx
+Error:   × Expression expected
+     ╭─[E:\NextJS\erp\src\app\purchase-plans\page.tsx:728:1]
+ 725 │ 
+ 726 │       setBulkProductOptions([]);
+ 727 │     }
+ 728 │   }, 150);
+     ·   ─
+ 729 │ 
+ 730 │   return () => {
+ 731 │     window.clearTimeout(timeoutId);
+     ╰────
+
+Caused by:
+    Syntax Error
+
+Import trace for requested module:
+./src/app/purchase-plans/page.tsx @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/next-devtools/userspace/app/errors/intercept-console-error.js:56
+[  274283ms] [ERROR] ./src/app/purchase-plans/page.tsx
+Error:   × Expression expected
+     ╭─[E:\NextJS\erp\src\app\purchase-plans\page.tsx:728:1]
+ 725 │ 
+ 726 │       setBulkProductOptions([]);
+ 727 │     }
+ 728 │   }, 150);
+     ·   ─
+ 729 │ 
+ 730 │   return () => {
+ 731 │     window.clearTimeout(timeoutId);
+     ╰────
+
+Caused by:
+    Syntax Error
+
+Import trace for requested module:
+./src/app/purchase-plans/page.tsx @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/next-devtools/userspace/app/errors/intercept-console-error.js:56
+[  274602ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:3000/purchase-plans?_rsc=1y53n:0
+[  274969ms] [ERROR] ./src/app/purchase-plans/page.tsx
+Error:   × Expression expected
+     ╭─[E:\NextJS\erp\src\app\purchase-plans\page.tsx:728:1]
+ 725 │ 
+ 726 │       setBulkProductOptions([]);
+ 727 │     }
+ 728 │   }, 150);
+     ·   ─
+ 729 │ 
+ 730 │   return () => {
+ 731 │     window.clearTimeout(timeoutId);
+     ╰────
+
+Caused by:
+    Syntax Error
+
+Import trace for requested module:
+./src/app/purchase-plans/page.tsx @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/next-devtools/userspace/app/errors/intercept-console-error.js:56
+[  275212ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:3000/purchase-plans?_rsc=1y53n:0
+[  275222ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:3000/purchase-plans:0
+[  275784ms] ModuleBuildError: Module build failed (from ./node_modules/next/dist/build/webpack/loaders/next-swc-loader.js):
+Error:   × Expression expected
+     ╭─[E:\NextJS\erp\src\app\purchase-plans\page.tsx:728:1]
+ 725 │ 
+ 726 │       setBulkProductOptions([]);
+ 727 │     }
+ 728 │   }, 150);
+     ·   ─
+ 729 │ 
+ 730 │   return () => {
+ 731 │     window.clearTimeout(timeoutId);
+     ╰────
+
+
+Caused by:
+    Syntax Error
+    at processResult (file://E:\NextJS\erp\node_modules\next\dist\compiled\webpack\bundle5.js:29:407086)
+    at <unknown> (file://E:\NextJS\erp\node_modules\next\dist\compiled\webpack\bundle5.js:29:408881)
+    at <unknown> (file://E:\NextJS\erp\node_modules\next\dist\compiled\loader-runner\LoaderRunner.js:1:8645)
+    at <unknown> (file://E:\NextJS\erp\node_modules\next\dist\compiled\loader-runner\LoaderRunner.js:1:5019)
+    at r.callback (file://E:\NextJS\erp\node_modules\next\dist\compiled\loader-runner\LoaderRunner.js:1:4039)
+[  275786ms] [ERROR] ./src/app/purchase-plans/page.tsx
+Error:   × Expression expected
+     ╭─[E:\NextJS\erp\src\app\purchase-plans\page.tsx:728:1]
+ 725 │ 
+ 726 │       setBulkProductOptions([]);
+ 727 │     }
+ 728 │   }, 150);
+     ·   ─
+ 729 │ 
+ 730 │   return () => {
+ 731 │     window.clearTimeout(timeoutId);
+     ╰────
+
+Caused by:
+    Syntax Error @ webpack-internal:///(pages-dir-browser)/./node_modules/next/dist/next-devtools/userspace/pages/pages-dev-overlay-setup.js:76
+[  275840ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:3000/_next/static/webpack/96e2f97798e6805c.webpack.hot-update.json:0
+[  275840ms] [WARNING] [Fast Refresh] performing full reload because your application had an unrecoverable error @ webpack-internal:///(pages-dir-browser)/./node_modules/next/dist/client/dev/hot-reloader/pages/hot-reloader-pages.js:347
+[  276197ms] [ERROR] ./src/app/purchase-plans/page.tsx
+Error:   × Expression expected
+     ╭─[E:\NextJS\erp\src\app\purchase-plans\page.tsx:728:1]
+ 725 │ 
+ 726 │       setBulkProductOptions([]);
+ 727 │     }
+ 728 │   }, 150);
+     ·   ─
+ 729 │ 
+ 730 │   return () => {
+ 731 │     window.clearTimeout(timeoutId);
+     ╰────
+
+Caused by:
+    Syntax Error
+
+Import trace for requested module:
+./src/app/purchase-plans/page.tsx @ webpack-internal:///(pages-dir-browser)/./node_modules/next/dist/next-devtools/userspace/pages/pages-dev-overlay-setup.js:76
+[  276259ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:3000/_next/static/webpack/96e2f97798e6805c.webpack.hot-update.json:0
+[  276259ms] [WARNING] [Fast Refresh] performing full reload because your application had an unrecoverable error @ webpack-internal:///(pages-dir-browser)/./node_modules/next/dist/client/dev/hot-reloader/pages/hot-reloader-pages.js:347
+[  276463ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:3000/_next/static/webpack/96e2f97798e6805c.webpack.hot-update.json:0
+[  276464ms] [WARNING] [Fast Refresh] performing full reload because your application had an unrecoverable error @ webpack-internal:///(pages-dir-browser)/./node_modules/next/dist/client/dev/hot-reloader/pages/hot-reloader-pages.js:347
+[  276596ms] [ERROR] ./src/app/purchase-plans/page.tsx
+Error:   × Expression expected
+     ╭─[E:\NextJS\erp\src\app\purchase-plans\page.tsx:728:1]
+ 725 │ 
+ 726 │       setBulkProductOptions([]);
+ 727 │     }
+ 728 │   }, 150);
+     ·   ─
+ 729 │ 
+ 730 │   return () => {
+ 731 │     window.clearTimeout(timeoutId);
+     ╰────
+
+Caused by:
+    Syntax Error
+
+Import trace for requested module:
+./src/app/purchase-plans/page.tsx @ webpack-internal:///(pages-dir-browser)/./node_modules/next/dist/next-devtools/userspace/pages/pages-dev-overlay-setup.js:76
+[  276951ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:3000/_next/static/webpack/96e2f97798e6805c.webpack.hot-update.json:0
+[  276951ms] [WARNING] [Fast Refresh] performing full reload because your application had an unrecoverable error @ webpack-internal:///(pages-dir-browser)/./node_modules/next/dist/client/dev/hot-reloader/pages/hot-reloader-pages.js:347
+[  277027ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:3000/_next/static/webpack/96e2f97798e6805c.webpack.hot-update.json:0
+[  277028ms] [WARNING] [Fast Refresh] performing full reload because your application had an unrecoverable error @ webpack-internal:///(pages-dir-browser)/./node_modules/next/dist/client/dev/hot-reloader/pages/hot-reloader-pages.js:347
+[  277171ms] [ERROR] ./src/app/purchase-plans/page.tsx
+Error:   × Expression expected
+     ╭─[E:\NextJS\erp\src\app\purchase-plans\page.tsx:728:1]
+ 725 │ 
+ 726 │       setBulkProductOptions([]);
+ 727 │     }
+ 728 │   }, 150);
+     ·   ─
+ 729 │ 
+ 730 │   return () => {
+ 731 │     window.clearTimeout(timeoutId);
+     ╰────
+
+Caused by:
+    Syntax Error
+
+Import trace for requested module:
+./src/app/purchase-plans/page.tsx @ webpack-internal:///(pages-dir-browser)/./node_modules/next/dist/next-devtools/userspace/pages/pages-dev-overlay-setup.js:76
+[  277204ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:3000/_next/static/webpack/96e2f97798e6805c.webpack.hot-update.json:0
+[  277204ms] [WARNING] [Fast Refresh] performing full reload because your application had an unrecoverable error @ webpack-internal:///(pages-dir-browser)/./node_modules/next/dist/client/dev/hot-reloader/pages/hot-reloader-pages.js:347
+[  277460ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:3000/_next/static/webpack/96e2f97798e6805c.webpack.hot-update.json:0
+[  277460ms] [WARNING] [Fast Refresh] performing full reload because your application had an unrecoverable error @ webpack-internal:///(pages-dir-browser)/./node_modules/next/dist/client/dev/hot-reloader/pages/hot-reloader-pages.js:347
+[  277609ms] [ERROR] ./src/app/purchase-plans/page.tsx
+Error:   × Expression expected
+     ╭─[E:\NextJS\erp\src\app\purchase-plans\page.tsx:728:1]
+ 725 │ 
+ 726 │       setBulkProductOptions([]);
+ 727 │     }
+ 728 │   }, 150);
+     ·   ─
+ 729 │ 
+ 730 │   return () => {
+ 731 │     window.clearTimeout(timeoutId);
+     ╰────
+
+Caused by:
+    Syntax Error
+
+Import trace for requested module:
+./src/app/purchase-plans/page.tsx @ webpack-internal:///(pages-dir-browser)/./node_modules/next/dist/next-devtools/userspace/pages/pages-dev-overlay-setup.js:76
+[  277800ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:3000/favicon.ico:0
+[  278041ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:3000/_next/static/webpack/96e2f97798e6805c.webpack.hot-update.json:0
+[  278042ms] [WARNING] [Fast Refresh] performing full reload because your application had an unrecoverable error @ webpack-internal:///(pages-dir-browser)/./node_modules/next/dist/client/dev/hot-reloader/pages/hot-reloader-pages.js:347
+[  278111ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:3000/_next/static/webpack/96e2f97798e6805c.webpack.hot-update.json:0
+[  278111ms] [WARNING] [Fast Refresh] performing full reload because your application had an unrecoverable error @ webpack-internal:///(pages-dir-browser)/./node_modules/next/dist/client/dev/hot-reloader/pages/hot-reloader-pages.js:347
+[  278258ms] [ERROR] ./src/app/purchase-plans/page.tsx
+Error:   × Expression expected
+     ╭─[E:\NextJS\erp\src\app\purchase-plans\page.tsx:728:1]
+ 725 │ 
+ 726 │       setBulkProductOptions([]);
+ 727 │     }
+ 728 │   }, 150);
+     ·   ─
+ 729 │ 
+ 730 │   return () => {
+ 731 │     window.clearTimeout(timeoutId);
+     ╰────
+
+Caused by:
+    Syntax Error
+
+Import trace for requested module:
+./src/app/purchase-plans/page.tsx @ webpack-internal:///(pages-dir-browser)/./node_modules/next/dist/next-devtools/userspace/pages/pages-dev-overlay-setup.js:76
+[  278305ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:3000/_next/static/webpack/96e2f97798e6805c.webpack.hot-update.json:0
+[  278305ms] [WARNING] [Fast Refresh] performing full reload because your application had an unrecoverable error @ webpack-internal:///(pages-dir-browser)/./node_modules/next/dist/client/dev/hot-reloader/pages/hot-reloader-pages.js:347
+[  278489ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:3000/_next/static/webpack/96e2f97798e6805c.webpack.hot-update.json:0
+[  278490ms] [WARNING] [Fast Refresh] performing full reload because your application had an unrecoverable error @ webpack-internal:///(pages-dir-browser)/./node_modules/next/dist/client/dev/hot-reloader/pages/hot-reloader-pages.js:347
+[  278581ms] [ERROR] ./src/app/purchase-plans/page.tsx
+Error:   × Expression expected
+     ╭─[E:\NextJS\erp\src\app\purchase-plans\page.tsx:728:1]
+ 725 │ 
+ 726 │       setBulkProductOptions([]);
+ 727 │     }
+ 728 │   }, 150);
+     ·   ─
+ 729 │ 
+ 730 │   return () => {
+ 731 │     window.clearTimeout(timeoutId);
+     ╰────
+
+Caused by:
+    Syntax Error
+
+Import trace for requested module:
+./src/app/purchase-plans/page.tsx @ webpack-internal:///(pages-dir-browser)/./node_modules/next/dist/next-devtools/userspace/pages/pages-dev-overlay-setup.js:76
+[  278740ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:3000/_next/static/webpack/96e2f97798e6805c.webpack.hot-update.json:0
+[  278741ms] [WARNING] [Fast Refresh] performing full reload because your application had an unrecoverable error @ webpack-internal:///(pages-dir-browser)/./node_modules/next/dist/client/dev/hot-reloader/pages/hot-reloader-pages.js:347
+[  278824ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:3000/_next/static/webpack/96e2f97798e6805c.webpack.hot-update.json:0
+[  278824ms] [WARNING] [Fast Refresh] performing full reload because your application had an unrecoverable error @ webpack-internal:///(pages-dir-browser)/./node_modules/next/dist/client/dev/hot-reloader/pages/hot-reloader-pages.js:347
+[  278917ms] [ERROR] ./src/app/purchase-plans/page.tsx
+Error:   × Expression expected
+     ╭─[E:\NextJS\erp\src\app\purchase-plans\page.tsx:790:1]
+ 787 │     });
+ 788 │ 
+ 789 │     return () => window.cancelAnimationFrame(focusFrame);
+ 790 │   }, [showBulkForm]);
+     ·    ─
+ 791 │ 
+ 792 │   useEffect(() => {
+ 793 │     if (!showBulkProductSuggestions || highlightedBulkProductIndex < 0) {
+     ╰────
+
+Caused by:
+    Syntax Error
+
+Import trace for requested module:
+./src/app/purchase-plans/page.tsx @ webpack-internal:///(pages-dir-browser)/./node_modules/next/dist/next-devtools/userspace/pages/pages-dev-overlay-setup.js:76
+[  279391ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:3000/_next/static/webpack/96e2f97798e6805c.webpack.hot-update.json:0
+[  279391ms] [WARNING] [Fast Refresh] performing full reload because your application had an unrecoverable error @ webpack-internal:///(pages-dir-browser)/./node_modules/next/dist/client/dev/hot-reloader/pages/hot-reloader-pages.js:347
+[  279463ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:3000/_next/static/webpack/96e2f97798e6805c.webpack.hot-update.json:0
+[  279463ms] [WARNING] [Fast Refresh] performing full reload because your application had an unrecoverable error @ webpack-internal:///(pages-dir-browser)/./node_modules/next/dist/client/dev/hot-reloader/pages/hot-reloader-pages.js:347
+[  279592ms] [ERROR] ./src/app/purchase-plans/page.tsx
+Error:   × Expression expected
+     ╭─[E:\NextJS\erp\src\app\purchase-plans\page.tsx:790:1]
+ 787 │     });
+ 788 │ 
+ 789 │     return () => window.cancelAnimationFrame(focusFrame);
+ 790 │   }, [showBulkForm]);
+     ·    ─
+ 791 │ 
+ 792 │   useEffect(() => {
+ 793 │     if (!showBulkProductSuggestions || highlightedBulkProductIndex < 0) {
+     ╰────
+
+Caused by:
+    Syntax Error
+
+Import trace for requested module:
+./src/app/purchase-plans/page.tsx @ webpack-internal:///(pages-dir-browser)/./node_modules/next/dist/next-devtools/userspace/pages/pages-dev-overlay-setup.js:76
+[  279623ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:3000/_next/static/webpack/96e2f97798e6805c.webpack.hot-update.json:0
+[  279624ms] [WARNING] [Fast Refresh] performing full reload because your application had an unrecoverable error @ webpack-internal:///(pages-dir-browser)/./node_modules/next/dist/client/dev/hot-reloader/pages/hot-reloader-pages.js:347
+[  279887ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:3000/_next/static/webpack/96e2f97798e6805c.webpack.hot-update.json:0
+[  279887ms] [WARNING] [Fast Refresh] performing full reload because your application had an unrecoverable error @ webpack-internal:///(pages-dir-browser)/./node_modules/next/dist/client/dev/hot-reloader/pages/hot-reloader-pages.js:347
+[  279987ms] [ERROR] ./src/app/purchase-plans/page.tsx
+Error:   × Expression expected
+     ╭─[E:\NextJS\erp\src\app\purchase-plans\page.tsx:790:1]
+ 787 │     });
+ 788 │ 
+ 789 │     return () => window.cancelAnimationFrame(focusFrame);
+ 790 │   }, [showBulkForm]);
+     ·    ─
+ 791 │ 
+ 792 │   useEffect(() => {
+ 793 │     if (!showBulkProductSuggestions || highlightedBulkProductIndex < 0) {
+     ╰────
+
+Caused by:
+    Syntax Error
+
+Import trace for requested module:
+./src/app/purchase-plans/page.tsx @ webpack-internal:///(pages-dir-browser)/./node_modules/next/dist/next-devtools/userspace/pages/pages-dev-overlay-setup.js:76
+[  280328ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:3000/_next/static/webpack/96e2f97798e6805c.webpack.hot-update.json:0
+[  280328ms] [WARNING] [Fast Refresh] performing full reload because your application had an unrecoverable error @ webpack-internal:///(pages-dir-browser)/./node_modules/next/dist/client/dev/hot-reloader/pages/hot-reloader-pages.js:347
+[  280387ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:3000/_next/static/webpack/96e2f97798e6805c.webpack.hot-update.json:0
+[  280387ms] [WARNING] [Fast Refresh] performing full reload because your application had an unrecoverable error @ webpack-internal:///(pages-dir-browser)/./node_modules/next/dist/client/dev/hot-reloader/pages/hot-reloader-pages.js:347
+[  280488ms] [ERROR] ./src/app/purchase-plans/page.tsx
+Error:   × Expression expected
+     ╭─[E:\NextJS\erp\src\app\purchase-plans\page.tsx:790:1]
+ 787 │     });
+ 788 │ 
+ 789 │     return () => window.cancelAnimationFrame(focusFrame);
+ 790 │   }, [showBulkForm]);
+     ·    ─
+ 791 │ 
+ 792 │   useEffect(() => {
+ 793 │     if (!showBulkProductSuggestions || highlightedBulkProductIndex < 0) {
+     ╰────
+
+Caused by:
+    Syntax Error
+
+Import trace for requested module:
+./src/app/purchase-plans/page.tsx @ webpack-internal:///(pages-dir-browser)/./node_modules/next/dist/next-devtools/userspace/pages/pages-dev-overlay-setup.js:76
+[  280520ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:3000/_next/static/webpack/96e2f97798e6805c.webpack.hot-update.json:0
+[  280520ms] [WARNING] [Fast Refresh] performing full reload because your application had an unrecoverable error @ webpack-internal:///(pages-dir-browser)/./node_modules/next/dist/client/dev/hot-reloader/pages/hot-reloader-pages.js:347
+[  280692ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:3000/_next/static/webpack/96e2f97798e6805c.webpack.hot-update.json:0
+[  280692ms] [WARNING] [Fast Refresh] performing full reload because your application had an unrecoverable error @ webpack-internal:///(pages-dir-browser)/./node_modules/next/dist/client/dev/hot-reloader/pages/hot-reloader-pages.js:347
+[  280792ms] [ERROR] ./src/app/purchase-plans/page.tsx
+Error:   × Expression expected
+     ╭─[E:\NextJS\erp\src\app\purchase-plans\page.tsx:790:1]
+ 787 │     });
+ 788 │ 
+ 789 │     return () => window.cancelAnimationFrame(focusFrame);
+ 790 │   }, [showBulkForm]);
+     ·    ─
+ 791 │ 
+ 792 │   useEffect(() => {
+ 793 │     if (!showBulkProductSuggestions || highlightedBulkProductIndex < 0) {
+     ╰────
+
+Caused by:
+    Syntax Error
+
+Import trace for requested module:
+./src/app/purchase-plans/page.tsx @ webpack-internal:///(pages-dir-browser)/./node_modules/next/dist/next-devtools/userspace/pages/pages-dev-overlay-setup.js:76
+[  281140ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:3000/_next/static/webpack/96e2f97798e6805c.webpack.hot-update.json:0
+[  281141ms] [WARNING] [Fast Refresh] performing full reload because your application had an unrecoverable error @ webpack-internal:///(pages-dir-browser)/./node_modules/next/dist/client/dev/hot-reloader/pages/hot-reloader-pages.js:347
+[  281203ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:3000/_next/static/webpack/96e2f97798e6805c.webpack.hot-update.json:0
+[  281203ms] [WARNING] [Fast Refresh] performing full reload because your application had an unrecoverable error @ webpack-internal:///(pages-dir-browser)/./node_modules/next/dist/client/dev/hot-reloader/pages/hot-reloader-pages.js:347
+[  281305ms] [ERROR] ./src/app/purchase-plans/page.tsx
+Error:   × Expression expected
+     ╭─[E:\NextJS\erp\src\app\purchase-plans\page.tsx:790:1]
+ 787 │     });
+ 788 │ 
+ 789 │     return () => window.cancelAnimationFrame(focusFrame);
+ 790 │   }, [showBulkForm]);
+     ·    ─
+ 791 │ 
+ 792 │   useEffect(() => {
+ 793 │     if (!showBulkProductSuggestions || highlightedBulkProductIndex < 0) {
+     ╰────
+
+Caused by:
+    Syntax Error
+
+Import trace for requested module:
+./src/app/purchase-plans/page.tsx @ webpack-internal:///(pages-dir-browser)/./node_modules/next/dist/next-devtools/userspace/pages/pages-dev-overlay-setup.js:76
+[  281328ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:3000/_next/static/webpack/96e2f97798e6805c.webpack.hot-update.json:0
+[  281328ms] [WARNING] [Fast Refresh] performing full reload because your application had an unrecoverable error @ webpack-internal:///(pages-dir-browser)/./node_modules/next/dist/client/dev/hot-reloader/pages/hot-reloader-pages.js:347
+[  281508ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:3000/_next/static/webpack/96e2f97798e6805c.webpack.hot-update.json:0
+[  281508ms] [WARNING] [Fast Refresh] performing full reload because your application had an unrecoverable error @ webpack-internal:///(pages-dir-browser)/./node_modules/next/dist/client/dev/hot-reloader/pages/hot-reloader-pages.js:347
+[  281597ms] [ERROR] ./src/app/purchase-plans/page.tsx
+Error:   × Expression expected
+     ╭─[E:\NextJS\erp\src\app\purchase-plans\page.tsx:790:1]
+ 787 │     });
+ 788 │ 
+ 789 │     return () => window.cancelAnimationFrame(focusFrame);
+ 790 │   }, [showBulkForm]);
+     ·    ─
+ 791 │ 
+ 792 │   useEffect(() => {
+ 793 │     if (!showBulkProductSuggestions || highlightedBulkProductIndex < 0) {
+     ╰────
+
+Caused by:
+    Syntax Error
+
+Import trace for requested module:
+./src/app/purchase-plans/page.tsx @ webpack-internal:///(pages-dir-browser)/./node_modules/next/dist/next-devtools/userspace/pages/pages-dev-overlay-setup.js:76
+[  281976ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:3000/_next/static/webpack/96e2f97798e6805c.webpack.hot-update.json:0
+[  281977ms] [WARNING] [Fast Refresh] performing full reload because your application had an unrecoverable error @ webpack-internal:///(pages-dir-browser)/./node_modules/next/dist/client/dev/hot-reloader/pages/hot-reloader-pages.js:347
+[  282009ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:3000/_next/static/webpack/96e2f97798e6805c.webpack.hot-update.json:0
+[  282009ms] [WARNING] [Fast Refresh] performing full reload because your application had an unrecoverable error @ webpack-internal:///(pages-dir-browser)/./node_modules/next/dist/client/dev/hot-reloader/pages/hot-reloader-pages.js:347
+[  282109ms] [ERROR] ./src/app/purchase-plans/page.tsx
+Error:   × Expression expected
+     ╭─[E:\NextJS\erp\src\app\purchase-plans\page.tsx:790:1]
+ 787 │     });
+ 788 │ 
+ 789 │     return () => window.cancelAnimationFrame(focusFrame);
+ 790 │   }, [showBulkForm]);
+     ·    ─
+ 791 │ 
+ 792 │   useEffect(() => {
+ 793 │     if (!showBulkProductSuggestions || highlightedBulkProductIndex < 0) {
+     ╰────
+
+Caused by:
+    Syntax Error
+
+Import trace for requested module:
+./src/app/purchase-plans/page.tsx @ webpack-internal:///(pages-dir-browser)/./node_modules/next/dist/next-devtools/userspace/pages/pages-dev-overlay-setup.js:76
+[  282136ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:3000/_next/static/webpack/96e2f97798e6805c.webpack.hot-update.json:0
+[  282137ms] [WARNING] [Fast Refresh] performing full reload because your application had an unrecoverable error @ webpack-internal:///(pages-dir-browser)/./node_modules/next/dist/client/dev/hot-reloader/pages/hot-reloader-pages.js:347
+[  282330ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:3000/_next/static/webpack/96e2f97798e6805c.webpack.hot-update.json:0
+[  282331ms] [WARNING] [Fast Refresh] performing full reload because your application had an unrecoverable error @ webpack-internal:///(pages-dir-browser)/./node_modules/next/dist/client/dev/hot-reloader/pages/hot-reloader-pages.js:347
+[  282440ms] [ERROR] ./src/app/purchase-plans/page.tsx
+Error:   × Expression expected
+     ╭─[E:\NextJS\erp\src\app\purchase-plans\page.tsx:790:1]
+ 787 │     });
+ 788 │ 
+ 789 │     return () => window.cancelAnimationFrame(focusFrame);
+ 790 │   }, [showBulkForm]);
+     ·    ─
+ 791 │ 
+ 792 │   useEffect(() => {
+ 793 │     if (!showBulkProductSuggestions || highlightedBulkProductIndex < 0) {
+     ╰────
+
+Caused by:
+    Syntax Error
+
+Import trace for requested module:
+./src/app/purchase-plans/page.tsx @ webpack-internal:///(pages-dir-browser)/./node_modules/next/dist/next-devtools/userspace/pages/pages-dev-overlay-setup.js:76
+[  282847ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:3000/_next/static/webpack/96e2f97798e6805c.webpack.hot-update.json:0
+[  282848ms] [WARNING] [Fast Refresh] performing full reload because your application had an unrecoverable error @ webpack-internal:///(pages-dir-browser)/./node_modules/next/dist/client/dev/hot-reloader/pages/hot-reloader-pages.js:347
+[  282953ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:3000/_next/static/webpack/96e2f97798e6805c.webpack.hot-update.json:0
+[  282953ms] [WARNING] [Fast Refresh] performing full reload because your application had an unrecoverable error @ webpack-internal:///(pages-dir-browser)/./node_modules/next/dist/client/dev/hot-reloader/pages/hot-reloader-pages.js:347
+[  283113ms] [ERROR] ./src/app/purchase-plans/page.tsx
+Error:   × Expression expected
+     ╭─[E:\NextJS\erp\src\app\purchase-plans\page.tsx:790:1]
+ 787 │     });
+ 788 │ 
+ 789 │     return () => window.cancelAnimationFrame(focusFrame);
+ 790 │   }, [showBulkForm]);
+     ·    ─
+ 791 │ 
+ 792 │   useEffect(() => {
+ 793 │     if (!showBulkProductSuggestions || highlightedBulkProductIndex < 0) {
+     ╰────
+
+Caused by:
+    Syntax Error
+
+Import trace for requested module:
+./src/app/purchase-plans/page.tsx @ webpack-internal:///(pages-dir-browser)/./node_modules/next/dist/next-devtools/userspace/pages/pages-dev-overlay-setup.js:76
+[  283154ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:3000/_next/static/webpack/96e2f97798e6805c.webpack.hot-update.json:0
+[  283154ms] [WARNING] [Fast Refresh] performing full reload because your application had an unrecoverable error @ webpack-internal:///(pages-dir-browser)/./node_modules/next/dist/client/dev/hot-reloader/pages/hot-reloader-pages.js:347
+[  283447ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:3000/_next/static/webpack/96e2f97798e6805c.webpack.hot-update.json:0
+[  283447ms] [WARNING] [Fast Refresh] performing full reload because your application had an unrecoverable error @ webpack-internal:///(pages-dir-browser)/./node_modules/next/dist/client/dev/hot-reloader/pages/hot-reloader-pages.js:347
+[  285166ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:3000/_next/static/webpack/96e2f97798e6805c.webpack.hot-update.json:0
+[  285167ms] [WARNING] [Fast Refresh] performing full reload because your application had an unrecoverable error @ webpack-internal:///(pages-dir-browser)/./node_modules/next/dist/client/dev/hot-reloader/pages/hot-reloader-pages.js:347

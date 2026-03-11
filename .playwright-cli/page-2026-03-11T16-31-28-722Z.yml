@@ -1,0 +1,84 @@
+- generic [active] [ref=e1]:
+  - navigation [ref=e2]:
+    - generic [ref=e4]:
+      - link "Hospital ERP" [ref=e5] [cursor=pointer]:
+        - /url: /
+        - img [ref=e6]
+        - generic [ref=e10]: Hospital ERP
+      - generic [ref=e11]:
+        - link "หน้าหลัก" [ref=e12] [cursor=pointer]:
+          - /url: /
+          - img [ref=e13]
+          - text: หน้าหลัก
+        - link "แผนการใช้" [ref=e16] [cursor=pointer]:
+          - /url: /usage-plans
+          - img [ref=e17]
+          - text: แผนการใช้
+        - link "แผนจัดซื้อ" [ref=e20] [cursor=pointer]:
+          - /url: /purchase-plans
+          - img [ref=e21]
+          - text: แผนจัดซื้อ
+        - link "อนุมัติจัดซื้อ" [ref=e23] [cursor=pointer]:
+          - /url: /purchase-approvals
+          - img [ref=e24]
+          - text: อนุมัติจัดซื้อ
+        - link "ระบบคลัง" [ref=e27] [cursor=pointer]:
+          - /url: /inventory
+          - img [ref=e28]
+          - text: ระบบคลัง
+        - link "Gemini AI" [ref=e31] [cursor=pointer]:
+          - /url: /gemini
+          - img [ref=e32]
+          - text: Gemini AI
+        - button "ตั้งค่า ▾" [ref=e36]:
+          - img [ref=e37]
+          - text: ตั้งค่า
+          - generic [ref=e40]: ▾
+  - generic [ref=e42]:
+    - generic [ref=e43]:
+      - heading "แผนจัดซื้อ" [level=1] [ref=e45]
+      - button "เพิ่มแผนจัดซื้อ" [ref=e46]:
+        - img [ref=e47]
+        - generic [ref=e48]: เพิ่มแผนจัดซื้อ
+    - generic [ref=e50]:
+      - generic [ref=e51]:
+        - combobox [ref=e52]:
+          - option "ปีงบ" [selected]
+          - option "2569"
+          - option "2568"
+          - option "2567"
+          - option "2566"
+          - option "2565"
+          - option "2564"
+        - combobox [ref=e53]:
+          - option "หน่วยงาน" [selected]
+        - textbox "รหัสสินค้า / ชื่อสินค้า" [ref=e55]
+        - combobox [ref=e56]:
+          - option "หมวด" [selected]
+        - combobox [ref=e57]:
+          - option "ประเภท" [selected]
+        - combobox [ref=e58]:
+          - option "ประเภทย่อย" [selected]
+      - paragraph [ref=e59]: กำลังโหลดตัวเลือกตัวกรอง...
+    - generic [ref=e62]:
+      - heading "สรุปข้อมูลแผนการจัดซื้อ" [level=3] [ref=e63]
+      - generic [ref=e64]:
+        - generic [ref=e65]:
+          - text: "มูลค่าสินค้าคงคลัง (inventory_value):"
+          - generic [ref=e66]: ฿0.00
+        - generic [ref=e67]:
+          - text: "มูลค่าจัดซื้อ (purchase_value):"
+          - generic [ref=e68]: ฿0.00
+    - generic [ref=e69]:
+      - generic [ref=e70]: แสดง 0-0 จาก 0 รายการ
+      - generic [ref=e71]:
+        - generic [ref=e72]:
+          - generic [ref=e73]: แสดงต่อหน้า
+          - combobox [ref=e74]:
+            - option "10"
+            - option "20" [selected]
+            - option "50"
+        - generic [ref=e75]:
+          - button "ก่อนหน้า" [disabled] [ref=e76]
+          - generic [ref=e77]: หน้า 1 / 1
+          - button "ถัดไป" [disabled] [ref=e78]

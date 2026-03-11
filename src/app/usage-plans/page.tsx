@@ -1664,7 +1664,7 @@ function SurveysPageContent() {
         {/* Header */}
         <div className="flex items-center justify-between gap-4 mb-4">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">ข้อมูลความต้องการ</h1>
+            <h1 className="text-3xl font-bold text-gray-900">แผนการใช้</h1>
 
           </div>
           <div className="flex items-center gap-3">
@@ -1735,16 +1735,26 @@ function SurveysPageContent() {
               </select>
             </div>
 
-            <div>
+            <div className="relative">
               <input
                 id="surveys-filter-product-name"
                 name="productNameFilter"
                 type="text"
                 value={productNameFilter}
                 onChange={(e) => setProductNameFilter(e.target.value)}
-                className="w-full rounded-md border-gray-300 shadow-sm text-sm px-3 py-2"
-                placeholder="ชื่อสินค้า"
+                className="w-full rounded-md border-gray-300 shadow-sm text-sm px-3 py-2 pr-10"
+                placeholder="รหัสสินค้า / ชื่อสินค้า"
               />
+              {productNameFilter && (
+                <button
+                  type="button"
+                  onClick={() => setProductNameFilter('')}
+                  className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  title="ล้างค่า"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              )}
             </div>
             
             <div>

@@ -24,3 +24,9 @@
 ## Tables
 
 - see [tables.md](tables.md)
+
+
+## redis
+
+- container: erp-redis
+- port: 6379
