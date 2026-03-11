@@ -43,6 +43,7 @@ type CategoryOption = {
 
 type BulkPurchasePlanRecord = {
   id: number;
+  usage_plan_id: number | null;
   productSearch: string;
   product_code: string;
   category: string;
@@ -815,6 +816,7 @@ function PurchasePlansPageContent() {
 
   const createEmptyBulkRecord = (id: number): BulkPurchasePlanRecord => ({
     id,
+    usage_plan_id: null,
     productSearch: '',
     product_code: '',
     category: '',
@@ -1029,6 +1031,7 @@ function PurchasePlansPageContent() {
         ...prev,
         {
           id: nextId,
+          usage_plan_id: selectedUsagePlan.id,
           productSearch: selectedLabel,
           product_code: selectedUsagePlan.code || '',
           category: selectedUsagePlan.category || '',
@@ -1083,14 +1086,66 @@ function PurchasePlansPageContent() {
     return validRecords;
   };
 
-  const saveBulkPurchasePlans = () => {
+  const saveBulkPurchasePlans = async () => {
     const validRecords = validateBulkPurchasePlans();
 
     if (validRecords.length === 0) {
       return;
     }
 
-    console.log('Saving bulk purchase plans:', validRecords);
+    try {
+      const results = await Promise.all(
+        validRecords.map(async (record) => {
+          if (record.usage_plan_id === null) {
+            throw new Error(`ไม่พบ usage_plan_id สำหรับสินค้า ${record.product_code}`);
+          }
+
+          const purchase_qty = Math.max(0, Number(record.requested_amount || 0) - Number(record.inventory_qty || 0));
+          const inventory_value = Number((Number(record.inventory_qty || 0) * Number(record.price_per_unit || 0)).toFixed(2));
+          const purchase_value = Number((purchase_qty * Number(record.price_per_unit || 0)).toFixed(2));
+
+          const response = await fetch('/api/purchase-plans', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              usage_plan_id: record.usage_plan_id,
+              inventory_qty: Number(record.inventory_qty || 0),
+              inventory_value,
+              purchase_qty,
+              purchase_value,
+            }),
+          });
+
+          const payload = await response.json().catch(() => null);
+          if (!response.ok || !payload?.success) {
+            throw new Error(payload?.error || `ไม่สามารถบันทึกสินค้า ${record.product_code} ได้`);
+          }
+
+          return payload.data;
+        }),
+      );
+
+      await Promise.all([fetchData(), fetchSummaryData()]);
+      setShowBulkForm(false);
+      setBulkRecords([]);
+      setBulkValidationErrors({});
+      setBulkProductSearch('');
+      setBulkProductOptions([]);
+      setBulkRecordErrors({});
+
+      await Swal.fire({
+        icon: 'success',
+        title: 'บันทึกสำเร็จ',
+        text: `บันทึกแผนจัดซื้อ ${results.length} รายการเรียบร้อยแล้ว`,
+      });
+    } catch (error) {
+      console.error(error);
+      await Swal.fire({
+        icon: 'error',
+        title: 'บันทึกไม่สำเร็จ',
+        text: error instanceof Error ? error.message : 'ไม่สามารถบันทึกรายการแผนจัดซื้อได้',
+      });
+    }
   };
 
   return (
