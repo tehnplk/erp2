@@ -338,6 +338,7 @@ function SurveysPageContent() {
     type: 'success',
     visible: false
   });
+  const [bulkRecordErrors, setBulkRecordErrors] = useState<Record<number, string>>({});
   const fileInputRef = useRef<HTMLInputElement>(null);
   const bulkProductSearchInputRef = useRef<HTMLInputElement>(null);
   const bulkProductSuggestionsRef = useRef<HTMLDivElement>(null);
@@ -902,16 +903,19 @@ function SurveysPageContent() {
         }
       } else {
         const errorData = await response.json().catch(() => null);
-        throw new Error(errorData?.error || 'Failed to save survey');
+        const errorMessage = errorData?.error || 'ไม่สามารถบันทึกข้อมูลได้';
+        setToast({ message: errorMessage, type: 'error', visible: true });
+        hideUsagePlanToastLater();
+        return;
       }
     } catch (error) {
       console.error('Error saving survey:', error);
-      await Swal.fire({
-        title: 'เกิดข้อผิดพลาด!',
-        text: error instanceof Error ? error.message : 'ไม่สามารถบันทึกข้อมูลได้',
-        icon: 'error',
-        confirmButtonText: 'ตกลง'
+      setToast({
+        message: error instanceof Error ? error.message : 'ไม่สามารถบันทึกข้อมูลได้',
+        type: 'error',
+        visible: true,
       });
+      hideUsagePlanToastLater();
     }
   };
 
@@ -1258,6 +1262,11 @@ function SurveysPageContent() {
       delete nextErrors[id];
       return nextErrors;
     });
+    setBulkRecordErrors((prev) => {
+      const nextErrors = { ...prev };
+      delete nextErrors[id];
+      return nextErrors;
+    });
 
     setBulkRecords((prev) => {
       const hasExistingRecord = prev.some((record) => record.product_code === selectedProduct.code);
@@ -1334,6 +1343,54 @@ function SurveysPageContent() {
         return;
       }
 
+      // Pre-check for duplicate usage plan constraints before making API calls
+      const constraintErrors: Record<number, string> = {};
+      const budgetYear = getCurrentBudgetYear();
+      
+      // Check each valid record for potential duplicates
+      for (const record of validRecords) {
+        try {
+          const checkResponse = await fetch('/api/usage-plans/check-constraint', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              product_code: record.product_code.trim(),
+              requesting_dept: record.requesting_dept.trim(),
+              budget_year: budgetYear
+            })
+          });
+          
+          if (!checkResponse.ok) {
+            const errorData = await checkResponse.json();
+            if (errorData?.error) {
+              constraintErrors[record.id] = errorData.error;
+            }
+          }
+        } catch (error) {
+          console.error('Error checking constraint:', error);
+          // If constraint check fails, show a general error but don't proceed
+          setToast({
+            message: 'ไม่สามารถตรวจสอบข้อมูลซ้ำได้ กรุณาลองใหม่',
+            type: 'error',
+            visible: true
+          });
+          hideUsagePlanToastLater();
+          return;
+        }
+      }
+      
+      // If any constraint violations found, stop the save operation
+      if (Object.keys(constraintErrors).length > 0) {
+        setBulkRecordErrors(constraintErrors);
+        setToast({
+          message: 'พบข้อมูลซ้ำที่เกินกำหนด กรุณาแก้ไขก่อนบันทึก',
+          type: 'error',
+          visible: true
+        });
+        hideUsagePlanToastLater();
+        return;
+      }
+
       const promises = validRecords.map(record =>
         fetch('/api/usage-plans', {
           method: 'POST',
@@ -1357,6 +1414,28 @@ function SurveysPageContent() {
       const results = await Promise.allSettled(promises);
       const successful = results.filter(result => result.status === 'fulfilled' && result.value.ok).length;
       const failed = results.length - successful;
+      
+      // Handle field-level errors for duplicates
+      const newBulkRecordErrors: Record<number, string> = {};
+      const duplicateErrorPattern = /ในปีงบประมาณนี้ แผนกนี้ ขอใช้สินค้านี้ ครบ 2 ครั้งแล้ว/;
+      
+      for (let i = 0; i < results.length; i++) {
+        const result = results[i];
+        if (result.status === 'fulfilled' && !result.value.ok) {
+          const record = validRecords[i];
+          try {
+            const errorData = await result.value.json();
+            if (errorData?.error && duplicateErrorPattern.test(errorData.error)) {
+              newBulkRecordErrors[record.id] = errorData.error;
+            }
+          } catch {
+            // Ignore JSON parsing errors
+          }
+        }
+      }
+      
+      setBulkRecordErrors(newBulkRecordErrors);
+      
       const firstFailedResponse = results.find(
         (result): result is PromiseFulfilledResult<Response> => result.status === 'fulfilled' && !result.value.ok
       )?.value;
@@ -1375,6 +1454,7 @@ function SurveysPageContent() {
         setShowBulkForm(false);
         setBulkRecords([]);
         setBulkValidationErrors({});
+        setBulkRecordErrors({});
         setBulkProductSearch('');
         setBulkProductOptions([]);
         resetUsagePlanSortToNewestFirst();
@@ -1493,6 +1573,7 @@ function SurveysPageContent() {
               onClick={() => {
                 setShowBulkForm(true);
                 setBulkRecords([]);
+                setBulkRecordErrors({});
               }}
               className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-blue-700"
               title="เพิ่มความต้องการใหม่"
@@ -2074,6 +2155,7 @@ function SurveysPageContent() {
                     setBulkRecords([]);
                     setBulkProductSearch('');
                     setBulkProductOptions([]);
+                    setBulkRecordErrors({});
                   }}
                   className="rounded-full p-1.5 text-slate-500 transition-colors hover:bg-white hover:text-slate-700"
                 >
@@ -2195,8 +2277,15 @@ function SurveysPageContent() {
                                 readOnly
                                 placeholder="ชื่อสินค้า"
                                 title={record.product_name || ''}
-                                className="w-full px-2 py-1 border border-gray-300 rounded bg-gray-100 text-sm"
+                                className={`w-full px-2 py-1 border rounded bg-gray-100 text-sm ${
+                                  bulkRecordErrors[record.id] ? 'border-red-500' : 'border-gray-300'
+                                }`}
                               />
+                              {bulkRecordErrors[record.id] && (
+                                <div className="mt-1 text-xs text-red-600 font-medium">
+                                  {bulkRecordErrors[record.id]}
+                                </div>
+                              )}
                             </td>
                             <td className="w-32 px-2 py-3">
                               <input
@@ -2306,6 +2395,7 @@ function SurveysPageContent() {
                     setBulkValidationErrors({});
                     setBulkProductSearch('');
                     setBulkProductOptions([]);
+                    setBulkRecordErrors({});
                   }}
                   className="rounded-lg bg-slate-500 px-6 py-2.5 text-white transition-colors hover:bg-slate-600"
                 >

@@ -7,7 +7,7 @@ import { findDepartmentCodeByName } from '@/lib/department-code';
 
 const buildSurveyConstraintError = () =>
   NextResponse.json(
-    { error: 'สินค้าเดิม หน่วยงานเดิม และปีงบเดิม สามารถมีได้ไม่เกิน 2 ครั้ง' },
+    { error: 'ในปีงบประมาณนี้ แผนกนี้ ขอใช้สินค้านี้ ครบ 2 ครั้งแล้ว' },
     { status: 400 }
   );
 
