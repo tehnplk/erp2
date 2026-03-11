@@ -56,6 +56,8 @@ type BulkPurchasePlanRecord = {
   approved_quota: string;
   budget_year: string;
   sequence_no: string;
+  inventory_qty: number;
+  available_qty: number;
 };
 
 type ProductOption = {
@@ -67,6 +69,13 @@ type ProductOption = {
   subtype: string | null;
   unit: string;
   cost_price?: number | null;
+  requesting_dept?: string;
+  requested_amount?: string;
+  approved_quota?: string;
+  budget_year?: string;
+  sequence_no?: string;
+  inventory_qty?: number;
+  available_qty?: number;
 };
 
 interface DepartmentComboboxProps {
@@ -751,7 +760,7 @@ function PurchasePlansPageContent() {
           search: searchValue,
         });
 
-        const response = await fetch(`/api/products?${params.toString()}`, {
+        const response = await fetch(`/api/usage-plans/available-for-purchase?${params.toString()}`, {
           signal: controller.signal,
         });
 
@@ -818,7 +827,9 @@ function PurchasePlansPageContent() {
     requesting_dept: '',
     approved_quota: '',
     budget_year: getCurrentBudgetYear().toString(),
-    sequence_no: '1'
+    sequence_no: '1',
+    inventory_qty: 0,
+    available_qty: 0
   });
 
   const updateBulkRecord = (id: number, updater: (record: BulkPurchasePlanRecord) => BulkPurchasePlanRecord) => {
@@ -979,19 +990,19 @@ function PurchasePlansPageContent() {
 
   const handleBulkProductSelect = (id: number, value: string) => {
     const normalizedValue = value.trim().toLowerCase();
-    const selectedProduct = bulkProductOptions.find((product) => {
-      const label = `${product.code} - ${product.name}`.toLowerCase();
-      return label === normalizedValue || product.code.toLowerCase() === normalizedValue || product.name.toLowerCase() === normalizedValue;
+    const selectedUsagePlan = bulkProductOptions.find((plan) => {
+      const label = `${plan.code} - ${plan.name}`.toLowerCase();
+      return label === normalizedValue || plan.code.toLowerCase() === normalizedValue || plan.name.toLowerCase() === normalizedValue;
     });
 
-    if (!selectedProduct) {
+    if (!selectedUsagePlan) {
       setSelectedBulkProductLabel('');
       setShowBulkProductSuggestions(value.trim().length > 0);
       setHighlightedBulkProductIndex(-1);
       return;
     }
 
-    const selectedLabel = `${selectedProduct.code} - ${selectedProduct.name}`;
+    const selectedLabel = `${selectedUsagePlan.code} - ${selectedUsagePlan.name}`;
     setSelectedBulkProductLabel('');
     setBulkProductSearch('');
     setShowBulkProductSuggestions(false);
@@ -1008,7 +1019,7 @@ function PurchasePlansPageContent() {
     });
 
     setBulkRecords((prev) => {
-      const hasExistingRecord = prev.some((record) => record.product_code === selectedProduct.code);
+      const hasExistingRecord = prev.some((record) => record.product_code === selectedUsagePlan.code);
       if (hasExistingRecord) {
         return prev;
       }
@@ -1019,18 +1030,20 @@ function PurchasePlansPageContent() {
         {
           id: nextId,
           productSearch: selectedLabel,
-          product_code: selectedProduct.code || '',
-          category: selectedProduct.category || '',
-          product_type: selectedProduct.type || '',
-          product_subtype: selectedProduct.subtype || '',
-          product_name: selectedProduct.name || '',
-          requested_amount: '',
-          unit: selectedProduct.unit || '',
-          price_per_unit: selectedProduct.cost_price?.toString() || '0',
-          requesting_dept: '',
-          approved_quota: '',
-          budget_year: getCurrentBudgetYear().toString(),
-          sequence_no: '1',
+          product_code: selectedUsagePlan.code || '',
+          category: selectedUsagePlan.category || '',
+          product_type: selectedUsagePlan.type || '',
+          product_subtype: selectedUsagePlan.subtype || '',
+          product_name: selectedUsagePlan.name || '',
+          requested_amount: selectedUsagePlan.requested_amount?.toString() || '',
+          unit: selectedUsagePlan.unit || '',
+          price_per_unit: selectedUsagePlan.cost_price?.toString() || '0',
+          requesting_dept: selectedUsagePlan.requesting_dept || '',
+          approved_quota: selectedUsagePlan.approved_quota?.toString() || '',
+          budget_year: selectedUsagePlan.budget_year?.toString() || getCurrentBudgetYear().toString(),
+          sequence_no: selectedUsagePlan.sequence_no?.toString() || '1',
+          inventory_qty: selectedUsagePlan.inventory_qty || 0,
+          available_qty: selectedUsagePlan.available_qty || 0,
         },
       ];
     });
@@ -1326,7 +1339,7 @@ function PurchasePlansPageContent() {
             <div className="flex min-h-0 flex-1 flex-col px-6 py-6">
               <div className="relative z-20 mb-4 rounded-2xl border border-blue-100 bg-blue-50 p-4">
                 <label htmlFor="purchase-bulk-product-search" className="mb-2 block text-sm font-medium text-gray-700">
-                  ค้นหารหัสหรือชื่อสินค้า
+                  ค้นหารหัสหรือชื่อสินค้า (จากแผนใช้ที่ยังไม่มีแผนซื้อ)
                 </label>
                 <div className="relative">
                   <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
@@ -1348,7 +1361,7 @@ function PurchasePlansPageContent() {
                       }
                     }}
                     onKeyDown={handleBulkProductSearchKeyDown}
-                    placeholder="พิมพ์รหัสสินค้า หรือชื่อสินค้า"
+                    placeholder="พิมพ์รหัสสินค้า หรือชื่อสินค้า (จากแผนใช้ที่ยังไม่มีแผนซื้อ)"
                     autoComplete="off"
                     aria-label="ค้นหารหัสหรือชื่อสินค้า"
                     className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 pl-9 pr-9 focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -1403,20 +1416,42 @@ function PurchasePlansPageContent() {
                     <table className="w-full">
                       <thead className="bg-slate-100">
                         <tr>
-                          <th scope="col" className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase">ลำดับ</th>
-                          <th scope="col" className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase">รหัสสินค้า</th>
+                          <th scope="col" className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase">ปีงบ</th>
+                          <th scope="col" className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase">ครั้งที่</th>
+                          <th scope="col" className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase">รหัส</th>
                           <th scope="col" className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase">ชื่อสินค้า</th>
-                          <th scope="col" className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase">จำนวนที่ขอ</th>
-                          <th scope="col" className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase">หน่วย</th>
-                          <th scope="col" className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase">หน่วยงานที่ขอ</th>
+                          <th scope="col" className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase">ขอใช้</th>
+                          <th scope="col" className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase">โควต้า</th>
+                          <th scope="col" className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase">คงคลัง</th>
+                          <th scope="col" className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase">ซื้อเพิ่ม</th>
+                          <th scope="col" className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase">หน่วยงาน</th>
                           <th scope="col" className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase">จัดการ</th>
                         </tr>
                       </thead>
                       <tbody>
                         {bulkRecords.map((record, index) => (
                           <tr key={record.id} className="border-b border-slate-200 bg-white">
-                            <td className="w-12 px-2 py-3 text-sm text-gray-900">{index + 1}</td>
-                            <td className="w-36 px-2 py-3">
+                            <td className="w-16 px-2 py-3 text-sm text-gray-900">
+                              <input
+                                id={`purchase-bulk-budget-year-${record.id}`}
+                                name={`bulkBudgetYear-${record.id}`}
+                                type="text"
+                                value={record.budget_year || ''}
+                                readOnly
+                                className="w-full px-2 py-1 border border-gray-300 rounded bg-gray-100 text-sm text-center"
+                              />
+                            </td>
+                            <td className="w-16 px-2 py-3 text-sm text-gray-900">
+                              <input
+                                id={`purchase-bulk-sequence-no-${record.id}`}
+                                name={`bulkSequenceNo-${record.id}`}
+                                type="text"
+                                value={record.sequence_no || ''}
+                                readOnly
+                                className="w-full px-2 py-1 border border-gray-300 rounded bg-gray-100 text-sm text-center"
+                              />
+                            </td>
+                            <td className="w-28 px-2 py-3">
                               <input
                                 id={`purchase-bulk-product-code-${record.id}`}
                                 name={`bulkProductCode-${record.id}`}
@@ -1428,7 +1463,7 @@ function PurchasePlansPageContent() {
                                 className="w-full px-2 py-1 border border-gray-300 rounded bg-gray-100 text-sm"
                               />
                             </td>
-                            <td className="min-w-[24rem] px-2 py-3">
+                            <td className="min-w-[20rem] px-2 py-3">
                               <input
                                 id={`purchase-bulk-product-name-${record.id}`}
                                 name={`bulkProductName-${record.id}`}
@@ -1448,78 +1483,74 @@ function PurchasePlansPageContent() {
                                 </div>
                               )}
                             </td>
-                            <td className="w-32 px-2 py-3">
+                            <td className="w-20 px-2 py-3">
                               <input
                                 id={`purchase-bulk-requested-amount-${record.id}`}
                                 name={`bulkRequestedAmount-${record.id}`}
-                                aria-label={`จำนวนที่ขอ แถว ${index + 1}`}
+                                aria-label={`ขอใช้ แถว ${index + 1}`}
                                 type="number"
-                                required
-                                min="1"
                                 value={record.requested_amount || ''}
-                                onChange={(e) => {
-                                  updateBulkRecord(record.id, (current) => {
-                                    const shouldSyncApprovedQuota =
-                                      current.approved_quota === '' ||
-                                      current.approved_quota === current.requested_amount;
-
-                                    return {
-                                      ...current,
-                                      requested_amount: e.target.value,
-                                      approved_quota: shouldSyncApprovedQuota ? e.target.value : current.approved_quota,
-                                    };
-                                  });
-                                  clearBulkValidationError(record.id, 'requestedAmount');
-                                }}
-                                onKeyDown={(e) => handleBulkFormKeyDown(e, record.id, 'requested_amount')}
-                                placeholder="จำนวนที่ขอ"
-                                className={`w-full px-2 py-1 border rounded focus:outline-none focus:ring-2 text-sm ${bulkValidationErrors[record.id]?.requestedAmount ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 focus:ring-blue-500'}`}
-                              />
-                              {bulkValidationErrors[record.id]?.requestedAmount && (
-                                <p className="mt-1 text-xs text-red-600">{bulkValidationErrors[record.id]?.requestedAmount}</p>
-                              )}
-                            </td>
-                            <td className="w-24 px-2 py-3">
-                              <input
-                                id={`purchase-bulk-unit-${record.id}`}
-                                name={`bulkUnit-${record.id}`}
-                                aria-label={`หน่วย แถว ${index + 1}`}
-                                type="text"
-                                value={record.unit || ''}
                                 readOnly
-                                placeholder="หน่วย"
+                                placeholder="ขอใช้"
+                                className="w-full px-2 py-1 border border-gray-300 rounded bg-gray-100 text-sm text-center"
+                              />
+                            </td>
+                            <td className="w-20 px-2 py-3">
+                              <input
+                                id={`purchase-bulk-approved-quota-${record.id}`}
+                                name={`bulkApprovedQuota-${record.id}`}
+                                aria-label={`โควต้า แถว ${index + 1}`}
+                                type="number"
+                                value={record.approved_quota || ''}
+                                readOnly
+                                placeholder="โควต้า"
                                 className="w-full px-2 py-1 border border-gray-300 rounded bg-gray-100 text-sm"
+                              />
+                            </td>
+                            <td className="w-20 px-2 py-3">
+                              <input
+                                id={`purchase-bulk-inventory-qty-${record.id}`}
+                                name={`bulkInventoryQty-${record.id}`}
+                                aria-label={`คงคลัง แถว ${index + 1}`}
+                                type="number"
+                                value={record.inventory_qty || 0}
+                                readOnly
+                                placeholder="คงคลัง"
+                                className="w-full px-2 py-1 border border-gray-300 rounded bg-gray-100 text-sm text-center"
+                              />
+                            </td>
+                            <td className="w-20 px-2 py-3">
+                              <input
+                                id={`purchase-bulk-purchase-qty-${record.id}`}
+                                name={`bulkPurchaseQty-${record.id}`}
+                                aria-label={`ซื้อเพิ่ม แถว ${index + 1}`}
+                                type="number"
+                                min="0"
+                                value={record.requested_amount && record.inventory_qty !== undefined 
+                                  ? Math.max(0, parseInt(record.requested_amount) - record.inventory_qty).toString()
+                                  : record.requested_amount || ''
+                                }
+                                onChange={(e) => {
+                                  updateBulkRecord(record.id, (current) => ({
+                                    ...current,
+                                    requested_amount: e.target.value,
+                                  }));
+                                }}
+                                placeholder="ซื้อเพิ่ม"
+                                className="w-full px-2 py-1 border rounded focus:outline-none focus:ring-2 text-sm border-blue-300 focus:ring-blue-500"
                               />
                             </td>
                             <td className="min-w-[14rem] px-2 py-3">
                               <input
-                                id={`purchase-bulk-approved-quota-${record.id}`}
-                                name={`bulkApprovedQuota-${record.id}`}
-                                aria-label={`โควต้าที่ได้รับ แถว ${index + 1}`}
-                                type="hidden"
-                                value={record.approved_quota || ''}
-                                readOnly
-                              />
-                              <DepartmentCombobox
                                 id={`purchase-bulk-requesting-dept-${record.id}`}
                                 name={`bulkRequestingDept-${record.id}`}
-                                aria_label={`หน่วยงานที่ขอ แถว ${index + 1}`}
-                                required
+                                aria-label={`หน่วยงาน แถว ${index + 1}`}
+                                type="text"
                                 value={record.requesting_dept || ''}
-                                departments={departments}
-                                placeholder="เลือกหน่วยงาน"
-                                on_change={(value) => {
-                                  updateBulkRecord(record.id, (current) => ({ ...current, requesting_dept: value }));
-                                  clearBulkValidationError(record.id, 'requestingDept');
-                                }}
-                                on_clear_error={() => clearBulkValidationError(record.id, 'requestingDept')}
-                                on_key_down={(e) => handleBulkFormKeyDown(e, record.id, 'requesting_dept')}
-                                class_name={`w-full px-2 py-1 border rounded focus:outline-none focus:ring-2 text-sm ${bulkValidationErrors[record.id]?.requestingDept ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 focus:ring-blue-500'}`}
-                                list_class_name="absolute z-40 mt-1 max-h-60 w-full overflow-auto rounded-md border border-gray-200 bg-white shadow-xl"
+                                readOnly
+                                placeholder="หน่วยงาน"
+                                className="w-full px-2 py-1 border border-gray-300 rounded bg-gray-100 text-sm"
                               />
-                              {bulkValidationErrors[record.id]?.requestingDept && (
-                                <p className="mt-1 text-xs text-red-600">{bulkValidationErrors[record.id]?.requestingDept}</p>
-                              )}
                             </td>
                             <td className="w-16 px-2 py-3">
                               <div className="flex gap-1">
