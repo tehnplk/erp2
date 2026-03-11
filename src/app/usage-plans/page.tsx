@@ -100,12 +100,13 @@ interface DepartmentComboboxProps {
   aria_label: string;
   value: string;
   departments: string[];
-  placeholder: string;
+  placeholder?: string;
+  required?: boolean;
   on_change: (value: string) => void;
   on_clear_error?: () => void;
-  required?: boolean;
   class_name?: string;
   list_class_name?: string;
+  on_key_down?: (event: React.KeyboardEvent<HTMLInputElement>) => void;
 }
 
 function DepartmentCombobox({
@@ -120,6 +121,7 @@ function DepartmentCombobox({
   required = false,
   class_name = '',
   list_class_name = '',
+  on_key_down,
 }: DepartmentComboboxProps) {
   const [input_value, setInputValue] = useState(value || '');
   const [is_open, setIsOpen] = useState(false);
@@ -192,44 +194,67 @@ function DepartmentCombobox({
           on_clear_error?.();
         }}
         onKeyDown={(event) => {
-          if (!is_open && (event.key === 'ArrowDown' || event.key === 'ArrowUp')) {
-            event.preventDefault();
-            setIsOpen(true);
-            setHighlightedIndex(filtered_departments.length > 0 ? 0 : -1);
-            return;
-          }
+          // If dropdown is open, handle suggestion navigation first
+          if (is_open && filtered_departments.length > 0) {
+            if (event.key === 'ArrowDown') {
+              event.preventDefault();
+              setHighlightedIndex((prev) => {
+                if (prev < 0) {
+                  return 0; // Start from first option if no option is highlighted
+                }
+                return (prev + 1) % filtered_departments.length;
+              });
+              return;
+            }
 
-          if (!is_open || filtered_departments.length === 0) {
+            if (event.key === 'ArrowUp') {
+              event.preventDefault();
+              setHighlightedIndex((prev) => {
+                if (prev < 0) {
+                  return filtered_departments.length - 1; // Start from last option if no option is highlighted
+                }
+                return prev <= 0 ? filtered_departments.length - 1 : prev - 1;
+              });
+              return;
+            }
+
+            if (event.key === 'Enter') {
+              event.preventDefault();
+              const selected_department = filtered_departments[highlighted_index >= 0 ? highlighted_index : 0];
+              if (selected_department) {
+                select_department(selected_department);
+              }
+              return;
+            }
+
             if (event.key === 'Escape') {
+              event.preventDefault();
               setIsOpen(false);
               setHighlightedIndex(-1);
+              return;
             }
-            return;
           }
 
-          if (event.key === 'ArrowDown') {
-            event.preventDefault();
-            setHighlightedIndex((prev) => (prev + 1) % filtered_departments.length);
-            return;
-          }
-
-          if (event.key === 'ArrowUp') {
-            event.preventDefault();
-            setHighlightedIndex((prev) => (prev <= 0 ? filtered_departments.length - 1 : prev - 1));
-            return;
-          }
-
-          if (event.key === 'Enter') {
-            event.preventDefault();
-            const selected_department = filtered_departments[highlighted_index >= 0 ? highlighted_index : 0];
-            if (selected_department) {
-              select_department(selected_department);
+          // Call external keyboard handler only when dropdown is closed or for non-navigation keys
+          if (on_key_down) {
+            on_key_down(event);
+            // If the external handler prevented default, don't continue
+            if (event.defaultPrevented) {
+              return;
             }
-            return;
+          }
+
+          // If dropdown is closed, handle opening it or navigation
+          if (!is_open) {
+            if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+              event.preventDefault();
+              setIsOpen(true);
+              setHighlightedIndex(filtered_departments.length > 0 ? 0 : -1);
+              return;
+            }
           }
 
           if (event.key === 'Escape') {
-            event.preventDefault();
             setIsOpen(false);
             setHighlightedIndex(-1);
           }
@@ -599,32 +624,125 @@ function SurveysPageContent() {
   };
 
   const handleBulkProductSearchKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
-    if (!showBulkProductSuggestions || filteredBulkProductOptions.length === 0) {
-      return;
-    }
-
-    if (event.key === 'ArrowDown') {
-      event.preventDefault();
-      setHighlightedBulkProductIndex((prev) => (prev + 1) % filteredBulkProductOptions.length);
-    }
-
-    if (event.key === 'ArrowUp') {
-      event.preventDefault();
-      setHighlightedBulkProductIndex((prev) => (prev <= 0 ? filteredBulkProductOptions.length - 1 : prev - 1));
-    }
-
-    if (event.key === 'Enter') {
-      event.preventDefault();
-      const selectedIndex = highlightedBulkProductIndex >= 0 ? highlightedBulkProductIndex : 0;
-      const selectedOption = filteredBulkProductOptions[selectedIndex];
-      if (selectedOption) {
-        handleBulkProductSelect(selectedOption.id, `${selectedOption.code} - ${selectedOption.name}`);
+    // If suggestions are visible, handle suggestion navigation first
+    if (showBulkProductSuggestions && filteredBulkProductOptions.length > 0) {
+      if (event.key === 'ArrowDown') {
+        event.preventDefault();
+        setHighlightedBulkProductIndex((prev) => (prev + 1) % filteredBulkProductOptions.length);
+        return;
       }
+
+      if (event.key === 'ArrowUp') {
+        event.preventDefault();
+        setHighlightedBulkProductIndex((prev) => (prev <= 0 ? filteredBulkProductOptions.length - 1 : prev - 1));
+        return;
+      }
+
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        const selectedIndex = highlightedBulkProductIndex >= 0 ? highlightedBulkProductIndex : 0;
+        const selectedOption = filteredBulkProductOptions[selectedIndex];
+        if (selectedOption) {
+          handleBulkProductSelect(selectedOption.id, `${selectedOption.code} - ${selectedOption.name}`);
+        }
+        return;
+      }
+
+      if (event.key === 'Escape') {
+        setShowBulkProductSuggestions(false);
+        setHighlightedBulkProductIndex(-1);
+        return;
+      }
+    }
+
+    // Only handle navigation to table fields when suggestions are NOT visible
+    if (event.key === 'ArrowDown' && !showBulkProductSuggestions && bulkRecords.length > 0) {
+      event.preventDefault();
+      // Focus the first requested amount field in the table
+      const firstRecord = bulkRecords[0];
+      const firstRequestedAmountField = document.getElementById(`survey-bulk-requested-amount-${firstRecord.id}`);
+      if (firstRequestedAmountField) {
+        firstRequestedAmountField.focus();
+      }
+      return;
     }
 
     if (event.key === 'Escape') {
       setShowBulkProductSuggestions(false);
       setHighlightedBulkProductIndex(-1);
+    }
+  };
+
+  // Handle keyboard navigation for bulk form inputs
+  const handleBulkFormKeyDown = (event: React.KeyboardEvent<HTMLInputElement>, recordId: number, field: string) => {
+    // Only handle arrow keys for navigation
+    if (event.key !== 'ArrowUp' && event.key !== 'ArrowDown' && event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') {
+      return;
+    }
+
+    event.preventDefault();
+    
+    const recordIndex = bulkRecords.findIndex(r => r.id === recordId);
+    if (recordIndex === -1) return;
+
+    // Define field order for each record
+    const fieldOrder = ['requested_amount', 'requesting_dept'];
+    const currentFieldIndex = fieldOrder.indexOf(field);
+    
+    let nextElement: HTMLElement | null = null;
+
+    if (event.key === 'ArrowUp') {
+      if (recordIndex === 0 && field === 'requested_amount') {
+        // From first record's requested amount, go back to product search
+        nextElement = document.getElementById('survey-bulk-product-search');
+      } else if (recordIndex === 0 && field === 'requesting_dept') {
+        // From first record's department, go back to product search
+        nextElement = document.getElementById('survey-bulk-product-search');
+      } else if (recordIndex > 0) {
+        // Move to same field in previous record
+        const prevRecordId = bulkRecords[recordIndex - 1].id;
+        const nextFieldId = field === 'requesting_dept' 
+          ? `survey-bulk-requesting-dept-${prevRecordId}`
+          : `survey-bulk-requested-amount-${prevRecordId}`;
+        nextElement = document.getElementById(nextFieldId);
+      }
+    } else if (event.key === 'ArrowDown' && recordIndex < bulkRecords.length - 1) {
+      // Move to same field in next record
+      const nextRecordId = bulkRecords[recordIndex + 1].id;
+      const nextFieldId = field === 'requesting_dept'
+        ? `survey-bulk-requesting-dept-${nextRecordId}`
+        : `survey-bulk-requested-amount-${nextRecordId}`;
+      nextElement = document.getElementById(nextFieldId);
+    } else if (event.key === 'ArrowDown' && recordIndex === bulkRecords.length - 1 && field === 'requesting_dept') {
+      // From last record's department, move to save button
+      nextElement = document.querySelector('button') as HTMLElement;
+      // Find the save button by checking its text content
+      const buttons = document.querySelectorAll('button');
+      for (const button of buttons) {
+        if (button.textContent?.includes('บันทึกทั้งหมด')) {
+          nextElement = button as HTMLElement;
+          break;
+        }
+      }
+    } else if (event.key === 'ArrowRight' && currentFieldIndex < fieldOrder.length - 1) {
+      // Move to next field in same record
+      const nextField = fieldOrder[currentFieldIndex + 1];
+      const nextFieldId = nextField === 'requesting_dept'
+        ? `survey-bulk-requesting-dept-${recordId}`
+        : `survey-bulk-requested-amount-${recordId}`;
+      nextElement = document.getElementById(nextFieldId);
+    } else if (event.key === 'ArrowLeft' && currentFieldIndex > 0) {
+      // Move to previous field in same record
+      const prevField = fieldOrder[currentFieldIndex - 1];
+      const prevFieldId = prevField === 'requesting_dept'
+        ? `survey-bulk-requesting-dept-${recordId}`
+        : `survey-bulk-requested-amount-${recordId}`;
+      nextElement = document.getElementById(prevFieldId);
+    }
+
+    // Focus the next element if found
+    if (nextElement) {
+      nextElement.focus();
     }
   };
 
@@ -2310,6 +2428,7 @@ function SurveysPageContent() {
                                   });
                                   clearBulkValidationError(record.id, 'requestedAmount');
                                 }}
+                                onKeyDown={(e) => handleBulkFormKeyDown(e, record.id, 'requested_amount')}
                                 placeholder="จำนวนที่ขอ"
                                 className={`w-full px-2 py-1 border rounded focus:outline-none focus:ring-2 text-sm ${bulkValidationErrors[record.id]?.requestedAmount ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 focus:ring-blue-500'}`}
                               />
@@ -2350,6 +2469,7 @@ function SurveysPageContent() {
                                   updateBulkRecord(record.id, (current) => ({ ...current, requesting_dept: value }));
                                 }}
                                 on_clear_error={() => clearBulkValidationError(record.id, 'requestingDept')}
+                                on_key_down={(e) => handleBulkFormKeyDown(e, record.id, 'requesting_dept')}
                                 class_name={`w-full px-2 py-1 border rounded focus:outline-none focus:ring-2 text-sm ${bulkValidationErrors[record.id]?.requestingDept ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 focus:ring-blue-500'}`}
                                 list_class_name="absolute z-40 mt-1 max-h-60 w-full overflow-auto rounded-md border border-gray-200 bg-white shadow-xl"
                               />
