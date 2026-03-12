@@ -2058,23 +2058,23 @@ function SurveysPageContent() {
                     <th onClick={() => handleSort('sequence_no')} className={getHeaderClass('sequence_no')}>
                       ครั้งที่ {getSortIcon('sequence_no')}
                     </th>
-                    <th onClick={() => handleSort('product_code')} className={`${getHeaderClass('product_code')} w-28`}>
+                    <th onClick={() => handleSort('product_code')} className={`${getHeaderClass('product_code')} w-24`}>
                       รหัสสินค้า {getSortIcon('product_code')}
                     </th>
-                    <th onClick={() => handleSort('product_name')} className={`${getHeaderClass('product_name')} min-w-[280px] w-2/5`}>
+                    <th onClick={() => handleSort('product_name')} className={`${getHeaderClass('product_name')} min-w-[160px] w-[32%]`}>
                       ชื่อสินค้า {getSortIcon('product_name')}
                     </th>
-                    <th onClick={() => handleSort('price_per_unit')} className={`${getHeaderClass('price_per_unit')} w-28`}>
+                    <th onClick={() => handleSort('price_per_unit')} className={`${getHeaderClass('price_per_unit')} w-24`}>
                       ราคา/หน่วย {getSortIcon('price_per_unit')}
                     </th>
                     <th onClick={() => handleSort('requesting_dept')} className={`${getHeaderClass('requesting_dept')} w-40`}>
-                      หน่วยงานที่ขอ {getSortIcon('requesting_dept')}
+                      หน่วยงาน {getSortIcon('requesting_dept')}
                     </th>
                     <th onClick={() => handleSort('requested_amount')} className={`${getHeaderClass('requested_amount')} w-32`}>
-                      จำนวนที่ขอ {getSortIcon('requested_amount')}
+                      ขอใช้ {getSortIcon('requested_amount')}
                     </th>
                     <th onClick={() => handleSort('approved_quota')} className={getHeaderClass('approved_quota')}>
-                      โควต้าที่ได้ {getSortIcon('approved_quota')}
+                      โควต้า {getSortIcon('approved_quota')}
                     </th>
                     <th className="px-3 py-3 text-left text-[10px] font-medium text-gray-500 uppercase tracking-wider w-24">
                       Action
