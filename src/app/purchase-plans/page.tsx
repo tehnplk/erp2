@@ -917,8 +917,7 @@ function PurchasePlansPageContent() {
                 <th onClick={() => handleSort('product_code')} className={`${getHeaderClass('product_code')} w-28`}>รหัสสินค้า</th>
                 <th onClick={() => handleSort('product_name')} className={`${getHeaderClass('product_name')} w-[20rem]`}>ชื่อสินค้า</th>
                 <th onClick={() => handleSort('requesting_dept')} className={`${getHeaderClass('requesting_dept')} w-36`}>หน่วยงานที่ขอ</th>
-                <th onClick={() => handleSort('requested_amount')} className={`${getHeaderClass('requested_amount')} w-24`}>จำนวนที่ขอ</th>
-                <th onClick={() => handleSort('approved_quota')} className={`${getHeaderClass('approved_quota')} w-24`}>โควต้าที่ได้</th>
+                <th className="px-2 py-2.5 text-left text-[10px] font-medium text-gray-500 uppercase tracking-wider w-32">ขอใช้ / โควต้า</th>
                 <th onClick={() => handleSort('inventory_qty')} className={`${getHeaderClass('inventory_qty')} w-20`}>คงคลัง</th>
                 <th onClick={() => handleSort('inventory_value')} className={`${getHeaderClass('inventory_value')} w-28`}>มูลค่าคงคลัง</th>
                 <th onClick={() => handleSort('purchase_qty')} className={`${getHeaderClass('purchase_qty')} w-20`}>ซื้อ</th>
@@ -950,8 +949,13 @@ function PurchasePlansPageContent() {
                       <div className="mt-1 text-[10px] leading-4 text-emerald-600/80">{[row.category || '-', row.product_type || '-', row.product_subtype || '-'].filter((value, index, arr) => !(value === '-' && arr.every((item) => item === '-'))).join(' · ')}</div>
                     </td>
                     <td className="px-2 py-2 text-[11px] align-top break-words">{row.requesting_dept || '-'}</td>
-                    <td className="px-2 py-2 text-[11px] align-top">{row.requested_amount ?? '-'}</td>
-                    <td className="px-2 py-2 text-[11px] align-top">{row.approved_quota ?? '-'}</td>
+                    <td className="px-2 py-2 text-[11px] align-top">
+                      {row.requested_amount && row.approved_quota ? (
+                        <span>
+                          <span className="text-gray-500">{row.requested_amount} / </span><strong>{row.approved_quota}</strong>
+                        </span>
+                      ) : row.requested_amount ?? row.approved_quota ?? '-'}
+                    </td>
                     <td className="px-2 py-2 text-[11px] align-top">{row.inventory_qty ?? '-'}</td>
                     <td className="px-2 py-2 text-[11px] align-top">{row.inventory_value ? Number(row.inventory_value).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : row.inventory_value === 0 ? '0.00' : '-'}</td>
                     <td
