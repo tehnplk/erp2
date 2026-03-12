@@ -1181,6 +1181,17 @@ function SurveysPageContent() {
   };
 
   const handleDelete = async (survey: Survey) => {
+    // Prevent deletion if item is already in purchase plans
+    if (survey.has_purchase_plan) {
+      await Swal.fire({
+        title: 'ไม่สามารถลบได้',
+        text: 'รายการนี้อยู่ในแผนจัดซื้อแล้ว ไม่สามารถลบได้',
+        icon: 'error',
+        confirmButtonText: 'ตกลง'
+      });
+      return;
+    }
+
     const result = await Swal.fire({
       title: 'คุณแน่ใจหรือไม่?',
       text: `คุณต้องการลบข้อมูล "${survey.product_name}" หรือไม่?`,
@@ -1320,6 +1331,10 @@ function SurveysPageContent() {
 
   // Start inline editing
   const startInlineEdit = (survey: Survey, field: 'requestedAmount' | 'requestingDept' | 'approvedQuota') => {
+    // Prevent editing if item is already in purchase plans
+    if (survey.has_purchase_plan) {
+      return;
+    }
     setEditingId(survey.id);
     setEditingField(field);
     setEditData({
@@ -2067,16 +2082,16 @@ function SurveysPageContent() {
                     <th onClick={() => handleSort('price_per_unit')} className={`${getHeaderClass('price_per_unit')} w-24`}>
                       ราคา/หน่วย {getSortIcon('price_per_unit')}
                     </th>
-                    <th onClick={() => handleSort('requesting_dept')} className={`${getHeaderClass('requesting_dept')} w-40`}>
+                    <th onClick={() => handleSort('requesting_dept')} className={`${getHeaderClass('requesting_dept')} w-36`}>
                       หน่วยงาน {getSortIcon('requesting_dept')}
                     </th>
-                    <th onClick={() => handleSort('requested_amount')} className={`${getHeaderClass('requested_amount')} w-32`}>
+                    <th onClick={() => handleSort('requested_amount')} className={`${getHeaderClass('requested_amount')} w-28`}>
                       ขอใช้ {getSortIcon('requested_amount')}
                     </th>
-                    <th onClick={() => handleSort('approved_quota')} className={getHeaderClass('approved_quota')}>
+                    <th onClick={() => handleSort('approved_quota')} className={`${getHeaderClass('approved_quota')} w-28`}>
                       โควต้า {getSortIcon('approved_quota')}
                     </th>
-                    <th className="px-3 py-3 text-left text-[10px] font-medium text-gray-500 uppercase tracking-wider w-24">
+                    <th className="px-3 py-3 text-left text-[10px] font-medium text-gray-500 uppercase tracking-wider w-20">
                       Action
                     </th>
                   </tr>
@@ -2144,7 +2159,8 @@ function SurveysPageContent() {
                           <button
                             type="button"
                             onClick={() => startInlineEdit(survey, 'requestingDept')}
-                            className="w-full text-left cursor-text"
+                            className={`w-full text-left ${survey.has_purchase_plan ? 'cursor-not-allowed text-gray-400' : 'cursor-text'}`}
+                            disabled={survey.has_purchase_plan}
                           >
                             {survey.requesting_dept || '-'}
                           </button>
@@ -2171,7 +2187,8 @@ function SurveysPageContent() {
                           <button
                             type="button"
                             onClick={() => startInlineEdit(survey, 'requestedAmount')}
-                            className="w-full text-left cursor-text"
+                            className={`w-full text-left ${survey.has_purchase_plan ? 'cursor-not-allowed text-gray-400' : 'cursor-text'}`}
+                            disabled={survey.has_purchase_plan}
                           >
                             {survey.requested_amount?.toLocaleString() || ''} {survey.unit}
                           </button>
@@ -2195,7 +2212,8 @@ function SurveysPageContent() {
                           <button
                             type="button"
                             onClick={() => startInlineEdit(survey, 'approvedQuota')}
-                            className="w-full text-left cursor-text"
+                            className={`w-full text-left ${survey.has_purchase_plan ? 'cursor-not-allowed text-gray-400' : 'cursor-text'}`}
+                            disabled={survey.has_purchase_plan}
                           >
                             {survey.approved_quota?.toLocaleString() || '-'}
                           </button>
@@ -2227,16 +2245,18 @@ function SurveysPageContent() {
                               <button
                                 type="button"
                                 onClick={() => startInlineEdit(survey, 'requestedAmount')}
-                                className="text-indigo-600 hover:text-indigo-900 cursor-pointer"
-                                title="แก้ไข"
+                                className={`text-indigo-600 hover:text-indigo-900 ${survey.has_purchase_plan ? 'cursor-not-allowed text-gray-400 opacity-50' : 'cursor-pointer'}`}
+                                title={survey.has_purchase_plan ? "ไม่สามารถแก้ไขได้ - รายการนี้อยู่ในแผนจัดซื้อแล้ว" : "แก้ไข"}
+                                disabled={survey.has_purchase_plan}
                               >
                                 <Pencil className="h-5 w-5" />
                               </button>
                               <button
                                 type="button"
                                 onClick={() => handleDelete(survey)}
-                                className="text-red-600 hover:text-red-900 cursor-pointer"
-                                title="ลบ"
+                                className={`text-red-600 hover:text-red-900 ${survey.has_purchase_plan ? 'cursor-not-allowed text-gray-400 opacity-50' : 'cursor-pointer'}`}
+                                title={survey.has_purchase_plan ? "ไม่สามารถลบได้ - รายการนี้อยู่ในแผนจัดซื้อแล้ว" : "ลบ"}
+                                disabled={survey.has_purchase_plan}
                               >
                                 <Trash2 className="h-5 w-5" />
                               </button>

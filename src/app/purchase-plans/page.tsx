@@ -931,7 +931,7 @@ function PurchasePlansPageContent() {
                 const isSavingRow = savingRowId === row.id;
 
                 return (
-                  <tr key={row.id} className={isEditingRow ? 'bg-yellow-50' : ''}>
+                  <tr key={row.id} className={`${isEditingRow ? 'bg-yellow-50' : 'hover:bg-gray-50 transition-colors duration-150'}`}>
                     <td className="px-2 py-2 text-[11px] align-top">
                       <input
                         type="checkbox"
