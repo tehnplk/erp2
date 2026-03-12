@@ -71,6 +71,7 @@ interface Survey {
   sequence_no: number | null;
   created_at: string;
   updated_at: string;
+  has_purchase_plan: boolean;
 }
 
 interface SurveyFormData {
@@ -404,6 +405,7 @@ function SurveysPageContent() {
   const [highlightedBulkProductIndex, setHighlightedBulkProductIndex] = useState(-1);
   const [selectedBulkProductLabel, setSelectedBulkProductLabel] = useState('');
   const [bulkValidationErrors, setBulkValidationErrors] = useState<Record<number, { requestedAmount?: string; requestingDept?: string }>>({});
+  const [selectedRows, setSelectedRows] = useState<Set<number>>(new Set());
   const bulkProductSearchAbortRef = useRef<AbortController | null>(null);
   const dataRequestIdRef = useRef(0);
   const lastPushedUrlRef = useRef('');
@@ -821,6 +823,123 @@ function SurveysPageContent() {
     const newSize = parseInt(e.target.value, 10);
     setPageSize(newSize);
     setPage(1);
+  };
+
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      // Only select items that don't have purchase plans AND have quota > 0
+      const selectableIds = new Set(surveys.filter(survey => !survey.has_purchase_plan && (survey.approved_quota ?? 0) > 0).map(survey => survey.id));
+      setSelectedRows(selectableIds);
+    } else {
+      setSelectedRows(new Set());
+    }
+  };
+
+  const handleRowSelect = (id: number, checked: boolean) => {
+    // Find the survey to check if it has a purchase plan or zero quota
+    const survey = surveys.find(s => s.id === id);
+    if (survey?.has_purchase_plan || ((survey?.approved_quota ?? 0) === 0)) {
+      // Don't allow selection of items that already have purchase plans or have zero quota
+      return;
+    }
+    
+    setSelectedRows(prev => {
+      const newSet = new Set(prev);
+      if (checked) {
+        newSet.add(id);
+      } else {
+        newSet.delete(id);
+      }
+      return newSet;
+    });
+  };
+
+  // Calculate eligible items (selected items with approved_quota > 0)
+  const eligibleItemsCount = surveys.filter(survey => 
+    selectedRows.has(survey.id) && (survey.approved_quota ?? 0) > 0
+  ).length;
+
+  const isAllSelected = surveys.length > 0 &&
+    surveys.filter(survey => !survey.has_purchase_plan && (survey.approved_quota ?? 0) > 0).length > 0 &&
+    selectedRows.size === surveys.filter(survey => !survey.has_purchase_plan && (survey.approved_quota ?? 0) > 0).length;
+  const isIndeterminate = selectedRows.size > 0 &&
+    selectedRows.size < surveys.filter(survey => !survey.has_purchase_plan && (survey.approved_quota ?? 0) > 0).length;
+
+  const handleSendToPurchasePlan = async () => {
+    // Get selected usage plans that have approved_quota > 0
+    const eligibleItems = surveys.filter(survey => 
+      selectedRows.has(survey.id) && (survey.approved_quota ?? 0) > 0
+    );
+
+    if (eligibleItems.length === 0) {
+      await Swal.fire({
+        icon: 'warning',
+        title: 'ไม่สามารถส่งเข้าแผนจัดซื้อได้',
+        text: 'รายการที่เลือกต้องมีโควต้าที่อนุมัติมากกว่า 0',
+        confirmButtonColor: '#3b82f6',
+      });
+      return;
+    }
+
+    const result = await Swal.fire({
+      title: 'ยืนยันการส่งเข้าแผนจัดซื้อ?',
+      html: `
+        <div>คุณต้องการส่ง <strong>${eligibleItems.length}</strong> รายการเข้าสู่แผนจัดซื้อ</div>
+        <div class="mt-2 text-sm text-gray-600">
+          รายการที่มีโควต้าที่อนุมัติจะถูกสร้างเป็นแผนจัดซื้อ
+        </div>
+      `,
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonText: 'ส่งเข้าแผนจัดซื้อ',
+      cancelButtonText: 'ยกเลิก',
+      confirmButtonColor: '#10b981',
+    });
+
+    if (!result.isConfirmed) {
+      return;
+    }
+
+    try {
+      const response = await fetch('/api/purchase-plans/bulk', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          usage_plan_ids: eligibleItems.map(item => item.id)
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok || !data.success) {
+        throw new Error(data.error || 'ส่งเข้าแผนจัดซื้อไม่สำเร็จ');
+      }
+
+      await Swal.fire({
+        icon: 'success',
+        title: 'ส่งเข้าแผนจัดซื้อสำเร็จ',
+        html: `
+          <div>สร้างแผนจัดซื้อ <strong>${data.created_count || eligibleItems.length}</strong> รายการ</div>
+          <div class="mt-2 text-sm text-gray-600">
+            รายการที่ส่งเข้าแผนจัดซื้อแล้วจะไม่ปรากฏในรายการที่เลือก
+          </div>
+        `,
+        confirmButtonColor: '#10b981',
+      });
+
+      // Clear selection and refresh data
+      setSelectedRows(new Set());
+      await fetchUsagePlans();
+
+    } catch (error) {
+      console.error('Error sending to purchase plans:', error);
+      await Swal.fire({
+        icon: 'error',
+        title: 'ส่งเข้าแผนจัดซื้อไม่สำเร็จ',
+        text: error instanceof Error ? error.message : 'เกิดข้อผิดพลาดที่ไม่คาดคิด',
+        confirmButtonColor: '#3b82f6',
+      });
+    }
   };
 
   const fetchUsagePlans = async () => {
@@ -1667,39 +1786,65 @@ function SurveysPageContent() {
             <h1 className="text-3xl font-bold text-gray-900">แผนการใช้</h1>
 
           </div>
-          <div className="flex items-center gap-3">
-            <input
-              id="surveys-import-file"
-              name="surveysImportFile"
-              ref={fileInputRef}
-              type="file"
-              accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
-              onChange={handleFileChange}
-              className="hidden"
-            />
-            <button
-              type="button"
-              onClick={handleImportClick}
-              disabled={importing}
-              className={`flex items-center gap-2 rounded-lg bg-green-600 px-5 py-2.5 text-sm font-medium text-white shadow-sm transition-colors hover:bg-green-700 ${importing ? 'opacity-70 cursor-not-allowed' : ''}`}
-            >
-              <Upload className="h-5 w-5" />
-              <span>{importing ? 'กำลังนำเข้า...' : 'นำเข้า Excel'}</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setShowBulkForm(true);
-                setBulkRecords([]);
-                setBulkRecordErrors({});
-              }}
-              className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-blue-700"
-              title="เพิ่มความต้องการใหม่"
-            >
-              <Plus className="h-5 w-5" />
-              <span>เพิ่มรายการ</span>
-            </button>
-          </div>
+          
+          {/* Import/Add buttons - shown when no items selected */}
+          {selectedRows.size === 0 && (
+            <div className="flex items-center gap-3">
+              <input
+                id="surveys-import-file"
+                name="surveysImportFile"
+                ref={fileInputRef}
+                type="file"
+                accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
+                onChange={handleFileChange}
+                className="hidden"
+              />
+              <button
+                type="button"
+                onClick={handleImportClick}
+                disabled={importing}
+                className={`flex items-center gap-2 rounded-lg bg-green-600 px-5 py-2.5 text-sm font-medium text-white shadow-sm transition-colors hover:bg-green-700 ${importing ? 'opacity-70 cursor-not-allowed' : ''}`}
+              >
+                <Upload className="h-5 w-5" />
+                <span>{importing ? 'กำลังนำเข้า...' : 'นำเข้า Excel'}</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowBulkForm(true);
+                  setBulkRecords([]);
+                  setBulkRecordErrors({});
+                }}
+                className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-blue-700"
+                title="เพิ่มความต้องการใหม่"
+              >
+                <Plus className="h-5 w-5" />
+                <span>เพิ่มรายการ</span>
+              </button>
+            </div>
+          )}
+          
+          {/* Purchase Plan buttons - shown when items selected */}
+          {selectedRows.size > 0 && (
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={handleSendToPurchasePlan}
+                className="inline-flex items-center gap-2 rounded-lg bg-orange-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-orange-700"
+              >
+                <CheckCircle2 className="h-5 w-5" />
+                <span>ส่งเข้าแผนจัดซื้อ {eligibleItemsCount} รายการ</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setSelectedRows(new Set())}
+                className="inline-flex items-center gap-2 rounded-lg bg-gray-500 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-gray-600"
+              >
+                <X className="h-5 w-5" />
+                <span>ยกเลิกเลือก</span>
+              </button>
+            </div>
+          )}
         </div>
         {/* Filter Section */}
         <div className="bg-white shadow-md rounded-lg overflow-hidden mb-4">
@@ -1893,6 +2038,19 @@ function SurveysPageContent() {
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                   <tr>
+                    <th className="px-6 py-3 text-left">
+                      <input
+                        type="checkbox"
+                        checked={isAllSelected}
+                        ref={(el) => {
+                          if (el) {
+                            el.indeterminate = isIndeterminate;
+                          }
+                        }}
+                        onChange={(e) => handleSelectAll(e.target.checked)}
+                        className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                      />
+                    </th>
                     <th onClick={() => handleSort('budget_year')} className={getHeaderClass('budget_year')}>
                       ปีงบ {getSortIcon('budget_year')}
                     </th>
@@ -1925,6 +2083,19 @@ function SurveysPageContent() {
                 <tbody className="bg-white divide-y divide-gray-200">
                   {surveys.map((survey) => (
                     <tr key={survey.id} className="hover:bg-gray-50">
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <input
+                          type="checkbox"
+                          checked={selectedRows.has(survey.id)}
+                          onChange={(e) => handleRowSelect(survey.id, e.target.checked)}
+                          disabled={survey.has_purchase_plan || (survey.approved_quota ?? 0) === 0}
+                          className={`h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 ${
+                            survey.has_purchase_plan || (survey.approved_quota ?? 0) === 0
+                              ? 'opacity-50 cursor-not-allowed bg-gray-100'
+                              : ''
+                          }`}
+                        />
+                      </td>
                       <td className="px-6 py-4 whitespace-nowrap text-xs text-gray-900">
                         {survey.budget_year || '-'}
                       </td>

@@ -912,74 +912,125 @@ function PurchasePlansPageContent() {
   };
 
   const handleBulkFormKeyDown = (event: React.KeyboardEvent<HTMLInputElement>, recordId: number, field: string) => {
-    // Only handle arrow keys for navigation
-    if (event.key !== 'ArrowUp' && event.key !== 'ArrowDown' && event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') {
+    // Handle all navigation keys
+    if (event.key !== 'ArrowUp' && event.key !== 'ArrowDown' && event.key !== 'ArrowLeft' && event.key !== 'ArrowRight' 
+        && event.key !== 'Tab' && event.key !== 'Enter' && event.key !== 'Home' && event.key !== 'End') {
       return;
     }
 
-    event.preventDefault();
+    // Allow default behavior for Tab without modifiers
+    if (event.key === 'Tab' && !event.shiftKey) {
+      return;
+    }
+
+    // Prevent default for navigation keys we handle
+    if (event.key !== 'Tab' || event.shiftKey) {
+      event.preventDefault();
+    }
     
     const recordIndex = bulkRecords.findIndex(r => r.id === recordId);
     if (recordIndex === -1) return;
 
-    // Define field order for each record
-    const fieldOrder = ['requested_amount', 'requesting_dept'];
+    // Define editable field order for each record
+    const fieldOrder = ['purchase_qty', 'requesting_dept'];
     const currentFieldIndex = fieldOrder.indexOf(field);
     
     let nextElement: HTMLElement | null = null;
 
-    if (event.key === 'ArrowUp') {
-      if (recordIndex === 0 && field === 'requested_amount') {
-        // From first record's requested amount, go back to product search
+    // Handle Ctrl/Cmd + Home/End for row navigation
+    if ((event.ctrlKey || event.metaKey) && event.key === 'Home') {
+      // Go to first editable field of first record
+      const firstRecord = bulkRecords[0];
+      nextElement = document.getElementById(`purchase-bulk-${fieldOrder[0]}-${firstRecord.id}`);
+    } else if ((event.ctrlKey || event.metaKey) && event.key === 'End') {
+      // Go to last editable field of last record
+      const lastRecord = bulkRecords[bulkRecords.length - 1];
+      nextElement = document.getElementById(`purchase-bulk-${fieldOrder[fieldOrder.length - 1]}-${lastRecord.id}`);
+    } else if (event.key === 'Home') {
+      // Go to first editable field of current record
+      nextElement = document.getElementById(`purchase-bulk-${fieldOrder[0]}-${recordId}`);
+    } else if (event.key === 'End') {
+      // Go to last editable field of current record
+      nextElement = document.getElementById(`purchase-bulk-${fieldOrder[fieldOrder.length - 1]}-${recordId}`);
+    } else if (event.key === 'ArrowUp') {
+      if (recordIndex === 0) {
+        // From first record, go back to product search
         nextElement = document.getElementById('purchase-bulk-product-search');
-      } else if (recordIndex === 0 && field === 'requesting_dept') {
-        // From first record's department, go back to product search
-        nextElement = document.getElementById('purchase-bulk-product-search');
-      } else if (recordIndex > 0) {
+      } else {
         // Move to same field in previous record
         const prevRecordId = bulkRecords[recordIndex - 1].id;
-        const nextFieldId = field === 'requesting_dept' 
-          ? `purchase-bulk-requesting-dept-${prevRecordId}`
-          : `purchase-bulk-requested-amount-${prevRecordId}`;
-        nextElement = document.getElementById(nextFieldId);
+        nextElement = document.getElementById(`purchase-bulk-${field}-${prevRecordId}`);
       }
-    } else if (event.key === 'ArrowDown' && recordIndex < bulkRecords.length - 1) {
-      // Move to same field in next record
-      const nextRecordId = bulkRecords[recordIndex + 1].id;
-      const nextFieldId = field === 'requesting_dept'
-        ? `purchase-bulk-requesting-dept-${nextRecordId}`
-        : `purchase-bulk-requested-amount-${nextRecordId}`;
-      nextElement = document.getElementById(nextFieldId);
-    } else if (event.key === 'ArrowDown' && recordIndex === bulkRecords.length - 1 && field === 'requesting_dept') {
-      // From last record's department, move to save button
-      nextElement = document.querySelector('button') as HTMLElement;
-      // Find the save button by checking its text content
-      const buttons = document.querySelectorAll('button');
-      for (const button of buttons) {
-        if (button.textContent?.includes('บันทึกทั้งหมด')) {
-          nextElement = button as HTMLElement;
-          break;
+    } else if (event.key === 'ArrowDown') {
+      if (recordIndex < bulkRecords.length - 1) {
+        // Move to same field in next record
+        const nextRecordId = bulkRecords[recordIndex + 1].id;
+        nextElement = document.getElementById(`purchase-bulk-${field}-${nextRecordId}`);
+      } else if (recordIndex === bulkRecords.length - 1 && field === 'requesting_dept') {
+        // From last record's last field, move to save button
+        const buttons = document.querySelectorAll('button');
+        for (const button of buttons) {
+          if (button.textContent?.includes('บันทึกทั้งหมด')) {
+            nextElement = button as HTMLElement;
+            break;
+          }
         }
       }
-    } else if (event.key === 'ArrowRight' && currentFieldIndex < fieldOrder.length - 1) {
-      // Move to next field in same record
-      const nextField = fieldOrder[currentFieldIndex + 1];
-      const nextFieldId = nextField === 'requesting_dept'
-        ? `purchase-bulk-requesting-dept-${recordId}`
-        : `purchase-bulk-requested-amount-${recordId}`;
-      nextElement = document.getElementById(nextFieldId);
-    } else if (event.key === 'ArrowLeft' && currentFieldIndex > 0) {
-      // Move to previous field in same record
-      const prevField = fieldOrder[currentFieldIndex - 1];
-      const prevFieldId = prevField === 'requesting_dept'
-        ? `purchase-bulk-requesting-dept-${recordId}`
-        : `purchase-bulk-requested-amount-${recordId}`;
-      nextElement = document.getElementById(prevFieldId);
+    } else if (event.key === 'ArrowRight') {
+      if (currentFieldIndex < fieldOrder.length - 1) {
+        // Move to next field in same record
+        const nextField = fieldOrder[currentFieldIndex + 1];
+        nextElement = document.getElementById(`purchase-bulk-${nextField}-${recordId}`);
+      } else if (recordIndex < bulkRecords.length - 1) {
+        // From last field, move to first field of next record
+        const nextRecordId = bulkRecords[recordIndex + 1].id;
+        nextElement = document.getElementById(`purchase-bulk-${fieldOrder[0]}-${nextRecordId}`);
+      }
+    } else if (event.key === 'ArrowLeft') {
+      if (currentFieldIndex > 0) {
+        // Move to previous field in same record
+        const prevField = fieldOrder[currentFieldIndex - 1];
+        nextElement = document.getElementById(`purchase-bulk-${prevField}-${recordId}`);
+      } else if (recordIndex > 0) {
+        // From first field, move to last field of previous record
+        const prevRecordId = bulkRecords[recordIndex - 1].id;
+        nextElement = document.getElementById(`purchase-bulk-${fieldOrder[fieldOrder.length - 1]}-${prevRecordId}`);
+      }
+    } else if (event.key === 'Enter') {
+      // Enter moves down like in Excel, or to save button if at last row
+      if (recordIndex < bulkRecords.length - 1) {
+        const nextRecordId = bulkRecords[recordIndex + 1].id;
+        nextElement = document.getElementById(`purchase-bulk-${field}-${nextRecordId}`);
+      } else if (recordIndex === bulkRecords.length - 1 && field === 'requesting_dept') {
+        const buttons = document.querySelectorAll('button');
+        for (const button of buttons) {
+          if (button.textContent?.includes('บันทึกทั้งหมด')) {
+            nextElement = button as HTMLElement;
+            break;
+          }
+        }
+      }
+    } else if (event.key === 'Tab' && event.shiftKey) {
+      // Shift+Tab moves backwards
+      if (currentFieldIndex > 0) {
+        const prevField = fieldOrder[currentFieldIndex - 1];
+        nextElement = document.getElementById(`purchase-bulk-${prevField}-${recordId}`);
+      } else if (recordIndex > 0) {
+        const prevRecordId = bulkRecords[recordIndex - 1].id;
+        nextElement = document.getElementById(`purchase-bulk-${fieldOrder[fieldOrder.length - 1]}-${prevRecordId}`);
+      } else {
+        // From first field of first record, go to product search
+        nextElement = document.getElementById('purchase-bulk-product-search');
+      }
     }
 
     // Focus the next element if found
     if (nextElement) {
       nextElement.focus();
+      // For input elements, select the text
+      if (nextElement.tagName === 'INPUT') {
+        (nextElement as HTMLInputElement).select();
+      }
     }
   };
 
@@ -1456,7 +1507,8 @@ function PurchasePlansPageContent() {
                               className={`block w-full border-b border-gray-100 px-4 py-3 text-left text-sm ${index === highlightedBulkProductIndex ? 'bg-blue-50' : 'hover:bg-gray-50'}`}
                             >
                               <div className="font-medium text-gray-900">{label}</div>
-                              <div className="text-xs text-gray-500">{product.category || '-'} | {product.type || '-'} | {product.unit || '-'}</div>
+                              <div className="text-xs text-gray-500">{product.category || '-'} | {product.type || '-'} | {product.subtype || '-'}</div>
+                              <div className="text-xs text-gray-400">{product.requesting_dept || '-'} | ครั้งที่ : {product.sequence_no || '-'} | ขอใช้ : {product.requested_amount || '-'} | โควต้า : {product.approved_quota || '-'}</div>
                             </button>
                           );
                         })
@@ -1591,20 +1643,30 @@ function PurchasePlansPageContent() {
                                     requested_amount: e.target.value,
                                   }));
                                 }}
+                                onKeyDown={(e) => handleBulkFormKeyDown(e, record.id, 'purchase_qty')}
                                 placeholder="ซื้อเพิ่ม"
                                 className="w-full px-2 py-1 border rounded focus:outline-none focus:ring-2 text-sm border-blue-300 focus:ring-blue-500"
                               />
                             </td>
                             <td className="min-w-[14rem] px-2 py-3">
-                              <input
+                              <DepartmentCombobox
                                 id={`purchase-bulk-requesting-dept-${record.id}`}
                                 name={`bulkRequestingDept-${record.id}`}
-                                aria-label={`หน่วยงาน แถว ${index + 1}`}
-                                type="text"
+                                aria_label={`หน่วยงาน แถว ${index + 1}`}
                                 value={record.requesting_dept || ''}
-                                readOnly
+                                departments={departments}
                                 placeholder="หน่วยงาน"
-                                className="w-full px-2 py-1 border border-gray-300 rounded bg-gray-100 text-sm"
+                                required={true}
+                                on_change={(value) => {
+                                  updateBulkRecord(record.id, (current) => ({
+                                    ...current,
+                                    requesting_dept: value,
+                                  }));
+                                  clearBulkValidationError(record.id, 'requestingDept');
+                                }}
+                                on_clear_error={() => clearBulkValidationError(record.id, 'requestingDept')}
+                                class_name="w-full px-2 py-1 border rounded focus:outline-none focus:ring-2 text-sm border-blue-300 focus:ring-blue-500"
+                                on_key_down={(e) => handleBulkFormKeyDown(e, record.id, 'requesting_dept')}
                               />
                             </td>
                             <td className="w-16 px-2 py-3">

@@ -106,7 +106,15 @@ export async function GET(request: NextRequest) {
     if (!hasPagination) {
       const [surveysResult, totalCountResult] = await Promise.all([
         pgQuery(
-          `SELECT id, product_code, category, type, subtype, product_name, requested_amount, unit, price_per_unit::float8 AS price_per_unit, requesting_dept, requesting_dept_code, approved_quota, budget_year, sequence_no, created_at, updated_at FROM public.usage_plan ${whereSql} ORDER BY ${safeOrderField} ${orderDirection}`,
+          `SELECT 
+            up.id, up.product_code, up.category, up.type, up.subtype, up.product_name, 
+            up.requested_amount, up.unit, up.price_per_unit::float8 AS price_per_unit, 
+            up.requesting_dept, up.requesting_dept_code, up.approved_quota, 
+            up.budget_year, up.sequence_no, up.created_at, up.updated_at,
+            CASE WHEN pp.id IS NOT NULL THEN true ELSE false END as has_purchase_plan
+           FROM public.usage_plan up
+           LEFT JOIN public.purchase_plan pp ON up.id = pp.usage_plan_id
+           ${whereSql} ORDER BY ${safeOrderField} ${orderDirection}`,
           params
         ),
         pgQuery(`SELECT COUNT(*)::int AS count FROM public.usage_plan ${whereSql}`, params),
@@ -140,7 +148,15 @@ export async function GET(request: NextRequest) {
 
     const [surveysResult, totalCountResult, summaryResult, filteredSummaryResult] = await Promise.all([
       pgQuery(
-        `SELECT id, product_code, category, type, subtype, product_name, requested_amount, unit, price_per_unit::float8 AS price_per_unit, requesting_dept, requesting_dept_code, approved_quota, budget_year, sequence_no, created_at, updated_at FROM public.usage_plan ${whereSql} ORDER BY ${safeOrderField} ${orderDirection} LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,
+        `SELECT 
+          up.id, up.product_code, up.category, up.type, up.subtype, up.product_name, 
+          up.requested_amount, up.unit, up.price_per_unit::float8 AS price_per_unit, 
+          up.requesting_dept, up.requesting_dept_code, up.approved_quota, 
+          up.budget_year, up.sequence_no, up.created_at, up.updated_at,
+          CASE WHEN pp.id IS NOT NULL THEN true ELSE false END as has_purchase_plan
+         FROM public.usage_plan up
+         LEFT JOIN public.purchase_plan pp ON up.id = pp.usage_plan_id
+         ${whereSql} ORDER BY ${safeOrderField} ${orderDirection} LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,
         paginatedParams
       ),
       pgQuery(`SELECT COUNT(*)::int AS count FROM public.usage_plan ${whereSql}`, params),
