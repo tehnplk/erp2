@@ -3,7 +3,7 @@
 import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import Swal from 'sweetalert2';
-import { CheckCircle, Pencil, Trash2, XCircle, X, Plus, Search } from 'lucide-react';
+import { CheckCircle, Pencil, Trash2, XCircle, X } from 'lucide-react';
 
 const getCurrentBudgetYear = () => {
   const now = new Date();
@@ -11,8 +11,6 @@ const getCurrentBudgetYear = () => {
   const month = now.getMonth();
   return month >= 9 ? year + 544 : year + 543;
 };
-
-const PRODUCT_SUGGESTION_LIMIT = 12;
 
 type PurchasePlanRow = {
   id: number;
@@ -244,6 +242,32 @@ function DepartmentCombobox({
   );
 }
 
+function getSortIcon(column: string, currentSortBy: string, currentSortOrder: 'asc' | 'desc') {
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+
+  const initialProductNameFilter = searchParams.get('product_name') || '';
+  const initialCategoryFilter = searchParams.get('category') || '';
+  const initialTypeFilter = searchParams.get('product_type') || '';
+  const initialSubtypeFilter = searchParams.get('product_subtype') || '';
+  const initialRequestingDeptFilter = searchParams.get('requesting_dept') || '';
+  const initialBudgetYearFilter = searchParams.get('budget_year') || '';
+  const initialSortBy = searchParams.get('order_by') || 'id';
+  const initialSortOrder = (searchParams.get('sort_order') === 'asc' ? 'asc' : 'desc') as 'asc' | 'desc';
+  const initialPage = Math.max(1, parseInt(searchParams.get('page') || '1', 10) || 1);
+  const initialPageSize = Math.max(1, parseInt(searchParams.get('page_size') || '20', 10) || 20);
+
+  if (column === currentSortBy) {
+    if (currentSortOrder === 'asc') {
+      return <XCircle />;
+    } else {
+      return <CheckCircle />;
+    }
+  } else {
+    return <Pencil />;
+  }
+}
+
 function PurchasePlansPageContent() {
   const router = useRouter();
   const pathname = usePathname();
@@ -262,25 +286,14 @@ function PurchasePlansPageContent() {
 
   const [items, setItems] = useState<PurchasePlanRow[]>([]);
   const [summaryItems, setSummaryItems] = useState<PurchasePlanRow[]>([]);
+  const [selectedRows, setSelectedRows] = useState<Set<number>>(new Set());
   const [totalCount, setTotalCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [filtersLoading, setFiltersLoading] = useState(true);
   const [savingRowId, setSavingRowId] = useState<number | null>(null);
   const [editingRowId, setEditingRowId] = useState<number | null>(null);
-  const [showBulkForm, setShowBulkForm] = useState(false);
-  const [bulkRecords, setBulkRecords] = useState<BulkPurchasePlanRecord[]>([]);
   const [editingPurchaseQty, setEditingPurchaseQty] = useState<string>('');
   const purchaseQtyInputRefs = useRef<Record<number, HTMLInputElement | null>>({});
-  const [bulkProductSearch, setBulkProductSearch] = useState('');
-  const [bulkProductOptions, setBulkProductOptions] = useState<ProductOption[]>([]);
-  const [showBulkProductSuggestions, setShowBulkProductSuggestions] = useState(false);
-  const [highlightedBulkProductIndex, setHighlightedBulkProductIndex] = useState(-1);
-  const [selectedBulkProductLabel, setSelectedBulkProductLabel] = useState('');
-  const [bulkRecordErrors, setBulkRecordErrors] = useState<Record<number, string>>({});
-  const [bulkValidationErrors, setBulkValidationErrors] = useState<Record<number, { requestedAmount?: string; requestingDept?: string }>>({});
-  const bulkProductSearchInputRef = useRef<HTMLInputElement | null>(null);
-  const bulkProductSuggestionsRef = useRef<HTMLDivElement | null>(null);
-  const bulkProductSearchAbortRef = useRef<AbortController | null>(null);
   const dataRequestIdRef = useRef(0);
   const lastPushedUrlRef = useRef('');
   const prevFilterKeyRef = useRef('');
@@ -633,7 +646,6 @@ function PurchasePlansPageContent() {
       return false;
     } finally {
       setSavingRowId(null);
-      await Promise.all([fetchData(), fetchSummaryData()]);
     }
   };
 
@@ -654,6 +666,30 @@ function PurchasePlansPageContent() {
     setEditingRowId(nextRow.id);
     setEditingPurchaseQty(String(nextRow.purchase_qty ?? 0));
   };
+
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      const selectableIds = new Set(items.map(item => item.id));
+      setSelectedRows(selectableIds);
+    } else {
+      setSelectedRows(new Set());
+    }
+  };
+
+  const handleRowSelect = (id: number, checked: boolean) => {
+    setSelectedRows(prev => {
+      const newSet = new Set(prev);
+      if (checked) {
+        newSet.add(id);
+      } else {
+        newSet.delete(id);
+      }
+      return newSet;
+    });
+  };
+
+  const isAllSelected = items.length > 0 && selectedRows.size === items.length;
+  const isIndeterminate = selectedRows.size > 0 && selectedRows.size < items.length;
 
   const handlePurchaseQtyBlur = async (row: PurchasePlanRow) => {
     if (savingRowId === row.id) {
@@ -736,488 +772,32 @@ function PurchasePlansPageContent() {
     }
   };
 
-  useEffect(() => {
-    const searchValue = bulkProductSearch.trim();
-    if (searchValue.length === 0) {
-      setBulkProductOptions([]);
-      setShowBulkProductSuggestions(false);
-      setHighlightedBulkProductIndex(-1);
-      bulkProductSearchAbortRef.current?.abort();
-      bulkProductSearchAbortRef.current = null;
-      return;
-    }
-
-    const timeoutId = window.setTimeout(async () => {
-      try {
-        bulkProductSearchAbortRef.current?.abort();
-        const controller = new AbortController();
-        bulkProductSearchAbortRef.current = controller;
-
-        const params = new URLSearchParams({
-          page: '1',
-          page_size: PRODUCT_SUGGESTION_LIMIT.toString(),
-          order_by: 'code',
-          sort_order: 'asc',
-          search: searchValue,
-        });
-
-        const response = await fetch(`/api/usage-plans/available-for-purchase?${params.toString()}`, {
-          signal: controller.signal,
-        });
-
-        if (!response.ok) {
-          throw new Error('Failed to search products');
-        }
-
-        const data = await response.json();
-        setBulkProductOptions((data.data || []) as ProductOption[]);
-        setShowBulkProductSuggestions(true);
-        setHighlightedBulkProductIndex(-1);
-      } catch (error) {
-        if ((error as Error).name === 'AbortError') {
-          return;
-        }
-        console.error('Error searching bulk product options:', error);
-        setBulkProductOptions([]);
-      }
-    }, 150);
-
-    return () => {
-      window.clearTimeout(timeoutId);
-      bulkProductSearchAbortRef.current?.abort();
-    };
-  }, [bulkProductSearch]);
-
-  useEffect(() => {
-    if (!showBulkForm) {
-      return;
-    }
-
-    const focusFrame = window.requestAnimationFrame(() => {
-      bulkProductSearchInputRef.current?.focus();
-    });
-
-    return () => window.cancelAnimationFrame(focusFrame);
-  }, [showBulkForm]);
-
-  useEffect(() => {
-    if (!showBulkProductSuggestions || highlightedBulkProductIndex < 0) {
-      return;
-    }
-
-    const suggestionContainer = bulkProductSuggestionsRef.current;
-    if (!suggestionContainer) {
-      return;
-    }
-
-    const highlightedElement = suggestionContainer.querySelector<HTMLElement>(`[data-bulk-suggestion-index="${highlightedBulkProductIndex}"]`);
-    highlightedElement?.scrollIntoView({ block: 'nearest' });
-  }, [highlightedBulkProductIndex, showBulkProductSuggestions]);
-
-  const createEmptyBulkRecord = (id: number): BulkPurchasePlanRecord => ({
-    id,
-    usage_plan_id: null,
-    productSearch: '',
-    product_code: '',
-    category: '',
-    product_type: '',
-    product_subtype: '',
-    product_name: '',
-    requested_amount: '',
-    unit: '',
-    price_per_unit: '',
-    requesting_dept: '',
-    approved_quota: '',
-    budget_year: getCurrentBudgetYear().toString(),
-    sequence_no: '1',
-    inventory_qty: 0,
-    available_qty: 0
-  });
-
-  const updateBulkRecord = (id: number, updater: (record: BulkPurchasePlanRecord) => BulkPurchasePlanRecord) => {
-    setBulkRecords((prev) => prev.map((record) => (record.id === id ? updater(record) : record)));
-  };
-
-  const clearBulkValidationError = (id: number, field: 'requestedAmount' | 'requestingDept') => {
-    setBulkValidationErrors((prev) => {
-      const current = prev[id];
-      if (!current?.[field]) {
-        return prev;
-      }
-
-      const nextRecordErrors = { ...current };
-      delete nextRecordErrors[field];
-
-      if (Object.keys(nextRecordErrors).length === 0) {
-        const nextErrors = { ...prev };
-        delete nextErrors[id];
-        return nextErrors;
-      }
-
-      return {
-        ...prev,
-        [id]: nextRecordErrors,
-      };
-    });
-  };
-
-  const handleBulkProductSearchKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
-    // If suggestions are visible, handle suggestion navigation first
-    if (showBulkProductSuggestions && filteredBulkProductOptions.length > 0) {
-      if (event.key === 'ArrowDown') {
-        event.preventDefault();
-        setHighlightedBulkProductIndex((prev) => (prev + 1) % filteredBulkProductOptions.length);
-        return;
-      }
-
-      if (event.key === 'ArrowUp') {
-        event.preventDefault();
-        setHighlightedBulkProductIndex((prev) => (prev <= 0 ? filteredBulkProductOptions.length - 1 : prev - 1));
-        return;
-      }
-
-      if (event.key === 'Enter') {
-        event.preventDefault();
-        const selectedIndex = highlightedBulkProductIndex >= 0 ? highlightedBulkProductIndex : 0;
-        const selectedOption = filteredBulkProductOptions[selectedIndex];
-        if (selectedOption) {
-          handleBulkProductSelect(selectedOption.id, `${selectedOption.code} - ${selectedOption.name}`);
-        }
-        return;
-      }
-
-      if (event.key === 'Escape') {
-        setShowBulkProductSuggestions(false);
-        setHighlightedBulkProductIndex(-1);
-        return;
-      }
-    }
-
-    // Only handle navigation to table fields when suggestions are NOT visible
-    if (event.key === 'ArrowDown' && !showBulkProductSuggestions && bulkRecords.length > 0) {
-      event.preventDefault();
-      // Focus the first requested amount field in the table
-      const firstRecord = bulkRecords[0];
-      const firstRequestedAmountField = document.getElementById(`purchase-bulk-requested-amount-${firstRecord.id}`);
-      if (firstRequestedAmountField) {
-        firstRequestedAmountField.focus();
-      }
-      return;
-    }
-
-    if (event.key === 'Escape') {
-      setShowBulkProductSuggestions(false);
-      setHighlightedBulkProductIndex(-1);
-    }
-  };
-
-  const handleBulkFormKeyDown = (event: React.KeyboardEvent<HTMLInputElement>, recordId: number, field: string) => {
-    // Handle all navigation keys
-    if (event.key !== 'ArrowUp' && event.key !== 'ArrowDown' && event.key !== 'ArrowLeft' && event.key !== 'ArrowRight' 
-        && event.key !== 'Tab' && event.key !== 'Enter' && event.key !== 'Home' && event.key !== 'End') {
-      return;
-    }
-
-    // Allow default behavior for Tab without modifiers
-    if (event.key === 'Tab' && !event.shiftKey) {
-      return;
-    }
-
-    // Prevent default for navigation keys we handle
-    if (event.key !== 'Tab' || event.shiftKey) {
-      event.preventDefault();
-    }
-    
-    const recordIndex = bulkRecords.findIndex(r => r.id === recordId);
-    if (recordIndex === -1) return;
-
-    // Define editable field order for each record
-    const fieldOrder = ['purchase_qty', 'requesting_dept'];
-    const currentFieldIndex = fieldOrder.indexOf(field);
-    
-    let nextElement: HTMLElement | null = null;
-
-    // Handle Ctrl/Cmd + Home/End for row navigation
-    if ((event.ctrlKey || event.metaKey) && event.key === 'Home') {
-      // Go to first editable field of first record
-      const firstRecord = bulkRecords[0];
-      nextElement = document.getElementById(`purchase-bulk-${fieldOrder[0]}-${firstRecord.id}`);
-    } else if ((event.ctrlKey || event.metaKey) && event.key === 'End') {
-      // Go to last editable field of last record
-      const lastRecord = bulkRecords[bulkRecords.length - 1];
-      nextElement = document.getElementById(`purchase-bulk-${fieldOrder[fieldOrder.length - 1]}-${lastRecord.id}`);
-    } else if (event.key === 'Home') {
-      // Go to first editable field of current record
-      nextElement = document.getElementById(`purchase-bulk-${fieldOrder[0]}-${recordId}`);
-    } else if (event.key === 'End') {
-      // Go to last editable field of current record
-      nextElement = document.getElementById(`purchase-bulk-${fieldOrder[fieldOrder.length - 1]}-${recordId}`);
-    } else if (event.key === 'ArrowUp') {
-      if (recordIndex === 0) {
-        // From first record, go back to product search
-        nextElement = document.getElementById('purchase-bulk-product-search');
-      } else {
-        // Move to same field in previous record
-        const prevRecordId = bulkRecords[recordIndex - 1].id;
-        nextElement = document.getElementById(`purchase-bulk-${field}-${prevRecordId}`);
-      }
-    } else if (event.key === 'ArrowDown') {
-      if (recordIndex < bulkRecords.length - 1) {
-        // Move to same field in next record
-        const nextRecordId = bulkRecords[recordIndex + 1].id;
-        nextElement = document.getElementById(`purchase-bulk-${field}-${nextRecordId}`);
-      } else if (recordIndex === bulkRecords.length - 1 && field === 'requesting_dept') {
-        // From last record's last field, move to save button
-        const buttons = document.querySelectorAll('button');
-        for (const button of buttons) {
-          if (button.textContent?.includes('บันทึกทั้งหมด')) {
-            nextElement = button as HTMLElement;
-            break;
-          }
-        }
-      }
-    } else if (event.key === 'ArrowRight') {
-      if (currentFieldIndex < fieldOrder.length - 1) {
-        // Move to next field in same record
-        const nextField = fieldOrder[currentFieldIndex + 1];
-        nextElement = document.getElementById(`purchase-bulk-${nextField}-${recordId}`);
-      } else if (recordIndex < bulkRecords.length - 1) {
-        // From last field, move to first field of next record
-        const nextRecordId = bulkRecords[recordIndex + 1].id;
-        nextElement = document.getElementById(`purchase-bulk-${fieldOrder[0]}-${nextRecordId}`);
-      }
-    } else if (event.key === 'ArrowLeft') {
-      if (currentFieldIndex > 0) {
-        // Move to previous field in same record
-        const prevField = fieldOrder[currentFieldIndex - 1];
-        nextElement = document.getElementById(`purchase-bulk-${prevField}-${recordId}`);
-      } else if (recordIndex > 0) {
-        // From first field, move to last field of previous record
-        const prevRecordId = bulkRecords[recordIndex - 1].id;
-        nextElement = document.getElementById(`purchase-bulk-${fieldOrder[fieldOrder.length - 1]}-${prevRecordId}`);
-      }
-    } else if (event.key === 'Enter') {
-      // Enter moves down like in Excel, or to save button if at last row
-      if (recordIndex < bulkRecords.length - 1) {
-        const nextRecordId = bulkRecords[recordIndex + 1].id;
-        nextElement = document.getElementById(`purchase-bulk-${field}-${nextRecordId}`);
-      } else if (recordIndex === bulkRecords.length - 1 && field === 'requesting_dept') {
-        const buttons = document.querySelectorAll('button');
-        for (const button of buttons) {
-          if (button.textContent?.includes('บันทึกทั้งหมด')) {
-            nextElement = button as HTMLElement;
-            break;
-          }
-        }
-      }
-    } else if (event.key === 'Tab' && event.shiftKey) {
-      // Shift+Tab moves backwards
-      if (currentFieldIndex > 0) {
-        const prevField = fieldOrder[currentFieldIndex - 1];
-        nextElement = document.getElementById(`purchase-bulk-${prevField}-${recordId}`);
-      } else if (recordIndex > 0) {
-        const prevRecordId = bulkRecords[recordIndex - 1].id;
-        nextElement = document.getElementById(`purchase-bulk-${fieldOrder[fieldOrder.length - 1]}-${prevRecordId}`);
-      } else {
-        // From first field of first record, go to product search
-        nextElement = document.getElementById('purchase-bulk-product-search');
-      }
-    }
-
-    // Focus the next element if found
-    if (nextElement) {
-      nextElement.focus();
-      // For input elements, select the text
-      if (nextElement.tagName === 'INPUT') {
-        (nextElement as HTMLInputElement).select();
-      }
-    }
-  };
-
-  const filteredBulkProductOptions = bulkProductOptions.slice(0, PRODUCT_SUGGESTION_LIMIT);
-
-  const shouldShowBulkProductNoResults = showBulkProductSuggestions
-    && bulkProductSearch.trim().length > 0
-    && bulkProductSearch.trim() !== selectedBulkProductLabel.trim()
-    && filteredBulkProductOptions.length === 0;
-
-  const handleBulkProductSelect = (id: number, value: string) => {
-    const normalizedValue = value.trim().toLowerCase();
-    const selectedUsagePlan = bulkProductOptions.find((plan) => {
-      const label = `${plan.code} - ${plan.name}`.toLowerCase();
-      return label === normalizedValue || plan.code.toLowerCase() === normalizedValue || plan.name.toLowerCase() === normalizedValue;
-    });
-
-    if (!selectedUsagePlan) {
-      setSelectedBulkProductLabel('');
-      setShowBulkProductSuggestions(value.trim().length > 0);
-      setHighlightedBulkProductIndex(-1);
-      return;
-    }
-
-    const selectedLabel = `${selectedUsagePlan.code} - ${selectedUsagePlan.name}`;
-    setSelectedBulkProductLabel('');
-    setBulkProductSearch('');
-    setShowBulkProductSuggestions(false);
-    setHighlightedBulkProductIndex(-1);
-    setBulkValidationErrors((prev) => {
-      const nextErrors = { ...prev };
-      delete nextErrors[id];
-      return nextErrors;
-    });
-    setBulkRecordErrors((prev) => {
-      const nextErrors = { ...prev };
-      delete nextErrors[id];
-      return nextErrors;
-    });
-
-    setBulkRecords((prev) => {
-      const hasExistingRecord = prev.some((record) => record.product_code === selectedUsagePlan.code);
-      if (hasExistingRecord) {
-        return prev;
-      }
-
-      const nextId = prev.length > 0 ? Math.max(...prev.map((record) => record.id)) + 1 : 1;
-      return [
-        ...prev,
-        {
-          id: nextId,
-          usage_plan_id: selectedUsagePlan.id,
-          productSearch: selectedLabel,
-          product_code: selectedUsagePlan.code || '',
-          category: selectedUsagePlan.category || '',
-          product_type: selectedUsagePlan.type || '',
-          product_subtype: selectedUsagePlan.subtype || '',
-          product_name: selectedUsagePlan.name || '',
-          requested_amount: selectedUsagePlan.requested_amount?.toString() || '',
-          unit: selectedUsagePlan.unit || '',
-          price_per_unit: selectedUsagePlan.cost_price?.toString() || '0',
-          requesting_dept: selectedUsagePlan.requesting_dept || '',
-          approved_quota: selectedUsagePlan.approved_quota?.toString() || '',
-          budget_year: selectedUsagePlan.budget_year?.toString() || getCurrentBudgetYear().toString(),
-          sequence_no: selectedUsagePlan.sequence_no?.toString() || '1',
-          inventory_qty: selectedUsagePlan.inventory_qty || 0,
-          available_qty: selectedUsagePlan.available_qty || 0,
-        },
-      ];
-    });
-  };
-
-  const validateBulkPurchasePlans = () => {
-    const nextValidationErrors: Record<number, { requestedAmount?: string; requestingDept?: string }> = {};
-
-    const validRecords = bulkRecords.filter((record) => {
-      const hasProduct = record.product_code.trim() !== '' && record.product_name.trim() !== '';
-
-      if (!hasProduct) {
-        return false;
-      }
-
-      const requestedAmount = record.requested_amount.trim();
-      const requestingDept = record.requesting_dept.trim();
-      const recordErrors: { requestedAmount?: string; requestingDept?: string } = {};
-
-      if (!requestedAmount || Number.isNaN(Number(requestedAmount)) || Number(requestedAmount) <= 0) {
-        recordErrors.requestedAmount = 'กรุณากรอกจำนวนที่ขอมากกว่า 0';
-      }
-
-      if (!requestingDept) {
-        recordErrors.requestingDept = 'กรุณาเลือกหน่วยงานที่ขอ';
-      }
-
-      if (Object.keys(recordErrors).length > 0) {
-        nextValidationErrors[record.id] = recordErrors;
-        return false;
-      }
-
-      return true;
-    });
-
-    setBulkValidationErrors(nextValidationErrors);
-    return validRecords;
-  };
-
-  const saveBulkPurchasePlans = async () => {
-    const validRecords = validateBulkPurchasePlans();
-
-    if (validRecords.length === 0) {
-      return;
-    }
-
-    try {
-      const results = await Promise.all(
-        validRecords.map(async (record) => {
-          if (record.usage_plan_id === null) {
-            throw new Error(`ไม่พบ usage_plan_id สำหรับสินค้า ${record.product_code}`);
-          }
-
-          const purchase_qty = Math.max(0, Number(record.requested_amount || 0) - Number(record.inventory_qty || 0));
-          const inventory_value = Number((Number(record.inventory_qty || 0) * Number(record.price_per_unit || 0)).toFixed(2));
-          const purchase_value = Number((purchase_qty * Number(record.price_per_unit || 0)).toFixed(2));
-
-          const response = await fetch('/api/purchase-plans', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              usage_plan_id: record.usage_plan_id,
-              inventory_qty: Number(record.inventory_qty || 0),
-              inventory_value,
-              purchase_qty,
-              purchase_value,
-            }),
-          });
-
-          const payload = await response.json().catch(() => null);
-          if (!response.ok || !payload?.success) {
-            throw new Error(payload?.error || `ไม่สามารถบันทึกสินค้า ${record.product_code} ได้`);
-          }
-
-          return payload.data;
-        }),
-      );
-
-      await Promise.all([fetchData(), fetchSummaryData()]);
-      setShowBulkForm(false);
-      setBulkRecords([]);
-      setBulkValidationErrors({});
-      setBulkProductSearch('');
-      setBulkProductOptions([]);
-      setBulkRecordErrors({});
-
-      await Swal.fire({
-        icon: 'success',
-        title: 'บันทึกสำเร็จ',
-        text: `บันทึกแผนจัดซื้อ ${results.length} รายการเรียบร้อยแล้ว`,
-      });
-    } catch (error) {
-      console.error(error);
-      await Swal.fire({
-        icon: 'error',
-        title: 'บันทึกไม่สำเร็จ',
-        text: error instanceof Error ? error.message : 'ไม่สามารถบันทึกรายการแผนจัดซื้อได้',
-      });
-    }
-  };
-
   return (
     <div className="p-6 bg-gray-50 min-h-screen">
-      <div className="mb-6 flex items-center justify-between">
-        <div>
+      <div className="mb-6">
+        <div className="flex items-center justify-between">
           <h1 className="text-3xl font-bold text-gray-900">แผนจัดซื้อ</h1>
+          {selectedRows.size > 0 && (
+            <div className="flex items-center gap-3">
+              <button
+                className="inline-flex items-center gap-2 rounded-lg bg-green-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-green-700"
+              >
+                ทำรายการอนุมัติจัดซื้อ {selectedRows.size} รายการ
+              </button>
+              <button
+                className="inline-flex items-center gap-2 rounded-lg bg-red-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-red-700"
+              >
+                นำออกจากแผนจัดซื้อ {selectedRows.size} รายการ
+              </button>
+              <button
+                onClick={() => setSelectedRows(new Set())}
+                className="inline-flex items-center gap-2 rounded-lg bg-gray-500 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-gray-600"
+              >
+                ยกเลิก
+              </button>
+            </div>
+          )}
         </div>
-        <button
-          type="button"
-          onClick={() => {
-            setShowBulkForm(true);
-            setBulkRecords([]);
-            setBulkRecordErrors({});
-          }}
-          className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-blue-700"
-          title="เพิ่มแผนจัดซื้อใหม่"
-        >
-          <Plus className="h-5 w-5" />
-          <span>เพิ่มแผนจัดซื้อ</span>
-        </button>
       </div>
 
       <div className="bg-white shadow-md rounded-lg overflow-hidden mb-4">
@@ -1319,11 +899,23 @@ function PurchasePlansPageContent() {
           <table className="min-w-[1400px] w-full divide-y divide-gray-200 table-fixed">
             <thead className="bg-gray-50">
               <tr>
+                <th className="px-2 py-2.5 text-left">
+                  <input
+                    type="checkbox"
+                    checked={isAllSelected}
+                    ref={(el) => {
+                      if (el) {
+                        el.indeterminate = isIndeterminate;
+                      }
+                    }}
+                    onChange={(e) => handleSelectAll(e.target.checked)}
+                    className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                  />
+                </th>
                 <th onClick={() => handleSort('budget_year')} className={`${getHeaderClass('budget_year')} w-20`}>ปีงบ</th>
                 <th onClick={() => handleSort('sequence_no')} className={`${getHeaderClass('sequence_no')} w-16`}>ครั้งที่</th>
                 <th onClick={() => handleSort('product_code')} className={`${getHeaderClass('product_code')} w-28`}>รหัสสินค้า</th>
                 <th onClick={() => handleSort('product_name')} className={`${getHeaderClass('product_name')} w-[20rem]`}>ชื่อสินค้า</th>
-                <th onClick={() => handleSort('price_per_unit')} className={`${getHeaderClass('price_per_unit')} w-24`}>ราคา/หน่วย</th>
                 <th onClick={() => handleSort('requesting_dept')} className={`${getHeaderClass('requesting_dept')} w-36`}>หน่วยงานที่ขอ</th>
                 <th onClick={() => handleSort('requested_amount')} className={`${getHeaderClass('requested_amount')} w-24`}>จำนวนที่ขอ</th>
                 <th onClick={() => handleSort('approved_quota')} className={`${getHeaderClass('approved_quota')} w-24`}>โควต้าที่ได้</th>
@@ -1341,14 +933,22 @@ function PurchasePlansPageContent() {
 
                 return (
                   <tr key={row.id} className={isEditingRow ? 'bg-yellow-50' : ''}>
+                    <td className="px-2 py-2 text-[11px] align-top">
+                      <input
+                        type="checkbox"
+                        checked={selectedRows.has(row.id)}
+                        onChange={(e) => handleRowSelect(row.id, e.target.checked)}
+                        className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                      />
+                    </td>
                     <td className="px-2 py-2 text-[11px] align-top">{row.budget_year ?? '-'}</td>
                     <td className="px-2 py-2 text-[11px] align-top">{row.sequence_no ?? '-'}</td>
                     <td className="px-2 py-2 text-[11px] align-top break-all">{row.product_code || '-'}</td>
                     <td className="px-2 py-2 text-[11px] align-top">
                       <div className="font-medium text-gray-900 whitespace-normal break-words leading-4" title={row.product_name || ''}>{row.product_name || '-'}</div>
+                      <div className="mt-1 text-[10px] leading-4 text-gray-600">{row.price_per_unit ? `${Number(row.price_per_unit).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} บาท/${row.unit || 'หน่วย'}` : '-'}</div>
                       <div className="mt-1 text-[10px] leading-4 text-emerald-600/80">{[row.category || '-', row.product_type || '-', row.product_subtype || '-'].filter((value, index, arr) => !(value === '-' && arr.every((item) => item === '-'))).join(' · ')}</div>
                     </td>
-                    <td className="px-2 py-2 text-[11px] align-top">{row.price_per_unit ? Number(row.price_per_unit).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '-'}</td>
                     <td className="px-2 py-2 text-[11px] align-top break-words">{row.requesting_dept || '-'}</td>
                     <td className="px-2 py-2 text-[11px] align-top">{row.requested_amount ?? '-'}</td>
                     <td className="px-2 py-2 text-[11px] align-top">{row.approved_quota ?? '-'}</td>
@@ -1374,7 +974,6 @@ function PurchasePlansPageContent() {
                             purchaseQtyInputRefs.current[row.id] = element;
                           }}
                           className="w-20 rounded border border-amber-300 bg-white px-2 py-1 text-[11px] shadow-sm outline-none ring-2 ring-amber-100"
-                          disabled={isSavingRow}
                         />
                       ) : (
                         row.purchase_qty ?? '-'
@@ -1384,7 +983,7 @@ function PurchasePlansPageContent() {
                     <td className="px-2 py-2 text-[11px] align-top font-medium w-20">
                       {isEditingRow ? (
                         <div className="flex items-center gap-3">
-                          <button onClick={() => void handleSaveAction(row)} className="text-emerald-600 hover:text-emerald-800 cursor-pointer disabled:opacity-50" title="บันทึก" aria-label="บันทึก" disabled={isSavingRow}>
+                          <button onClick={() => void handleSaveAction(row)} className="text-emerald-600 hover:text-emerald-800 cursor-pointer" title="บันทึก" aria-label="บันทึก">
                             <CheckCircle className="h-5 w-5" />
                           </button>
                           <button onClick={handleCancelAction} className="text-gray-500 hover:text-gray-700 cursor-pointer" title="ยกเลิก" aria-label="ยกเลิก">
@@ -1418,317 +1017,6 @@ function PurchasePlansPageContent() {
         )}
         </div>
       </div>
-
-      {/* Bulk Add Purchase Plans Modal */}
-      {showBulkForm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-100/80 p-2 backdrop-blur-sm md:p-4">
-          <div className="flex h-[96vh] w-[98vw] flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_24px_80px_rgba(15,23,42,0.18)] ring-1 ring-slate-200">
-            <div className="flex items-center justify-between border-b border-slate-200 bg-gradient-to-r from-blue-50 via-white to-slate-50 px-5 py-3">
-              <div>
-                <h2 className="text-lg font-bold text-slate-900">เพิ่มรายการสินค้าเข้าแผนจัดซื้อ</h2>
-              </div>
-              <button
-                type="button"
-                onClick={() => {
-                  setShowBulkForm(false);
-                  setBulkRecords([]);
-                  setBulkProductSearch('');
-                  setBulkProductOptions([]);
-                  setBulkRecordErrors({});
-                }}
-                className="rounded-full p-1.5 text-slate-500 transition-colors hover:bg-white hover:text-slate-700"
-              >
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-
-            <div className="flex min-h-0 flex-1 flex-col px-6 py-6">
-              <div className="relative z-20 mb-4 rounded-2xl border border-blue-100 bg-blue-50 p-4">
-                <label htmlFor="purchase-bulk-product-search" className="mb-2 block text-sm font-medium text-gray-700">
-                  ค้นหารหัสหรือชื่อสินค้า (จากแผนใช้ที่ยังไม่มีแผนซื้อ)
-                </label>
-                <div className="relative">
-                  <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-                  <input
-                    ref={bulkProductSearchInputRef}
-                    id="purchase-bulk-product-search"
-                    name="purchaseBulkProductSearch"
-                    type="text"
-                    value={bulkProductSearch}
-                    onChange={(e) => {
-                      setBulkProductSearch(e.target.value);
-                      setSelectedBulkProductLabel('');
-                      setShowBulkProductSuggestions(true);
-                      setHighlightedBulkProductIndex(-1);
-                    }}
-                    onFocus={() => {
-                      if (bulkProductSearch.trim() && bulkProductSearch.trim() !== selectedBulkProductLabel.trim()) {
-                        setShowBulkProductSuggestions(true);
-                      }
-                    }}
-                    onKeyDown={handleBulkProductSearchKeyDown}
-                    placeholder="พิมพ์รหัสสินค้า หรือชื่อสินค้า (จากแผนใช้ที่ยังไม่มีแผนซื้อ)"
-                    autoComplete="off"
-                    aria-label="ค้นหารหัสหรือชื่อสินค้า"
-                    className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 pl-9 pr-9 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                  {bulkProductSearch && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setBulkProductSearch('');
-                        setSelectedBulkProductLabel('');
-                        setShowBulkProductSuggestions(false);
-                        setHighlightedBulkProductIndex(-1);
-                      }}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                      aria-label="ล้างคำค้น"
-                    >
-                      <X className="h-4 w-4" />
-                    </button>
-                  )}
-                  {showBulkProductSuggestions && (
-                    <div
-                      ref={bulkProductSuggestionsRef}
-                      className="absolute z-50 mt-2 max-h-72 w-full overflow-auto rounded-md border border-gray-200 bg-white shadow-2xl"
-                    >
-                      {shouldShowBulkProductNoResults ? (
-                        <div className="px-4 py-3 text-sm text-gray-500">ไม่พบรายการที่ค้นหา</div>
-                      ) : (
-                        filteredBulkProductOptions.map((product, index) => {
-                          const label = `${product.code} - ${product.name}`;
-                          return (
-                            <button
-                              key={product.id}
-                              data-bulk-suggestion-index={index}
-                              type="button"
-                              onMouseDown={(event) => event.preventDefault()}
-                              onClick={() => handleBulkProductSelect(product.id, label)}
-                              className={`block w-full border-b border-gray-100 px-4 py-3 text-left text-sm ${index === highlightedBulkProductIndex ? 'bg-blue-50' : 'hover:bg-gray-50'}`}
-                            >
-                              <div className="font-medium text-gray-900">{label}</div>
-                              <div className="text-xs text-gray-500">{product.category || '-'} | {product.type || '-'} | {product.subtype || '-'}</div>
-                              <div className="text-xs text-gray-400">{product.requesting_dept || '-'} | ครั้งที่ : {product.sequence_no || '-'} | ขอใช้ : {product.requested_amount || '-'} | โควต้า : {product.approved_quota || '-'}</div>
-                            </button>
-                          );
-                        })
-                      )}
-                    </div>
-                  )}
-                </div>
-              </div>
-              <div className="min-h-0 flex-1 overflow-hidden rounded-xl border border-slate-200 bg-slate-50">
-                <div className="h-full overflow-auto">
-                  {bulkRecords.length > 0 ? (
-                    <table className="w-full">
-                      <thead className="bg-slate-100">
-                        <tr>
-                          <th scope="col" className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase">ปีงบ</th>
-                          <th scope="col" className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase">ครั้งที่</th>
-                          <th scope="col" className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase">รหัส</th>
-                          <th scope="col" className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase">ชื่อสินค้า</th>
-                          <th scope="col" className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase">ขอใช้</th>
-                          <th scope="col" className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase">โควต้า</th>
-                          <th scope="col" className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase">คงคลัง</th>
-                          <th scope="col" className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase">ซื้อเพิ่ม</th>
-                          <th scope="col" className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase">หน่วยงาน</th>
-                          <th scope="col" className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase">จัดการ</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {bulkRecords.map((record, index) => (
-                          <tr key={record.id} className="border-b border-slate-200 bg-white">
-                            <td className="w-16 px-2 py-3 text-sm text-gray-900">
-                              <input
-                                id={`purchase-bulk-budget-year-${record.id}`}
-                                name={`bulkBudgetYear-${record.id}`}
-                                type="text"
-                                value={record.budget_year || ''}
-                                readOnly
-                                className="w-full px-2 py-1 border border-gray-300 rounded bg-gray-100 text-sm text-center"
-                              />
-                            </td>
-                            <td className="w-16 px-2 py-3 text-sm text-gray-900">
-                              <input
-                                id={`purchase-bulk-sequence-no-${record.id}`}
-                                name={`bulkSequenceNo-${record.id}`}
-                                type="text"
-                                value={record.sequence_no || ''}
-                                readOnly
-                                className="w-full px-2 py-1 border border-gray-300 rounded bg-gray-100 text-sm text-center"
-                              />
-                            </td>
-                            <td className="w-28 px-2 py-3">
-                              <input
-                                id={`purchase-bulk-product-code-${record.id}`}
-                                name={`bulkProductCode-${record.id}`}
-                                aria-label={`รหัสสินค้า แถว ${index + 1}`}
-                                type="text"
-                                value={record.product_code}
-                                readOnly
-                                placeholder="รหัสสินค้า"
-                                className="w-full px-2 py-1 border border-gray-300 rounded bg-gray-100 text-sm"
-                              />
-                            </td>
-                            <td className="min-w-[20rem] px-2 py-3">
-                              <input
-                                id={`purchase-bulk-product-name-${record.id}`}
-                                name={`bulkProductName-${record.id}`}
-                                aria-label={`ชื่อสินค้า แถว ${index + 1}`}
-                                type="text"
-                                value={record.product_name}
-                                readOnly
-                                placeholder="ชื่อสินค้า"
-                                title={record.product_name || ''}
-                                className={`w-full px-2 py-1 border rounded bg-gray-100 text-sm ${
-                                  bulkRecordErrors[record.id] ? 'border-red-500' : 'border-gray-300'
-                                }`}
-                              />
-                              {bulkRecordErrors[record.id] && (
-                                <div className="mt-1 text-xs text-red-600 font-medium">
-                                  {bulkRecordErrors[record.id]}
-                                </div>
-                              )}
-                            </td>
-                            <td className="w-20 px-2 py-3">
-                              <input
-                                id={`purchase-bulk-requested-amount-${record.id}`}
-                                name={`bulkRequestedAmount-${record.id}`}
-                                aria-label={`ขอใช้ แถว ${index + 1}`}
-                                type="number"
-                                value={record.requested_amount || ''}
-                                readOnly
-                                placeholder="ขอใช้"
-                                className="w-full px-2 py-1 border border-gray-300 rounded bg-gray-100 text-sm text-center"
-                              />
-                            </td>
-                            <td className="w-20 px-2 py-3">
-                              <input
-                                id={`purchase-bulk-approved-quota-${record.id}`}
-                                name={`bulkApprovedQuota-${record.id}`}
-                                aria-label={`โควต้า แถว ${index + 1}`}
-                                type="number"
-                                value={record.approved_quota || ''}
-                                readOnly
-                                placeholder="โควต้า"
-                                className="w-full px-2 py-1 border border-gray-300 rounded bg-gray-100 text-sm"
-                              />
-                            </td>
-                            <td className="w-20 px-2 py-3">
-                              <input
-                                id={`purchase-bulk-inventory-qty-${record.id}`}
-                                name={`bulkInventoryQty-${record.id}`}
-                                aria-label={`คงคลัง แถว ${index + 1}`}
-                                type="number"
-                                value={record.inventory_qty || 0}
-                                readOnly
-                                placeholder="คงคลัง"
-                                className="w-full px-2 py-1 border border-gray-300 rounded bg-gray-100 text-sm text-center"
-                              />
-                            </td>
-                            <td className="w-20 px-2 py-3">
-                              <input
-                                id={`purchase-bulk-purchase-qty-${record.id}`}
-                                name={`bulkPurchaseQty-${record.id}`}
-                                aria-label={`ซื้อเพิ่ม แถว ${index + 1}`}
-                                type="number"
-                                min="0"
-                                value={record.requested_amount && record.inventory_qty !== undefined 
-                                  ? Math.max(0, parseInt(record.requested_amount) - record.inventory_qty).toString()
-                                  : record.requested_amount || ''
-                                }
-                                onChange={(e) => {
-                                  updateBulkRecord(record.id, (current) => ({
-                                    ...current,
-                                    requested_amount: e.target.value,
-                                  }));
-                                }}
-                                onKeyDown={(e) => handleBulkFormKeyDown(e, record.id, 'purchase_qty')}
-                                placeholder="ซื้อเพิ่ม"
-                                className="w-full px-2 py-1 border rounded focus:outline-none focus:ring-2 text-sm border-blue-300 focus:ring-blue-500"
-                              />
-                            </td>
-                            <td className="min-w-[14rem] px-2 py-3">
-                              <DepartmentCombobox
-                                id={`purchase-bulk-requesting-dept-${record.id}`}
-                                name={`bulkRequestingDept-${record.id}`}
-                                aria_label={`หน่วยงาน แถว ${index + 1}`}
-                                value={record.requesting_dept || ''}
-                                departments={departments}
-                                placeholder="หน่วยงาน"
-                                required={true}
-                                on_change={(value) => {
-                                  updateBulkRecord(record.id, (current) => ({
-                                    ...current,
-                                    requesting_dept: value,
-                                  }));
-                                  clearBulkValidationError(record.id, 'requestingDept');
-                                }}
-                                on_clear_error={() => clearBulkValidationError(record.id, 'requestingDept')}
-                                class_name="w-full px-2 py-1 border rounded focus:outline-none focus:ring-2 text-sm border-blue-300 focus:ring-blue-500"
-                                on_key_down={(e) => handleBulkFormKeyDown(e, record.id, 'requesting_dept')}
-                              />
-                            </td>
-                            <td className="w-16 px-2 py-3">
-                              <div className="flex gap-1">
-                                {bulkRecords.length > 0 && (
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      setBulkRecords(bulkRecords.filter((r) => r.id !== record.id));
-                                      setBulkValidationErrors((prev) => {
-                                        const nextErrors = { ...prev };
-                                        delete nextErrors[record.id];
-                                        return nextErrors;
-                                      });
-                                    }}
-                                    className="text-red-600 hover:text-red-900 p-1"
-                                    title="ลบแถวนี้"
-                                  >
-                                    <X className="h-4 w-4" />
-                                  </button>
-                                )}
-                              </div>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  ) : (
-                    <div className="flex items-center justify-center h-32">
-                      <p className="text-gray-500">ยังไม่มีรายการสินค้า</p>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              <div className="flex items-center justify-end gap-3 border-t border-slate-200 bg-slate-50 px-6 py-5">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowBulkForm(false);
-                    setBulkRecords([]);
-                    setBulkValidationErrors({});
-                    setBulkProductSearch('');
-                    setBulkProductOptions([]);
-                    setBulkRecordErrors({});
-                  }}
-                  className="rounded-lg bg-slate-500 px-6 py-2.5 text-white transition-colors hover:bg-slate-600"
-                >
-                  ยกเลิก
-                </button>
-                <button
-                  type="button"
-                  onClick={saveBulkPurchasePlans}
-                  className="rounded-lg bg-blue-600 px-6 py-2.5 text-white shadow-sm transition-colors hover:bg-blue-700"
-                >
-                  บันทึกทั้งหมด ({bulkRecords.length} รายการ)
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

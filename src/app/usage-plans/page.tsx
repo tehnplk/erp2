@@ -1889,6 +1889,7 @@ function SurveysPageContent() {
                 onChange={(e) => setProductNameFilter(e.target.value)}
                 className="w-full rounded-md border-gray-300 shadow-sm text-sm px-3 py-2 pr-10"
                 placeholder="รหัสสินค้า / ชื่อสินค้า"
+                autoComplete="off"
               />
               {productNameFilter && (
                 <button
