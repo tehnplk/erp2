@@ -36,25 +36,35 @@ export async function POST(request: NextRequest) {
 
     const purchaseApprovalResult = await client.query(
       `SELECT
-        pa.id,
-        pa.department,
-        pa.department_code,
-        pa.budget_year,
-        pa.record_number,
-        pa.request_date,
-        pa.product_code,
-        pa.product_name,
-        pa.category,
-        pa.product_type,
-        pa.product_subtype,
-        pa.requested_quantity,
-        pa.unit,
-        pa.price_per_unit::float8 AS price_per_unit,
+        pad.id,
+        pa.id AS purchase_approval_header_id,
+        pa.approve_code,
+        pa.doc_no,
+        pa.status,
+        up.requesting_dept AS department,
+        up.requesting_dept_code AS department_code,
+        up.budget_year,
+        pa.doc_date AS request_date,
+        up.product_code,
+        up.product_name,
+        up.category,
+        up.type AS product_type,
+        up.subtype AS product_subtype,
+        up.requested_amount AS requested_quantity,
+        up.unit,
+        up.price_per_unit::float8 AS price_per_unit,
+        pp.purchase_qty,
+        pp.purchase_value,
+        pad.approved_quantity,
+        pad.approved_amount,
         link.inventory_receipt_status,
         link.received_qty
-      FROM public.purchase_approval pa
-      INNER JOIN public.purchase_approval_inventory_link link ON link.purchase_approval_id = pa.id
-      WHERE pa.id = $1
+      FROM public.purchase_approval_detail pad
+      INNER JOIN public.purchase_approval pa ON pa.id = pad.purchase_approval_id
+      INNER JOIN public.purchase_plan pp ON pp.id = pad.purchase_plan_id
+      INNER JOIN public.usage_plan up ON up.id = pp.usage_plan_id
+      INNER JOIN public.purchase_approval_inventory_link link ON link.purchase_approval_detail_id = pad.id
+      WHERE pad.id = $1
       FOR UPDATE`,
       [purchase_approval_id]
     );
@@ -65,7 +75,7 @@ export async function POST(request: NextRequest) {
     }
 
     const purchaseApproval = purchaseApprovalResult.rows[0];
-    const requestedQuantity = Number(purchaseApproval.requested_quantity || 0);
+    const requestedQuantity = Number(purchaseApproval.approved_quantity || purchaseApproval.requested_quantity || 0);
     const receivedQty = Number(purchaseApproval.received_qty || 0);
     const remainingQty = Math.max(requestedQuantity - receivedQty, 0);
 
@@ -141,14 +151,14 @@ export async function POST(request: NextRequest) {
     const receiptResult = await client.query(
       `INSERT INTO public.inventory_receipt
         (receipt_no, receipt_date, receipt_type, status, vendor_name, source_reference_type, source_reference_id, source_reference_no, note, created_by)
-       VALUES ($1, $2, 'FROM_PURCHASE_APPROVAL', 'POSTED', $3, 'PurchaseApproval', $4, $5, $6, $7)
+       VALUES ($1, $2, 'FROM_PURCHASE_APPROVAL', 'POSTED', $3, 'PurchaseApprovalDetail', $4, $5, $6, $7)
        RETURNING id, receipt_no, receipt_date`,
       [
         resolvedReceiptNo,
         resolvedReceiptDate,
         vendor_name || null,
         purchase_approval_id,
-        purchaseApproval.record_number || purchaseApproval.id,
+        purchaseApproval.approve_code || purchaseApproval.doc_no || purchaseApproval.id,
         note || null,
         created_by || null,
       ]
@@ -223,7 +233,7 @@ export async function POST(request: NextRequest) {
            inventory_receipt_status = $3,
            last_receipt_id = $4,
            updated_at = CURRENT_TIMESTAMP
-       WHERE purchase_approval_id = $1`,
+       WHERE purchase_approval_detail_id = $1`,
       [purchase_approval_id, nextReceivedQty, nextStatus, receipt.id]
     );
 

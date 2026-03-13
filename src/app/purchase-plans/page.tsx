@@ -3,7 +3,7 @@
 import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import Swal from 'sweetalert2';
-import { CheckCircle, Pencil, Trash2, XCircle, X } from 'lucide-react';
+import { CheckCircle, Pencil, Trash2, XCircle, X, Download, RefreshCw, Plus } from 'lucide-react';
 
 const getCurrentBudgetYear = () => {
   const now = new Date();
@@ -314,6 +314,7 @@ function PurchasePlansPageContent() {
   const [categoryOptions, setCategoryOptions] = useState<CategoryOption[]>([]);
   const [departments, setDepartments] = useState<string[]>([]);
   const [years, setYears] = useState<string[]>([]);
+  const [approvedPlanIds, setApprovedPlanIds] = useState<Set<number>>(new Set());
 
   const summaryRequestIdRef = useRef(0);
   const hasMountedSummaryRef = useRef(false);
@@ -333,7 +334,8 @@ function PurchasePlansPageContent() {
 
   useEffect(() => {
     void fetchData();
-  }, [productNameFilter, categoryFilter, typeFilter, subtypeFilter, requestingDeptFilter, budgetYearFilter, sortBy, sortOrder, page, pageSize]);
+    void fetchApprovedPlanIds();
+  }, [sortBy, sortOrder, page, pageSize]);
 
   useEffect(() => {
     void fetchSummaryData();
@@ -495,12 +497,7 @@ function PurchasePlansPageContent() {
     try {
       setLoading(true);
       const params = new URLSearchParams();
-      if (productNameFilter) params.append('product_name', productNameFilter);
-      if (categoryFilter) params.append('category', categoryFilter);
-      if (typeFilter) params.append('product_type', typeFilter);
-      if (subtypeFilter) params.append('product_subtype', subtypeFilter);
-      if (requestingDeptFilter) params.append('requesting_dept', requestingDeptFilter);
-      if (budgetYearFilter) params.append('budget_year', budgetYearFilter);
+      // Only keep pagination and sorting, remove all filter conditions
       params.append('order_by', sortBy);
       params.append('sort_order', sortOrder);
       params.append('page', page.toString());
@@ -534,6 +531,23 @@ function PurchasePlansPageContent() {
       if (requestId === dataRequestIdRef.current) {
         setLoading(false);
       }
+    }
+  };
+
+  const fetchApprovedPlanIds = async () => {
+    try {
+      // Don't filter by budget year - get all approved plans
+      const response = await fetch('/api/purchase-plans/approved');
+      if (!response.ok) {
+        throw new Error('Failed to fetch approved purchase plans');
+      }
+
+      const data = await response.json();
+      if (data.success) {
+        setApprovedPlanIds(new Set(data.data));
+      }
+    } catch (error) {
+      console.error('Error fetching approved purchase plans:', error);
     }
   };
 
@@ -766,10 +780,248 @@ function PurchasePlansPageContent() {
       }
 
       await Promise.all([fetchData(), fetchSummaryData()]);
+      setSelectedRows(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(id);
+        return newSet;
+      });
     } catch (error) {
       console.error(error);
       await Swal.fire({ icon: 'error', title: 'ลบไม่สำเร็จ', text: error instanceof Error ? error.message : 'ไม่สามารถลบข้อมูลได้' });
     }
+  };
+
+  const handleBulkPurchaseApproval = async () => {
+    if (selectedRows.size === 0) {
+      await Swal.fire({ icon: 'warning', title: 'ไม่ได้เลือกรายการ', text: 'กรุณาเลือกรายการที่ต้องการทำรายการอนุมัติจัดซื้อ' });
+      return;
+    }
+
+    const result = await Swal.fire({
+      title: 'ยืนยันการทำรายการอนุมัติจัดซื้อ?',
+      html: `จะทำรายการอนุมัติจัดซื้อ <strong>${selectedRows.size}</strong> รายการ<br/>รายการเหล่านี้จะถูกส่งไปยังระบบการอนุมัติการจัดซื้อ`,
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonText: 'ยืนยัน',
+      cancelButtonText: 'ยกเลิก',
+      confirmButtonColor: '#10b981',
+    });
+
+    if (!result.isConfirmed) {
+      return;
+    }
+
+    try {
+      const selectedItems = items.filter(item => selectedRows.has(item.id));
+      
+      // Create payload for new purchase_approval table structure
+      const details = selectedItems.map((item, index) => ({
+        purchase_plan_id: item.id, // Link to the purchase plan
+        approved_quantity: item.purchase_qty || 0,
+        approved_amount: (item.purchase_qty || 0) * (item.price_per_unit || 0),
+        line_number: index + 1, // Start from 1
+        status: 'PENDING'
+      }));
+
+      // Create header with basic info
+      const header = {
+        budget_year: new Date().getFullYear() + 543, // Thai Buddhist year
+        department: 'กลุ่มงานบริหารทั่วไป', // Default department
+        doc_date: new Date().toISOString().split('T')[0], // Current date
+        notes: `สร้างจากแผนจัดซื้อ ${selectedItems.length} รายการ`,
+        created_by: 'system'
+      };
+
+      const response = await fetch('/api/purchase-approvals/bulk', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ header, details }),
+      });
+
+      const payload = await response.json().catch(() => null);
+      if (!response.ok || !payload?.success) {
+        throw new Error(payload?.error || 'ทำรายการอนุมัติจัดซื้อไม่สำเร็จ');
+      }
+
+      await Swal.fire({ 
+        icon: 'success', 
+        title: 'ทำรายการอนุมัติจัดซื้อสำเร็จ', 
+        html: `สร้างรายการอนุมัติจัดซื้อ ${payload.data?.created || 0} รายการเรียบร้อยแล้ว<br/><strong>รหัสอนุมัติ: ${payload.data?.approval_id || 'N/A'}</strong><br/><strong>รหัสเอกสาร: ${payload.data?.doc_no || 'N/A'}</strong>` 
+      });
+
+      // Clear selection and refresh data
+      setSelectedRows(new Set());
+      await Promise.all([fetchData(), fetchSummaryData()]);
+    } catch (error) {
+      console.error(error);
+      await Swal.fire({ 
+        icon: 'error', 
+        title: 'ทำรายการอนุมัติจัดซื้อไม่สำเร็จ', 
+        text: error instanceof Error ? error.message : 'ไม่สามารถทำรายการได้' 
+      });
+    }
+  };
+
+  const handleBulkRemoveFromPlan = async () => {
+    if (selectedRows.size === 0) {
+      await Swal.fire({ icon: 'warning', title: 'ไม่ได้เลือกรายการ', text: 'กรุณาเลือกรายการที่ต้องการนำออกจากแผนจัดซื้อ' });
+      return;
+    }
+
+    const result = await Swal.fire({
+      title: 'ยืนยันการนำออกจากแผนจัดซื้อ?',
+      html: `จะนำออก <strong>${selectedRows.size}</strong> รายการจากแผนจัดซื้อ<br/>รายการเหล่านี้จะถูกลบออกจากระบบถาวร`,
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonText: 'นำออก',
+      cancelButtonText: 'ยกเลิก',
+      confirmButtonColor: '#dc2626',
+    });
+
+    if (!result.isConfirmed) {
+      return;
+    }
+
+    try {
+      const response = await fetch('/api/purchase-plans/bulk', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids: Array.from(selectedRows) }),
+      });
+
+      const payload = await response.json().catch(() => null);
+      if (!response.ok || !payload?.success) {
+        throw new Error(payload?.error || 'นำออกจากแผนจัดซื้อไม่สำเร็จ');
+      }
+
+      await Swal.fire({ 
+        icon: 'success', 
+        title: 'นำออกจากแผนจัดซื้อสำเร็จ', 
+        text: `ลบ ${payload.data?.deleted || selectedRows.size} รายการเรียบร้อยแล้ว` 
+      });
+
+      // Clear selection and refresh data
+      setSelectedRows(new Set());
+      await Promise.all([fetchData(), fetchSummaryData()]);
+    } catch (error) {
+      console.error(error);
+      await Swal.fire({ 
+        icon: 'error', 
+        title: 'นำออกจากแผนจัดซื้อไม่สำเร็จ', 
+        text: error instanceof Error ? error.message : 'ไม่สามารถลบข้อมูลได้' 
+      });
+    }
+  };
+
+  const handleExport = async () => {
+    try {
+      setLoading(true);
+      const params = new URLSearchParams();
+      if (productNameFilter) params.append('product_name', productNameFilter);
+      if (categoryFilter) params.append('category', categoryFilter);
+      if (typeFilter) params.append('product_type', typeFilter);
+      if (subtypeFilter) params.append('product_subtype', subtypeFilter);
+      if (requestingDeptFilter) params.append('requesting_dept', requestingDeptFilter);
+      if (budgetYearFilter) params.append('budget_year', budgetYearFilter);
+      params.append('order_by', sortBy);
+      params.append('sort_order', sortOrder);
+      params.append('export', 'all'); // Get all records for export
+
+      const response = await fetch(`/api/purchase-plans?${params.toString()}`);
+      if (!response.ok) {
+        throw new Error('ดึงข้อมูลส่งออกไม่สำเร็จ');
+      }
+
+      const data = await response.json();
+      const exportData = Array.isArray(data?.data) ? data.data : [];
+
+      if (exportData.length === 0) {
+        await Swal.fire({ icon: 'info', title: 'ไม่มีข้อมูลส่งออก', text: 'ไม่พบข้อมูลที่ตรงเงื่อนไขสำหรับส่งออก' });
+        return;
+      }
+
+      // Create CSV content
+      const headers = [
+        'ID', 'ปีงบ', 'ครั้งที่', 'รหัสสินค้า', 'ชื่อสินค้า', 'หมวด', 'ประเภท', 'ประเภทย่อย', 'หน่วยงานที่ขอ', 
+        'ขอใช้', 'โควต้า', 'คงคลัง', 'มูลค่าคงคลัง', 'ซื้อ', 'มูลค่าซื้อ', 'ราคาต่อหน่วย'
+      ];
+      
+      const csvContent = [
+        headers.join(','),
+        ...exportData.map((row: any) => [
+          row.id,
+          row.budget_year || '',
+          row.sequence_no || '',
+          `"${row.product_code || ''}"`,
+          `"${row.product_name || ''}"`,
+          `"${row.category || ''}"`,
+          `"${row.product_type || ''}"`,
+          `"${row.product_subtype || ''}"`,
+          `"${row.requesting_dept || ''}"`,
+          row.requested_amount || '',
+          row.approved_quota || '',
+          row.inventory_qty || '',
+          row.inventory_value || '',
+          row.purchase_qty || '',
+          row.purchase_value || '',
+          row.price_per_unit || ''
+        ].join(','))
+      ].join('\n');
+
+      // Create and download file
+      const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement('a');
+      const url = URL.createObjectURL(blob);
+      link.setAttribute('href', url);
+      link.setAttribute('download', `purchase_plans_${new Date().toISOString().split('T')[0]}.csv`);
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      await Swal.fire({ 
+        icon: 'success', 
+        title: 'ส่งออกข้อมูลสำเร็จ', 
+        text: `ส่งออก ${exportData.length} รายการเรียบร้อยแล้ว` 
+      });
+    } catch (error) {
+      console.error(error);
+      await Swal.fire({ 
+        icon: 'error', 
+        title: 'ส่งออกข้อมูลไม่สำเร็จ', 
+        text: error instanceof Error ? error.message : 'ไม่สามารถส่งออกข้อมูลได้' 
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleRefresh = async () => {
+    try {
+      setLoading(true);
+      await Promise.all([fetchData(), fetchSummaryData()]);
+      await Swal.fire({ 
+        icon: 'success', 
+        title: 'รีเฟรชข้อมูลสำเร็จ', 
+        text: 'ข้อมูลได้รับการอัพเดทเรียบร้อยแล้ว',
+        timer: 1500,
+        showConfirmButton: false
+      });
+    } catch (error) {
+      console.error(error);
+      await Swal.fire({ 
+        icon: 'error', 
+        title: 'รีเฟรชข้อมูลไม่สำเร็จ', 
+        text: 'ไม่สามารถอัพเดทข้อมูลได้' 
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCreateNew = () => {
+    // Navigate to usage plans page to create new purchase plans
+    router.push('/usage-plans');
   };
 
   return (
@@ -777,27 +1029,55 @@ function PurchasePlansPageContent() {
       <div className="mb-6">
         <div className="flex items-center justify-between">
           <h1 className="text-3xl font-bold text-gray-900">แผนจัดซื้อ</h1>
-          {selectedRows.size > 0 && (
-            <div className="flex items-center gap-3">
-              <button
-                className="inline-flex items-center gap-2 rounded-lg bg-green-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-green-700"
-              >
-                ทำรายการอนุมัติจัดซื้อ {selectedRows.size} รายการ
-              </button>
-              <button
-                className="inline-flex items-center gap-2 rounded-lg bg-red-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-red-700"
-              >
-                นำออกจากแผนจัดซื้อ {selectedRows.size} รายการ
-              </button>
-              <button
-                onClick={() => setSelectedRows(new Set())}
-                className="inline-flex items-center gap-2 rounded-lg bg-gray-500 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-gray-600"
-              >
-                ยกเลิก
-              </button>
-            </div>
-          )}
+          <div className="flex items-center gap-3">
+            <button
+              onClick={handleCreateNew}
+              className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-blue-700"
+            >
+              <Plus className="h-4 w-4" />
+              สร้างแผนจัดซื้อใหม่
+            </button>
+            <button
+              onClick={handleExport}
+              disabled={loading}
+              className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <Download className="h-4 w-4" />
+              ส่งออกข้อมูล
+            </button>
+            <button
+              onClick={handleRefresh}
+              disabled={loading}
+              className="inline-flex items-center gap-2 rounded-lg bg-gray-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+              รีเฟรช
+            </button>
+          </div>
         </div>
+        {selectedRows.size > 0 && (
+          <div className="flex items-center gap-3 mt-4 p-3 bg-amber-50 rounded-lg border border-amber-200">
+            <span className="text-sm font-medium text-amber-800">เลือก {selectedRows.size} รายการ:</span>
+            <button
+              onClick={handleBulkPurchaseApproval}
+              className="inline-flex items-center gap-2 rounded-lg bg-green-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-green-700"
+            >
+              ทำรายการอนุมัติจัดซื้อ {selectedRows.size} รายการ
+            </button>
+            <button
+              onClick={handleBulkRemoveFromPlan}
+              className="inline-flex items-center gap-2 rounded-lg bg-red-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-red-700"
+            >
+              นำออกจากแผนจัดซื้อ {selectedRows.size} รายการ
+            </button>
+            <button
+              onClick={() => setSelectedRows(new Set())}
+              className="inline-flex items-center gap-2 rounded-lg bg-gray-500 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-gray-600"
+            >
+              ยกเลิก
+            </button>
+          </div>
+        )}
       </div>
 
       <div className="bg-white shadow-md rounded-lg overflow-hidden mb-4">
@@ -937,7 +1217,13 @@ function PurchasePlansPageContent() {
                         type="checkbox"
                         checked={selectedRows.has(row.id)}
                         onChange={(e) => handleRowSelect(row.id, e.target.checked)}
-                        className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                        disabled={approvedPlanIds.has(row.id)}
+                        className={`h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 ${
+                          approvedPlanIds.has(row.id) 
+                            ? 'opacity-50 cursor-not-allowed' 
+                            : ''
+                        }`}
+                        title={approvedPlanIds.has(row.id) ? 'รายการนี้ถูกเพิ่มไปยังรายการอนุมัติแล้ว' : ''}
                       />
                     </td>
                     <td className="px-2 py-2 text-[11px] align-top">{row.budget_year ?? '-'}</td>

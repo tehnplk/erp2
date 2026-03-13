@@ -7,27 +7,36 @@ import { cacheGet, cacheSet } from '@/lib/redis';
 
 const pendingPurchaseApprovalSelect = `
   SELECT
-    pa.id,
-    pa.approval_id,
-    pa.department,
-    pa.department_code,
-    pa.budget_year,
-    pa.record_number,
-    pa.request_date,
-    pa.product_code,
-    pa.product_name,
-    pa.category,
-    pa.product_type,
-    pa.product_subtype,
-    pa.requested_quantity,
-    pa.unit,
-    pa.price_per_unit::float8 AS price_per_unit,
-    pa.total_value::float8 AS total_value,
+    pad.id AS purchase_approval_id,
+    pa.id AS purchase_approval_header_id,
+    pa.approve_code,
+    pa.doc_no,
+    pa.status,
+    up.requesting_dept AS department,
+    up.requesting_dept_code AS department_code,
+    up.budget_year,
+    pa.doc_date AS request_date,
+    up.product_code,
+    up.product_name,
+    up.category,
+    up.type AS product_type,
+    up.subtype AS product_subtype,
+    up.requested_amount AS requested_quantity,
+    up.unit,
+    up.price_per_unit::float8 AS price_per_unit,
+    (up.requested_amount * up.price_per_unit)::float8 AS total_value,
+    pp.purchase_qty,
+    pp.purchase_value,
+    pad.approved_quantity,
+    pad.approved_amount,
     link.inventory_receipt_status,
     link.received_qty,
-    GREATEST(COALESCE(pa.requested_quantity, 0) - COALESCE(link.received_qty, 0), 0) AS remaining_qty
-  FROM public.purchase_approval pa
-  INNER JOIN public.purchase_approval_inventory_link link ON link.purchase_approval_id = pa.id
+    GREATEST(COALESCE(pad.approved_quantity, up.requested_amount, 0) - COALESCE(link.received_qty, 0), 0) AS remaining_qty
+  FROM public.purchase_approval_detail pad
+  INNER JOIN public.purchase_approval pa ON pa.id = pad.purchase_approval_id
+  INNER JOIN public.purchase_plan pp ON pp.id = pad.purchase_plan_id
+  INNER JOIN public.usage_plan up ON up.id = pp.usage_plan_id
+  INNER JOIN public.purchase_approval_inventory_link link ON link.purchase_approval_detail_id = pad.id
 `;
 
 export async function GET(request: NextRequest) {
@@ -55,17 +64,17 @@ export async function GET(request: NextRequest) {
 
     if (product_name) {
       params.push(`%${product_name}%`);
-      whereClauses.push(`pa.product_name ILIKE $${params.length}`);
+      whereClauses.push(`up.product_name ILIKE $${params.length}`);
     }
 
     if (department) {
       params.push(department);
-      whereClauses.push(`pa.department = $${params.length}`);
+      whereClauses.push(`up.requesting_dept = $${params.length}`);
     }
 
     if (budget_year) {
       params.push(Number(budget_year));
-      whereClauses.push(`pa.budget_year = $${params.length}`);
+      whereClauses.push(`up.budget_year = $${params.length}`);
     }
 
     if (status) {
@@ -75,19 +84,19 @@ export async function GET(request: NextRequest) {
       whereClauses.push(`link.inventory_receipt_status IN ('PENDING', 'PARTIAL')`);
     }
 
-    whereClauses.push(`GREATEST(COALESCE(pa.requested_quantity, 0) - COALESCE(link.received_qty, 0), 0) > 0`);
+    whereClauses.push(`GREATEST(COALESCE(pad.approved_quantity, up.requested_amount, 0) - COALESCE(link.received_qty, 0), 0) > 0`);
 
     const allowedOrderFields: Record<string, string> = {
-      id: 'pa.id',
-      product_code: 'pa.product_code',
-      product_name: 'pa.product_name',
-      department: 'pa.department',
-      budget_year: 'pa.budget_year',
-      requested_quantity: 'pa.requested_quantity',
+      id: 'pad.id',
+      product_code: 'up.product_code',
+      product_name: 'up.product_name',
+      department: 'up.requesting_dept',
+      budget_year: 'up.budget_year',
+      requested_quantity: 'up.requested_amount',
       received_qty: 'link.received_qty',
     };
 
-    const safeOrderField = allowedOrderFields[order_by || 'id'] || 'pa.id';
+    const safeOrderField = allowedOrderFields[order_by || 'id'] || 'pad.id';
     const safeSortOrder = sort_order === 'asc' ? 'ASC' : 'DESC';
     const whereSql = whereClauses.length > 0 ? `WHERE ${whereClauses.join(' AND ')}` : '';
     const offset = (page - 1) * pageSize;
@@ -100,7 +109,15 @@ export async function GET(request: NextRequest) {
     }
 
     const [countResult, itemsResult] = await Promise.all([
-      pgQuery(`SELECT COUNT(*)::int AS count FROM public.purchase_approval pa INNER JOIN public.purchase_approval_inventory_link link ON link.purchase_approval_id = pa.id ${whereSql}`, params),
+      pgQuery(`
+        SELECT COUNT(*)::int AS count
+        FROM public.purchase_approval_detail pad
+        INNER JOIN public.purchase_approval pa ON pa.id = pad.purchase_approval_id
+        INNER JOIN public.purchase_plan pp ON pp.id = pad.purchase_plan_id
+        INNER JOIN public.usage_plan up ON up.id = pp.usage_plan_id
+        INNER JOIN public.purchase_approval_inventory_link link ON link.purchase_approval_detail_id = pad.id
+        ${whereSql}
+      `, params),
       pgQuery(`${pendingPurchaseApprovalSelect} ${whereSql} ORDER BY ${safeOrderField} ${safeSortOrder} LIMIT $${params.length + 1} OFFSET $${params.length + 2}`, [...params, pageSize, offset]),
     ]);
 

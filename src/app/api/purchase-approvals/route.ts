@@ -4,9 +4,32 @@ import { apiSuccess, apiError } from '@/lib/api-response';
 import { cacheGet, cacheSet, cacheDelByPattern } from '@/lib/redis';
 import { validateQuery, validateRequest } from '@/lib/validation/validate';
 import { purchaseApprovalQuerySchema, createPurchaseApprovalSchema } from '@/lib/validation/schemas';
-import { findDepartmentCodeByName } from '@/lib/department-code';
 
-const purchaseApprovalSelect = `SELECT id, approval_id, department, department_code, budget_year, record_number, request_date, product_name, product_code, category, product_type, product_subtype, requested_quantity, unit, price_per_unit::float8 AS price_per_unit, total_value::float8 AS total_value, over_plan_case, requester, approver, created_at, updated_at FROM public.purchase_approval`;
+const purchaseApprovalSelect = `
+  SELECT
+    pa.id,
+    pa.approve_code,
+    pa.doc_no,
+    pa.doc_date,
+    pa.status,
+    pa.total_amount,
+    pa.total_items,
+    pa.prepared_by,
+    pa.approved_by,
+    pa.approved_at,
+    pa.notes,
+    pa.created_at,
+    pa.updated_at,
+    pa.version,
+    COUNT(pad.id)::int AS item_count
+`;
+
+const purchaseApprovalFrom = `
+  FROM public.purchase_approval pa
+  LEFT JOIN public.purchase_approval_detail pad ON pad.purchase_approval_id = pa.id
+  LEFT JOIN public.purchase_plan pp ON pp.id = pad.purchase_plan_id
+  LEFT JOIN public.usage_plan up ON up.id = pp.usage_plan_id
+`;
 
 export async function GET(request: NextRequest) {
   try {
@@ -36,47 +59,51 @@ export async function GET(request: NextRequest) {
 
     if (product_name) {
       params.push(`%${product_name}%`);
-      whereClauses.push(`product_name ILIKE $${params.length}`);
+      whereClauses.push(`up.product_name ILIKE $${params.length}`);
     }
     if (category) {
       params.push(category);
-      whereClauses.push(`category = $${params.length}`);
+      whereClauses.push(`up.category = $${params.length}`);
     }
     if (product_type) {
       params.push(product_type);
-      whereClauses.push(`product_type = $${params.length}`);
+      whereClauses.push(`up.type = $${params.length}`);
     }
     if (product_subtype) {
       params.push(product_subtype);
-      whereClauses.push(`product_subtype = $${params.length}`);
+      whereClauses.push(`up.subtype = $${params.length}`);
     }
     if (department) {
       params.push(department);
-      whereClauses.push(`department = $${params.length}`);
+      whereClauses.push(`up.requesting_dept = $${params.length}`);
     }
     if (budget_year) {
       params.push(Number(budget_year));
-      whereClauses.push(`budget_year = $${params.length}`);
+      whereClauses.push(`up.budget_year = $${params.length}`);
     }
 
     const allowedOrderFields: Record<string, string> = {
-      id: 'id',
-      approval_id: 'approval_id',
-      department: 'department',
-      budget_year: 'budget_year',
-      record_number: 'record_number',
-      request_date: 'request_date',
-      product_name: 'product_name',
-      product_code: 'product_code',
-      category: 'category',
-      product_type: 'product_type',
-      product_subtype: 'product_subtype',
-      requester: 'requester',
-      approver: 'approver',
+      id: 'pa.id',
+      approve_code: 'pa.approve_code',
+      doc_no: 'pa.doc_no',
+      doc_date: 'pa.doc_date',
+      status: 'pa.status',
+      total_amount: 'pa.total_amount',
+      total_items: 'pa.total_items',
+      created_at: 'pa.created_at',
+      updated_at: 'pa.updated_at',
+      department: 'up.requesting_dept',
+      budget_year: 'up.budget_year',
+      product_name: 'up.product_name',
+      product_code: 'up.product_code',
+      category: 'up.category',
+      product_type: 'up.type',
+      product_subtype: 'up.subtype',
     };
-    const safeOrderField = allowedOrderFields[order_by || 'id'] || 'id';
+    const safeOrderField = allowedOrderFields[order_by || 'created_at'] || 'pa.created_at';
     const safeSortOrder = sort_order === 'asc' ? 'ASC' : 'DESC';
     const whereSql = whereClauses.length ? `WHERE ${whereClauses.join(' AND ')}` : '';
+    const groupedSql = `${purchaseApprovalSelect} ${purchaseApprovalFrom} ${whereSql} GROUP BY pa.id, pa.approve_code, pa.doc_no, pa.doc_date, pa.status, pa.total_amount, pa.total_items, pa.prepared_by, pa.approved_by, pa.approved_at, pa.notes, pa.created_at, pa.updated_at, pa.version`;
 
     const pageParam = searchParams.get('page');
     const pageSizeParam = searchParams.get('page_size');
@@ -89,8 +116,8 @@ export async function GET(request: NextRequest) {
       }
 
       const [totalCount, items] = await Promise.all([
-        pgQuery(`SELECT COUNT(*)::int AS count FROM public.purchase_approval ${whereSql}`, params),
-        pgQuery(`${purchaseApprovalSelect} ${whereSql} ORDER BY ${safeOrderField} ${safeSortOrder}`, params)
+        pgQuery(`SELECT COUNT(DISTINCT pa.id)::int AS count ${purchaseApprovalFrom} ${whereSql}`, params),
+        pgQuery(`${groupedSql} ORDER BY ${safeOrderField} ${safeSortOrder}`, params)
       ]);
 
       const result = {
@@ -113,8 +140,8 @@ export async function GET(request: NextRequest) {
     }
 
     const [totalCount, items] = await Promise.all([
-      pgQuery(`SELECT COUNT(*)::int AS count FROM public.purchase_approval ${whereSql}`, params),
-      pgQuery(`${purchaseApprovalSelect} ${whereSql} ORDER BY ${safeOrderField} ${safeSortOrder} LIMIT $${params.length + 1} OFFSET $${params.length + 2}`, [...params, currentPageSize, skip])
+      pgQuery(`SELECT COUNT(DISTINCT pa.id)::int AS count ${purchaseApprovalFrom} ${whereSql}`, params),
+      pgQuery(`${groupedSql} ORDER BY ${safeOrderField} ${safeSortOrder} LIMIT $${params.length + 1} OFFSET $${params.length + 2}`, [...params, currentPageSize, skip])
     ]);
 
     const result = {
@@ -143,31 +170,19 @@ export async function POST(request: NextRequest) {
       return validation.error;
     }
 
-    const departmentCode = await findDepartmentCodeByName(validation.data.department || null);
-
     const item = await pgQuery(
-      `INSERT INTO public.purchase_approval (approval_id, department, department_code, budget_year, record_number, request_date, product_name, product_code, category, product_type, product_subtype, requested_quantity, unit, price_per_unit, total_value, over_plan_case, requester, approver)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
-       RETURNING id, approval_id, department, department_code, budget_year, record_number, request_date, product_name, product_code, category, product_type, product_subtype, requested_quantity, unit, price_per_unit::float8 AS price_per_unit, total_value::float8 AS total_value, over_plan_case, requester, approver, created_at, updated_at`,
+      `INSERT INTO public.purchase_approval (approve_code, doc_no, doc_date, status, prepared_by, notes, created_by, updated_by)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+       RETURNING id, approve_code, doc_no, doc_date, status, total_amount, total_items, prepared_by, approved_by, approved_at, notes, created_at, updated_at, version`,
       [
-        validation.data.approval_id || null,
-        validation.data.department || null,
-        departmentCode,
-        validation.data.budget_year ?? null,
-        validation.data.record_number || null,
-        validation.data.request_date || null,
-        validation.data.product_name || null,
-        validation.data.product_code || null,
-        validation.data.category || null,
-        validation.data.product_type || null,
-        validation.data.product_subtype || null,
-        validation.data.requested_quantity ?? null,
-        validation.data.unit || null,
-        validation.data.price_per_unit ?? 0,
-        validation.data.total_value ?? 0,
-        validation.data.over_plan_case || null,
-        validation.data.requester || null,
-        validation.data.approver || null,
+        validation.data.approve_code || null,
+        validation.data.doc_no || null,
+        validation.data.doc_date || null,
+        validation.data.status || 'DRAFT',
+        validation.data.prepared_by || validation.data.created_by || 'SYSTEM',
+        validation.data.notes || null,
+        validation.data.created_by || 'SYSTEM',
+        validation.data.updated_by || validation.data.created_by || 'SYSTEM',
       ]
     );
     

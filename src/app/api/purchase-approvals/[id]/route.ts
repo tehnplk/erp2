@@ -3,7 +3,6 @@ import { pgQuery } from '@/lib/pg';
 import { cacheDelByPattern } from '@/lib/redis';
 import { validateRequest } from '@/lib/validation/validate';
 import { createPurchaseApprovalSchema, idParamSchema } from '@/lib/validation/schemas';
-import { findDepartmentCodeByName } from '@/lib/department-code';
 
 export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -26,53 +25,37 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     }
 
     const data: Record<string, unknown> = {
-      approval_id: validation.data.approval_id ?? null,
-      department: validation.data.department ?? null,
-      department_code: validation.data.department === undefined
-        ? undefined
-        : await findDepartmentCodeByName(validation.data.department ?? null),
-      budget_year: validation.data.budget_year ?? null,
-      record_number: validation.data.record_number ?? null,
-      request_date: validation.data.request_date ?? null,
-      product_name: validation.data.product_name ?? null,
-      product_code: validation.data.product_code ?? null,
-      category: validation.data.category ?? null,
-      product_type: validation.data.product_type ?? null,
-      product_subtype: validation.data.product_subtype ?? null,
-      requested_quantity: validation.data.requested_quantity ?? null,
-      unit: validation.data.unit ?? null,
-      price_per_unit: validation.data.price_per_unit ?? undefined,
-      total_value: validation.data.total_value ?? undefined,
-      over_plan_case: validation.data.over_plan_case ?? null,
-      requester: validation.data.requester ?? null,
-      approver: validation.data.approver ?? null,
+      approve_code: validation.data.approve_code ?? null,
+      doc_no: validation.data.doc_no ?? null,
+      doc_date: validation.data.doc_date ?? null,
+      status: validation.data.status ?? null,
+      total_amount: validation.data.total_amount ?? null,
+      total_items: validation.data.total_items ?? null,
+      prepared_by: validation.data.prepared_by ?? null,
+      approved_by: validation.data.approved_by ?? null,
+      approved_at: validation.data.approved_by ? (validation.data.approved_at || new Date().toISOString()) : null,
+      notes: validation.data.notes ?? null,
+      updated_by: validation.data.updated_by ?? 'SYSTEM'
     };
 
     const columnMap: Record<string, string> = {
-      approval_id: 'approval_id',
-      department: 'department',
-      department_code: 'department_code',
-      budget_year: 'budget_year',
-      record_number: 'record_number',
-      request_date: 'request_date',
-      product_name: 'product_name',
-      product_code: 'product_code',
-      category: 'category',
-      product_type: 'product_type',
-      product_subtype: 'product_subtype',
-      requested_quantity: 'requested_quantity',
-      unit: 'unit',
-      price_per_unit: 'price_per_unit',
-      total_value: 'total_value',
-      over_plan_case: 'over_plan_case',
-      requester: 'requester',
-      approver: 'approver',
+      approve_code: 'approve_code',
+      doc_no: 'doc_no',
+      doc_date: 'doc_date',
+      status: 'status',
+      total_amount: 'total_amount',
+      total_items: 'total_items',
+      prepared_by: 'prepared_by',
+      approved_by: 'approved_by',
+      approved_at: 'approved_at',
+      notes: 'notes',
+      updated_by: 'updated_by'
     };
 
     const assignments: string[] = [];
     const values: unknown[] = [];
     Object.entries(data).forEach(([key, value]) => {
-      if (value === undefined) return;
+      if (value === undefined || value === null) return;
       const column = columnMap[key];
       if (!column) return;
       values.push(value);
@@ -80,7 +63,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     });
 
     if (assignments.length === 0) {
-      const unchanged = await pgQuery('SELECT id, approval_id, department, department_code, budget_year, record_number, request_date, product_name, product_code, category, product_type, product_subtype, requested_quantity, unit, price_per_unit::float8 AS price_per_unit, total_value::float8 AS total_value, over_plan_case, requester, approver, created_at, updated_at FROM public.purchase_approval WHERE id = $1 LIMIT 1', [numericId]);
+      const unchanged = await pgQuery('SELECT id, approve_code, doc_no, doc_date, status, total_amount, total_items, prepared_by, approved_by, approved_at, notes, created_at, updated_at, version FROM public.purchase_approval WHERE id = $1 LIMIT 1', [numericId]);
       return NextResponse.json(unchanged.rows[0]);
     }
 
@@ -88,7 +71,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     values.push(numericId);
     const updated = await pgQuery(
       `UPDATE public.purchase_approval SET ${assignments.join(', ')} WHERE id = $${values.length}
-       RETURNING id, approval_id, department, department_code, budget_year, record_number, request_date, product_name, product_code, category, product_type, product_subtype, requested_quantity, unit, price_per_unit::float8 AS price_per_unit, total_value::float8 AS total_value, over_plan_case, requester, approver, created_at, updated_at`,
+       RETURNING id, approve_code, doc_no, doc_date, status, total_amount, total_items, prepared_by, approved_by, approved_at, notes, created_at, updated_at, version`,
       values
     );
     await cacheDelByPattern('erp:purchase:approvals:list:*');

@@ -233,26 +233,34 @@ export const purchasePlanQuerySchema = z.object({
 
 // Purchase Approval schemas
 export const createPurchaseApprovalSchema = z.object({
-  approval_id: z.string().optional(),
-  department: z.string().optional(),
-  budget_year: z.union([z.string(), z.number(), z.null(), z.undefined()])
-    .transform((val) => val === null || val === undefined || val === '' ? null : parseInt(String(val), 10))
-    .pipe(z.number().int().nullable())
-    .optional(),
-  record_number: z.string().optional(),
-  request_date: z.string().optional(),
-  product_name: z.string().optional(),
-  product_code: z.string().optional(),
-  category: z.string().optional(),
-  product_type: z.string().optional(),
-  product_subtype: z.string().optional(),
-  requested_quantity: positiveInteger.optional(),
-  unit: z.string().optional(),
-  price_per_unit: positiveNumber.optional(),
-  total_value: positiveNumber.optional(),
-  over_plan_case: z.string().optional(),
-  requester: z.string().optional(),
-  approver: z.string().optional()
+  approve_code: z.string().optional(),
+  doc_no: z.string().optional(),
+  doc_date: z.string().optional(),
+  status: z.enum(['DRAFT', 'PENDING', 'APPROVED', 'REJECTED', 'CANCELLED']).optional(),
+  total_amount: z.number().optional(),
+  total_items: z.number().optional(),
+  prepared_by: z.string().optional(),
+  approved_by: z.string().optional(),
+  approved_at: z.string().optional(),
+  notes: z.string().optional(),
+  created_by: z.string().optional(),
+  updated_by: z.string().optional()
+});
+
+export const createPurchaseApprovalDetailSchema = z.object({
+  purchase_plan_id: z.coerce.number().int().positive(),
+  line_number: z.coerce.number().int().positive().optional(),
+  status: z.enum(['PENDING', 'APPROVED', 'REJECTED', 'MODIFIED']).optional(),
+  approved_quantity: z.coerce.number().int().min(0).optional(),
+  approved_amount: z.number().min(0).optional(),
+  remarks: z.string().optional(),
+  created_by: z.string().optional(),
+  updated_by: z.string().optional()
+});
+
+export const createPurchaseApprovalWithDetailsSchema = z.object({
+  header: createPurchaseApprovalSchema,
+  details: z.array(createPurchaseApprovalDetailSchema).min(1)
 });
 
 export const purchaseApprovalQuerySchema = z.object({
@@ -262,10 +270,12 @@ export const purchaseApprovalQuerySchema = z.object({
   product_subtype: z.string().optional(),
   department: z.string().optional(),
   budget_year: z.string().optional(),
+  status: z.enum(['DRAFT', 'PENDING', 'APPROVED', 'REJECTED', 'CANCELLED']).optional(),
   order_by: z.enum([
-    'id', 'approval_id', 'department', 'budget_year', 'record_number', 'request_date', 
-    'product_name', 'product_code', 'category', 'product_type', 
-    'product_subtype', 'requester', 'approver'
+    'id', 'approve_code', 'doc_no', 'doc_date', 'status', 'total_amount', 'total_items',
+    'prepared_by', 'approved_by', 'approved_at', 'notes', 'created_at', 'updated_at', 'version',
+    'department', 'budget_year', 'product_name', 'product_code', 'category', 'product_type', 
+    'product_subtype'
   ]).optional(),
   sort_order: z.enum(['asc', 'desc']).optional(),
   ...paginationFields

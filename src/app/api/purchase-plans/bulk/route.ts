@@ -7,6 +7,10 @@ interface BulkPurchasePlanRequest {
   usage_plan_ids: number[];
 }
 
+interface BulkDeleteRequest {
+  ids: number[];
+}
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json() as BulkPurchasePlanRequest;
@@ -75,5 +79,38 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error('Error creating bulk purchase plans:', error);
     return apiError('Failed to create bulk purchase plans');
+  }
+}
+
+export async function DELETE(request: NextRequest) {
+  try {
+    const body = await request.json() as BulkDeleteRequest;
+    
+    if (!body.ids || !Array.isArray(body.ids) || body.ids.length === 0) {
+      return apiError('No IDs provided for bulk deletion');
+    }
+
+    const ids = body.ids.filter(id => typeof id === 'number' && id > 0);
+    if (ids.length === 0) {
+      return apiError('No valid IDs provided');
+    }
+
+    // Delete purchase plans in bulk
+    const placeholders = ids.map((_, index) => `$${index + 1}`).join(', ');
+    const result = await pgQuery(
+      `DELETE FROM public.purchase_plan WHERE id IN (${placeholders}) RETURNING id`,
+      ids
+    );
+    
+    // Clear cache
+    await cacheDelByPattern('erp:purchase:plans:list:*');
+    
+    return apiSuccess(
+      { deleted: result.rows.length, ids: result.rows.map(row => row.id) }, 
+      `Deleted ${result.rows.length} purchase plans successfully`
+    );
+  } catch (error) {
+    console.error('Error deleting bulk purchase plans:', error);
+    return apiError('Failed to delete bulk purchase plans');
   }
 }
