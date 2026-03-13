@@ -39,7 +39,7 @@ const normalizeChartRows = (rows: ChartRow[]) => rows.map((row) => ({
     pgQuery<CountRow>('SELECT COUNT(*)::int AS count FROM public.department'),
     pgQuery<SumRow>('SELECT COALESCE(SUM(COALESCE(requested_amount, 0) * COALESCE(price_per_unit, 0)), 0)::float8 AS total FROM public.usage_plan'),
     pgQuery<SumRow>('SELECT COALESCE(SUM(COALESCE(purchase_value, 0)), 0)::float8 AS total FROM public.purchase_plan'),
-    pgQuery<SumRow>('SELECT COALESCE(SUM(COALESCE(total_value, 0)), 0)::float8 AS total FROM public.purchase_approval'),
+    pgQuery<SumRow>('SELECT COALESCE(SUM(COALESCE(pa.total_amount, 0)), 0)::float8 AS total FROM public.purchase_approval pa'),
     pgQuery<ChartRow>(
       'SELECT category AS name, COUNT(*)::int AS value FROM public.product GROUP BY category ORDER BY value DESC, name ASC LIMIT 6'
     ),
@@ -83,9 +83,12 @@ const normalizeChartRows = (rows: ChartRow[]) => rows.map((row) => ({
          GROUP BY COALESCE(up.requesting_dept, 'ไม่ระบุ')
        ),
        approval_counts AS (
-         SELECT COALESCE(department, 'ไม่ระบุ') AS name, COUNT(*)::int AS "approvalCount"
-         FROM public.purchase_approval
-         GROUP BY COALESCE(department, 'ไม่ระบุ')
+         SELECT COALESCE(up.requesting_dept, 'ไม่ระบุ') AS name, COUNT(*)::int AS "approvalCount"
+         FROM public.purchase_approval pa
+         INNER JOIN public.purchase_approval_detail pad ON pad.purchase_approval_id = pa.id
+         INNER JOIN public.purchase_plan pp ON pp.id = pad.purchase_plan_id
+         INNER JOIN public.usage_plan up ON up.id = pp.usage_plan_id
+         GROUP BY COALESCE(up.requesting_dept, 'ไม่ระบุ')
        )
        SELECT COALESCE(survey_counts.name, plan_counts.name, approval_counts.name) AS name,
               COALESCE(survey_counts."surveyCount", 0)::int AS "surveyCount",
@@ -113,10 +116,13 @@ const normalizeChartRows = (rows: ChartRow[]) => rows.map((row) => ({
          GROUP BY COALESCE(up.requesting_dept, 'ไม่ระบุ')
        ),
        approval_values AS (
-         SELECT COALESCE(department, 'ไม่ระบุ') AS name,
-                COALESCE(SUM(COALESCE(total_value, 0)), 0)::float8 AS "approvalValue"
-         FROM public.purchase_approval
-         GROUP BY COALESCE(department, 'ไม่ระบุ')
+         SELECT COALESCE(up.requesting_dept, 'ไม่ระบุ') AS name,
+                COALESCE(SUM(COALESCE(pa.total_amount, 0)), 0)::float8 AS "approvalValue"
+         FROM public.purchase_approval pa
+         INNER JOIN public.purchase_approval_detail pad ON pad.purchase_approval_id = pa.id
+         INNER JOIN public.purchase_plan pp ON pp.id = pad.purchase_plan_id
+         INNER JOIN public.usage_plan up ON up.id = pp.usage_plan_id
+         GROUP BY COALESCE(up.requesting_dept, 'ไม่ระบุ')
        )
        SELECT COALESCE(survey_values.name, plan_values.name, approval_values.name) AS name,
               COALESCE(survey_values."surveyValue", 0)::float8 AS "surveyValue",

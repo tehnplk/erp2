@@ -325,7 +325,7 @@ export default function PurchaseApprovalsPage() {
 
   const handleInlineEdit = (id: number, field: string, value: string) => {
     setEditingRowId(id);
-    setEditingData({ [field]: value });
+    setEditingData({ field, [field]: value });
   };
 
   const handleKeyDown = (e: React.KeyboardEvent, id: number) => {
