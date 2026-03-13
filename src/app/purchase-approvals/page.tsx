@@ -66,6 +66,9 @@ export default function PurchaseApprovalsPage() {
   const hasSyncedSearchParamsRef = useRef(false);
   const filtersLoadedRef = useRef(false);
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
+  const [editingRowId, setEditingRowId] = useState<number | null>(null);
+  const [editingData, setEditingData] = useState<Record<string, string>>({});
+  const [savingRowId, setSavingRowId] = useState<number | null>(null);
 
   // filters
   const [nameFilter, setNameFilter] = useState(searchParams.get('product_name') || '');
@@ -320,6 +323,103 @@ export default function PurchaseApprovalsPage() {
     return date.toLocaleDateString('th-TH');
   };
 
+  const handleInlineEdit = (id: number, field: string, value: string) => {
+    setEditingRowId(id);
+    setEditingData({ [field]: value });
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent, id: number) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      handleSaveEdit(id);
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      handleCancelEdit();
+    }
+  };
+
+  const handleCancelEdit = () => {
+    setEditingRowId(null);
+    setEditingData({});
+  };
+
+  const handleSaveEdit = async (id: number) => {
+    try {
+      setSavingRowId(id);
+      const response = await fetch(`/api/purchase-approvals/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(editingData),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to update purchase approval');
+      }
+
+      await Swal.fire({
+        icon: 'success',
+        title: 'อัปเดตข้อมูลสำเร็จ',
+        timer: 1500,
+        showConfirmButton: false,
+      });
+
+      setEditingRowId(null);
+      setEditingData({});
+      await fetchData();
+    } catch (error) {
+      console.error(error);
+      await Swal.fire({
+        icon: 'error',
+        title: 'อัปเดตข้อมูลไม่สำเร็จ',
+        text: error instanceof Error ? error.message : 'ไม่สามารถอัปเดตข้อมูลได้',
+      });
+    } finally {
+      setSavingRowId(null);
+    }
+  };
+
+  const handleDelete = async (id: number, approveCode: string) => {
+    const result = await Swal.fire({
+      title: 'ยืนยันการลบข้อมูล?',
+      html: `คุณต้องการลบรายการอนุมัติ <strong>${approveCode}</strong> หรือไม่?<br/>การดำเนินการนี้ไม่สามารถยกเลิกได้`,
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonText: 'ลบข้อมูล',
+      cancelButtonText: 'ยกเลิก',
+      confirmButtonColor: '#ef4444',
+    });
+
+    if (!result.isConfirmed) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/purchase-approvals/${id}`, {
+        method: 'DELETE',
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to delete purchase approval');
+      }
+
+      await Swal.fire({
+        icon: 'success',
+        title: 'ลบข้อมูลสำเร็จ',
+        timer: 1500,
+        showConfirmButton: false,
+      });
+
+      await fetchData();
+    } catch (error) {
+      console.error(error);
+      await Swal.fire({
+        icon: 'error',
+        title: 'ลบข้อมูลไม่สำเร็จ',
+        text: error instanceof Error ? error.message : 'ไม่สามารถลบข้อมูลได้',
+      });
+    }
+  };
+
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="flex justify-between items-center mb-6">
@@ -439,7 +539,7 @@ export default function PurchaseApprovalsPage() {
                 <th onClick={()=>handleSort('doc_no')} className={getHeaderClass('doc_no')}>เลขที่หนังสือ</th>
                 <th onClick={()=>handleSort('doc_date')} className={getHeaderClass('doc_date')}>ลงวันที่</th>
                 <th onClick={()=>handleSort('status')} className={getHeaderClass('status')}>สถานะ</th>
-                <th className="px-3 py-3 text-left text-[10px] font-medium text-gray-500 uppercase tracking-wider w-24">Action</th>
+                <th className="px-3 py-3 text-left text-[10px] font-medium text-gray-500 uppercase tracking-wider w-40">Action</th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
@@ -449,9 +549,64 @@ export default function PurchaseApprovalsPage() {
                     <td className="px-3 py-2 text-xs font-medium">{(page - 1) * pageSize + index + 1}</td>
                     <td className="px-3 py-2 text-xs">{formatDateTime(group.created_at)}</td>
                     {/* <td className="px-3 py-2 text-xs font-medium text-blue-600">{group.id}</td> */}
-                    <td className="px-3 py-2 text-xs">{group.approve_code}</td>
-                    <td className="px-3 py-2 text-xs">{group.doc_no}</td>
-                    <td className="px-3 py-2 text-xs">{formatDate(group.doc_date)}</td>
+                    <td className="px-3 py-2 text-xs">
+                      {editingRowId === group.id && editingData.approve_code !== undefined ? (
+                        <input
+                          type="text"
+                          value={editingData.approve_code}
+                          onChange={(e) => setEditingData({ ...editingData, approve_code: e.target.value })}
+                          onKeyDown={(e) => handleKeyDown(e, group.id)}
+                          className="w-full px-2 py-1 text-xs border border-blue-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                          autoFocus
+                        />
+                      ) : (
+                        <span
+                          onClick={() => handleInlineEdit(group.id, 'approve_code', group.approve_code)}
+                          className="cursor-pointer hover:bg-blue-50 px-1 py-0.5 rounded"
+                          title="คลิกเพื่อแก้ไข"
+                        >
+                          {group.approve_code}
+                        </span>
+                      )}
+                    </td>
+                    <td className="px-3 py-2 text-xs">
+                      {editingRowId === group.id && editingData.doc_no !== undefined ? (
+                        <input
+                          type="text"
+                          value={editingData.doc_no}
+                          onChange={(e) => setEditingData({ ...editingData, doc_no: e.target.value })}
+                          onKeyDown={(e) => handleKeyDown(e, group.id)}
+                          className="w-full px-2 py-1 text-xs border border-blue-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                        />
+                      ) : (
+                        <span
+                          onClick={() => handleInlineEdit(group.id, 'doc_no', group.doc_no)}
+                          className="cursor-pointer hover:bg-blue-50 px-1 py-0.5 rounded"
+                          title="คลิกเพื่อแก้ไข"
+                        >
+                          {group.doc_no}
+                        </span>
+                      )}
+                    </td>
+                    <td className="px-3 py-2 text-xs">
+                      {editingRowId === group.id && editingData.doc_date !== undefined ? (
+                        <input
+                          type="date"
+                          value={editingData.doc_date}
+                          onChange={(e) => setEditingData({ ...editingData, doc_date: e.target.value })}
+                          onKeyDown={(e) => handleKeyDown(e, group.id)}
+                          className="w-full px-2 py-1 text-xs border border-blue-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                        />
+                      ) : (
+                        <span
+                          onClick={() => handleInlineEdit(group.id, 'doc_date', group.doc_date)}
+                          className="cursor-pointer hover:bg-blue-50 px-1 py-0.5 rounded"
+                          title="คลิกเพื่อแก้ไข"
+                        >
+                          {formatDate(group.doc_date)}
+                        </span>
+                      )}
+                    </td>
                     <td className="px-3 py-2 text-xs">
                       <span className={`px-2 py-1 rounded-full text-xs font-medium ${
                         group.status === 'APPROVED' ? 'bg-green-100 text-green-800' :
@@ -463,19 +618,52 @@ export default function PurchaseApprovalsPage() {
                         {group.status}
                       </span>
                     </td>
-                    <td className="px-3 py-2 text-xs font-medium w-24">
-                      <button
-                        onClick={() => toggleRowExpansion(group.id.toString())}
-                        className="text-indigo-600 hover:text-indigo-900 cursor-pointer flex items-center gap-1"
-                        title={expandedRows.has(group.id.toString()) ? 'ย่อรายการ' : 'ขยายรายการ'}
-                      >
-                        {expandedRows.has(group.id.toString()) ? (
-                          <ChevronDown className="h-4 w-4" />
-                        ) : (
-                          <ChevronRight className="h-4 w-4" />
-                        )}
-                        <span className="text-xs">{group.item_count} รายการ</span>
-                      </button>
+                    <td className="px-3 py-2 text-xs font-medium w-32">
+                      {editingRowId === group.id ? (
+                        <div className="flex items-center gap-1">
+                          <button
+                            onClick={() => handleSaveEdit(group.id)}
+                            disabled={savingRowId === group.id}
+                            className="px-2 py-1 text-xs bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                            title="บันทึก"
+                          >
+                            {savingRowId === group.id ? (
+                              <div className="animate-spin rounded-full h-3 w-3 border-b border-white"></div>
+                            ) : (
+                              'บันทึก'
+                            )}
+                          </button>
+                          <button
+                            onClick={handleCancelEdit}
+                            className="px-2 py-1 text-xs bg-gray-600 text-white rounded hover:bg-gray-700"
+                            title="ยกเลิก"
+                          >
+                            ยกเลิก
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-1">
+                          <button
+                            onClick={() => toggleRowExpansion(group.id.toString())}
+                            className="text-indigo-600 hover:text-indigo-900 cursor-pointer flex items-center gap-1"
+                            title={expandedRows.has(group.id.toString()) ? 'ย่อรายการ' : 'ขยายรายการ'}
+                          >
+                            {expandedRows.has(group.id.toString()) ? (
+                              <ChevronDown className="h-4 w-4" />
+                            ) : (
+                              <ChevronRight className="h-4 w-4" />
+                            )}
+                            <span className="text-xs">{group.item_count} รายการ</span>
+                          </button>
+                          <button
+                            onClick={() => handleDelete(group.id, group.approve_code)}
+                            className="px-2 py-1 text-xs bg-red-600 text-white rounded hover:bg-red-700"
+                            title="ลบรายการ"
+                          >
+                            ลบ
+                          </button>
+                        </div>
+                      )}
                     </td>
                   </tr>
                   {expandedRows.has(group.id.toString()) && (
