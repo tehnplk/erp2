@@ -3,7 +3,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import Swal from 'sweetalert2';
-import { ChevronDown, ChevronRight } from 'lucide-react';
+import { ChevronDown, ChevronRight, Save, X, Trash2, Edit } from 'lucide-react';
 
 interface PurchaseApprovalGroup {
   id: number;
@@ -539,7 +539,8 @@ export default function PurchaseApprovalsPage() {
                 <th onClick={()=>handleSort('doc_no')} className={getHeaderClass('doc_no')}>เลขที่หนังสือ</th>
                 <th onClick={()=>handleSort('doc_date')} className={getHeaderClass('doc_date')}>ลงวันที่</th>
                 <th onClick={()=>handleSort('status')} className={getHeaderClass('status')}>สถานะ</th>
-                <th className="px-3 py-3 text-left text-[10px] font-medium text-gray-500 uppercase tracking-wider w-40">Action</th>
+                <th className="px-3 py-3 text-left text-[10px] font-medium text-gray-500 uppercase tracking-wider w-20">รายการ</th>
+                <th className="px-3 py-3 text-left text-[10px] font-medium text-gray-500 uppercase tracking-wider w-20">Action</th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
@@ -603,104 +604,138 @@ export default function PurchaseApprovalsPage() {
                           className="cursor-pointer hover:bg-blue-50 px-1 py-0.5 rounded"
                           title="คลิกเพื่อแก้ไข"
                         >
-                          {formatDate(group.doc_date)}
+                          {group.doc_date}
                         </span>
-                      )}
-                    </td>
-                    <td className="px-3 py-2 text-xs">
-                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                        group.status === 'APPROVED' ? 'bg-green-100 text-green-800' :
-                        group.status === 'PENDING' ? 'bg-yellow-100 text-yellow-800' :
-                        group.status === 'REJECTED' ? 'bg-red-100 text-red-800' :
-                        group.status === 'CANCELLED' ? 'bg-gray-100 text-gray-800' :
-                        'bg-blue-100 text-blue-800'
-                      }`}>
+                    )}
+                  </td>
+                  <td className="px-3 py-2 text-xs">
+                    {editingRowId === group.id && editingData.field === 'status' ? (
+                      <select
+                        value={editingData.status}
+                        onChange={(e) => setEditingData(prev => ({ ...prev, status: e.target.value }))}
+                        onKeyDown={(e) => handleKeyDown(e, group.id)}
+                        className="w-full px-2 py-1 text-xs border border-blue-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        autoFocus
+                      >
+                        <option value="DRAFT">DRAFT</option>
+                        <option value="PENDING">PENDING</option>
+                        <option value="APPROVED">APPROVED</option>
+                        <option value="REJECTED">REJECTED</option>
+                        <option value="CANCELLED">CANCELLED</option>
+                      </select>
+                    ) : (
+                      <span
+                        onClick={() => handleInlineEdit(group.id, 'status', group.status)}
+                        className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium cursor-pointer hover:opacity-80 ${
+                          group.status === 'DRAFT' ? 'bg-gray-100 text-gray-800' :
+                          group.status === 'PENDING' ? 'bg-yellow-100 text-yellow-800' :
+                          group.status === 'REJECTED' ? 'bg-red-100 text-red-800' :
+                          group.status === 'CANCELLED' ? 'bg-gray-100 text-gray-800' :
+                          'bg-blue-100 text-blue-800'
+                        }`}
+                      >
                         {group.status}
                       </span>
-                    </td>
-                    <td className="px-3 py-2 text-xs font-medium w-32">
-                      {editingRowId === group.id ? (
-                        <div className="flex items-center gap-1">
-                          <button
-                            onClick={() => handleSaveEdit(group.id)}
-                            disabled={savingRowId === group.id}
-                            className="px-2 py-1 text-xs bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                            title="บันทึก"
-                          >
-                            {savingRowId === group.id ? (
-                              <div className="animate-spin rounded-full h-3 w-3 border-b border-white"></div>
-                            ) : (
-                              'บันทึก'
-                            )}
-                          </button>
-                          <button
-                            onClick={handleCancelEdit}
-                            className="px-2 py-1 text-xs bg-gray-600 text-white rounded hover:bg-gray-700"
-                            title="ยกเลิก"
-                          >
-                            ยกเลิก
-                          </button>
-                        </div>
-                      ) : (
-                        <div className="flex items-center gap-1">
-                          <button
-                            onClick={() => toggleRowExpansion(group.id.toString())}
-                            className="text-indigo-600 hover:text-indigo-900 cursor-pointer flex items-center gap-1"
-                            title={expandedRows.has(group.id.toString()) ? 'ย่อรายการ' : 'ขยายรายการ'}
-                          >
-                            {expandedRows.has(group.id.toString()) ? (
-                              <ChevronDown className="h-4 w-4" />
-                            ) : (
-                              <ChevronRight className="h-4 w-4" />
-                            )}
-                            <span className="text-xs">{group.item_count} รายการ</span>
-                          </button>
-                          <button
-                            onClick={() => handleDelete(group.id, group.approve_code)}
-                            className="px-2 py-1 text-xs bg-red-600 text-white rounded hover:bg-red-700"
-                            title="ลบรายการ"
-                          >
-                            ลบ
-                          </button>
-                        </div>
-                      )}
-                    </td>
-                  </tr>
-                  {expandedRows.has(group.id.toString()) && (
-                    <tr>
-                      <td colSpan={6} className="px-0 py-0 bg-gray-50">
-                        <div className="px-4 py-3">
-                          <div className="text-sm font-medium text-gray-700 mb-2">รายการย่อย ({group.item_count} รายการ)</div>
-                          <div className="overflow-x-auto">
-                            <table className="min-w-full divide-y divide-gray-200 border border-gray-200">
-                              <thead className="bg-gray-100">
-                                <tr>
-                                  <th className="px-3 py-2 text-left text-[10px] font-medium text-gray-600 uppercase tracking-wider">รหัสสินค้า</th>
-                                  <th className="px-3 py-2 text-left text-[10px] font-medium text-gray-600 uppercase tracking-wider">ชื่อสินค้า</th>
-                                  {/* <th className="px-3 py-2 text-left text-[10px] font-medium text-gray-600 uppercase tracking-wider">หมวด</th> */}
-                                  <th className="px-3 py-2 text-left text-[10px] font-medium text-gray-600 uppercase tracking-wider">จำนวน</th>
-                                  <th className="px-3 py-2 text-left text-[10px] font-medium text-gray-600 uppercase tracking-wider">หน่วย</th>
-                                  <th className="px-3 py-2 text-left text-[10px] font-medium text-gray-600 uppercase tracking-wider">ราคา/หน่วย</th>
-                                  <th className="px-3 py-2 text-left text-[10px] font-medium text-gray-600 uppercase tracking-wider">มูลค่ารวม</th>
-                                </tr>
-                              </thead>
-                              <tbody className="bg-white divide-y divide-gray-100">
-                                {group.sub_items?.map((item, subIndex) => (
-                                  <tr key={item.id} className="hover:bg-gray-50">
-                                    <td className="px-3 py-2 text-xs font-medium">{item.product_code || '-'}</td>
-                                    <td className="px-3 py-2 text-sm">
-                                      <div className="font-medium text-gray-900">{item.product_name || '-'}</div>
-                                      <div className="mt-1 text-[11px] text-gray-500">
-                                        {[item.category || '-', item.product_type || '-', item.product_subtype || '-']
-                                          .filter((value, index, arr) => !(value === '-' && arr.every(v => v === '-')))
-                                          .join(' · ')}
-                                      </div>
-                                    </td>
-                                    {/* <td className="px-3 py-2 text-xs">{item.category || '-'}</td> */}
-                                    <td className="px-3 py-2 text-xs text-right">{item.requested_quantity?.toLocaleString() || '-'}</td>
-                                    <td className="px-3 py-2 text-xs">{item.unit || '-'}</td>
-                                    <td className="px-3 py-2 text-xs text-right">{item.price_per_unit ? Number(item.price_per_unit).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '-'}</td>
-                                    <td className="px-3 py-2 text-xs text-right font-medium">{item.total_value ? Number(item.total_value).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '-'}</td>
+                    )}
+                  </td>
+                  <td className="px-3 py-2 text-xs font-medium w-32">
+                    {editingRowId === group.id ? (
+                      <div className="w-full"></div>
+                    ) : (
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => toggleRowExpansion(group.id.toString())}
+                          className="p-1 text-indigo-600 hover:text-indigo-800"
+                          title={expandedRows.has(group.id.toString()) ? 'ย่อรายการ' : 'ขยายรายการ'}
+                        >
+                          {expandedRows.has(group.id.toString()) ? (
+                            <ChevronDown className="h-4 w-4" />
+                          ) : (
+                            <ChevronRight className="h-4 w-4" />
+                          )}
+                        </button>
+                        <span className="text-xs text-gray-600">{group.item_count}</span>
+                      </div>
+                    )}
+                  </td>
+                  <td className="px-3 py-2 text-xs font-medium w-32">
+                    {editingRowId === group.id ? (
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => handleSaveEdit(group.id)}
+                          disabled={savingRowId === group.id}
+                          className="p-1 text-green-600 hover:text-green-800 disabled:opacity-50"
+                          title="บันทึก"
+                        >
+                          {savingRowId === group.id ? (
+                            <div className="animate-spin rounded-full h-4 w-4 border-2 border-green-600 border-t-transparent"></div>
+                          ) : (
+                            <Save className="h-4 w-4" />
+                          )}
+                        </button>
+                        <button
+                          onClick={handleCancelEdit}
+                          className="p-1 text-gray-600 hover:text-gray-800"
+                          title="ยกเลิก"
+                        >
+                          <X className="h-4 w-4" />
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => handleInlineEdit(group.id, 'approve_code', group.approve_code)}
+                          className="p-1 text-blue-600 hover:text-blue-800"
+                          title="แก้ไขข้อมูล"
+                        >
+                          <Edit className="h-4 w-4" />
+                        </button>
+                        <button
+                          onClick={() => handleDelete(group.id, group.approve_code)}
+                          className="p-1 text-red-600 hover:text-red-800"
+                          title="ลบรายการ"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
+                    )}
+                  </td>
+                </tr>
+                {expandedRows.has(group.id.toString()) && (
+                  <tr>
+                    <td colSpan={9} className="px-0 py-0 bg-gray-50">
+                      <div className="px-4 py-3">
+                        <div className="text-sm font-medium text-gray-700 mb-2">รายการย่อย ({group.item_count} รายการ)</div>
+                        <div className="overflow-x-auto">
+                          <table className="min-w-full divide-y divide-gray-200 border border-gray-200">
+                            <thead className="bg-gray-100">
+                              <tr>
+                                <th className="px-3 py-2 text-left text-[10px] font-medium text-gray-600 uppercase tracking-wider">รหัสสินค้า</th>
+                                <th className="px-3 py-2 text-left text-[10px] font-medium text-gray-600 uppercase tracking-wider">ชื่อสินค้า</th>
+                                {/* <th className="px-3 py-2 text-left text-[10px] font-medium text-gray-600 uppercase tracking-wider">หมวด</th> */}
+                                <th className="px-3 py-2 text-left text-[10px] font-medium text-gray-600 uppercase tracking-wider">จำนวน</th>
+                                <th className="px-3 py-2 text-left text-[10px] font-medium text-gray-600 uppercase tracking-wider">หน่วย</th>
+                                <th className="px-3 py-2 text-left text-[10px] font-medium text-gray-600 uppercase tracking-wider">ราคา/หน่วย</th>
+                                <th className="px-3 py-2 text-left text-[10px] font-medium text-gray-600 uppercase tracking-wider">มูลค่ารวม</th>
+                              </tr>
+                            </thead>
+                            <tbody className="bg-white divide-y divide-gray-100">
+                              {group.sub_items?.map((item, subIndex) => (
+                                <tr key={item.id} className="hover:bg-gray-50">
+                                  <td className="px-3 py-2 text-xs font-medium">{item.product_code || '-'}</td>
+                                  <td className="px-3 py-2 text-sm">
+                                    <div className="font-medium text-gray-900">{item.product_name || '-'}</div>
+                                    <div className="mt-1 text-[11px] text-gray-500">
+                                      {[item.category || '-', item.product_type || '-', item.product_subtype || '-']
+                                        .filter((value, index, arr) => !(value === '-' && arr.every(v => v === '-')))
+                                        .join(' · ')}
+                                    </div>
+                                  </td>
+                                  {/* <td className="px-3 py-2 text-xs">{item.category || '-'}</td> */}
+                                  <td className="px-3 py-2 text-xs text-right">{item.requested_quantity?.toLocaleString() || '-'}</td>
+                                  <td className="px-3 py-2 text-xs">{item.unit || '-'}</td>
+                                  <td className="px-3 py-2 text-xs text-right">{item.price_per_unit ? Number(item.price_per_unit).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '-'}</td>
+                                  <td className="px-3 py-2 text-xs text-right font-medium">{item.total_value ? Number(item.total_value).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '-'}</td>
                                   </tr>
                                 ))}
                               </tbody>
