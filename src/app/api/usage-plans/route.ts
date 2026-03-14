@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { pgQuery } from '@/lib/pg';
-import { cacheGet, cacheSet, cacheDelByPattern } from '@/lib/redis';
+import { cacheDelByPattern } from '@/lib/redis';
 import { validateQuery, validateRequest } from '@/lib/validation/validate';
 import { surveyQuerySchema, createSurveySchema } from '@/lib/validation/schemas';
 import { findDepartmentCodeByName } from '@/lib/department-code';
@@ -105,13 +105,6 @@ export async function GET(request: NextRequest) {
 
     const whereSql = whereClauses.length > 0 ? `WHERE ${whereClauses.join(' AND ')}` : '';
 
-    // --- Redis Caching Logic (Non-paginated) ---
-    const cacheKey = `erp:surveys:list:${JSON.stringify({ product_name, category, type, subtype, requesting_dept, budget_year, has_purchase_plan, order_by, sort_order })}`;
-    const cached = await cacheGet<any>(cacheKey);
-    if (cached) {
-      return NextResponse.json(cached);
-    }
-
     const hasPagination = validatedPage !== undefined || validatedPageSize !== undefined;
 
     if (!hasPagination) {
@@ -139,22 +132,12 @@ export async function GET(request: NextRequest) {
         totalCount: subtype ? filteredSurveys.length : totalCountResult.rows[0]?.count || 0,
       };
 
-      // Save to Cache
-      await cacheSet(cacheKey, result, 600);
-
       return NextResponse.json(result);
     }
 
     const page = validatedPage ?? 1;
     const pageSize = validatedPageSize ?? 20;
     const offset = (page - 1) * pageSize;
-
-    // --- Redis Caching Logic (Paginated) ---
-    const paginatedCacheKey = `erp:surveys:list:${JSON.stringify({ ...queryValidation.data, page, page_size: pageSize })}`;
-    const cachedPaginated = await cacheGet<any>(paginatedCacheKey);
-    if (cachedPaginated) {
-      return NextResponse.json(cachedPaginated);
-    }
 
     const paginatedParams = [...params, pageSize, offset];
 
@@ -195,9 +178,6 @@ export async function GET(request: NextRequest) {
       page_size: pageSize,
     };
 
-    // Save to Cache
-    await cacheSet(paginatedCacheKey, paginatedResult, 600);
-    
     return NextResponse.json(paginatedResult);
   } catch (error) {
     console.error('Error fetching surveys:', error);

@@ -64,6 +64,7 @@ export async function POST(request: NextRequest) {
     await cacheDelByPattern('erp:purchase:plans:list:*');
     await cacheDelByPattern('erp:purchase:plans:filters*');
     await cacheDelByPattern('erp:usage:plans:available*');
+    await cacheDelByPattern('erp:surveys:list:*');
 
     return apiSuccess(
       { 

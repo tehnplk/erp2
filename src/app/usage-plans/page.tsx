@@ -611,31 +611,31 @@ function SurveysPageContent() {
     fetchUsagePlans();
   }, [productNameFilter, categoryFilter, typeFilter, subtypeFilter, requestingDeptFilter, budgetYearFilter, hasPurchasePlanFilter, sortField, sortOrder, page, pageSize]);
 
-  useEffect(() => {
-    const fetchStatusCountUsagePlans = async () => {
-      try {
-        const params = new URLSearchParams();
-        if (productNameFilter) params.append('product_name', productNameFilter);
-        if (categoryFilter) params.append('category', categoryFilter);
-        if (typeFilter) params.append('type', typeFilter);
-        if (subtypeFilter) params.append('subtype', subtypeFilter);
-        if (requestingDeptFilter) params.append('requesting_dept', requestingDeptFilter);
-        if (budgetYearFilter) params.append('budget_year', budgetYearFilter);
-        if (sortField) params.append('order_by', sortField);
-        if (sortOrder) params.append('sort_order', sortOrder);
+  const fetchStatusCountUsagePlans = async () => {
+    try {
+      const params = new URLSearchParams();
+      if (productNameFilter) params.append('product_name', productNameFilter);
+      if (categoryFilter) params.append('category', categoryFilter);
+      if (typeFilter) params.append('type', typeFilter);
+      if (subtypeFilter) params.append('subtype', subtypeFilter);
+      if (requestingDeptFilter) params.append('requesting_dept', requestingDeptFilter);
+      if (budgetYearFilter) params.append('budget_year', budgetYearFilter);
+      if (sortField) params.append('order_by', sortField);
+      if (sortOrder) params.append('sort_order', sortOrder);
 
-        const response = await fetch(`/api/usage-plans?${params.toString()}`);
-        if (!response.ok) {
-          return;
-        }
-
-        const data = await response.json();
-        setStatusCountSurveys(Array.isArray(data?.surveys) ? data.surveys : []);
-      } catch (error) {
-        console.error('Error fetching usage plan status counts:', error);
+      const response = await fetch(`/api/usage-plans?${params.toString()}`);
+      if (!response.ok) {
+        return;
       }
-    };
 
+      const data = await response.json();
+      setStatusCountSurveys(Array.isArray(data?.surveys) ? data.surveys : []);
+    } catch (error) {
+      console.error('Error fetching usage plan status counts:', error);
+    }
+  };
+
+  useEffect(() => {
     void fetchStatusCountUsagePlans();
   }, [productNameFilter, categoryFilter, typeFilter, subtypeFilter, requestingDeptFilter, budgetYearFilter, sortField, sortOrder]);
 
@@ -965,9 +965,13 @@ function SurveysPageContent() {
         confirmButtonColor: '#10b981',
       });
 
-      // Clear selection and refresh data
+      // Clear selection and refresh all related data
       setSelectedRows(new Set());
-      await fetchUsagePlans();
+      await Promise.all([
+        fetchUsagePlans(),
+        fetchStatusCountUsagePlans(),
+      ]);
+      router.refresh();
 
     } catch (error) {
       console.error('Error sending to purchase plans:', error);
@@ -1033,6 +1037,24 @@ function SurveysPageContent() {
           Boolean(hasPurchasePlanFilter);
         const surveysToUse = shouldUseExactFiltered ? exactFilteredSurveys : fetchedSurveys;
         setSurveys(surveysToUse);
+        setSelectedRows((prev) => {
+          if (prev.size === 0) {
+            return prev;
+          }
+
+          const selectableIds = new Set(
+            surveysToUse
+              .filter((survey: Survey) => !survey.has_purchase_plan && (survey.approved_quota ?? 0) > 0)
+              .map((survey: Survey) => survey.id)
+          );
+          const nextSelected = new Set(Array.from(prev).filter((id) => selectableIds.has(id)));
+
+          if (nextSelected.size === prev.size) {
+            return prev;
+          }
+
+          return nextSelected;
+        });
         setTotalCount(data.totalCount || 0);
         setTotalRequestedValue(data.total_requested_value || 0);
         setTotalApprovedValue(data.total_approved_value || 0);
