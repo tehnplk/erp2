@@ -9,6 +9,12 @@ type ChartRow = { name: string | null; value: number };
 type BudgetTrendRow = { year: string; surveyValue: number; planValue: number };
 type DepartmentComparisonRow = { name: string | null; surveyCount: number; planCount: number; approvalCount: number };
 type DepartmentValueRow = { name: string | null; surveyValue: number; planValue: number; approvalValue: number };
+type PurchasePlanDepartmentSpendRow = {
+  name: string | null;
+  total_value: number;
+  item_count: number;
+  avg_value: number;
+};
 
 const normalizeChartRows = (rows: ChartRow[]) => rows.map((row) => ({
   name: row.name || 'ไม่ระบุ',
@@ -31,6 +37,7 @@ const normalizeChartRows = (rows: ChartRow[]) => rows.map((row) => ({
     budgetTrendResult,
     departmentComparisonResult,
     departmentValueResult,
+    purchasePlanDepartmentSpendResult,
   ] = await Promise.all([
     pgQuery<CountRow>('SELECT COUNT(*)::int AS count FROM public.product'),
     pgQuery<CountRow>('SELECT COUNT(*)::int AS count FROM public.usage_plan'),
@@ -135,6 +142,18 @@ const normalizeChartRows = (rows: ChartRow[]) => rows.map((row) => ({
                 COALESCE(survey_values.name, plan_values.name, approval_values.name) ASC
        LIMIT 8`
     ),
+    pgQuery<PurchasePlanDepartmentSpendRow>(
+      `SELECT
+         COALESCE(up.requesting_dept, 'ไม่ระบุ') AS name,
+         COALESCE(SUM(COALESCE(pp.purchase_value, 0)), 0)::float8 AS total_value,
+         COUNT(*)::int AS item_count,
+         COALESCE(AVG(COALESCE(pp.purchase_value, 0)), 0)::float8 AS avg_value
+       FROM public.purchase_plan pp
+       INNER JOIN public.usage_plan up ON up.id = pp.usage_plan_id
+       GROUP BY COALESCE(up.requesting_dept, 'ไม่ระบุ')
+       ORDER BY total_value DESC, name ASC
+       LIMIT 10`
+    ),
   ]);
 
   const overview = [
@@ -179,6 +198,12 @@ const normalizeChartRows = (rows: ChartRow[]) => rows.map((row) => ({
             surveyValue: Number(row.surveyValue) || 0,
             planValue: Number(row.planValue) || 0,
             approvalValue: Number(row.approvalValue) || 0,
+          }))}
+          purchasePlanDepartmentSpend={purchasePlanDepartmentSpendResult.rows.map((row) => ({
+            name: row.name || 'ไม่ระบุ',
+            total_value: Number(row.total_value) || 0,
+            item_count: Number(row.item_count) || 0,
+            avg_value: Number(row.avg_value) || 0,
           }))}
         />
         {/* Module Grid */}

@@ -101,13 +101,13 @@ export async function POST(request: NextRequest) {
         await pgQuery(
           `INSERT INTO public.purchase_approval_inventory_link
            (purchase_approval_id, purchase_approval_detail_id, inventory_receipt_status, received_qty)
-           SELECT $1, $2, 'PENDING', 0
+           SELECT $1, $1, 'PENDING', 0
            WHERE NOT EXISTS (
              SELECT 1
              FROM public.purchase_approval_inventory_link
-             WHERE purchase_approval_detail_id = $2
+             WHERE purchase_approval_detail_id = $1
            )`,
-          [purchaseApprovalId, createdDetail.id]
+          [createdDetail.id]
         );
       }
     }
@@ -132,6 +132,8 @@ export async function POST(request: NextRequest) {
     
     // Clear cache
     await cacheDelByPattern('erp:purchase:approvals:list:*');
+    await cacheDelByPattern('erp:purchase:plans:list:*');
+    await cacheDelByPattern('erp:purchase:plans:filters*');
     
     return apiSuccess(
       { 

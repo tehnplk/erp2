@@ -323,18 +323,32 @@ export default function PurchaseApprovalsPage() {
     if (!value) return '-';
     const date = new Date(value);
     if (Number.isNaN(date.getTime())) return value;
-    return date.toLocaleString('th-TH');
+    // Convert UTC to Thailand time by adding 7 hours
+    const thailandTime = new Date(date.getTime() + (7 * 60 * 60 * 1000));
+    return thailandTime.toLocaleString('th-TH', {
+      timeZone: 'Asia/Bangkok',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: false
+    });
   };
 
   const formatDate = (value?: string) => {
     if (!value) return '-';
     const date = new Date(value);
     if (Number.isNaN(date.getTime())) return value;
+    // Convert UTC to Thailand time by adding 7 hours
+    const thailandTime = new Date(date.getTime() + (7 * 60 * 60 * 1000));
     return new Intl.DateTimeFormat('th-TH-u-ca-buddhist-nu-latn', {
       day: 'numeric',
       month: 'long',
       year: 'numeric',
-    }).format(date);
+      timeZone: 'Asia/Bangkok',
+    }).format(thailandTime);
   };
 
   const formatMoney = (value?: number | string) => {
@@ -349,11 +363,14 @@ export default function PurchaseApprovalsPage() {
     if (!value) return '-';
     const date = new Date(value);
     if (Number.isNaN(date.getTime())) return value;
+    // Convert UTC to Thailand time by adding 7 hours
+    const thailandTime = new Date(date.getTime() + (7 * 60 * 60 * 1000));
     return new Intl.DateTimeFormat('th-TH-u-ca-buddhist-nu-latn', {
       day: 'numeric',
       month: 'long',
       year: 'numeric',
-    }).format(date);
+      timeZone: 'Asia/Bangkok',
+    }).format(thailandTime);
   };
 
   const normalizeThaiDigitsToArabic = (value?: string) => {

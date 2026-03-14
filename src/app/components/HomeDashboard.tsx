@@ -61,6 +61,13 @@ type DepartmentValueDatum = {
   approvalValue: number;
 };
 
+type PurchasePlanDepartmentSpendDatum = {
+  name: string;
+  total_value: number;
+  item_count: number;
+  avg_value: number;
+};
+
 type HomeDashboardProps = {
   overview: OverviewStat[];
   valueStats: ValueStat[];
@@ -70,6 +77,7 @@ type HomeDashboardProps = {
   budgetTrend: BudgetTrendDatum[];
   departmentComparison: DepartmentCompareDatum[];
   departmentValue: DepartmentValueDatum[];
+  purchasePlanDepartmentSpend: PurchasePlanDepartmentSpendDatum[];
 };
 
 type LegendItem = {
@@ -143,6 +151,10 @@ const productsLegendItems: LegendItem[] = [
   { key: 'value', label: 'สินค้า', color: '#2563eb' },
 ];
 
+const purchasePlanDepartmentSpendLegendItems: LegendItem[] = [
+  { key: 'total_value', label: 'ยอดใช้เงินแผนจัดซื้อ', color: '#2563eb' },
+];
+
 function createInitialVisibility(items: LegendItem[]) {
   return Object.fromEntries(items.map((item) => [item.key, true]));
 }
@@ -196,6 +208,7 @@ export default function HomeDashboard({
   budgetTrend,
   departmentComparison,
   departmentValue,
+  purchasePlanDepartmentSpend,
 }: HomeDashboardProps) {
   const [departmentValueVisibility, setDepartmentValueVisibility] = useState(() =>
     createInitialVisibility(departmentValueLegendItems)
@@ -211,6 +224,9 @@ export default function HomeDashboard({
   const [surveysVisibility, setSurveysVisibility] = useState(() => createInitialVisibility(surveysLegendItems));
   const [purchasePlanVisibility, setPurchasePlanVisibility] = useState(() =>
     createInitialVisibility(purchasePlanLegendItems)
+  );
+  const [purchasePlanDepartmentSpendVisibility, setPurchasePlanDepartmentSpendVisibility] = useState(() =>
+    createInitialVisibility(purchasePlanDepartmentSpendLegendItems)
   );
 
   const toggleVisibility = (
@@ -238,6 +254,10 @@ export default function HomeDashboard({
   const visiblePurchasePlanStatus = useMemo(
     () => (purchasePlanVisibility.value ? purchasePlanStatus : []),
     [purchasePlanStatus, purchasePlanVisibility]
+  );
+  const visiblePurchasePlanDepartmentSpend = useMemo(
+    () => (purchasePlanDepartmentSpendVisibility.total_value ? purchasePlanDepartmentSpend : []),
+    [purchasePlanDepartmentSpend, purchasePlanDepartmentSpendVisibility]
   );
 
   return (
@@ -294,6 +314,66 @@ export default function HomeDashboard({
             );
           })}
         </div>
+
+        <section className="mt-8 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <div className="mb-4 flex flex-col gap-1">
+            <h2 className="text-lg font-semibold text-slate-900">เปรียบเทียบยอดใช้เงินจากแผนจัดซื้อรายหน่วยงาน</h2>
+            <p className="text-sm text-slate-500">สรุปยอดใช้เงินจาก `purchase_plan` แยกรายหน่วยงาน พร้อมจำนวนรายการและค่าเฉลี่ยต่อรายการ</p>
+          </div>
+          <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,2fr)_minmax(320px,1fr)]">
+            <div className="h-[420px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart
+                  data={visiblePurchasePlanDepartmentSpend}
+                  layout="vertical"
+                  margin={{ top: 12, right: 16, left: 80, bottom: 0 }}
+                >
+                  <CartesianGrid strokeDasharray="3 3" horizontal={false} />
+                  <XAxis type="number" tickFormatter={(value) => `${Math.round(Number(value) / 1000)}k`} />
+                  <YAxis type="category" dataKey="name" width={180} tick={{ fontSize: 12 }} />
+                  <Tooltip formatter={(value) => [currencyFormatter.format(Number(value)), 'ยอดใช้เงิน']} />
+                  <Legend content={() => null} />
+                  {purchasePlanDepartmentSpendVisibility.total_value && (
+                    <Bar dataKey="total_value" name="ยอดใช้เงินแผนจัดซื้อ" fill="#2563eb" radius={[0, 10, 10, 0]} />
+                  )}
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+            <div className="overflow-hidden rounded-2xl border border-slate-200">
+              <div className="grid grid-cols-[minmax(0,1.5fr)_110px_130px] gap-3 border-b border-slate-200 bg-slate-50 px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                <span>หน่วยงาน</span>
+                <span className="text-right">รายการ</span>
+                <span className="text-right">ยอดใช้เงิน</span>
+              </div>
+              <div className="max-h-[420px] overflow-y-auto">
+                {purchasePlanDepartmentSpend.map((row) => (
+                  <div
+                    key={row.name}
+                    className="grid grid-cols-[minmax(0,1.5fr)_110px_130px] gap-3 border-b border-slate-100 px-4 py-3 text-sm text-slate-700 last:border-b-0"
+                  >
+                    <div className="min-w-0">
+                      <p className="truncate font-medium text-slate-900">{row.name}</p>
+                      <p className="mt-1 text-xs text-slate-500">
+                        เฉลี่ย {currencyFormatter.format(row.avg_value)} / รายการ
+                      </p>
+                    </div>
+                    <div className="text-right font-medium text-slate-600">
+                      {numberFormatter.format(row.item_count)}
+                    </div>
+                    <div className="text-right font-semibold text-slate-900">
+                      {currencyFormatter.format(row.total_value)}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+          <CustomLegend
+            items={purchasePlanDepartmentSpendLegendItems}
+            visibility={purchasePlanDepartmentSpendVisibility}
+            onToggle={(key) => toggleVisibility(key, setPurchasePlanDepartmentSpendVisibility)}
+          />
+        </section>
 
         <section className="mt-8 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
           <div className="mb-4">

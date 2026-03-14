@@ -3,7 +3,7 @@
 import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import Swal from 'sweetalert2';
-import { CheckCircle, Pencil, Trash2, XCircle, X, Download, RefreshCw, Plus } from 'lucide-react';
+import { CheckCircle, Pencil, Trash2, XCircle, X, Download, RefreshCw, Plus, FileText } from 'lucide-react';
 
 const getCurrentBudgetYear = () => {
   const now = new Date();
@@ -730,7 +730,7 @@ function PurchasePlansPageContent() {
     if (checked) {
       const selectableIds = new Set(
         items
-          .filter((item) => !approvedPlanIds.has(item.id))
+          .filter((item) => !item.has_purchase_approval)
           .map((item) => item.id)
       );
       setSelectedRows(selectableIds);
@@ -740,7 +740,8 @@ function PurchasePlansPageContent() {
   };
 
   const handleRowSelect = (id: number, checked: boolean) => {
-    if (approvedPlanIds.has(id)) {
+    const currentItem = items.find((item) => item.id === id);
+    if (currentItem?.has_purchase_approval) {
       return;
     }
     setSelectedRows(prev => {
@@ -755,8 +756,8 @@ function PurchasePlansPageContent() {
   };
 
   const selectableRowIds = useMemo(
-    () => items.filter((item) => !approvedPlanIds.has(item.id)).map((item) => item.id),
-    [items, approvedPlanIds]
+    () => items.filter((item) => !item.has_purchase_approval).map((item) => item.id),
+    [items]
   );
   const isAllSelected = selectableRowIds.length > 0 && selectableRowIds.every((id) => selectedRows.has(id));
   const isIndeterminate = selectedRows.size > 0 && !isAllSelected;
@@ -1225,6 +1226,7 @@ function PurchasePlansPageContent() {
                     className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                   />
                 </th>
+                <th className="px-2 py-2.5 text-left text-[10px] font-medium text-gray-500 uppercase tracking-wider w-16">สถานะ</th>
                 <th onClick={() => handleSort('budget_year')} className={`${getHeaderClass('budget_year')} w-20`}>ปีงบ</th>
                 <th onClick={() => handleSort('sequence_no')} className={`${getHeaderClass('sequence_no')} w-16`}>ครั้งที่</th>
                 <th onClick={() => handleSort('product_code')} className={`${getHeaderClass('product_code')} w-28`}>รหัสสินค้า</th>
@@ -1242,7 +1244,7 @@ function PurchasePlansPageContent() {
               {items.map((row) => {
                 const isEditingRow = editingRowId === row.id;
                 const isSavingRow = savingRowId === row.id;
-                const isApprovedRow = approvedPlanIds.has(row.id);
+                const isApprovedRow = Boolean(row.has_purchase_approval);
 
                 return (
                   <tr key={row.id} className={`${isEditingRow ? 'bg-yellow-50' : 'hover:bg-gray-50 transition-colors duration-150'}`}>
@@ -1251,14 +1253,21 @@ function PurchasePlansPageContent() {
                         type="checkbox"
                         checked={selectedRows.has(row.id)}
                         onChange={(e) => handleRowSelect(row.id, e.target.checked)}
-                        disabled={approvedPlanIds.has(row.id)}
+                        disabled={Boolean(row.has_purchase_approval)}
                         className={`h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 ${
-                          approvedPlanIds.has(row.id) 
+                          row.has_purchase_approval
                             ? 'opacity-50 cursor-not-allowed' 
                             : ''
                         }`}
-                        title={approvedPlanIds.has(row.id) ? 'รายการนี้ถูกเพิ่มไปยังรายการอนุมัติแล้ว' : ''}
+                        title={row.has_purchase_approval ? 'รายการนี้ถูกเพิ่มไปยังรายการอนุมัติแล้ว' : ''}
                       />
+                    </td>
+                    <td className="px-2 py-2 text-[11px] align-top">
+                      {row.has_purchase_approval ? (
+                        <span title="ทำเอกสารอนุมัติจัดซื้อแล้ว" className="inline-flex items-center text-blue-600">
+                          <FileText className="h-4 w-4" />
+                        </span>
+                      ) : '-'}
                     </td>
                     <td className="px-2 py-2 text-[11px] align-top">{row.budget_year ?? '-'}</td>
                     <td className="px-2 py-2 text-[11px] align-top">{row.sequence_no ?? '-'}</td>

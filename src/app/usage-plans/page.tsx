@@ -3,7 +3,7 @@
 import { Suspense, useState, useEffect, useRef, useMemo } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import Swal from 'sweetalert2';
-import { Upload, Plus, CheckCircle2, AlertCircle, X as XIcon, ChevronUp, ChevronDown, ArrowUpDown, Pencil, Trash2, Search, X } from 'lucide-react';
+import { Upload, Plus, CheckCircle2, AlertCircle, X as XIcon, ChevronUp, ChevronDown, ArrowUpDown, Pencil, Trash2, Search, X, FileText } from 'lucide-react';
 
 const PRODUCT_SUGGESTION_LIMIT = 12;
 
@@ -72,6 +72,7 @@ interface Survey {
   created_at: string;
   updated_at: string;
   has_purchase_plan: boolean;
+  has_purchase_approval?: boolean;
 }
 
 interface SurveyFormData {
@@ -2122,6 +2123,9 @@ function SurveysPageContent() {
                         className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                       />
                     </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-20">
+                      สถานะ
+                    </th>
                     <th onClick={() => handleSort('budget_year')} className={getHeaderClass('budget_year')}>
                       ปีงบ {getSortIcon('budget_year')}
                     </th>
@@ -2166,6 +2170,13 @@ function SurveysPageContent() {
                               : ''
                           }`}
                         />
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-xs text-gray-900">
+                        {survey.has_purchase_plan ? (
+                          <span title={survey.has_purchase_approval ? 'ทำแผนจัดซื้อและทำเอกสารอนุมัติจัดซื้อแล้ว' : 'ทำแผนจัดซื้อแล้ว'} className="inline-flex items-center text-blue-600">
+                            <FileText className="h-4 w-4" />
+                          </span>
+                        ) : '-'}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-xs text-gray-900">
                         {survey.budget_year || '-'}

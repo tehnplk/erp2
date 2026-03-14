@@ -122,7 +122,8 @@ export async function GET(request: NextRequest) {
             up.requested_amount, up.unit, up.price_per_unit::float8 AS price_per_unit, 
             up.requesting_dept, up.requesting_dept_code, up.approved_quota, 
             up.budget_year, up.sequence_no, up.created_at, up.updated_at,
-            CASE WHEN pp.id IS NOT NULL THEN true ELSE false END as has_purchase_plan
+            CASE WHEN pp.id IS NOT NULL THEN true ELSE false END as has_purchase_plan,
+            CASE WHEN EXISTS (SELECT 1 FROM public.purchase_approval_detail pad WHERE pad.purchase_plan_id = pp.id) THEN true ELSE false END as has_purchase_approval
            FROM public.usage_plan up
            LEFT JOIN public.purchase_plan pp ON up.id = pp.usage_plan_id
            ${whereSql} ORDER BY ${safeOrderField} ${orderDirection}`,
@@ -164,7 +165,8 @@ export async function GET(request: NextRequest) {
           up.requested_amount, up.unit, up.price_per_unit::float8 AS price_per_unit, 
           up.requesting_dept, up.requesting_dept_code, up.approved_quota, 
           up.budget_year, up.sequence_no, up.created_at, up.updated_at,
-          CASE WHEN pp.id IS NOT NULL THEN true ELSE false END as has_purchase_plan
+          CASE WHEN pp.id IS NOT NULL THEN true ELSE false END as has_purchase_plan,
+          CASE WHEN EXISTS (SELECT 1 FROM public.purchase_approval_detail pad WHERE pad.purchase_plan_id = pp.id) THEN true ELSE false END as has_purchase_approval
          FROM public.usage_plan up
          LEFT JOIN public.purchase_plan pp ON up.id = pp.usage_plan_id
          ${whereSql} ORDER BY ${safeOrderField} ${orderDirection} LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,
