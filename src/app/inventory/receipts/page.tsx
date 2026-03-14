@@ -4,11 +4,12 @@ import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 
 type PendingReceiptRow = {
-  id: number;
-  approval_id: string | null;
+  purchase_approval_detail_id?: number;
+  purchase_approval_id: number;
+  approve_code: string | null;
+  doc_no: string | null;
   department: string | null;
   budget_year: number | null;
-  record_number: string | null;
   request_date: string | null;
   product_code: string | null;
   product_name: string | null;
@@ -116,18 +117,20 @@ export default function InventoryReceiptsPage() {
   }, []);
 
   const handleReceive = async (item: PendingReceiptRow) => {
+    const detail_id = item.purchase_approval_detail_id ?? item.purchase_approval_id;
+
     try {
-      setSubmittingId(item.id);
+      setSubmittingId(detail_id);
       setMessage('');
       const response = await fetch('/api/inventory/receipts/from-purchase-approval', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          purchase_approval_id: item.id,
+          purchase_approval_detail_id: detail_id,
           warehouse_id: Number(warehouse_id),
           qty: item.remaining_qty,
           unit_cost: item.price_per_unit || 0,
-          note: `Auto receipt from PurchaseApproval ${item.record_number || item.id}`,
+          note: `Auto receipt from PurchaseApproval ${item.approve_code || item.doc_no || detail_id}`,
         }),
       });
 
@@ -234,7 +237,7 @@ export default function InventoryReceiptsPage() {
                   </tr>
                 ) : (
                   filteredItems.map((item) => (
-                    <tr key={item.id} className="hover:bg-slate-50">
+                    <tr key={item.purchase_approval_detail_id ?? item.purchase_approval_id} className="hover:bg-slate-50">
                       <td className="px-4 py-3 font-medium text-slate-900">{item.product_code || '-'}</td>
                       <td className="px-4 py-3 text-slate-700">{item.product_name || '-'}</td>
                       <td className="px-4 py-3 text-slate-600">{item.department || '-'}</td>
@@ -250,10 +253,10 @@ export default function InventoryReceiptsPage() {
                         <button
                           type="button"
                           onClick={() => handleReceive(item)}
-                          disabled={submitting_id === item.id || Number(item.remaining_qty || 0) <= 0}
+                          disabled={submitting_id === (item.purchase_approval_detail_id ?? item.purchase_approval_id) || Number(item.remaining_qty || 0) <= 0}
                           className="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-slate-300"
                         >
-                          {submitting_id === item.id ? 'กำลังบันทึก...' : 'รับเข้าทั้งค้าง'}
+                          {submitting_id === (item.purchase_approval_detail_id ?? item.purchase_approval_id) ? 'กำลังบันทึก...' : 'รับเข้าทั้งค้าง'}
                         </button>
                       </td>
                     </tr>

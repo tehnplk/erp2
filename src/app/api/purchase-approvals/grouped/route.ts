@@ -13,8 +13,6 @@ export async function GET(request: NextRequest) {
     const product_subtype = searchParams.get('product_subtype');
     const department = searchParams.get('department');
     const budget_year = searchParams.get('budget_year');
-    const order_by = searchParams.get('order_by') || 'created_at';
-    const sort_order = searchParams.get('sort_order') || 'desc';
     const page = parseInt(searchParams.get('page') || '1');
     const page_size = parseInt(searchParams.get('page_size') || '20');
 
@@ -47,20 +45,6 @@ export async function GET(request: NextRequest) {
       whereClauses.push(`up.budget_year = $${params.length}`);
     }
 
-    const allowedOrderFields: Record<string, string> = {
-      approve_code: 'pa.approve_code',
-      doc_no: 'pa.doc_no',
-      doc_date: 'pa.doc_date',
-      status: 'pa.status',
-      total_amount: 'pa.total_amount',
-      total_items: 'pa.total_items',
-      created_at: 'pa.created_at',
-      updated_at: 'pa.updated_at',
-      department: 'up.requesting_dept',
-      budget_year: 'up.budget_year',
-    };
-    const safeOrderField = allowedOrderFields[order_by] || 'pa.created_at';
-    const safeSortOrder = sort_order === 'asc' ? 'ASC' : 'DESC';
     const whereSql = whereClauses.length ? `WHERE ${whereClauses.join(' AND ')}` : '';
 
     const mainQuery = `
@@ -89,7 +73,7 @@ export async function GET(request: NextRequest) {
       ${whereSql}
       GROUP BY pa.id, pa.approve_code, pa.doc_no, pa.doc_date, pa.status, pa.total_amount, pa.total_items,
                pa.prepared_by, pa.approved_by, pa.approved_at, pa.notes, pa.created_at, pa.updated_at, pa.version
-      ORDER BY MAX(${safeOrderField}) ${safeSortOrder}
+      ORDER BY MAX(pa.created_at) DESC
     `;
 
     const subItemsQuery = `

@@ -5,6 +5,16 @@ import { cacheGet, cacheSet, cacheDelByPattern } from '@/lib/redis';
 import { validateQuery, validateRequest } from '@/lib/validation/validate';
 import { purchaseApprovalQuerySchema, createPurchaseApprovalSchema } from '@/lib/validation/schemas';
 
+const DEFAULT_DOC_NO = 'พล. 0733.301/พิเศษ';
+
+const getCurrentDateString = () => {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
 const purchaseApprovalSelect = `
   SELECT
     pa.id,
@@ -176,8 +186,8 @@ export async function POST(request: NextRequest) {
        RETURNING id, approve_code, doc_no, doc_date, status, total_amount, total_items, prepared_by, approved_by, approved_at, notes, created_at, updated_at, version`,
       [
         validation.data.approve_code || null,
-        validation.data.doc_no || null,
-        validation.data.doc_date || null,
+        validation.data.doc_no || DEFAULT_DOC_NO,
+        validation.data.doc_date || getCurrentDateString(),
         validation.data.status || 'DRAFT',
         validation.data.prepared_by || validation.data.created_by || 'SYSTEM',
         validation.data.notes || null,

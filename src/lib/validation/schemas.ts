@@ -54,7 +54,8 @@ export const inventoryPendingPurchaseApprovalQuerySchema = z.object({
 });
 
 export const createInventoryReceiptFromPurchaseApprovalSchema = z.object({
-  purchase_approval_id: z.coerce.number().int().positive(),
+  purchase_approval_detail_id: z.coerce.number().int().positive().optional(),
+  purchase_approval_id: z.coerce.number().int().positive().optional(),
   warehouse_id: z.coerce.number().int().positive(),
   location_id: z.coerce.number().int().positive().nullable().optional(),
   qty: z.coerce.number().int().positive(),
@@ -66,6 +67,14 @@ export const createInventoryReceiptFromPurchaseApprovalSchema = z.object({
   expiry_date: z.string().optional(),
   note: z.string().optional(),
   created_by: z.string().optional()
+}).superRefine((data, ctx) => {
+  if (!data.purchase_approval_detail_id && !data.purchase_approval_id) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['purchase_approval_detail_id'],
+      message: 'purchase_approval_detail_id is required',
+    });
+  }
 });
 
 export const inventoryBalanceQuerySchema = z.object({

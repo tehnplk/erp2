@@ -7,8 +7,8 @@ import { cacheGet, cacheSet } from '@/lib/redis';
 
 const pendingPurchaseApprovalSelect = `
   SELECT
-    pad.id AS purchase_approval_id,
-    pa.id AS purchase_approval_header_id,
+    pad.id AS purchase_approval_detail_id,
+    pa.id AS purchase_approval_id,
     pa.approve_code,
     pa.doc_no,
     pa.status,
@@ -84,6 +84,7 @@ export async function GET(request: NextRequest) {
       whereClauses.push(`link.inventory_receipt_status IN ('PENDING', 'PARTIAL')`);
     }
 
+    whereClauses.push(`pa.status = 'APPROVED'`);
     whereClauses.push(`GREATEST(COALESCE(pad.approved_quantity, up.requested_amount, 0) - COALESCE(link.received_qty, 0), 0) > 0`);
 
     const allowedOrderFields: Record<string, string> = {

@@ -827,7 +827,7 @@ function PurchasePlansPageContent() {
       const header = {
         budget_year: new Date().getFullYear() + 543, // Thai Buddhist year
         department: 'กลุ่มงานบริหารทั่วไป', // Default department
-        doc_date: new Date().toISOString().split('T')[0], // Current date
+        doc_date: new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().split('T')[0], // Current date
         notes: `สร้างจากแผนจัดซื้อ ${selectedItems.length} รายการ`,
         created_by: 'system'
       };
@@ -1027,57 +1027,29 @@ function PurchasePlansPageContent() {
   return (
     <div className="p-6 bg-gray-50 min-h-screen">
       <div className="mb-6">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
           <h1 className="text-3xl font-bold text-gray-900">แผนจัดซื้อ</h1>
-          <div className="flex items-center gap-3">
-            <button
-              onClick={handleCreateNew}
-              className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-blue-700"
-            >
-              <Plus className="h-4 w-4" />
-              สร้างแผนจัดซื้อใหม่
-            </button>
-            <button
-              onClick={handleExport}
-              disabled={loading}
-              className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <Download className="h-4 w-4" />
-              ส่งออกข้อมูล
-            </button>
-            <button
-              onClick={handleRefresh}
-              disabled={loading}
-              className="inline-flex items-center gap-2 rounded-lg bg-gray-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-              รีเฟรช
-            </button>
-          </div>
-        </div>
-        {selectedRows.size > 0 && (
-          <div className="flex items-center gap-3 mt-4 p-3 bg-amber-50 rounded-lg border border-amber-200">
-            <span className="text-sm font-medium text-amber-800">เลือก {selectedRows.size} รายการ:</span>
+          <div className="flex flex-wrap items-center gap-3 xl:justify-end">
             <button
               onClick={handleBulkPurchaseApproval}
               className="inline-flex items-center gap-2 rounded-lg bg-green-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-green-700"
             >
-              ทำรายการอนุมัติจัดซื้อ {selectedRows.size} รายการ
+              ทำรายการอนุมัติจัดซื้อ {selectedRows.size > 0 ? `${selectedRows.size} รายการ` : ''}
             </button>
             <button
               onClick={handleBulkRemoveFromPlan}
               className="inline-flex items-center gap-2 rounded-lg bg-red-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-red-700"
             >
-              นำออกจากแผนจัดซื้อ {selectedRows.size} รายการ
+              นำออกจากแผนจัดซื้อ {selectedRows.size > 0 ? `${selectedRows.size} รายการ` : ''}
             </button>
             <button
               onClick={() => setSelectedRows(new Set())}
               className="inline-flex items-center gap-2 rounded-lg bg-gray-500 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-gray-600"
             >
-              ยกเลิก
+              ยกเลิก {selectedRows.size > 0 ? `${selectedRows.size} รายการ` : ''}
             </button>
           </div>
-        )}
+        </div>
       </div>
 
       <div className="bg-white shadow-md rounded-lg overflow-hidden mb-4">

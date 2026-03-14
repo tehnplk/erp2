@@ -5,6 +5,16 @@ import { cacheDelByPattern } from '@/lib/redis';
 import { validateRequest } from '@/lib/validation/validate';
 import { createPurchaseApprovalWithDetailsSchema } from '@/lib/validation/schemas';
 
+const DEFAULT_DOC_NO = 'พล. 0733.301/พิเศษ';
+
+const getCurrentDateString = () => {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
@@ -25,8 +35,9 @@ export async function POST(request: NextRequest) {
     
     // Generate approve_code and doc_no with sequence
     const now = new Date();
+    const currentDate = getCurrentDateString();
     const approveCode = header.approve_code || `APV${now.getFullYear()}${String(seqId).padStart(6, '0')}`;
-    const docNo = header.doc_no || `DOC${now.getFullYear()}${String(seqId).padStart(6, '0')}`;
+    const docNo = header.doc_no || DEFAULT_DOC_NO;
 
     // Create purchase approval header
     const headerResult = await pgQuery(
@@ -38,7 +49,7 @@ export async function POST(request: NextRequest) {
       [
         approveCode,
         docNo,
-        header.doc_date || now.toISOString().split('T')[0],
+        header.doc_date || currentDate,
         header.status || 'DRAFT',
         header.prepared_by || header.created_by || 'SYSTEM',
         header.approved_by || null,
@@ -84,7 +95,18 @@ export async function POST(request: NextRequest) {
       );
       
       if (detailResult.rows.length > 0) {
-        createdItems.push(detailResult.rows[0]);
+        const createdDetail = detailResult.rows[0];
+        createdItems.push(createdDetail);
+
+        await pgQuery(
+          `INSERT INTO public.purchase_approval_inventory_link
+           (purchase_approval_id, purchase_approval_detail_id, inventory_receipt_status, received_qty)
+           VALUES ($1, $2, 'PENDING', 0)
+           ON CONFLICT (purchase_approval_detail_id) DO UPDATE
+           SET inventory_receipt_status = EXCLUDED.inventory_receipt_status,
+               updated_at = CURRENT_TIMESTAMP`,
+          [createdDetail.id, createdDetail.id]
+        );
       }
     }
 

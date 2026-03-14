@@ -18,6 +18,7 @@ export async function POST(request: NextRequest) {
     }
 
     const {
+      purchase_approval_detail_id,
       purchase_approval_id,
       warehouse_id,
       location_id,
@@ -31,6 +32,11 @@ export async function POST(request: NextRequest) {
       note,
       created_by,
     } = validation.data;
+    const purchaseApprovalDetailId = purchase_approval_detail_id ?? purchase_approval_id;
+
+    if (!purchaseApprovalDetailId) {
+      return apiConflict('purchase_approval_detail_id is required');
+    }
 
     await client.query('BEGIN');
 
@@ -66,7 +72,7 @@ export async function POST(request: NextRequest) {
       INNER JOIN public.purchase_approval_inventory_link link ON link.purchase_approval_detail_id = pad.id
       WHERE pad.id = $1
       FOR UPDATE`,
-      [purchase_approval_id]
+      [purchaseApprovalDetailId]
     );
 
     if (purchaseApprovalResult.rows.length === 0) {
@@ -75,6 +81,12 @@ export async function POST(request: NextRequest) {
     }
 
     const purchaseApproval = purchaseApprovalResult.rows[0];
+
+    if (purchaseApproval.status !== 'APPROVED') {
+      await client.query('ROLLBACK');
+      return apiConflict('Purchase approval is not approved yet');
+    }
+
     const requestedQuantity = Number(purchaseApproval.approved_quantity || purchaseApproval.requested_quantity || 0);
     const receivedQty = Number(purchaseApproval.received_qty || 0);
     const remainingQty = Math.max(requestedQuantity - receivedQty, 0);
@@ -157,7 +169,7 @@ export async function POST(request: NextRequest) {
         resolvedReceiptNo,
         resolvedReceiptDate,
         vendor_name || null,
-        purchase_approval_id,
+        purchaseApprovalDetailId,
         purchaseApproval.approve_code || purchaseApproval.doc_no || purchaseApproval.id,
         note || null,
         created_by || null,
@@ -170,7 +182,7 @@ export async function POST(request: NextRequest) {
       `INSERT INTO public.inventory_receipt_item
         (receipt_id, inventory_item_id, purchase_approval_id, qty, unit_cost, total_cost, lot_no, expiry_date)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
-      [receipt.id, inventoryItemId, purchase_approval_id, qty, resolvedUnitCost, qty * resolvedUnitCost, lot_no || null, expiry_date || null]
+      [receipt.id, inventoryItemId, purchaseApprovalDetailId, qty, resolvedUnitCost, qty * resolvedUnitCost, lot_no || null, expiry_date || null]
     );
 
     const balanceResult = await client.query(
@@ -234,7 +246,7 @@ export async function POST(request: NextRequest) {
            last_receipt_id = $4,
            updated_at = CURRENT_TIMESTAMP
        WHERE purchase_approval_detail_id = $1`,
-      [purchase_approval_id, nextReceivedQty, nextStatus, receipt.id]
+      [purchaseApprovalDetailId, nextReceivedQty, nextStatus, receipt.id]
     );
 
     await client.query('COMMIT');
@@ -249,7 +261,8 @@ export async function POST(request: NextRequest) {
       receipt_id: receipt.id,
       receipt_no: receipt.receipt_no,
       inventory_item_id: inventoryItemId,
-      purchase_approval_id,
+      purchase_approval_id: purchaseApproval.purchase_approval_header_id,
+      purchase_approval_detail_id: purchaseApprovalDetailId,
       received_qty: qty,
       remaining_qty: Math.max(requestedQuantity - nextReceivedQty, 0),
       inventory_receipt_status: nextStatus,
