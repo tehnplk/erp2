@@ -635,7 +635,7 @@ function PurchaseApprovalsPageContent() {
                   new TableRow({
                     children: [
                       new TableCell({
-                        width: { size: 62, type: WidthType.PERCENTAGE },
+                        width: { size: 50, type: WidthType.PERCENTAGE },
                         borders: { top: noBorder, bottom: noBorder, left: noBorder, right: noBorder },
                         children: [
                           new Paragraph({
@@ -648,12 +648,12 @@ function PurchaseApprovalsPageContent() {
                         ],
                       }),
                       new TableCell({
-                        width: { size: 38, type: WidthType.PERCENTAGE },
+                        width: { size: 50, type: WidthType.PERCENTAGE },
                         borders: { top: noBorder, bottom: noBorder, left: noBorder, right: noBorder },
                         children: [
                           new Paragraph({
-                            alignment: AlignmentType.CENTER,
-                            spacing: { before: 140, after: 100 },
+                            alignment: AlignmentType.LEFT,
+                            spacing: { before: 0, after: 100 },
                             children: [
                               createDocxTextRun({ text: 'วันที่ ', bold: true, size: 30 }),
                               createDocxTextRun({ text: formatDate(documentPreview.doc_date || documentPreview.created_at), size: 30 }),
@@ -1413,12 +1413,12 @@ function PurchaseApprovalsPageContent() {
                 งานแผนยุทธศาสตร์ โรงพยาบาลวังทอง อำเภอวังทอง จังหวัดพิษณุโลก
               </div>
 
-              <div className="print-compact mb-2 grid grid-cols-2 gap-3">
-                <div>
+              <div className="print-compact mb-2 grid grid-cols-2 items-baseline gap-0">
+                <div className="min-w-0">
                   <span className="font-bold">ที่</span>{' '}
                   {normalizeThaiDigitsToArabic(documentPreview.doc_no || DEFAULT_DOC_NO)}
                 </div>
-                <div className="text-left">
+                <div className="min-w-0 text-left">
                   <span className="font-bold">วันที่</span>{' '}
                   {formatDate(documentPreview.doc_date || documentPreview.created_at)}
                 </div>

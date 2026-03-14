@@ -1844,64 +1844,55 @@ function SurveysPageContent() {
 
           </div>
           
-          {/* Import/Add buttons - shown when no items selected */}
-          {selectedRows.size === 0 && (
-            <div className="flex items-center gap-3">
-              <input
-                id="surveys-import-file"
-                name="surveysImportFile"
-                ref={fileInputRef}
-                type="file"
-                accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
-                onChange={handleFileChange}
-                className="hidden"
-              />
-              <button
-                type="button"
-                onClick={handleImportClick}
-                disabled={importing}
-                className={`flex items-center gap-2 rounded-lg bg-green-600 px-5 py-2.5 text-sm font-medium text-white shadow-sm transition-colors hover:bg-green-700 ${importing ? 'opacity-70 cursor-not-allowed' : ''}`}
-              >
-                <Upload className="h-5 w-5" />
-                <span>{importing ? 'กำลังนำเข้า...' : 'นำเข้า Excel'}</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setShowBulkForm(true);
-                  setBulkRecords([]);
-                  setBulkRecordErrors({});
-                }}
-                className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-blue-700"
-                title="เพิ่มความต้องการใหม่"
-              >
-                <Plus className="h-5 w-5" />
-                <span>เพิ่มรายการ</span>
-              </button>
-            </div>
-          )}
-          
-          {/* Purchase Plan buttons - shown when items selected */}
-          {selectedRows.size > 0 && (
-            <div className="flex items-center gap-3">
-              <button
-                type="button"
-                onClick={handleSendToPurchasePlan}
-                className="inline-flex items-center gap-2 rounded-lg bg-orange-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-orange-700"
-              >
-                <CheckCircle2 className="h-5 w-5" />
-                <span>ส่งเข้าแผนจัดซื้อ {eligibleItemsCount} รายการ</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setSelectedRows(new Set())}
-                className="inline-flex items-center gap-2 rounded-lg bg-gray-500 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-gray-600"
-              >
-                <X className="h-5 w-5" />
-                <span>ยกเลิกเลือก</span>
-              </button>
-            </div>
-          )}
+          <div className="flex items-center gap-3">
+            <input
+              id="surveys-import-file"
+              name="surveysImportFile"
+              ref={fileInputRef}
+              type="file"
+              accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
+              onChange={handleFileChange}
+              className="hidden"
+            />
+            <button
+              type="button"
+              onClick={handleImportClick}
+              disabled={importing}
+              className={`flex items-center gap-2 rounded-lg bg-green-600 px-5 py-2.5 text-sm font-medium text-white shadow-sm transition-colors hover:bg-green-700 ${importing ? 'opacity-70 cursor-not-allowed' : ''}`}
+            >
+              <Upload className="h-5 w-5" />
+              <span>{importing ? 'กำลังนำเข้า...' : 'นำเข้า Excel'}</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setShowBulkForm(true);
+                setBulkRecords([]);
+                setBulkRecordErrors({});
+              }}
+              className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-blue-700"
+              title="เพิ่มความต้องการใหม่"
+            >
+              <Plus className="h-5 w-5" />
+              <span>เพิ่มรายการขอใช้</span>
+            </button>
+            <button
+              type="button"
+              onClick={handleSendToPurchasePlan}
+              className="inline-flex items-center gap-2 rounded-lg bg-orange-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-orange-700"
+            >
+              <CheckCircle2 className="h-5 w-5" />
+              <span>ส่งเข้าแผนจัดซื้อ {eligibleItemsCount} รายการ</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setSelectedRows(new Set())}
+              className="inline-flex items-center gap-2 rounded-lg bg-gray-500 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-gray-600"
+            >
+              <X className="h-5 w-5" />
+              <span>ยกเลิกเลือก</span>
+            </button>
+          </div>
         </div>
         {/* Filter Section */}
         <div className="bg-white shadow-md rounded-lg overflow-hidden mb-4">
