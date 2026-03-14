@@ -2,7 +2,7 @@
 
 import { saveAs } from 'file-saver';
 import { AlignmentType, BorderStyle, Document, ImageRun, Packer, PageOrientation, Paragraph, Table, TableCell, TableRow, TextRun, WidthType } from 'docx';
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import Swal from 'sweetalert2';
 import { ChevronDown, ChevronRight, Save, X, Trash2, Edit, FileText } from 'lucide-react';
@@ -72,7 +72,7 @@ interface PurchaseApprovalSubItem {
   purchase_value?: number;
 }
 
-export default function PurchaseApprovalsPage() {
+function PurchaseApprovalsPageContent() {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -1517,5 +1517,13 @@ export default function PurchaseApprovalsPage() {
         </div>
       ) : null}
     </div>
+  );
+}
+
+export default function PurchaseApprovalsPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-slate-50" />}>
+      <PurchaseApprovalsPageContent />
+    </Suspense>
   );
 }

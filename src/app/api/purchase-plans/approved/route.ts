@@ -12,7 +12,7 @@ export async function GET(request: NextRequest) {
       WHERE pad.status = 'PENDING'
     `;
 
-    const result = await pgQuery(query, []);
+    const result = await pgQuery<{ purchase_plan_id: number }>(query, []);
 
     const approvedPlanIds = result.rows.map((row: { purchase_plan_id: number }) => row.purchase_plan_id);
 
