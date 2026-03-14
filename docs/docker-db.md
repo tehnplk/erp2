@@ -2,8 +2,8 @@
 
 ## Docker Container
 
-- container: postgres
-- db: erp2
+- container: supabase_db_erp
+- db: postgres
 - user : admin
 - password : 112233
 

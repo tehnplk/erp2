@@ -217,6 +217,7 @@ export const purchasePlanQuerySchema = z.object({
   product_subtype: z.string().optional(),
   budget_year: z.string().optional(),
   requesting_dept: z.string().optional(),
+  has_purchase_approval: z.enum(['true', 'false']).optional(),
   order_by: z.enum([
     'id',
     'sequence_no',
@@ -321,6 +322,7 @@ export const surveyQuerySchema = z.object({
   subtype: z.string().optional(),
   requesting_dept: z.string().optional(),
   budget_year: z.string().optional(),
+  has_purchase_plan: z.enum(['true', 'false']).optional(),
   order_by: z.enum([
     'id',
     'product_code',

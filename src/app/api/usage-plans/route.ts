@@ -27,6 +27,7 @@ export async function GET(request: NextRequest) {
       subtype,
       requesting_dept,
       budget_year,
+      has_purchase_plan,
       order_by,
       sort_order,
       page: validatedPage,
@@ -56,6 +57,8 @@ export async function GET(request: NextRequest) {
       if (subtype && row.subtype !== subtype) return false;
       if (requesting_dept && row.requesting_dept !== requesting_dept) return false;
       if (budget_year && Number(row.budget_year) !== parseInt(budget_year, 10)) return false;
+      if (has_purchase_plan === 'true' && !row.has_purchase_plan) return false;
+      if (has_purchase_plan === 'false' && row.has_purchase_plan) return false;
       return true;
     };
 
@@ -92,10 +95,18 @@ export async function GET(request: NextRequest) {
       whereClauses.push(`budget_year = $${params.length}`);
     }
 
+    if (has_purchase_plan === 'true') {
+      whereClauses.push('EXISTS (SELECT 1 FROM public.purchase_plan pp WHERE pp.usage_plan_id = up.id)');
+    }
+
+    if (has_purchase_plan === 'false') {
+      whereClauses.push('NOT EXISTS (SELECT 1 FROM public.purchase_plan pp WHERE pp.usage_plan_id = up.id)');
+    }
+
     const whereSql = whereClauses.length > 0 ? `WHERE ${whereClauses.join(' AND ')}` : '';
 
     // --- Redis Caching Logic (Non-paginated) ---
-    const cacheKey = `erp:surveys:list:${JSON.stringify({ product_name, category, type, subtype, requesting_dept, budget_year, order_by, sort_order })}`;
+    const cacheKey = `erp:surveys:list:${JSON.stringify({ product_name, category, type, subtype, requesting_dept, budget_year, has_purchase_plan, order_by, sort_order })}`;
     const cached = await cacheGet<any>(cacheKey);
     if (cached) {
       return NextResponse.json(cached);
@@ -117,7 +128,7 @@ export async function GET(request: NextRequest) {
            ${whereSql} ORDER BY ${safeOrderField} ${orderDirection}`,
           params
         ),
-        pgQuery(`SELECT COUNT(*)::int AS count FROM public.usage_plan ${whereSql}`, params),
+        pgQuery(`SELECT COUNT(*)::int AS count FROM public.usage_plan up ${whereSql}`, params)
       ]);
 
       const filteredSurveys = surveysResult.rows.filter(matches_exact_filter);
@@ -159,13 +170,13 @@ export async function GET(request: NextRequest) {
          ${whereSql} ORDER BY ${safeOrderField} ${orderDirection} LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,
         paginatedParams
       ),
-      pgQuery(`SELECT COUNT(*)::int AS count FROM public.usage_plan ${whereSql}`, params),
+      pgQuery(`SELECT COUNT(*)::int AS count FROM public.usage_plan up ${whereSql}`, params),
       pgQuery(
-        `SELECT COALESCE(SUM(COALESCE(requested_amount,0) * COALESCE(price_per_unit,0)),0)::float8 AS total_requested_value, COALESCE(SUM(COALESCE(approved_quota,0) * COALESCE(price_per_unit,0)),0)::float8 AS total_approved_value FROM public.usage_plan ${whereSql}`,
+        `SELECT COALESCE(SUM(COALESCE(up.requested_amount,0) * COALESCE(up.price_per_unit,0)),0)::float8 AS total_requested_value, COALESCE(SUM(COALESCE(up.approved_quota,0) * COALESCE(up.price_per_unit,0)),0)::float8 AS total_approved_value FROM public.usage_plan up ${whereSql}`,
         params
       ),
       pgQuery(
-        `SELECT COUNT(*)::int AS count, COALESCE(SUM(COALESCE(requested_amount,0) * COALESCE(price_per_unit,0)),0)::float8 AS total_requested_value, COALESCE(SUM(COALESCE(approved_quota,0) * COALESCE(price_per_unit,0)),0)::float8 AS total_approved_value FROM public.usage_plan ${whereSql}`,
+        `SELECT COUNT(*)::int AS count, COALESCE(SUM(COALESCE(up.requested_amount,0) * COALESCE(up.price_per_unit,0)),0)::float8 AS total_requested_value, COALESCE(SUM(COALESCE(up.approved_quota,0) * COALESCE(up.price_per_unit,0)),0)::float8 AS total_approved_value FROM public.usage_plan up ${whereSql}`,
         params
       ),
     ]);

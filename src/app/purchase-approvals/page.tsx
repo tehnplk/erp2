@@ -5,7 +5,7 @@ import { AlignmentType, BorderStyle, Document, ImageRun, Packer, PageOrientation
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import Swal from 'sweetalert2';
-import { ChevronDown, ChevronRight, Save, X, Trash2, Edit } from 'lucide-react';
+import { ChevronDown, ChevronRight, Save, X, Trash2, Edit, FileText } from 'lucide-react';
 
 const DEFAULT_DOC_NO = 'พล. 0733.301/พิเศษ';
 const DOCX_FONT_FAMILY = 'TH Sarabun';
@@ -1002,6 +1002,7 @@ export default function PurchaseApprovalsPage() {
                 <th onClick={()=>handleSort()} className={getHeaderClass('doc_date')}>ลงวันที่</th>
                 <th onClick={()=>handleSort()} className={getHeaderClass('status')}>สถานะ</th>
                 <th className="px-3 py-3 text-left text-[10px] font-medium text-gray-500 uppercase tracking-wider w-20">รายการ</th>
+                <th className="px-3 py-3 text-center text-[10px] font-medium text-gray-500 uppercase tracking-wider w-24">พิมพ์เอกสาร</th>
                 <th className="px-3 py-3 text-left text-[10px] font-medium text-gray-500 uppercase tracking-wider w-20">Action</th>
               </tr>
             </thead>
@@ -1037,15 +1038,16 @@ export default function PurchaseApprovalsPage() {
                         <input
                           type="text"
                           value={editingData.doc_no}
-                          onChange={(e) => setEditingData({ ...editingData, doc_no: e.target.value })}
+                          onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEditingData({ ...editingData, doc_no: e.target.value })}
                           onKeyDown={(e) => handleKeyDown(e, group.id)}
                           className="w-full px-2 py-1 text-xs border border-blue-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                          autoFocus
                         />
                       ) : (
                         <span
-                          onClick={() => handleOpenDocumentModal(group)}
+                          onClick={() => handleInlineEdit(group.id, 'doc_no', group.doc_no || '')}
                           className="cursor-pointer hover:bg-blue-50 px-1 py-0.5 rounded"
-                          title="คลิกเพื่อเปิดเอกสาร"
+                          title="คลิกเพื่อแก้ไข"
                         >
                           {normalizeThaiDigitsToArabic(group.doc_no || DEFAULT_DOC_NO)}
                         </span>
@@ -1056,7 +1058,7 @@ export default function PurchaseApprovalsPage() {
                         <input
                           type="date"
                           value={editingData.doc_date}
-                          onChange={(e) => setEditingData({ ...editingData, doc_date: e.target.value })}
+                          onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEditingData({ ...editingData, doc_date: e.target.value })}
                           onKeyDown={(e) => handleKeyDown(e, group.id)}
                           className="w-full px-2 py-1 text-xs border border-blue-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
                         />
@@ -1119,6 +1121,16 @@ export default function PurchaseApprovalsPage() {
                         <span className="text-xs text-gray-600">{group.item_count}</span>
                       </div>
                     )}
+                  </td>
+                  <td className="px-3 py-2 text-center text-xs">
+                    <button
+                      type="button"
+                      onClick={() => handleOpenDocumentModal(group)}
+                      className="inline-flex items-center justify-center rounded-md p-1 text-blue-600 hover:bg-blue-50 hover:text-blue-800 cursor-pointer"
+                      title="แสดงตัวอย่างเอกสาร"
+                    >
+                      <FileText className="h-4 w-4" />
+                    </button>
                   </td>
                   <td className="px-3 py-2 text-xs font-medium w-32">
                     {editingRowId === group.id ? (

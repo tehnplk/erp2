@@ -27,6 +27,7 @@ type PurchasePlanRow = {
   approved_quota: number | null;
   budget_year: number | null;
   requesting_dept: string | null;
+  has_purchase_approval?: boolean;
   inventory_qty: number | null;
   inventory_value: number | null;
   purchase_qty: number | null;
@@ -252,6 +253,7 @@ function getSortIcon(column: string, currentSortBy: string, currentSortOrder: 'a
   const initialSubtypeFilter = searchParams.get('product_subtype') || '';
   const initialRequestingDeptFilter = searchParams.get('requesting_dept') || '';
   const initialBudgetYearFilter = searchParams.get('budget_year') || '';
+  const initialHasPurchaseApprovalFilter = searchParams.get('has_purchase_approval') || '';
   const initialSortBy = searchParams.get('order_by') || 'id';
   const initialSortOrder = (searchParams.get('sort_order') === 'asc' ? 'asc' : 'desc') as 'asc' | 'desc';
   const initialPage = Math.max(1, parseInt(searchParams.get('page') || '1', 10) || 1);
@@ -279,6 +281,7 @@ function PurchasePlansPageContent() {
   const initialSubtypeFilter = searchParams.get('product_subtype') || '';
   const initialRequestingDeptFilter = searchParams.get('requesting_dept') || '';
   const initialBudgetYearFilter = searchParams.get('budget_year') || '';
+  const initialHasPurchaseApprovalFilter = searchParams.get('has_purchase_approval') || '';
   const initialSortBy = searchParams.get('order_by') || 'id';
   const initialSortOrder = (searchParams.get('sort_order') === 'asc' ? 'asc' : 'desc') as 'asc' | 'desc';
   const initialPage = Math.max(1, parseInt(searchParams.get('page') || '1', 10) || 1);
@@ -286,6 +289,7 @@ function PurchasePlansPageContent() {
 
   const [items, setItems] = useState<PurchasePlanRow[]>([]);
   const [summaryItems, setSummaryItems] = useState<PurchasePlanRow[]>([]);
+  const [statusCountItems, setStatusCountItems] = useState<PurchasePlanRow[]>([]);
   const [selectedRows, setSelectedRows] = useState<Set<number>>(new Set());
   const [totalCount, setTotalCount] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -303,6 +307,7 @@ function PurchasePlansPageContent() {
   const [subtypeFilter, setSubtypeFilter] = useState(initialSubtypeFilter);
   const [requestingDeptFilter, setRequestingDeptFilter] = useState(initialRequestingDeptFilter);
   const [budgetYearFilter, setBudgetYearFilter] = useState(initialBudgetYearFilter);
+  const [hasPurchaseApprovalFilter, setHasPurchaseApprovalFilter] = useState(initialHasPurchaseApprovalFilter);
 
   const [sortBy, setSortBy] = useState(initialSortBy);
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>(initialSortOrder);
@@ -335,10 +340,38 @@ function PurchasePlansPageContent() {
   useEffect(() => {
     void fetchData();
     void fetchApprovedPlanIds();
-  }, [sortBy, sortOrder, page, pageSize]);
+  }, [sortBy, sortOrder, page, pageSize, productNameFilter, categoryFilter, typeFilter, subtypeFilter, requestingDeptFilter, budgetYearFilter, hasPurchaseApprovalFilter]);
 
   useEffect(() => {
     void fetchSummaryData();
+  }, [productNameFilter, categoryFilter, typeFilter, subtypeFilter, requestingDeptFilter, budgetYearFilter, hasPurchaseApprovalFilter, sortBy, sortOrder]);
+
+  useEffect(() => {
+    const fetchStatusCountItems = async () => {
+      try {
+        const params = new URLSearchParams();
+        if (productNameFilter) params.append('product_name', productNameFilter);
+        if (categoryFilter) params.append('category', categoryFilter);
+        if (typeFilter) params.append('product_type', typeFilter);
+        if (subtypeFilter) params.append('product_subtype', subtypeFilter);
+        if (requestingDeptFilter) params.append('requesting_dept', requestingDeptFilter);
+        if (budgetYearFilter) params.append('budget_year', budgetYearFilter);
+        params.append('order_by', sortBy);
+        params.append('sort_order', sortOrder);
+
+        const response = await fetch(`/api/purchase-plans?${params.toString()}`);
+        if (!response.ok) {
+          return;
+        }
+
+        const data = await response.json();
+        setStatusCountItems(Array.isArray(data?.data) ? data.data : []);
+      } catch (error) {
+        console.error('Error fetching purchase plan status counts:', error);
+      }
+    };
+
+    void fetchStatusCountItems();
   }, [productNameFilter, categoryFilter, typeFilter, subtypeFilter, requestingDeptFilter, budgetYearFilter, sortBy, sortOrder]);
 
   const availableTypes = useMemo(() => {
@@ -403,7 +436,7 @@ function PurchasePlansPageContent() {
     }
 
     setPage((prev) => (prev === 1 ? prev : 1));
-  }, [productNameFilter, categoryFilter, typeFilter, subtypeFilter, requestingDeptFilter, budgetYearFilter, sortBy, sortOrder]);
+  }, [productNameFilter, categoryFilter, typeFilter, subtypeFilter, requestingDeptFilter, budgetYearFilter, hasPurchaseApprovalFilter, sortBy, sortOrder]);
 
   useEffect(() => {
     const nextProductName = searchParams.get('product_name') || '';
@@ -412,6 +445,7 @@ function PurchasePlansPageContent() {
     const nextSubtype = searchParams.get('product_subtype') || '';
     const nextRequestingDept = searchParams.get('requesting_dept') || '';
     const nextBudgetYear = searchParams.get('budget_year') || '';
+    const nextHasPurchaseApproval = searchParams.get('has_purchase_approval') || '';
     const nextSortBy = searchParams.get('order_by') || 'id';
     const nextSortOrder = (searchParams.get('sort_order') === 'asc' ? 'asc' : 'desc') as 'asc' | 'desc';
     const nextPage = Math.max(1, parseInt(searchParams.get('page') || '1', 10) || 1);
@@ -423,6 +457,7 @@ function PurchasePlansPageContent() {
     setSubtypeFilter((prev) => (prev === nextSubtype ? prev : nextSubtype));
     setRequestingDeptFilter((prev) => (prev === nextRequestingDept ? prev : nextRequestingDept));
     setBudgetYearFilter((prev) => (prev === nextBudgetYear ? prev : nextBudgetYear));
+    setHasPurchaseApprovalFilter((prev) => (prev === nextHasPurchaseApproval ? prev : nextHasPurchaseApproval));
     setSortBy((prev) => (prev === nextSortBy ? prev : nextSortBy));
     setSortOrder((prev) => (prev === nextSortOrder ? prev : nextSortOrder));
     setPage((prev) => (prev === nextPage ? prev : nextPage));
@@ -442,6 +477,7 @@ function PurchasePlansPageContent() {
     if (subtypeFilter) params.set('product_subtype', subtypeFilter);
     if (requestingDeptFilter) params.set('requesting_dept', requestingDeptFilter);
     if (budgetYearFilter) params.set('budget_year', budgetYearFilter);
+    if (hasPurchaseApprovalFilter) params.set('has_purchase_approval', hasPurchaseApprovalFilter);
     if (sortBy && sortBy !== 'id') params.set('order_by', sortBy);
     if (sortOrder !== 'desc') params.set('sort_order', sortOrder);
     if (page > 1) params.set('page', page.toString());
@@ -453,7 +489,7 @@ function PurchasePlansPageContent() {
     if (nextUrl !== currentUrl) {
       router.replace(nextUrl, { scroll: false });
     }
-  }, [pathname, router, searchParams, productNameFilter, categoryFilter, typeFilter, subtypeFilter, requestingDeptFilter, budgetYearFilter, sortBy, sortOrder, page, pageSize]);
+  }, [pathname, router, searchParams, productNameFilter, categoryFilter, typeFilter, subtypeFilter, requestingDeptFilter, budgetYearFilter, hasPurchaseApprovalFilter, sortBy, sortOrder, page, pageSize]);
 
   useEffect(() => {
     if (editingRowId === null) {
@@ -497,7 +533,13 @@ function PurchasePlansPageContent() {
     try {
       setLoading(true);
       const params = new URLSearchParams();
-      // Only keep pagination and sorting, remove all filter conditions
+      if (productNameFilter) params.append('product_name', productNameFilter);
+      if (categoryFilter) params.append('category', categoryFilter);
+      if (typeFilter) params.append('product_type', typeFilter);
+      if (subtypeFilter) params.append('product_subtype', subtypeFilter);
+      if (requestingDeptFilter) params.append('requesting_dept', requestingDeptFilter);
+      if (budgetYearFilter) params.append('budget_year', budgetYearFilter);
+      if (hasPurchaseApprovalFilter) params.append('has_purchase_approval', hasPurchaseApprovalFilter);
       params.append('order_by', sortBy);
       params.append('sort_order', sortOrder);
       params.append('page', page.toString());
@@ -562,6 +604,7 @@ function PurchasePlansPageContent() {
       if (subtypeFilter) params.append('product_subtype', subtypeFilter);
       if (requestingDeptFilter) params.append('requesting_dept', requestingDeptFilter);
       if (budgetYearFilter) params.append('budget_year', budgetYearFilter);
+      if (hasPurchaseApprovalFilter) params.append('has_purchase_approval', hasPurchaseApprovalFilter);
       params.append('order_by', sortBy);
       params.append('sort_order', sortOrder);
 
@@ -587,6 +630,8 @@ function PurchasePlansPageContent() {
 
   const totalInventoryValue = summaryItems.reduce((sum, item) => sum + (item.inventory_value ?? 0), 0);
   const totalPurchaseValue = summaryItems.reduce((sum, item) => sum + (item.purchase_value ?? 0), 0);
+  const purchaseApprovalCreatedCount = statusCountItems.filter((item) => item.has_purchase_approval).length;
+  const purchaseApprovalPendingCount = statusCountItems.filter((item) => !item.has_purchase_approval).length;
 
   const goToPage = (newPage: number) => {
     if (newPage < 1 || newPage > totalPages) {
@@ -683,7 +728,11 @@ function PurchasePlansPageContent() {
 
   const handleSelectAll = (checked: boolean) => {
     if (checked) {
-      const selectableIds = new Set(items.map(item => item.id));
+      const selectableIds = new Set(
+        items
+          .filter((item) => !approvedPlanIds.has(item.id))
+          .map((item) => item.id)
+      );
       setSelectedRows(selectableIds);
     } else {
       setSelectedRows(new Set());
@@ -691,6 +740,9 @@ function PurchasePlansPageContent() {
   };
 
   const handleRowSelect = (id: number, checked: boolean) => {
+    if (approvedPlanIds.has(id)) {
+      return;
+    }
     setSelectedRows(prev => {
       const newSet = new Set(prev);
       if (checked) {
@@ -702,8 +754,12 @@ function PurchasePlansPageContent() {
     });
   };
 
-  const isAllSelected = items.length > 0 && selectedRows.size === items.length;
-  const isIndeterminate = selectedRows.size > 0 && selectedRows.size < items.length;
+  const selectableRowIds = useMemo(
+    () => items.filter((item) => !approvedPlanIds.has(item.id)).map((item) => item.id),
+    [items, approvedPlanIds]
+  );
+  const isAllSelected = selectableRowIds.length > 0 && selectableRowIds.every((id) => selectedRows.has(id));
+  const isIndeterminate = selectedRows.size > 0 && !isAllSelected;
 
   const handlePurchaseQtyBlur = async (row: PurchasePlanRow) => {
     if (savingRowId === row.id) {
@@ -846,7 +902,7 @@ function PurchasePlansPageContent() {
       await Swal.fire({ 
         icon: 'success', 
         title: 'ทำรายการอนุมัติจัดซื้อสำเร็จ', 
-        html: `สร้างรายการอนุมัติจัดซื้อ ${payload.data?.created || 0} รายการเรียบร้อยแล้ว<br/><strong>รหัสอนุมัติ: ${payload.data?.approval_id || 'N/A'}</strong><br/><strong>รหัสเอกสาร: ${payload.data?.doc_no || 'N/A'}</strong>` 
+        html: `สร้างรายการอนุมัติจัดซื้อ ${payload.data?.created || 0} รายการเรียบร้อยแล้ว<br/><strong>รหัสอนุมัติ: ${payload.data?.approve_code || 'N/A'}</strong><br/><strong>รหัสเอกสาร: ${payload.data?.doc_no || 'N/A'}</strong>` 
       });
 
       // Clear selection and refresh data
@@ -1054,7 +1110,7 @@ function PurchasePlansPageContent() {
 
       <div className="bg-white shadow-md rounded-lg overflow-hidden mb-4">
         <div className="px-4 py-3 bg-gray-50 border-b border-gray-200">
-          <div className="grid grid-cols-1 md:grid-cols-6 gap-4 mb-4">
+          <div className="grid grid-cols-1 md:grid-cols-7 gap-4 mb-4">
             <select value={budgetYearFilter} onChange={(event) => setBudgetYearFilter(event.target.value)} className="w-full rounded-md border-gray-300 shadow-sm text-sm px-3 py-2">
               <option value="">ปีงบ</option>
               {availableBudgetYears.map((year) => <option key={year} value={year}>{year}</option>)}
@@ -1062,6 +1118,11 @@ function PurchasePlansPageContent() {
             <select value={requestingDeptFilter} onChange={(event) => setRequestingDeptFilter(event.target.value)} className="w-full rounded-md border-gray-300 shadow-sm text-sm px-3 py-2">
               <option value="">หน่วยงาน</option>
               {departments.map((department) => <option key={department} value={department}>{department}</option>)}
+            </select>
+            <select value={hasPurchaseApprovalFilter} onChange={(event) => setHasPurchaseApprovalFilter(event.target.value)} className="w-full rounded-md border-gray-300 shadow-sm text-sm px-3 py-2">
+              <option value="">สถานะเอกสาร</option>
+              <option value="true">ทำเอกสารแล้ว ({purchaseApprovalCreatedCount})</option>
+              <option value="false">ยังไม่ทำเอกสาร ({purchaseApprovalPendingCount})</option>
             </select>
             <div className="relative">
               <input
@@ -1181,6 +1242,7 @@ function PurchasePlansPageContent() {
               {items.map((row) => {
                 const isEditingRow = editingRowId === row.id;
                 const isSavingRow = savingRowId === row.id;
+                const isApprovedRow = approvedPlanIds.has(row.id);
 
                 return (
                   <tr key={row.id} className={`${isEditingRow ? 'bg-yellow-50' : 'hover:bg-gray-50 transition-colors duration-150'}`}>
@@ -1217,12 +1279,13 @@ function PurchasePlansPageContent() {
                     <td className="px-2 py-2 text-[11px] align-top">{row.inventory_qty ?? '-'}</td>
                     <td className="px-2 py-2 text-[11px] align-top">{row.inventory_value ? Number(row.inventory_value).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : row.inventory_value === 0 ? '0.00' : '-'}</td>
                     <td
-                      className={`px-2 py-2 text-[11px] align-top ${!isEditingRow ? 'cursor-text hover:bg-yellow-50' : ''}`}
+                      className={`px-2 py-2 text-[11px] align-top ${!isEditingRow && !isApprovedRow ? 'cursor-text hover:bg-yellow-50' : ''} ${isApprovedRow ? 'text-gray-500' : ''}`}
                       onClick={() => {
-                        if (!isEditingRow) {
+                        if (!isEditingRow && !isApprovedRow) {
                           startInlineEdit(row);
                         }
                       }}
+                      title={isApprovedRow ? 'รายการนี้ถูกสร้างเอกสารอนุมัติจัดซื้อแล้ว จึงไม่สามารถแก้ไขได้' : undefined}
                     >
                       {isEditingRow ? (
                         <input
@@ -1257,15 +1320,30 @@ function PurchasePlansPageContent() {
                           <button
                             onClick={(event) => {
                               event.stopPropagation();
+                              if (isApprovedRow) {
+                                return;
+                              }
                               startInlineEdit(row);
                             }}
-                            className="text-indigo-600 hover:text-indigo-900 cursor-pointer"
-                            title="แก้ไข"
+                            className={`${isApprovedRow ? 'text-gray-300 cursor-not-allowed' : 'text-indigo-600 hover:text-indigo-900 cursor-pointer'}`}
+                            title={isApprovedRow ? 'รายการนี้ถูกสร้างเอกสารอนุมัติจัดซื้อแล้ว จึงไม่สามารถแก้ไขได้' : 'แก้ไข'}
                             aria-label="แก้ไข"
+                            disabled={isApprovedRow}
                           >
                             <Pencil className="h-5 w-5" />
                           </button>
-                          <button onClick={() => void handleDelete(row.id)} className="text-red-600 hover:text-red-900 cursor-pointer" title="ลบ" aria-label="ลบ">
+                          <button
+                            onClick={() => {
+                              if (isApprovedRow) {
+                                return;
+                              }
+                              void handleDelete(row.id);
+                            }}
+                            className={`${isApprovedRow ? 'text-gray-300 cursor-not-allowed' : 'text-red-600 hover:text-red-900 cursor-pointer'}`}
+                            title={isApprovedRow ? 'รายการนี้ถูกสร้างเอกสารอนุมัติจัดซื้อแล้ว จึงไม่สามารถลบได้' : 'ลบ'}
+                            aria-label="ลบ"
+                            disabled={isApprovedRow}
+                          >
                             <Trash2 className="h-5 w-5" />
                           </button>
                         </div>

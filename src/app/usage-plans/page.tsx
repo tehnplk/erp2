@@ -310,11 +310,13 @@ function SurveysPageContent() {
   const initialSubtypeFilter = searchParams.get('subtype') || '';
   const initialRequestingDeptFilter = searchParams.get('requesting_dept') || '';
   const initialBudgetYearFilter = searchParams.get('budget_year') || getCurrentBudgetYear().toString();
+  const initialHasPurchasePlanFilter = searchParams.get('has_purchase_plan') || '';
   const initialSortField = searchParams.get('order_by') || 'id';
   const initialSortOrder = (searchParams.get('sort_order') === 'asc' ? 'asc' : 'desc') as 'asc' | 'desc';
   const initialPage = Math.max(1, parseInt(searchParams.get('page') || '1', 10) || 1);
   const initialPageSize = Math.max(1, parseInt(searchParams.get('page_size') || '20', 10) || 20);
   const [surveys, setSurveys] = useState<Survey[]>([]);
+  const [statusCountSurveys, setStatusCountSurveys] = useState<Survey[]>([]);
   const [totalRequestedValue, setTotalRequestedValue] = useState(0);
   const [totalApprovedValue, setTotalApprovedValue] = useState(0);
   const [totalCount, setTotalCount] = useState(0);
@@ -379,6 +381,7 @@ function SurveysPageContent() {
   const [subtypeFilter, setSubtypeFilter] = useState(initialSubtypeFilter);
   const [requestingDeptFilter, setRequestingDeptFilter] = useState(initialRequestingDeptFilter);
   const [budgetYearFilter, setBudgetYearFilter] = useState(initialBudgetYearFilter);
+  const [hasPurchasePlanFilter, setHasPurchasePlanFilter] = useState(initialHasPurchasePlanFilter);
   
   // Sort states
   const [sortField, setSortField] = useState(initialSortField);
@@ -474,6 +477,7 @@ function SurveysPageContent() {
     const nextSubtype = searchParams.get('subtype') || '';
     const nextRequestingDept = searchParams.get('requesting_dept') || '';
     const nextBudgetYear = searchParams.get('budget_year') || getCurrentBudgetYear().toString();
+    const nextHasPurchasePlan = searchParams.get('has_purchase_plan') || '';
     const nextSortField = searchParams.get('order_by') || 'id';
     const nextSortOrder = (searchParams.get('sort_order') === 'asc' ? 'asc' : 'desc') as 'asc' | 'desc';
     const nextPage = Math.max(1, parseInt(searchParams.get('page') || '1', 10) || 1);
@@ -485,6 +489,7 @@ function SurveysPageContent() {
     setSubtypeFilter((prev) => prev === nextSubtype ? prev : nextSubtype);
     setRequestingDeptFilter((prev) => prev === nextRequestingDept ? prev : nextRequestingDept);
     setBudgetYearFilter((prev) => prev === nextBudgetYear ? prev : nextBudgetYear);
+    setHasPurchasePlanFilter((prev) => prev === nextHasPurchasePlan ? prev : nextHasPurchasePlan);
     setSortField((prev) => prev === nextSortField ? prev : nextSortField);
     setSortOrder((prev) => prev === nextSortOrder ? prev : nextSortOrder);
     setPage((prev) => prev === nextPage ? prev : nextPage);
@@ -505,6 +510,7 @@ function SurveysPageContent() {
     if (subtypeFilter) params.set('subtype', subtypeFilter);
     if (requestingDeptFilter) params.set('requesting_dept', requestingDeptFilter);
     if (budgetYearFilter) params.set('budget_year', budgetYearFilter);
+    if (hasPurchasePlanFilter) params.set('has_purchase_plan', hasPurchasePlanFilter);
     if (sortField && sortField !== 'id') params.set('order_by', sortField);
     if (sortOrder !== 'desc') params.set('sort_order', sortOrder);
     if (page > 1) params.set('page', page.toString());
@@ -515,7 +521,7 @@ function SurveysPageContent() {
       lastPushedUrlRef.current = nextUrl;
       router.replace(nextUrl, { scroll: false });
     }
-  }, [pathname, router, productNameFilter, categoryFilter, typeFilter, subtypeFilter, requestingDeptFilter, budgetYearFilter, sortField, sortOrder, page, pageSize]);
+  }, [pathname, router, productNameFilter, categoryFilter, typeFilter, subtypeFilter, requestingDeptFilter, budgetYearFilter, hasPurchasePlanFilter, sortField, sortOrder, page, pageSize]);
 
   useEffect(() => {
     fetchUsagePlanFilterOptions();
@@ -602,7 +608,35 @@ function SurveysPageContent() {
   // Fetch surveys when filters, sorting or pagination change (current page only)
   useEffect(() => {
     fetchUsagePlans();
-  }, [productNameFilter, categoryFilter, typeFilter, subtypeFilter, requestingDeptFilter, budgetYearFilter, sortField, sortOrder, page, pageSize]);
+  }, [productNameFilter, categoryFilter, typeFilter, subtypeFilter, requestingDeptFilter, budgetYearFilter, hasPurchasePlanFilter, sortField, sortOrder, page, pageSize]);
+
+  useEffect(() => {
+    const fetchStatusCountUsagePlans = async () => {
+      try {
+        const params = new URLSearchParams();
+        if (productNameFilter) params.append('product_name', productNameFilter);
+        if (categoryFilter) params.append('category', categoryFilter);
+        if (typeFilter) params.append('type', typeFilter);
+        if (subtypeFilter) params.append('subtype', subtypeFilter);
+        if (requestingDeptFilter) params.append('requesting_dept', requestingDeptFilter);
+        if (budgetYearFilter) params.append('budget_year', budgetYearFilter);
+        if (sortField) params.append('order_by', sortField);
+        if (sortOrder) params.append('sort_order', sortOrder);
+
+        const response = await fetch(`/api/usage-plans?${params.toString()}`);
+        if (!response.ok) {
+          return;
+        }
+
+        const data = await response.json();
+        setStatusCountSurveys(Array.isArray(data?.surveys) ? data.surveys : []);
+      } catch (error) {
+        console.error('Error fetching usage plan status counts:', error);
+      }
+    };
+
+    void fetchStatusCountUsagePlans();
+  }, [productNameFilter, categoryFilter, typeFilter, subtypeFilter, requestingDeptFilter, budgetYearFilter, sortField, sortOrder]);
 
   const fetchUsagePlanFilterOptions = async () => {
     try {
@@ -798,6 +832,9 @@ function SurveysPageContent() {
     }
   };
 
+  const purchasePlannedCount = statusCountSurveys.filter((survey) => survey.has_purchase_plan).length;
+  const purchaseNotPlannedCount = statusCountSurveys.filter((survey) => !survey.has_purchase_plan).length;
+
   const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
   const pageStart = totalCount === 0 ? 0 : (page - 1) * pageSize + 1;
   const pageEnd = totalCount === 0 ? 0 : Math.min(totalCount, pageStart + (surveys.length || 0) - 1);
@@ -954,10 +991,11 @@ function SurveysPageContent() {
       if (subtypeFilter) params.append('subtype', subtypeFilter);
       if (requestingDeptFilter) params.append('requesting_dept', requestingDeptFilter);
       if (budgetYearFilter) params.append('budget_year', budgetYearFilter);
+      if (hasPurchasePlanFilter) params.append('has_purchase_plan', hasPurchasePlanFilter);
       if (sortField) params.append('order_by', sortField);
       if (sortOrder) params.append('sort_order', sortOrder);
 
-      const filterKey = `${productNameFilter}|${categoryFilter}|${typeFilter}|${subtypeFilter}|${requestingDeptFilter}|${budgetYearFilter}|${sortField}|${sortOrder}`;
+      const filterKey = `${productNameFilter}|${categoryFilter}|${typeFilter}|${subtypeFilter}|${requestingDeptFilter}|${budgetYearFilter}|${hasPurchasePlanFilter}|${sortField}|${sortOrder}`;
       const isFilterChanged = prevFilterKeyRef.current !== '' && prevFilterKeyRef.current !== filterKey;
       const effectivePage = isFilterChanged ? 1 : page;
       if (isFilterChanged) {
@@ -981,6 +1019,8 @@ function SurveysPageContent() {
           if (subtypeFilter && survey.subtype !== subtypeFilter) return false;
           if (requestingDeptFilter && survey.requesting_dept !== requestingDeptFilter) return false;
           if (budgetYearFilter && String(survey.budget_year) !== budgetYearFilter) return false;
+          if (hasPurchasePlanFilter === 'true' && !survey.has_purchase_plan) return false;
+          if (hasPurchasePlanFilter === 'false' && survey.has_purchase_plan) return false;
           return true;
         });
         const shouldUseExactFiltered =
@@ -988,7 +1028,8 @@ function SurveysPageContent() {
           Boolean(typeFilter) ||
           Boolean(subtypeFilter) ||
           Boolean(requestingDeptFilter) ||
-          Boolean(budgetYearFilter);
+          Boolean(budgetYearFilter) ||
+          Boolean(hasPurchasePlanFilter);
         const surveysToUse = shouldUseExactFiltered ? exactFilteredSurveys : fetchedSurveys;
         setSurveys(surveysToUse);
         setTotalCount(data.totalCount || 0);
@@ -1864,7 +1905,7 @@ function SurveysPageContent() {
         {/* Filter Section */}
         <div className="bg-white shadow-md rounded-lg overflow-hidden mb-4">
           <div className="px-4 py-3 bg-gray-50 border-b border-gray-200">
-            <div className="grid grid-cols-1 md:grid-cols-6 gap-4 mb-4">
+            <div className="grid grid-cols-1 md:grid-cols-7 gap-4 mb-4">
             <div>
               <select
                 id="surveys-filter-budget-year"
@@ -1892,6 +1933,20 @@ function SurveysPageContent() {
                 {departments.map((dept) => (
                   <option key={dept} value={dept}>{dept}</option>
                 ))}
+              </select>
+            </div>
+
+            <div>
+              <select
+                id="surveys-filter-has-purchase-plan"
+                name="hasPurchasePlanFilter"
+                value={hasPurchasePlanFilter}
+                onChange={(e) => setHasPurchasePlanFilter(e.target.value)}
+                className="w-full rounded-md border-gray-300 shadow-sm text-sm px-3 py-2"
+              >
+                <option value="">สถานะแผนจัดซื้อ</option>
+                <option value="true">ทำแผนจัดซื้อแล้ว ({purchasePlannedCount})</option>
+                <option value="false">ยังไม่ทำแผนจัดซื้อ ({purchaseNotPlannedCount})</option>
               </select>
             </div>
 

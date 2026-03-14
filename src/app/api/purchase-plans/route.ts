@@ -16,6 +16,7 @@ type PurchasePlanPayload = {
 const purchasePlanBaseSelect = `
   FROM public.purchase_plan pp
   INNER JOIN public.usage_plan up ON up.id = pp.usage_plan_id
+  LEFT JOIN public.purchase_approval_detail pad ON pad.purchase_plan_id = pp.id
   LEFT JOIN (
     SELECT
       ii.product_code,
@@ -43,6 +44,7 @@ const purchasePlanSelect = `
     up.approved_quota,
     up.budget_year,
     up.requesting_dept,
+    CASE WHEN pad.id IS NOT NULL THEN true ELSE false END AS has_purchase_approval,
     COALESCE(inventory_snapshot.inventory_qty, pp.inventory_qty, 0)::int AS inventory_qty,
     COALESCE(inventory_snapshot.inventory_value, pp.inventory_value, 0)::float8 AS inventory_value,
     COALESCE(pp.purchase_qty, GREATEST(COALESCE(up.approved_quota, 0) - COALESCE(inventory_snapshot.inventory_qty, 0), 0))::int AS purchase_qty,
@@ -57,6 +59,7 @@ function buildWhereClause(filters: {
   product_subtype?: string;
   budget_year?: string;
   requesting_dept?: string;
+  has_purchase_approval?: 'true' | 'false';
 }) {
   const whereClauses: string[] = [];
   const params: unknown[] = [];
@@ -90,6 +93,14 @@ function buildWhereClause(filters: {
   if (filters.requesting_dept) {
     params.push(filters.requesting_dept);
     whereClauses.push(`up.requesting_dept = $${params.length}`);
+  }
+
+  if (filters.has_purchase_approval === 'true') {
+    whereClauses.push('EXISTS (SELECT 1 FROM public.purchase_approval_detail pad WHERE pad.purchase_plan_id = pp.id)');
+  }
+
+  if (filters.has_purchase_approval === 'false') {
+    whereClauses.push('NOT EXISTS (SELECT 1 FROM public.purchase_approval_detail pad WHERE pad.purchase_plan_id = pp.id)');
   }
 
   return {
@@ -128,6 +139,7 @@ export async function GET(request: NextRequest) {
       product_subtype,
       budget_year,
       requesting_dept,
+      has_purchase_approval,
       order_by,
       sort_order,
       page,
@@ -141,6 +153,7 @@ export async function GET(request: NextRequest) {
       product_subtype,
       budget_year,
       requesting_dept,
+      has_purchase_approval,
     });
 
     const isFreeTextSearch = Boolean(product_name);
@@ -177,6 +190,7 @@ export async function GET(request: NextRequest) {
       product_subtype,
       budget_year,
       requesting_dept,
+      has_purchase_approval,
       order_by: order_by || 'id',
       sort_order: sort_order || 'desc',
     };
