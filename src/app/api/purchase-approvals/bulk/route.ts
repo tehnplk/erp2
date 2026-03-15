@@ -99,6 +99,11 @@ export async function POST(request: NextRequest) {
     const docNo = header.doc_no || DEFAULT_DOC_NO;
 
     // Create purchase approval header
+    const normalizedHeaderStatusCode = await get_approval_doc_status_code(header.status);
+    if (header.status && !normalizedHeaderStatusCode) {
+      return apiError('Invalid approval status');
+    }
+
     const headerResult = await pgQuery(
       `INSERT INTO public.purchase_approval 
        (id, doc_seq, approve_code, doc_no, doc_date, budget_year, status, prepared_by, approved_by, approved_at, notes, total_amount, total_items, created_by, updated_by, version)
@@ -112,7 +117,7 @@ export async function POST(request: NextRequest) {
         docNo,
         docDate,
         budgetYear,
-        get_approval_doc_status_code(header.status) || '001',
+        normalizedHeaderStatusCode || '001',
         header.prepared_by || header.created_by || 'SYSTEM',
         header.approved_by || null,
         header.approved_at || null,
@@ -123,7 +128,7 @@ export async function POST(request: NextRequest) {
         header.updated_by || header.created_by || 'SYSTEM'
       ]
     );
-    headerResult.rows[0].status = get_approval_doc_status_value(headerResult.rows[0].status_code);
+    headerResult.rows[0].status = await get_approval_doc_status_value(headerResult.rows[0].status_code);
 
     const purchaseApprovalId = headerResult.rows[0].id;
     const createdItems = [headerResult.rows[0]];

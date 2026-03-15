@@ -1,44 +1,62 @@
-export const approval_doc_status_items = [
-  { code: '001', status: 'DRAFT' },
-  { code: '002', status: 'PENDING' },
-  { code: '003', status: 'APPROVED' },
-  { code: '004', status: 'REJECTED' },
-  { code: '005', status: 'CANCELLED' },
-] as const;
+import { pgQuery } from '@/lib/pg';
+import { cacheGet, cacheSet } from '@/lib/redis';
 
-export const approval_doc_status_codes = approval_doc_status_items.map((item) => item.code) as [string, ...string[]];
-export const approval_doc_status_values = approval_doc_status_items.map((item) => item.status) as [string, ...string[]];
+type approval_doc_status_row = {
+  code: string;
+  status: string;
+};
 
-const code_to_status_map = new Map<string, string>(approval_doc_status_items.map((item) => [item.code, item.status]));
-const status_to_code_map = new Map<string, string>(approval_doc_status_items.map((item) => [item.status, item.code]));
+const approval_doc_status_cache_key = 'erp:approval_doc_status:items';
 
-export const get_approval_doc_status_code = (value?: string | null) => {
+const get_approval_doc_status_items = async (): Promise<approval_doc_status_row[]> => {
+  const cached = await cacheGet<approval_doc_status_row[]>(approval_doc_status_cache_key);
+  if (cached) {
+    return cached;
+  }
+
+  const result = await pgQuery<approval_doc_status_row>(
+    `SELECT code, status
+     FROM public.approval_doc_status
+     ORDER BY code ASC`
+  );
+
+  await cacheSet(approval_doc_status_cache_key, result.rows, 3600);
+  return result.rows;
+};
+
+export const get_approval_doc_status_code = async (value?: string | null) => {
   if (!value) {
     return null;
   }
 
-  if (status_to_code_map.has(value)) {
-    return status_to_code_map.get(value) ?? null;
+  const rows = await get_approval_doc_status_items();
+  const matchedByStatus = rows.find((item) => item.status === value);
+  if (matchedByStatus) {
+    return matchedByStatus.code;
   }
 
-  if (code_to_status_map.has(value)) {
-    return value;
+  const matchedByCode = rows.find((item) => item.code === value);
+  if (matchedByCode) {
+    return matchedByCode.code;
   }
 
   return null;
 };
 
-export const get_approval_doc_status_value = (value?: string | null) => {
+export const get_approval_doc_status_value = async (value?: string | null) => {
   if (!value) {
     return null;
   }
 
-  if (code_to_status_map.has(value)) {
-    return code_to_status_map.get(value) ?? null;
+  const rows = await get_approval_doc_status_items();
+  const matchedByCode = rows.find((item) => item.code === value);
+  if (matchedByCode) {
+    return matchedByCode.status;
   }
 
-  if (status_to_code_map.has(value)) {
-    return value;
+  const matchedByStatus = rows.find((item) => item.status === value);
+  if (matchedByStatus) {
+    return matchedByStatus.status;
   }
 
   return null;

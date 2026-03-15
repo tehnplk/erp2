@@ -47,8 +47,9 @@ export async function GET(request: NextRequest) {
       whereClauses.push(`pa.budget_year = $${params.length}`);
     }
     if (status) {
-      params.push(get_approval_doc_status_code(status) || status);
-      whereClauses.push(`pa.status = $${params.length}`);
+      const statusCode = await get_approval_doc_status_code(status);
+      params.push(statusCode || status);
+      whereClauses.push(`pa.status = ${params.length}`);
     }
 
     const whereSql = whereClauses.length ? `WHERE ${whereClauses.join(' AND ')}` : '';

@@ -108,7 +108,7 @@ export async function GET(request: NextRequest) {
       whereClauses.push(`pa.budget_year = $${params.length}`);
     }
     if (queryValidation.data.status) {
-      const statusCode = get_approval_doc_status_code(queryValidation.data.status);
+      const statusCode = await get_approval_doc_status_code(queryValidation.data.status);
       if (statusCode) {
         params.push(statusCode);
         whereClauses.push(`pa.status = $${params.length}`);
@@ -212,6 +212,11 @@ export async function POST(request: NextRequest) {
     const docDate = validation.data.doc_date || getCurrentDateString();
     const budgetYear = getBudgetYearFromDate(docDate);
 
+    const normalizedStatusCode = await get_approval_doc_status_code(validation.data.status);
+    if (validation.data.status && !normalizedStatusCode) {
+      return apiError('Invalid approval status');
+    }
+
     const item = await pgQuery(
       `INSERT INTO public.purchase_approval (doc_seq, approve_code, doc_no, doc_date, budget_year, status, prepared_by, notes, created_by, updated_by)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
@@ -222,14 +227,14 @@ export async function POST(request: NextRequest) {
         validation.data.doc_no || DEFAULT_DOC_NO,
         docDate,
         budgetYear,
-        get_approval_doc_status_code(validation.data.status) || '001',
+        normalizedStatusCode || '001',
         validation.data.prepared_by || validation.data.created_by || 'SYSTEM',
         validation.data.notes || null,
         validation.data.created_by || 'SYSTEM',
         validation.data.updated_by || validation.data.created_by || 'SYSTEM',
       ]
     );
-    item.rows[0].status = get_approval_doc_status_value(item.rows[0].status_code);
+    item.rows[0].status = await get_approval_doc_status_value(item.rows[0].status_code);
     
     await cacheDelByPattern('erp:purchase:approvals:list:*');
     

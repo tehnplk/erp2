@@ -30,7 +30,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     // For PATCH, we expect to update the status and optionally pending_note
     const { status, pending_note } = body;
     
-    const normalizedStatusCode = get_approval_doc_status_code(status);
+    const normalizedStatusCode = await get_approval_doc_status_code(status);
     if (!normalizedStatusCode) {
       return NextResponse.json({ error: 'Invalid status. Must be DRAFT, PENDING, APPROVED, REJECTED, or CANCELLED' }, { status: 400 });
     }
@@ -59,7 +59,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     );
     
     await cacheDelByPattern('erp:purchase:approvals:list:*');
-    updated.rows[0].status = get_approval_doc_status_value(updated.rows[0].status_code);
+    updated.rows[0].status = await get_approval_doc_status_value(updated.rows[0].status_code);
     return NextResponse.json(updated.rows[0]);
   } catch (error) {
     console.error('Error updating purchase approval status:', error);
@@ -87,11 +87,16 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
       return NextResponse.json({ error: 'Purchase approval not found' }, { status: 404 });
     }
 
+    const normalizedPutStatusCode = await get_approval_doc_status_code(validation.data.status);
+    if (validation.data.status && !normalizedPutStatusCode) {
+      return NextResponse.json({ error: 'Invalid status. Must exist in approval_doc_status master data' }, { status: 400 });
+    }
+
     const data: Record<string, unknown> = {
       approve_code: validation.data.approve_code ?? null,
       doc_no: validation.data.doc_no ?? null,
       doc_date: validation.data.doc_date ?? null,
-      status: get_approval_doc_status_code(validation.data.status) ?? null,
+      status: normalizedPutStatusCode ?? null,
       total_amount: validation.data.total_amount ?? null,
       total_items: validation.data.total_items ?? null,
       prepared_by: validation.data.prepared_by ?? null,
@@ -145,7 +150,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
       values
     );
     await cacheDelByPattern('erp:purchase:approvals:list:*');
-    updated.rows[0].status = get_approval_doc_status_value(updated.rows[0].status_code);
+    updated.rows[0].status = await get_approval_doc_status_value(updated.rows[0].status_code);
     return NextResponse.json(updated.rows[0]);
   } catch (error) {
     console.error('Error updating purchase approval:', error);
