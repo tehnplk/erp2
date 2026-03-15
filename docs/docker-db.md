@@ -11,6 +11,12 @@
 
 - see [tables.md](tables.md)
 
+## execute sql command with docker
+
+```bash
+docker exec -i supabase_db_erp psql -U postgres postgres -c "sql command"
+```
+
 ## redis
 
 - container: erp-redis

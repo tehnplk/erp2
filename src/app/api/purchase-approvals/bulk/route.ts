@@ -26,27 +26,70 @@ export async function POST(request: NextRequest) {
     }
 
     const { header, details } = validation.data;
+    const purchasePlanIds = Array.from(new Set(details.map((detail) => detail.purchase_plan_id)));
+
+    const purchasePlanMetaResult = await pgQuery<{
+      id: number;
+      category: string | null;
+      budget_year: number | null;
+      category_code: string | null;
+    }>(
+      `SELECT
+         pp.id,
+         up.category,
+         up.budget_year,
+         category_map.category_code
+       FROM public.purchase_plan pp
+       INNER JOIN public.usage_plan up ON up.id = pp.usage_plan_id
+       LEFT JOIN (
+         SELECT category, MIN(category_code) AS category_code
+         FROM public.category
+         GROUP BY category
+       ) category_map ON category_map.category = up.category
+       WHERE pp.id = ANY($1::int[])`,
+      [purchasePlanIds]
+    );
+
+    if (purchasePlanMetaResult.rows.length !== purchasePlanIds.length) {
+      return apiError('พบรายการแผนจัดซื้อไม่ครบถ้วนสำหรับการสร้างเอกสารอนุมัติจัดซื้อ');
+    }
+
+    const categories = Array.from(
+      new Set(
+        purchasePlanMetaResult.rows
+          .map((row) => row.category)
+          .filter((category): category is string => Boolean(category))
+      )
+    );
+
+    if (categories.length !== 1) {
+      return apiError('การสร้างเอกสารอนุมัติจัดซื้อสามารถเลือกรายการสินค้าได้เฉพาะหมวดเดียวกันเท่านั้น');
+    }
+
+    const categoryCode = purchasePlanMetaResult.rows[0]?.category_code;
+    if (!categoryCode) {
+      return apiError('ไม่พบรหัสหมวดสำหรับการสร้างรหัสเอกสาร');
+    }
     
-    // Get next sequence number for approve_code and doc_no
     const seqResult = await pgQuery(
       `SELECT NEXTVAL('purchase_approval_id_seq') as seq_id`
     );
     const seqId = seqResult.rows[0].seq_id;
     
-    // Generate approve_code and doc_no with sequence
-    const now = new Date();
     const currentDate = getCurrentDateString();
-    const approveCode = header.approve_code || `APV${now.getFullYear()}${String(seqId).padStart(6, '0')}`;
+    const budgetYear = purchasePlanMetaResult.rows[0]?.budget_year || null;
+    const approveCode = header.approve_code || `${categoryCode}-${budgetYear || '0000'}-${String(seqId).padStart(4, '0')}`;
     const docNo = header.doc_no || DEFAULT_DOC_NO;
 
     // Create purchase approval header
     const headerResult = await pgQuery(
       `INSERT INTO public.purchase_approval 
-       (approve_code, doc_no, doc_date, status, prepared_by, approved_by, approved_at, notes, total_amount, total_items, created_by, updated_by, version)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, 1)
+       (id, approve_code, doc_no, doc_date, status, prepared_by, approved_by, approved_at, notes, total_amount, total_items, created_by, updated_by, version)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, 1)
        RETURNING id, approve_code, doc_no, doc_date, status, total_amount, total_items, 
                 prepared_by, approved_by, approved_at, notes, created_at, updated_at, version`,
       [
+        seqId,
         approveCode,
         docNo,
         header.doc_date || currentDate,

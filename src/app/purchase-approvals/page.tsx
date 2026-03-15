@@ -5,7 +5,7 @@ import { AlignmentType, BorderStyle, Document, ImageRun, Packer, PageOrientation
 import React, { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import Swal from 'sweetalert2';
-import { ChevronDown, ChevronRight, Save, X, Trash2, Edit, FileText } from 'lucide-react';
+import { ChevronDown, ChevronRight, Save, X, Trash2, Edit, FileText, CheckCircle } from 'lucide-react';
 
 const DEFAULT_DOC_NO = 'พล. 0733.301/พิเศษ';
 const DOCX_FONT_FAMILY = 'TH Sarabun';
@@ -685,7 +685,7 @@ function PurchaseApprovalsPageContent() {
                 alignment: AlignmentType.JUSTIFIED,
                 children: [
                   createDocxTextRun({
-                    text: `ตามที่โรงพยาบาลวังทองได้รับการอนุมัติแผนจัดซื้อ/จัดจ้าง วัสดุใช้ไป ตามแผนงบประมาณ ${documentPreview.budget_year || '-'} นั้น ในการนี้ งานแผนยุทธศาสตร์ ขออนุมัติจัดซื้อ/จัดจ้าง วัสดุใช้ไป เพื่อให้บริการหรือสนับสนุนการจัดบริการของโรงพยาบาล เบิกจ่ายจาก เงินบำรุงโรงพยาบาล เป็นจำนวนรายการทั้งสิ้น ${documentPreview.item_count || 0} รายการ เป็นจำนวนเงินทั้งสิ้น ${formatMoney(documentPreview.total_amount)} บาท (${convertNumberToThaiText(documentPreview.total_amount)}) ดังรายการต่อไปนี้`,
+                    text: `ตามที่โรงพยาบาลวังทองได้รับการอนุมัติแผนจัดซื้อ/จัดจ้าง วัสดุใช้ไป ตามแผนจัดซื้อวัสดุใช้ไป ปีงบประมาณ ${documentPreview.budget_year || '-'} นั้น ในการนี้ งานแผนยุทธศาสตร์ ขออนุมัติจัดซื้อ/จัดจ้าง วัสดุใช้ไป เพื่อให้บริการหรือสนับสนุนการจัดบริการของโรงพยาบาล โดยเบิกจ่ายจาก เงินบำรุงโรงพยาบาล จำนวน ${documentPreview.item_count || 0} รายการ เป็นจำนวนเงินทั้งสิ้น ${formatMoney(documentPreview.total_amount)} บาท (${convertNumberToThaiText(documentPreview.total_amount)}) ดังรายการต่อไปนี้`,
                     size: 30,
                   }),
                 ],
@@ -1161,7 +1161,7 @@ function PurchaseApprovalsPageContent() {
                           {savingRowId === group.id ? (
                             <div className="animate-spin rounded-full h-4 w-4 border-2 border-green-600 border-t-transparent"></div>
                           ) : (
-                            <Save className="h-4 w-4" />
+                            <CheckCircle className="h-4 w-4" />
                           )}
                         </button>
                         <button
@@ -1428,9 +1428,9 @@ function PurchaseApprovalsPageContent() {
               <div className="print-compact mb-2"><span className="font-bold">เรียน</span> ผู้อำนวยการโรงพยาบาลวังทอง</div>
 
               <p className="print-compact mb-2 text-justify indent-12">
-                ตามที่โรงพยาบาลวังทองได้รับการอนุมัติแผนจัดซื้อ/จัดจ้าง วัสดุใช้ไป ตามแผนงบประมาณ{' '}
+                ตามที่โรงพยาบาลวังทองได้รับการอนุมัติแผนจัดซื้อ/จัดจ้าง วัสดุใช้ไป ตามแผนจัดซื้อวัสดุใช้ไป ปีงบประมาณ{' '}
                 {documentPreview.budget_year || '-'} นั้น ในการนี้ งานแผนยุทธศาสตร์ ขออนุมัติจัดซื้อ/จัดจ้าง วัสดุใช้ไป
-                เพื่อให้บริการหรือสนับสนุนการจัดบริการของโรงพยาบาล เบิกจ่ายจาก เงินบำรุงโรงพยาบาล เป็นจำนวนรายการทั้งสิ้น{' '}
+                เพื่อให้บริการหรือสนับสนุนการจัดบริการของโรงพยาบาล โดยเบิกจ่ายจาก เงินบำรุงโรงพยาบาล จำนวน{' '}
                 {documentPreview.item_count || 0} รายการ เป็นจำนวนเงินทั้งสิ้น {formatMoney(documentPreview.total_amount)} บาท ({convertNumberToThaiText(documentPreview.total_amount)})
                 ดังรายการต่อไปนี้
               </p>

@@ -728,9 +728,32 @@ function PurchasePlansPageContent() {
 
   const handleSelectAll = (checked: boolean) => {
     if (checked) {
+      const selectableItems = items.filter((item) => !item.has_purchase_approval);
+      const selectedItems = items.filter((item) => selectedRows.has(item.id));
+      const selectedCategory = selectedItems[0]?.category ?? null;
+
+      if (!selectedCategory) {
+        const availableCategories = Array.from(
+          new Set(
+            selectableItems
+              .map((item) => item.category)
+              .filter((category): category is string => Boolean(category))
+          )
+        );
+
+        if (availableCategories.length > 1) {
+          void Swal.fire({
+            icon: 'warning',
+            title: 'เลือกได้เฉพาะหมวดเดียวกัน',
+            text: 'การทำเอกสารอนุมัติจัดซื้อสามารถเลือกรายการสินค้าได้เฉพาะหมวดเดียวกัน กรุณากรองหรือเลือกเฉพาะหมวดเดียวก่อน',
+          });
+          return;
+        }
+      }
+
       const selectableIds = new Set(
-        items
-          .filter((item) => !item.has_purchase_approval)
+        selectableItems
+          .filter((item) => !selectedCategory || item.category === selectedCategory)
           .map((item) => item.id)
       );
       setSelectedRows(selectableIds);
@@ -744,6 +767,21 @@ function PurchasePlansPageContent() {
     if (currentItem?.has_purchase_approval) {
       return;
     }
+
+    if (checked && currentItem) {
+      const selectedItems = items.filter((item) => selectedRows.has(item.id));
+      const selectedCategory = selectedItems[0]?.category ?? null;
+
+      if (selectedCategory && currentItem.category !== selectedCategory) {
+        void Swal.fire({
+          icon: 'warning',
+          title: 'เลือกได้เฉพาะหมวดเดียวกัน',
+          text: `รายการที่เลือกอยู่คนละหมวดกับรายการที่เลือกไว้แล้ว (${selectedCategory})`,
+        });
+        return;
+      }
+    }
+
     setSelectedRows(prev => {
       const newSet = new Set(prev);
       if (checked) {
@@ -854,6 +892,24 @@ function PurchasePlansPageContent() {
       return;
     }
 
+    const selectedItems = items.filter(item => selectedRows.has(item.id));
+    const selectedCategories = Array.from(
+      new Set(
+        selectedItems
+          .map((item) => item.category)
+          .filter((category): category is string => Boolean(category))
+      )
+    );
+
+    if (selectedCategories.length !== 1) {
+      await Swal.fire({
+        icon: 'warning',
+        title: 'เลือกได้เฉพาะหมวดเดียวกัน',
+        text: 'การทำเอกสารอนุมัติจัดซื้อสามารถเลือกรายการสินค้าได้เฉพาะหมวดเดียวกันเท่านั้น',
+      });
+      return;
+    }
+
     const result = await Swal.fire({
       title: 'ยืนยันการทำรายการอนุมัติจัดซื้อ?',
       html: `จะทำรายการอนุมัติจัดซื้อ <strong>${selectedRows.size}</strong> รายการ<br/>รายการเหล่านี้จะถูกส่งไปยังระบบการอนุมัติการจัดซื้อ`,
@@ -869,8 +925,6 @@ function PurchasePlansPageContent() {
     }
 
     try {
-      const selectedItems = items.filter(item => selectedRows.has(item.id));
-      
       // Create payload for new purchase_approval table structure
       const details = selectedItems.map((item, index) => ({
         purchase_plan_id: item.id, // Link to the purchase plan
@@ -882,7 +936,7 @@ function PurchasePlansPageContent() {
 
       // Create header with basic info
       const header = {
-        budget_year: new Date().getFullYear() + 543, // Thai Buddhist year
+        budget_year: selectedItems[0]?.budget_year ?? new Date().getFullYear() + 543,
         department: 'กลุ่มงานบริหารทั่วไป', // Default department
         doc_date: new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().split('T')[0], // Current date
         notes: `สร้างจากแผนจัดซื้อ ${selectedItems.length} รายการ`,
