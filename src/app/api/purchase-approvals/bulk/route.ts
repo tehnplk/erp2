@@ -75,21 +75,26 @@ export async function POST(request: NextRequest) {
       `SELECT NEXTVAL('purchase_approval_id_seq') as seq_id`
     );
     const seqId = seqResult.rows[0].seq_id;
+    const docSeqResult = await pgQuery<{ next_doc_seq: number }>(
+      `SELECT COALESCE(MAX(doc_seq), 0) + 1 AS next_doc_seq FROM public.purchase_approval`
+    );
+    const docSeq = docSeqResult.rows[0]?.next_doc_seq || 1;
     
     const currentDate = getCurrentDateString();
     const budgetYear = purchasePlanMetaResult.rows[0]?.budget_year || null;
-    const approveCode = header.approve_code || `${categoryCode}-${budgetYear || '0000'}-${String(seqId).padStart(4, '0')}`;
+    const approveCode = header.approve_code || `${categoryCode}-${budgetYear || '0000'}-${String(docSeq).padStart(4, '0')}`;
     const docNo = header.doc_no || DEFAULT_DOC_NO;
 
     // Create purchase approval header
     const headerResult = await pgQuery(
       `INSERT INTO public.purchase_approval 
-       (id, approve_code, doc_no, doc_date, status, prepared_by, approved_by, approved_at, notes, total_amount, total_items, created_by, updated_by, version)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, 1)
-       RETURNING id, approve_code, doc_no, doc_date, status, total_amount, total_items, 
+       (id, doc_seq, approve_code, doc_no, doc_date, status, prepared_by, approved_by, approved_at, notes, total_amount, total_items, created_by, updated_by, version)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, 1)
+       RETURNING id, doc_seq, approve_code, doc_no, doc_date, status, total_amount, total_items, 
                 prepared_by, approved_by, approved_at, notes, created_at, updated_at, version`,
       [
         seqId,
+        docSeq,
         approveCode,
         docNo,
         header.doc_date || currentDate,
@@ -183,6 +188,7 @@ export async function POST(request: NextRequest) {
         created: details.length,
         header: createdItems[0],
         details: createdItems.slice(1),
+        doc_seq: docSeq,
         approve_code: approveCode,
         doc_no: docNo
       }, 

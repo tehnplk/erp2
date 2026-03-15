@@ -63,7 +63,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     });
 
     if (assignments.length === 0) {
-      const unchanged = await pgQuery('SELECT id, approve_code, doc_no, doc_date, status, total_amount, total_items, prepared_by, approved_by, approved_at, notes, created_at, updated_at, version FROM public.purchase_approval WHERE id = $1 LIMIT 1', [numericId]);
+      const unchanged = await pgQuery('SELECT id, doc_seq, approve_code, doc_no, doc_date, status, total_amount, total_items, prepared_by, approved_by, approved_at, notes, created_at, updated_at, version FROM public.purchase_approval WHERE id = $1 LIMIT 1', [numericId]);
       return NextResponse.json(unchanged.rows[0]);
     }
 
@@ -71,7 +71,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     values.push(numericId);
     const updated = await pgQuery(
       `UPDATE public.purchase_approval SET ${assignments.join(', ')} WHERE id = $${values.length}
-       RETURNING id, approve_code, doc_no, doc_date, status, total_amount, total_items, prepared_by, approved_by, approved_at, notes, created_at, updated_at, version`,
+       RETURNING id, doc_seq, approve_code, doc_no, doc_date, status, total_amount, total_items, prepared_by, approved_by, approved_at, notes, created_at, updated_at, version`,
       values
     );
     await cacheDelByPattern('erp:purchase:approvals:list:*');
