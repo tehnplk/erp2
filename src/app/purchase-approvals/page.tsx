@@ -5,7 +5,7 @@ import { AlignmentType, BorderStyle, Document, ImageRun, Packer, PageOrientation
 import React, { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import Swal from 'sweetalert2';
-import { ChevronDown, ChevronRight, Save, X, Trash2, Edit, FileText, CheckCircle } from 'lucide-react';
+import { ChevronDown, ChevronRight, Save, X, Trash2, Edit, FileText, CheckCircle, XCircle, Download, Printer, FileDown, Clock, RotateCcw } from 'lucide-react';
 
 const DEFAULT_DOC_NO = 'พล. 0733.301/พิเศษ';
 const DOCX_FONT_FAMILY = 'TH Sarabun';
@@ -23,6 +23,13 @@ const THAI_TO_ARABIC_DIGITS: Record<string, string> = {
   '๙': '9',
 };
 
+const getCurrentBudgetYear = () => {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = now.getMonth();
+  return month >= 9 ? year + 544 : year + 543;
+};
+
 interface PurchaseApprovalGroup {
   id: number;
   approve_code: string;
@@ -35,6 +42,7 @@ interface PurchaseApprovalGroup {
   approved_by?: string;
   approved_at?: string;
   notes?: string;
+  pending_note?: string;
   created_at: string;
   updated_at: string;
   version: number;
@@ -96,6 +104,7 @@ function PurchaseApprovalsPageContent() {
   const [subtypeFilter, setSubtypeFilter] = useState(searchParams.get('product_subtype') || '');
   const [departmentFilter, setDepartmentFilter] = useState(searchParams.get('department') || '');
   const [budgetYearFilter, setBudgetYearFilter] = useState(searchParams.get('budget_year') || '');
+  const [statusFilter, setStatusFilter] = useState(searchParams.get('status') || '');
 
   // sort
   const [sortBy] = useState('created_at');
@@ -109,6 +118,7 @@ function PurchaseApprovalsPageContent() {
   const [subtypes, setSubtypes] = useState<string[]>([]);
   const [categoryOptions, setCategoryOptions] = useState<any[]>([]);
   const [departments, setDepartments] = useState<string[]>([]);
+  const [budgetYears, setBudgetYears] = useState<string[]>([]);
   const [preparedBy, setPreparedBy] = useState<string[]>([]);
   const [approvedBy, setApprovedBy] = useState<string[]>([]);
   const [statusOptions, setStatusOptions] = useState<string[]>([]);
@@ -143,6 +153,15 @@ function PurchaseApprovalsPageContent() {
     ) as string[];
   }, [categoryFilter, typeFilter, categoryOptions]);
 
+  const availableBudgetYears = useMemo(() => {
+    return Array.from(
+      new Set([
+        ...budgetYears,
+        ...Array.from({ length: 6 }, (_, index) => String(getCurrentBudgetYear() - index)),
+      ]),
+    ).sort((a, b) => Number(b) - Number(a));
+  }, [budgetYears]);
+
   useEffect(() => {
     if (!filtersLoadedRef.current) {
       return;
@@ -162,7 +181,7 @@ function PurchaseApprovalsPageContent() {
     }
   }, [availableSubtypes, subtypeFilter]);
 
-  useEffect(() => { fetchData(); }, [nameFilter, categoryFilter, typeFilter, subtypeFilter, departmentFilter, budgetYearFilter, page, pageSize]);
+  useEffect(() => { fetchData(); }, [nameFilter, categoryFilter, typeFilter, subtypeFilter, departmentFilter, budgetYearFilter, statusFilter, page, pageSize]);
 
   // When filters or sorting change, reset to first page and refresh summary data
   useEffect(() => {
@@ -171,7 +190,7 @@ function PurchaseApprovalsPageContent() {
     }
     setPage(1);
     fetchSummaryData();
-  }, [nameFilter, categoryFilter, typeFilter, subtypeFilter, departmentFilter, budgetYearFilter]);
+  }, [nameFilter, categoryFilter, typeFilter, subtypeFilter, departmentFilter, budgetYearFilter, statusFilter]);
 
   useEffect(() => { fetchFilters(); fetchSummaryData(); }, []);
 
@@ -182,6 +201,7 @@ function PurchaseApprovalsPageContent() {
     const nextSubtype = searchParams.get('product_subtype') || '';
     const nextDepartment = searchParams.get('department') || '';
     const nextBudgetYear = searchParams.get('budget_year') || '';
+    const nextStatus = searchParams.get('status') || '';
     const nextPage = Math.max(1, parseInt(searchParams.get('page') || '1', 10) || 1);
     const nextPageSize = Math.max(1, parseInt(searchParams.get('page_size') || '20', 10) || 20);
 
@@ -191,6 +211,7 @@ function PurchaseApprovalsPageContent() {
     setSubtypeFilter((prev) => (prev === nextSubtype ? prev : nextSubtype));
     setDepartmentFilter((prev) => (prev === nextDepartment ? prev : nextDepartment));
     setBudgetYearFilter((prev) => (prev === nextBudgetYear ? prev : nextBudgetYear));
+    setStatusFilter((prev) => (prev === nextStatus ? prev : nextStatus));
     setPage((prev) => (prev === nextPage ? prev : nextPage));
     setPageSize((prev) => (prev === nextPageSize ? prev : nextPageSize));
     hasSyncedSearchParamsRef.current = true;
@@ -208,6 +229,7 @@ function PurchaseApprovalsPageContent() {
     if (subtypeFilter) params.set('product_subtype', subtypeFilter);
     if (departmentFilter) params.set('department', departmentFilter);
     if (budgetYearFilter) params.set('budget_year', budgetYearFilter);
+    if (statusFilter) params.set('status', statusFilter);
     if (page > 1) params.set('page', page.toString());
     if (pageSize !== 20) params.set('page_size', pageSize.toString());
 
@@ -217,7 +239,7 @@ function PurchaseApprovalsPageContent() {
     if (nextUrl !== currentUrl) {
       router.replace(nextUrl, { scroll: false });
     }
-  }, [pathname, router, searchParams, nameFilter, categoryFilter, typeFilter, subtypeFilter, departmentFilter, budgetYearFilter, page, pageSize]);
+  }, [pathname, router, searchParams, nameFilter, categoryFilter, typeFilter, subtypeFilter, departmentFilter, budgetYearFilter, statusFilter, page, pageSize]);
 
   const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
   const pageStart = totalCount === 0 ? 0 : (page - 1) * pageSize + 1;
@@ -244,6 +266,7 @@ function PurchaseApprovalsPageContent() {
       if (subtypeFilter) params.append('product_subtype', subtypeFilter);
       if (departmentFilter) params.append('department', departmentFilter);
       if (budgetYearFilter) params.append('budget_year', budgetYearFilter);
+      if (statusFilter) params.append('status', statusFilter);
       params.append('order_by', 'created_at');
       params.append('sort_order', 'desc');
       params.append('page', page.toString());
@@ -273,6 +296,7 @@ function PurchaseApprovalsPageContent() {
       if (subtypeFilter) params.append('product_subtype', subtypeFilter);
       if (departmentFilter) params.append('department', departmentFilter);
       if (budgetYearFilter) params.append('budget_year', budgetYearFilter);
+      if (statusFilter) params.append('status', statusFilter);
       params.append('order_by', sortBy);
       params.append('sort_order', sortOrder);
 
@@ -296,6 +320,7 @@ function PurchaseApprovalsPageContent() {
         setSubtypes(data.product_subtypes || []);
         setCategoryOptions(data.category_options || []);
         setDepartments(data.departments || []);
+        setBudgetYears(data.budget_years || []);
         setPreparedBy(data.prepared_by || []);
         setApprovedBy(data.approved_by || []);
         setStatusOptions(data.status_options || []);
@@ -899,6 +924,264 @@ function PurchaseApprovalsPageContent() {
     }
   };
 
+  const handleApprove = async () => {
+    if (!documentPreview) {
+      return;
+    }
+
+    const result = await Swal.fire({
+      title: 'ยืนยันการอนุมัติ?',
+      html: `คุณต้องการอนุมัติเอกสาร <strong>${documentPreview.approve_code}</strong> หรือไม่?`,
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonText: 'อนุมัติ',
+      cancelButtonText: 'ยกเลิก',
+      confirmButtonColor: '#10b981',
+    });
+
+    if (!result.isConfirmed) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/purchase-approvals/${documentPreview.id}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          status: 'APPROVED',
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to approve purchase approval');
+      }
+
+      await Swal.fire({
+        icon: 'success',
+        title: 'อนุมัติเอกสารสำเร็จ',
+        timer: 1500,
+        showConfirmButton: false,
+      });
+
+      // Update the document preview status to reflect the change
+      if (documentPreview) {
+        setDocumentPreview({
+          ...documentPreview,
+          status: 'APPROVED'
+        });
+      }
+      await fetchData();
+    } catch (error) {
+      console.error(error);
+      await Swal.fire({
+        icon: 'error',
+        title: 'อนุมัติเอกสารไม่สำเร็จ',
+        text: error instanceof Error ? error.message : 'ไม่สามารถอนุมัติเอกสารได้',
+      });
+    }
+  };
+
+  const handleReject = async () => {
+    if (!documentPreview) {
+      return;
+    }
+
+    const result = await Swal.fire({
+      title: 'ยืนยันการไม่อนุมัติ?',
+      html: `คุณต้องการไม่อนุมัติเอกสาร <strong>${documentPreview.approve_code}</strong> หรือไม่?`,
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonText: 'ไม่อนุมัติ',
+      cancelButtonText: 'ยกเลิก',
+      confirmButtonColor: '#ef4444',
+    });
+
+    if (!result.isConfirmed) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/purchase-approvals/${documentPreview.id}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          status: 'REJECTED',
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to reject purchase approval');
+      }
+
+      await Swal.fire({
+        icon: 'success',
+        title: 'ไม่อนุมัติเอกสารสำเร็จ',
+        timer: 1500,
+        showConfirmButton: false,
+      });
+
+      // Update the document preview status to reflect the change
+      if (documentPreview) {
+        setDocumentPreview({
+          ...documentPreview,
+          status: 'REJECTED'
+        });
+      }
+      await fetchData();
+    } catch (error) {
+      console.error(error);
+      await Swal.fire({
+        icon: 'error',
+        title: 'ไม่อนุมัติเอกสารไม่สำเร็จ',
+        text: error instanceof Error ? error.message : 'ไม่สามารถไม่อนุมัติเอกสารได้',
+      });
+    }
+  };
+
+  const handlePending = async () => {
+    if (!documentPreview) {
+      return;
+    }
+
+    const { value: pendingNote } = await Swal.fire({
+      title: 'ระบุเหตุผลการพักไว้',
+      input: 'textarea',
+      inputLabel: 'เหตุผล',
+      inputPlaceholder: 'กรุณาระบุเหตุผลที่ต้องการพักเอกสารไว้...',
+      inputAttributes: {
+        'aria-label': 'กรุณาระบุเหตุผลที่ต้องการพักเอกสารไว้'
+      },
+      showCancelButton: true,
+      confirmButtonText: 'พักไว้',
+      cancelButtonText: 'ยกเลิก',
+      confirmButtonColor: '#f59e0b',
+      inputValidator: (value) => {
+        if (!value) {
+          return 'กรุณาระบุเหตุผลในการพักเอกสารไว้';
+        }
+      }
+    });
+
+    if (!pendingNote) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/purchase-approvals/${documentPreview.id}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          status: 'PENDING',
+          pending_note: pendingNote,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to pending purchase approval');
+      }
+
+      await Swal.fire({
+        icon: 'success',
+        title: 'พักเอกสารสำเร็จ',
+        timer: 1500,
+        showConfirmButton: false,
+      });
+
+      // Update the document preview status to reflect the change
+      if (documentPreview) {
+        setDocumentPreview({
+          ...documentPreview,
+          status: 'PENDING',
+          pending_note: pendingNote
+        });
+      }
+      await fetchData();
+    } catch (error) {
+      console.error(error);
+      await Swal.fire({
+        icon: 'error',
+        title: 'พักเอกสารไม่สำเร็จ',
+        text: error instanceof Error ? error.message : 'ไม่สามารถพักเอกสารได้',
+      });
+    }
+  };
+
+  const handleCancelDocument = async () => {
+    if (!documentPreview) {
+      return;
+    }
+
+    const nextStatus = documentPreview.status === 'CANCELLED' ? 'DRAFT' : 'CANCELLED';
+    const isRestoring = nextStatus === 'DRAFT';
+
+    if (documentPreview.status !== 'DRAFT' && documentPreview.status !== 'CANCELLED') {
+      await Swal.fire({
+        icon: 'warning',
+        title: 'ไม่สามารถเปลี่ยนสถานะได้',
+        text: 'สามารถสลับได้เฉพาะเอกสารสถานะ DRAFT หรือ CANCELLED เท่านั้น',
+      });
+      return;
+    }
+
+    const result = await Swal.fire({
+      title: isRestoring ? 'ยืนยันการนำเอกสารกลับมาใช้?' : 'ยืนยันการยกเลิกเอกสาร?',
+      html: isRestoring
+        ? `คุณต้องการเปลี่ยนเอกสาร <strong>${documentPreview.approve_code}</strong> กลับเป็นสถานะ DRAFT หรือไม่?`
+        : `คุณต้องการยกเลิกเอกสาร <strong>${documentPreview.approve_code}</strong> หรือไม่?`,
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonText: isRestoring ? 'นำเอกสารกลับมาใช้' : 'ยกเลิกเอกสาร',
+      cancelButtonText: 'ปิด',
+      confirmButtonColor: '#6b7280',
+    });
+
+    if (!result.isConfirmed) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/purchase-approvals/${documentPreview.id}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          status: nextStatus,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to toggle purchase approval status');
+      }
+
+      await Swal.fire({
+        icon: 'success',
+        title: isRestoring ? 'นำเอกสารกลับมาใช้สำเร็จ' : 'ยกเลิกเอกสารสำเร็จ',
+        timer: 1500,
+        showConfirmButton: false,
+      });
+
+      setDocumentPreview({
+        ...documentPreview,
+        status: nextStatus
+      });
+      await fetchData();
+    } catch (error) {
+      console.error(error);
+      await Swal.fire({
+        icon: 'error',
+        title: isRestoring ? 'นำเอกสารกลับมาใช้ไม่สำเร็จ' : 'ยกเลิกเอกสารไม่สำเร็จ',
+        text: error instanceof Error ? error.message : 'ไม่สามารถเปลี่ยนสถานะเอกสารได้',
+      });
+    }
+  };
+
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="flex justify-between items-center mb-6">
@@ -907,7 +1190,15 @@ function PurchaseApprovalsPageContent() {
 
       <div className="bg-white shadow-md rounded-lg overflow-hidden mb-4">
         <div className="px-4 py-3 bg-gray-50 border-b border-gray-200">
-          <div className="grid grid-cols-1 md:grid-cols-6 gap-4 mb-4">
+          <div className="grid grid-cols-1 md:grid-cols-7 gap-4 mb-4">
+            <select value={budgetYearFilter} onChange={(e)=>setBudgetYearFilter(e.target.value)} className="w-full rounded-md border-gray-300 shadow-sm text-sm px-3 py-2">
+              <option value="">ปีงบประมาณ</option>
+              {availableBudgetYears.map((year) => <option key={year} value={year}>{year}</option>)}
+            </select>
+            <select value={departmentFilter} onChange={(e)=>setDepartmentFilter(e.target.value)} className="w-full rounded-md border-gray-300 shadow-sm text-sm px-3 py-2">
+              <option value="">หน่วยงาน</option>
+              {departments.map((department) => <option key={department} value={department}>{department}</option>)}
+            </select>
             <input placeholder="ชื่อสินค้า" value={nameFilter} onChange={(e)=>setNameFilter(e.target.value)} className="w-full rounded-md border-gray-300 shadow-sm text-sm px-3 py-2" />
             <select value={categoryFilter} onChange={(e)=>{ setCategoryFilter(e.target.value); setTypeFilter(''); setSubtypeFilter(''); }} className="w-full rounded-md border-gray-300 shadow-sm text-sm px-3 py-2">
               <option value="">หมวด</option>
@@ -921,13 +1212,9 @@ function PurchaseApprovalsPageContent() {
               <option value="">ประเภทย่อย</option>
               {availableSubtypes.map(x => <option key={x} value={x}>{x}</option>)}
             </select>
-            <select value={departmentFilter} onChange={(e)=>setDepartmentFilter(e.target.value)} className="w-full rounded-md border-gray-300 shadow-sm text-sm px-3 py-2">
-              <option value="">หน่วยงาน</option>
-              {departments.map(x => <option key={x} value={x}>{x}</option>)}
-            </select>
-            <select value={budgetYearFilter} onChange={(e)=>setBudgetYearFilter(e.target.value)} className="w-full rounded-md border-gray-300 shadow-sm text-sm px-3 py-2">
-              <option value="">ปีงบประมาณ</option>
-              {departments.map((x: string) => <option key={x} value={x}>{x}</option>)}
+            <select value={statusFilter} onChange={(e)=>setStatusFilter(e.target.value)} className="w-full rounded-md border-gray-300 shadow-sm text-sm px-3 py-2">
+              <option value="">สถานะ</option>
+              {statusOptions.map(x => <option key={x} value={x}>{x}</option>)}
             </select>
           </div>
           {filtersLoading && <div className="text-sm text-gray-500">กำลังโหลดตัวกรอง...</div>}
@@ -1019,7 +1306,7 @@ function PurchaseApprovalsPageContent() {
                 <th onClick={()=>handleSort()} className={getHeaderClass('doc_date')}>ลงวันที่</th>
                 <th onClick={()=>handleSort()} className={getHeaderClass('status')}>สถานะ</th>
                 <th className="px-3 py-3 text-left text-[10px] font-medium text-gray-500 uppercase tracking-wider w-20">รายการ</th>
-                <th className="px-3 py-3 text-center text-[10px] font-medium text-gray-500 uppercase tracking-wider w-24">พิมพ์เอกสาร</th>
+                <th className="px-3 py-3 text-center text-[10px] font-medium text-gray-500 uppercase tracking-wider w-24">เอกสาร</th>
                 <th className="px-3 py-3 text-left text-[10px] font-medium text-gray-500 uppercase tracking-wider w-20">Action</th>
               </tr>
             </thead>
@@ -1090,34 +1377,17 @@ function PurchaseApprovalsPageContent() {
                     )}
                   </td>
                   <td className="px-3 py-2 text-xs">
-                    {editingRowId === group.id && editingData.field === 'status' ? (
-                      <select
-                        value={editingData.status}
-                        onChange={(e) => setEditingData(prev => ({ ...prev, status: e.target.value }))}
-                        onKeyDown={(e) => handleKeyDown(e, group.id)}
-                        className="w-full px-2 py-1 text-xs border border-blue-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        autoFocus
-                      >
-                        <option value="DRAFT">DRAFT</option>
-                        <option value="PENDING">PENDING</option>
-                        <option value="APPROVED">APPROVED</option>
-                        <option value="REJECTED">REJECTED</option>
-                        <option value="CANCELLED">CANCELLED</option>
-                      </select>
-                    ) : (
-                      <span
-                        onClick={() => handleInlineEdit(group.id, 'status', group.status)}
-                        className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium cursor-pointer hover:opacity-80 ${
-                          group.status === 'DRAFT' ? 'bg-gray-100 text-gray-800' :
-                          group.status === 'PENDING' ? 'bg-yellow-100 text-yellow-800' :
-                          group.status === 'REJECTED' ? 'bg-red-100 text-red-800' :
-                          group.status === 'CANCELLED' ? 'bg-gray-100 text-gray-800' :
-                          'bg-blue-100 text-blue-800'
-                        }`}
-                      >
-                        {group.status}
-                      </span>
-                    )}
+                    <span
+                      className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                        group.status === 'DRAFT' ? 'bg-gray-100 text-gray-800' :
+                        group.status === 'PENDING' ? 'bg-yellow-100 text-yellow-800' :
+                        group.status === 'REJECTED' ? 'bg-red-100 text-red-800' :
+                        group.status === 'CANCELLED' ? 'bg-gray-100 text-gray-800' :
+                        'bg-blue-100 text-blue-800'
+                      }`}
+                    >
+                      {group.status}
+                    </span>
                   </td>
                   <td className="px-3 py-2 text-xs font-medium w-32">
                     {editingRowId === group.id ? (
@@ -1126,7 +1396,7 @@ function PurchaseApprovalsPageContent() {
                       <div className="flex items-center gap-2">
                         <button
                           onClick={() => toggleRowExpansion(group.id.toString())}
-                          className="p-1 text-indigo-600 hover:text-indigo-800"
+                          className="p-1 text-indigo-600 hover:text-indigo-800 cursor-pointer"
                           title={expandedRows.has(group.id.toString()) ? 'ย่อรายการ' : 'ขยายรายการ'}
                         >
                           {expandedRows.has(group.id.toString()) ? (
@@ -1155,7 +1425,7 @@ function PurchaseApprovalsPageContent() {
                         <button
                           onClick={() => handleSaveEdit(group.id)}
                           disabled={savingRowId === group.id}
-                          className="p-1 text-green-600 hover:text-green-800 disabled:opacity-50"
+                          className="p-1 text-green-600 hover:text-green-800 disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
                           title="บันทึก"
                         >
                           {savingRowId === group.id ? (
@@ -1166,7 +1436,7 @@ function PurchaseApprovalsPageContent() {
                         </button>
                         <button
                           onClick={handleCancelEdit}
-                          className="p-1 text-gray-600 hover:text-gray-800"
+                          className="p-1 text-gray-600 hover:text-gray-800 cursor-pointer"
                           title="ยกเลิก"
                         >
                           <X className="h-4 w-4" />
@@ -1176,14 +1446,14 @@ function PurchaseApprovalsPageContent() {
                       <div className="flex items-center gap-2">
                         <button
                           onClick={() => handleInlineEdit(group.id, 'approve_code', group.approve_code)}
-                          className="p-1 text-blue-600 hover:text-blue-800"
+                          className="p-1 text-blue-600 hover:text-blue-800 cursor-pointer"
                           title="แก้ไขข้อมูล"
                         >
                           <Edit className="h-4 w-4" />
                         </button>
                         <button
                           onClick={() => handleDelete(group.id, group.approve_code)}
-                          className="p-1 text-red-600 hover:text-red-800"
+                          className="p-1 text-red-600 hover:text-red-800 cursor-pointer"
                           title="ลบรายการ"
                         >
                           <Trash2 className="h-4 w-4" />
@@ -1371,27 +1641,87 @@ function PurchaseApprovalsPageContent() {
           `}</style>
           <div className="mx-auto w-full max-w-[230mm] print-document-only">
             <div className="print-hide sticky top-0 z-20 mb-3 flex items-center justify-between rounded-lg border border-gray-200 bg-white px-4 py-2 shadow">
-              <h2 className="text-lg font-semibold text-gray-900">เอกสารรอพิมพ์</h2>
               <div className="flex items-center gap-2">
                 <button
                   type="button"
-                  onClick={handleDownloadDocx}
-                  className="rounded-md border border-emerald-300 px-3 py-1.5 text-sm text-emerald-700 hover:bg-emerald-50"
+                  onClick={handleReject}
+                  disabled={documentPreview?.status === 'REJECTED' || documentPreview?.status === 'CANCELLED'}
+                  className={`rounded-md border px-3 py-1.5 text-sm flex items-center gap-2 ${
+                    documentPreview?.status === 'REJECTED' || documentPreview?.status === 'CANCELLED'
+                      ? 'border-gray-300 text-gray-400 cursor-not-allowed bg-gray-50'
+                      : 'border-red-300 text-red-700 hover:bg-red-50'
+                  }`}
                 >
+                  <XCircle className="h-4 w-4" />
+                  ไม่อนุมัติ
+                </button>
+                <button
+                  type="button"
+                  onClick={handlePending}
+                  disabled={documentPreview?.status === 'PENDING' || documentPreview?.status === 'CANCELLED'}
+                  className={`rounded-md border px-3 py-1.5 text-sm flex items-center gap-2 ${
+                    documentPreview?.status === 'PENDING' || documentPreview?.status === 'CANCELLED'
+                      ? 'border-gray-300 text-gray-400 cursor-not-allowed bg-gray-50'
+                      : 'border-amber-300 text-amber-700 hover:bg-amber-50'
+                  }`}
+                >
+                  <Clock className="h-4 w-4" />
+                  พักไว้
+                </button>
+                <button
+                  type="button"
+                  onClick={handleApprove}
+                  disabled={documentPreview?.status === 'APPROVED' || documentPreview?.status === 'CANCELLED'}
+                  className={`rounded-md border px-3 py-1.5 text-sm flex items-center gap-2 ${
+                    documentPreview?.status === 'APPROVED' || documentPreview?.status === 'CANCELLED'
+                      ? 'border-gray-300 text-gray-400 cursor-not-allowed bg-gray-50'
+                      : 'border-green-300 text-green-700 hover:bg-green-50'
+                  }`}
+                >
+                  <CheckCircle className="h-4 w-4" />
+                  อนุมัติ
+                </button>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={handleCancelDocument}
+                  disabled={documentPreview?.status !== 'DRAFT' && documentPreview?.status !== 'CANCELLED'}
+                  className={`rounded-md border px-3 py-1.5 text-sm flex items-center gap-2 ${
+                    documentPreview?.status !== 'DRAFT' && documentPreview?.status !== 'CANCELLED'
+                      ? 'border-gray-300 text-gray-400 cursor-not-allowed bg-gray-50'
+                      : 'border-gray-400 text-gray-700 hover:bg-gray-100 cursor-pointer'
+                  }`}
+                >
+                  {documentPreview?.status === 'CANCELLED' ? (
+                    <RotateCcw className="h-4 w-4" />
+                  ) : (
+                    <XCircle className="h-4 w-4" />
+                  )}
+                  {documentPreview?.status === 'CANCELLED' ? 'นำเอกสารกลับมาใช้' : 'ยกเลิกเอกสาร'}
+                </button>
+                <button
+                  type="button"
+                  onClick={handleDownloadDocx}
+                  className="rounded-md border border-emerald-300 px-3 py-1.5 text-sm text-emerald-700 hover:bg-emerald-50 flex items-center gap-2 cursor-pointer"
+                >
+                  <FileDown className="h-4 w-4" />
                   DOCX
                 </button>
                 <button
                   type="button"
                   onClick={handlePrintDocument}
-                  className="rounded-md border border-blue-300 px-3 py-1.5 text-sm text-blue-700 hover:bg-blue-50"
+                  className="rounded-md border border-blue-300 px-3 py-1.5 text-sm text-blue-700 hover:bg-blue-50 flex items-center gap-2 cursor-pointer"
                 >
+                  <Printer className="h-4 w-4" />
                   พิมพ์
                 </button>
                 <button
                   type="button"
                   onClick={handleCloseDocumentModal}
-                  className="rounded-md border border-gray-300 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-100"
+                  className="rounded-md border border-gray-300 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2 cursor-pointer"
                 >
+                  <X className="h-4 w-4" />
                   ปิด
                 </button>
               </div>

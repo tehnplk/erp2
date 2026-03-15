@@ -253,6 +253,7 @@ export const createPurchaseApprovalSchema = z.object({
   approved_by: z.string().optional(),
   approved_at: z.string().optional(),
   notes: z.string().optional(),
+  pending_note: z.string().optional(),
   created_by: z.string().optional(),
   updated_by: z.string().optional()
 });

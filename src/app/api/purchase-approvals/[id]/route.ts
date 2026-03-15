@@ -4,6 +4,66 @@ import { cacheDelByPattern } from '@/lib/redis';
 import { validateRequest } from '@/lib/validation/validate';
 import { createPurchaseApprovalSchema, idParamSchema } from '@/lib/validation/schemas';
 
+const getBudgetYearFromDate = (dateValue: string) => {
+  const parsedDate = new Date(`${dateValue}T00:00:00`);
+  if (Number.isNaN(parsedDate.getTime())) {
+    throw new Error('Invalid doc_date');
+  }
+
+  const year = parsedDate.getFullYear();
+  const month = parsedDate.getMonth();
+  return month >= 9 ? year + 544 : year + 543;
+};
+
+export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  try {
+    const { id } = await params;
+    const parsedId = idParamSchema.safeParse({ id });
+    if (!parsedId.success) {
+      return NextResponse.json({ error: 'Invalid ID format' }, { status: 400 });
+    }
+
+    const numericId = parsedId.data.id;
+    const body = await request.json();
+    
+    // For PATCH, we expect to update the status and optionally pending_note
+    const { status, pending_note } = body;
+    
+    if (!status || (status !== 'DRAFT' && status !== 'APPROVED' && status !== 'REJECTED' && status !== 'PENDING' && status !== 'CANCELLED')) {
+      return NextResponse.json({ error: 'Invalid status. Must be DRAFT, APPROVED, REJECTED, PENDING, or CANCELLED' }, { status: 400 });
+    }
+
+    const existingResult = await pgQuery('SELECT id FROM public.purchase_approval WHERE id = $1 LIMIT 1', [numericId]);
+    if (existingResult.rows.length === 0) {
+      return NextResponse.json({ error: 'Purchase approval not found' }, { status: 404 });
+    }
+
+    // Build the update query dynamically based on provided fields
+    const updateFields: string[] = ['status = $1', 'updated_at = CURRENT_TIMESTAMP'];
+    const queryParams: any[] = [status];
+    
+    // Add pending_note if provided (only for PENDING status)
+    if (status === 'PENDING' && pending_note !== undefined) {
+      updateFields.push('pending_note = $2');
+      queryParams.push(pending_note);
+    }
+
+    const updated = await pgQuery(
+      `UPDATE public.purchase_approval 
+       SET ${updateFields.join(', ')}
+       WHERE id = $${queryParams.length + 1}
+       RETURNING id, doc_seq, approve_code, doc_no, doc_date, budget_year, status, total_amount, total_items, prepared_by, approved_by, approved_at, notes, pending_note, created_at, updated_at, version`,
+      [...queryParams, numericId]
+    );
+    
+    await cacheDelByPattern('erp:purchase:approvals:list:*');
+    return NextResponse.json(updated.rows[0]);
+  } catch (error) {
+    console.error('Error updating purchase approval status:', error);
+    return NextResponse.json({ error: 'Failed to update purchase approval status' }, { status: 500 });
+  }
+}
+
 export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
@@ -35,8 +95,13 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
       approved_by: validation.data.approved_by ?? null,
       approved_at: validation.data.approved_by ? (validation.data.approved_at || new Date().toISOString()) : null,
       notes: validation.data.notes ?? null,
+      pending_note: validation.data.pending_note ?? null,
       updated_by: validation.data.updated_by ?? 'SYSTEM'
     };
+
+    if (typeof validation.data.doc_date === 'string' && validation.data.doc_date) {
+      data.budget_year = getBudgetYearFromDate(validation.data.doc_date);
+    }
 
     const columnMap: Record<string, string> = {
       approve_code: 'approve_code',
@@ -49,6 +114,8 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
       approved_by: 'approved_by',
       approved_at: 'approved_at',
       notes: 'notes',
+      pending_note: 'pending_note',
+      budget_year: 'budget_year',
       updated_by: 'updated_by'
     };
 
@@ -63,7 +130,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     });
 
     if (assignments.length === 0) {
-      const unchanged = await pgQuery('SELECT id, doc_seq, approve_code, doc_no, doc_date, status, total_amount, total_items, prepared_by, approved_by, approved_at, notes, created_at, updated_at, version FROM public.purchase_approval WHERE id = $1 LIMIT 1', [numericId]);
+      const unchanged = await pgQuery('SELECT id, doc_seq, approve_code, doc_no, doc_date, budget_year, status, total_amount, total_items, prepared_by, approved_by, approved_at, notes, pending_note, created_at, updated_at, version FROM public.purchase_approval WHERE id = $1 LIMIT 1', [numericId]);
       return NextResponse.json(unchanged.rows[0]);
     }
 
@@ -71,7 +138,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     values.push(numericId);
     const updated = await pgQuery(
       `UPDATE public.purchase_approval SET ${assignments.join(', ')} WHERE id = $${values.length}
-       RETURNING id, doc_seq, approve_code, doc_no, doc_date, status, total_amount, total_items, prepared_by, approved_by, approved_at, notes, created_at, updated_at, version`,
+       RETURNING id, doc_seq, approve_code, doc_no, doc_date, budget_year, status, total_amount, total_items, prepared_by, approved_by, approved_at, notes, pending_note, created_at, updated_at, version`,
       values
     );
     await cacheDelByPattern('erp:purchase:approvals:list:*');

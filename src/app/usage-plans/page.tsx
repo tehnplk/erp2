@@ -3,7 +3,7 @@
 import { Suspense, useState, useEffect, useRef, useMemo } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import Swal from 'sweetalert2';
-import { Upload, Plus, CheckCircle2, AlertCircle, X as XIcon, ChevronUp, ChevronDown, ArrowUpDown, Pencil, Trash2, Search, X, FileText } from 'lucide-react';
+import { Upload, Plus, CheckCircle2, AlertCircle, X as XIcon, ChevronUp, ChevronDown, ArrowUpDown, Pencil, Trash2, Search, X, FileText, ClipboardList } from 'lucide-react';
 
 const PRODUCT_SUGGESTION_LIMIT = 12;
 
@@ -2186,9 +2186,15 @@ function UsagePlansPageContent() {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-xs text-gray-900">
                         {survey.has_purchase_plan ? (
-                          <span title={survey.has_purchase_approval ? 'ทำแผนจัดซื้อและทำเอกสารอนุมัติจัดซื้อแล้ว' : 'ทำแผนจัดซื้อแล้ว'} className="inline-flex items-center text-blue-600">
-                            <FileText className="h-4 w-4" />
-                          </span>
+                          survey.has_purchase_approval ? (
+                            <span title="ทำเอกสารขออนุมัติจัดซื้อแล้ว" className="inline-flex items-center text-green-600">
+                              <CheckCircle2 className="h-4 w-4" />
+                            </span>
+                          ) : (
+                            <span title="ทำแผนจัดซื้อแล้ว" className="inline-flex items-center text-orange-600">
+                              <ClipboardList className="h-4 w-4" />
+                            </span>
+                          )
                         ) : '-'}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-xs text-gray-900">

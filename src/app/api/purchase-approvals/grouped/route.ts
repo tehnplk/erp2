@@ -13,6 +13,7 @@ export async function GET(request: NextRequest) {
     const product_subtype = searchParams.get('product_subtype');
     const department = searchParams.get('department');
     const budget_year = searchParams.get('budget_year');
+    const status = searchParams.get('status');
     const page = parseInt(searchParams.get('page') || '1');
     const page_size = parseInt(searchParams.get('page_size') || '20');
 
@@ -42,7 +43,11 @@ export async function GET(request: NextRequest) {
     }
     if (budget_year) {
       params.push(Number(budget_year));
-      whereClauses.push(`up.budget_year = $${params.length}`);
+      whereClauses.push(`pa.budget_year = $${params.length}`);
+    }
+    if (status) {
+      params.push(status);
+      whereClauses.push(`pa.status = $${params.length}`);
     }
 
     const whereSql = whereClauses.length ? `WHERE ${whereClauses.join(' AND ')}` : '';
@@ -53,6 +58,7 @@ export async function GET(request: NextRequest) {
         pa.approve_code,
         pa.doc_no,
         pa.doc_date,
+        pa.budget_year,
         pa.status,
         pa.total_amount,
         pa.total_items,
@@ -64,14 +70,13 @@ export async function GET(request: NextRequest) {
         pa.updated_at,
         pa.version,
         MAX(up.requesting_dept) as department,
-        MAX(up.budget_year) as budget_year,
         COUNT(pad.id) as item_count
       FROM public.purchase_approval pa
       LEFT JOIN public.purchase_approval_detail pad ON pad.purchase_approval_id = pa.id
       LEFT JOIN public.purchase_plan pp ON pad.purchase_plan_id = pp.id
       LEFT JOIN public.usage_plan up ON pp.usage_plan_id = up.id
       ${whereSql}
-      GROUP BY pa.id, pa.approve_code, pa.doc_no, pa.doc_date, pa.status, pa.total_amount, pa.total_items,
+      GROUP BY pa.id, pa.approve_code, pa.doc_no, pa.doc_date, pa.budget_year, pa.status, pa.total_amount, pa.total_items,
                pa.prepared_by, pa.approved_by, pa.approved_at, pa.notes, pa.created_at, pa.updated_at, pa.version
       ORDER BY MAX(pa.created_at) DESC
     `;

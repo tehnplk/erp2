@@ -15,6 +15,17 @@ const getCurrentDateString = () => {
   return `${year}-${month}-${day}`;
 };
 
+const getBudgetYearFromDate = (dateValue: string) => {
+  const parsedDate = new Date(`${dateValue}T00:00:00`);
+  if (Number.isNaN(parsedDate.getTime())) {
+    throw new Error('Invalid doc_date');
+  }
+
+  const year = parsedDate.getFullYear();
+  const month = parsedDate.getMonth();
+  return month >= 9 ? year + 544 : year + 543;
+};
+
 const purchaseApprovalSelect = `
   SELECT
     pa.id,
@@ -22,6 +33,7 @@ const purchaseApprovalSelect = `
     pa.approve_code,
     pa.doc_no,
     pa.doc_date,
+    pa.budget_year,
     pa.status,
     pa.total_amount,
     pa.total_items,
@@ -90,7 +102,7 @@ export async function GET(request: NextRequest) {
     }
     if (budget_year) {
       params.push(Number(budget_year));
-      whereClauses.push(`up.budget_year = $${params.length}`);
+      whereClauses.push(`pa.budget_year = $${params.length}`);
     }
 
     const allowedOrderFields: Record<string, string> = {
@@ -105,7 +117,7 @@ export async function GET(request: NextRequest) {
       created_at: 'pa.created_at',
       updated_at: 'pa.updated_at',
       department: 'up.requesting_dept',
-      budget_year: 'up.budget_year',
+      budget_year: 'pa.budget_year',
       product_name: 'up.product_name',
       product_code: 'up.product_code',
       category: 'up.category',
@@ -115,7 +127,7 @@ export async function GET(request: NextRequest) {
     const safeOrderField = allowedOrderFields[order_by || 'created_at'] || 'pa.created_at';
     const safeSortOrder = sort_order === 'asc' ? 'ASC' : 'DESC';
     const whereSql = whereClauses.length ? `WHERE ${whereClauses.join(' AND ')}` : '';
-    const groupedSql = `${purchaseApprovalSelect} ${purchaseApprovalFrom} ${whereSql} GROUP BY pa.id, pa.doc_seq, pa.approve_code, pa.doc_no, pa.doc_date, pa.status, pa.total_amount, pa.total_items, pa.prepared_by, pa.approved_by, pa.approved_at, pa.notes, pa.created_at, pa.updated_at, pa.version`;
+    const groupedSql = `${purchaseApprovalSelect} ${purchaseApprovalFrom} ${whereSql} GROUP BY pa.id, pa.doc_seq, pa.approve_code, pa.doc_no, pa.doc_date, pa.budget_year, pa.status, pa.total_amount, pa.total_items, pa.prepared_by, pa.approved_by, pa.approved_at, pa.notes, pa.created_at, pa.updated_at, pa.version`;
 
     const pageParam = searchParams.get('page');
     const pageSizeParam = searchParams.get('page_size');
@@ -187,15 +199,19 @@ export async function POST(request: NextRequest) {
     );
     const docSeq = docSeqResult.rows[0]?.next_doc_seq || 1;
 
+    const docDate = validation.data.doc_date || getCurrentDateString();
+    const budgetYear = getBudgetYearFromDate(docDate);
+
     const item = await pgQuery(
-      `INSERT INTO public.purchase_approval (doc_seq, approve_code, doc_no, doc_date, status, prepared_by, notes, created_by, updated_by)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-       RETURNING id, doc_seq, approve_code, doc_no, doc_date, status, total_amount, total_items, prepared_by, approved_by, approved_at, notes, created_at, updated_at, version`,
+      `INSERT INTO public.purchase_approval (doc_seq, approve_code, doc_no, doc_date, budget_year, status, prepared_by, notes, created_by, updated_by)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+       RETURNING id, doc_seq, approve_code, doc_no, doc_date, budget_year, status, total_amount, total_items, prepared_by, approved_by, approved_at, notes, created_at, updated_at, version`,
       [
         docSeq,
         validation.data.approve_code || null,
         validation.data.doc_no || DEFAULT_DOC_NO,
-        validation.data.doc_date || getCurrentDateString(),
+        docDate,
+        budgetYear,
         validation.data.status || 'DRAFT',
         validation.data.prepared_by || validation.data.created_by || 'SYSTEM',
         validation.data.notes || null,

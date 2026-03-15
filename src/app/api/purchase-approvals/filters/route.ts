@@ -8,7 +8,7 @@ export async function GET() {
     const cached = await cacheGet<any>(cacheKey);
     if (cached) return NextResponse.json(cached);
 
-    const [categoryRowsResult, departmentsResult, preparedByResult, approvedByResult, statusResult] = await Promise.all([
+    const [categoryRowsResult, departmentsResult, budgetYearsResult, preparedByResult, approvedByResult, statusResult] = await Promise.all([
       pgQuery(
         `SELECT category, type, subtype
          FROM public.category
@@ -23,6 +23,12 @@ export async function GET() {
         WHERE up.requesting_dept IS NOT NULL 
         ORDER BY up.requesting_dept ASC
       `),
+      pgQuery(`
+        SELECT DISTINCT pa.budget_year
+        FROM public.purchase_approval pa
+        WHERE pa.budget_year IS NOT NULL
+        ORDER BY pa.budget_year ASC
+      `),
       pgQuery('SELECT DISTINCT prepared_by FROM public.purchase_approval WHERE prepared_by IS NOT NULL ORDER BY prepared_by ASC'),
       pgQuery('SELECT DISTINCT approved_by FROM public.purchase_approval WHERE approved_by IS NOT NULL ORDER BY approved_by ASC'),
       pgQuery(`
@@ -35,6 +41,7 @@ export async function GET() {
 
     const result = {
       departments: departmentsResult.rows.map((item: any) => item.department).filter(Boolean),
+      budget_years: budgetYearsResult.rows.map((item: any) => String(item.budget_year)).filter(Boolean),
       categories: Array.from(new Set(categoryRows.map((item: any) => item.category).filter(Boolean))),
       product_types: Array.from(new Set(categoryRows.map((item: any) => item.type).filter(Boolean))),
       product_subtypes: Array.from(new Set(categoryRows.map((item: any) => item.subtype).filter(Boolean))),

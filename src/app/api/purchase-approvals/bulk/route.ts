@@ -15,6 +15,17 @@ const getCurrentDateString = () => {
   return `${year}-${month}-${day}`;
 };
 
+const getBudgetYearFromDate = (dateValue: string) => {
+  const parsedDate = new Date(`${dateValue}T00:00:00`);
+  if (Number.isNaN(parsedDate.getTime())) {
+    throw new Error('Invalid doc_date');
+  }
+
+  const year = parsedDate.getFullYear();
+  const month = parsedDate.getMonth();
+  return month >= 9 ? year + 544 : year + 543;
+};
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
@@ -81,23 +92,25 @@ export async function POST(request: NextRequest) {
     const docSeq = docSeqResult.rows[0]?.next_doc_seq || 1;
     
     const currentDate = getCurrentDateString();
-    const budgetYear = purchasePlanMetaResult.rows[0]?.budget_year || null;
+    const docDate = header.doc_date || currentDate;
+    const budgetYear = getBudgetYearFromDate(docDate);
     const approveCode = header.approve_code || `${categoryCode}-${budgetYear || '0000'}-${String(docSeq).padStart(4, '0')}`;
     const docNo = header.doc_no || DEFAULT_DOC_NO;
 
     // Create purchase approval header
     const headerResult = await pgQuery(
       `INSERT INTO public.purchase_approval 
-       (id, doc_seq, approve_code, doc_no, doc_date, status, prepared_by, approved_by, approved_at, notes, total_amount, total_items, created_by, updated_by, version)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, 1)
-       RETURNING id, doc_seq, approve_code, doc_no, doc_date, status, total_amount, total_items, 
+       (id, doc_seq, approve_code, doc_no, doc_date, budget_year, status, prepared_by, approved_by, approved_at, notes, total_amount, total_items, created_by, updated_by, version)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, 1)
+       RETURNING id, doc_seq, approve_code, doc_no, doc_date, budget_year, status, total_amount, total_items, 
                 prepared_by, approved_by, approved_at, notes, created_at, updated_at, version`,
       [
         seqId,
         docSeq,
         approveCode,
         docNo,
-        header.doc_date || currentDate,
+        docDate,
+        budgetYear,
         header.status || 'DRAFT',
         header.prepared_by || header.created_by || 'SYSTEM',
         header.approved_by || null,
