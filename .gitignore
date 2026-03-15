@@ -46,3 +46,7 @@ next-env.d.ts
 
 # documentation
 docs/supabase.md
+
+# playwright automation
+.playwright-mcp/
+.playwright-cli/
