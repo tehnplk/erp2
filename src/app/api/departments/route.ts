@@ -15,7 +15,7 @@ export async function GET(request: NextRequest) {
       return queryValidation.error;
     }
 
-    const { name, department_code: departmentCode, page, page_size: pageSize } = queryValidation.data as any;
+    const { name, department_code: departmentCode, include_inactive: includeInactive, page, page_size: pageSize } = queryValidation.data as any;
 
     const whereClauses: string[] = [];
     const params: unknown[] = [];
@@ -29,8 +29,11 @@ export async function GET(request: NextRequest) {
       whereClauses.push(`department_code ILIKE $${params.length}`);
     }
 
+    if (!includeInactive) {
+      whereClauses.unshift('is_active = true');
+    }
     const whereSql = whereClauses.length ? `WHERE ${whereClauses.join(' AND ')}` : '';
-    const baseSelect = 'SELECT id, name, department_code FROM public.department';
+    const baseSelect = 'SELECT id, name, department_code, is_active FROM public.department';
 
     const cacheKeyAll = `erp:departments:list:all:${JSON.stringify(params)}`;
     if (!page || !pageSize) {
@@ -83,10 +86,10 @@ export async function POST(request: NextRequest) {
 
     try {
       const result = await pgQuery(
-        `INSERT INTO public.department (name, department_code)
-         VALUES ($1, $2)
-         RETURNING id, name, department_code`,
-        [validation.data.name.trim(), validation.data.department_code.trim()]
+        `INSERT INTO public.department (name, department_code, is_active)
+         VALUES ($1, $2, $3)
+         RETURNING id, name, department_code, is_active`,
+        [validation.data.name.trim(), validation.data.department_code.trim(), validation.data.is_active ?? true]
       );
 
       await cacheDelByPattern('erp:departments:list:*');

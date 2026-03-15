@@ -7,7 +7,7 @@ export async function findDepartmentCodeByName(name?: string | null) {
   }
 
   const result = await pgQuery<{ department_code: string | null }>(
-    'SELECT department_code FROM public.department WHERE name = $1 LIMIT 1',
+    'SELECT department_code FROM public.department WHERE name = $1 AND is_active = true LIMIT 1',
     [normalizedName]
   );
 

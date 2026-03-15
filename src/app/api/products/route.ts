@@ -5,7 +5,7 @@ import { cacheGet, cacheSet, cacheDelByPattern } from '@/lib/redis';
 import { validateQuery, validateRequest } from '@/lib/validation/validate';
 import { productQuerySchema, createProductSchema } from '@/lib/validation/schemas';
 
-const productSelect = `SELECT id, code, category, name, type, subtype, unit, cost_price::float8 AS cost_price, sell_price::float8 AS sell_price, stock_balance, stock_value::float8 AS stock_value, seller_code, image, flag_activate, admin_note FROM public.product`;
+const productSelect = `SELECT id, code, category, name, type, subtype, unit, cost_price::float8 AS cost_price, sell_price::float8 AS sell_price, stock_balance, stock_value::float8 AS stock_value, seller_code, image, flag_activate, admin_note, is_active FROM public.product`;
 
 export async function GET(request: NextRequest) {
   try {
@@ -16,7 +16,7 @@ export async function GET(request: NextRequest) {
       return queryValidation.error;
     }
 
-    const { code, name, search, category, type, subtype, order_by, sort_order, page = 1, page_size: pageSize = 20 } = queryValidation.data as any;
+    const { code, name, search, category, type, subtype, include_inactive: includeInactive, order_by, sort_order, page = 1, page_size: pageSize = 20 } = queryValidation.data as any;
 
     const whereClauses: string[] = [];
     const params: unknown[] = [];
@@ -47,6 +47,9 @@ export async function GET(request: NextRequest) {
       whereClauses.push(`subtype = $${params.length}`);
     }
 
+    if (!includeInactive) {
+      whereClauses.unshift('is_active = true');
+    }
     const allowedOrderFields: Record<string, string> = {
       id: 'id',
       code: 'code',
@@ -104,9 +107,9 @@ export async function POST(request: NextRequest) {
     }
 
     const result = await pgQuery(
-      `INSERT INTO public.product (code, category, name, type, subtype, unit, cost_price, sell_price, stock_balance, stock_value, seller_code, image, admin_note)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
-       RETURNING id, code, category, name, type, subtype, unit, cost_price::float8 AS cost_price, sell_price::float8 AS sell_price, stock_balance, stock_value::float8 AS stock_value, seller_code, image, flag_activate, admin_note`,
+      `INSERT INTO public.product (code, category, name, type, subtype, unit, cost_price, sell_price, stock_balance, stock_value, seller_code, image, admin_note, is_active)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+       RETURNING id, code, category, name, type, subtype, unit, cost_price::float8 AS cost_price, sell_price::float8 AS sell_price, stock_balance, stock_value::float8 AS stock_value, seller_code, image, flag_activate, admin_note, is_active`,
       [
         validation.data.code,
         validation.data.category,
@@ -121,6 +124,7 @@ export async function POST(request: NextRequest) {
         validation.data.seller_code || null,
         validation.data.image || null,
         validation.data.admin_note || null,
+        validation.data.is_active ?? true,
       ]
     );
 

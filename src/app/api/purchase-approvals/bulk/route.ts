@@ -56,6 +56,7 @@ export async function POST(request: NextRequest) {
        LEFT JOIN (
          SELECT category, MIN(category_code) AS category_code
          FROM public.category
+         WHERE is_active = true
          GROUP BY category
        ) category_map ON category_map.category = up.category
        WHERE pp.id = ANY($1::int[])`,

@@ -7,6 +7,7 @@ const positiveInteger = z.string().transform((val: string) => parseInt(val)).pip
 const numberInput = z.union([z.string(), z.number()]).transform((val) => val === '' ? 0 : Number(val)).pipe(z.number().min(0));
 const nullableIntInput = z.union([z.string(), z.number(), z.null(), z.undefined()]).transform((val) => val === null || val === undefined || val === '' ? null : parseInt(String(val), 10)).pipe(z.number().int().min(0).nullable());
 const nonEmptyString = z.string().min(1, 'This field is required');
+const booleanField = z.coerce.boolean();
 const paginationFields = {
   page: z.coerce.number().int().min(1).optional(),
   page_size: z.coerce.number().int().min(1).max(200).optional()
@@ -26,7 +27,8 @@ export const createProductSchema = z.object({
   stock_value: positiveNumber.optional(),
   seller_code: z.string().optional(),
   image: z.string().optional(),
-  admin_note: z.string().optional()
+  admin_note: z.string().optional(),
+  is_active: booleanField.optional()
 });
 
 export const updateProductSchema = createProductSchema.partial();
@@ -38,6 +40,7 @@ export const productQuerySchema = z.object({
   category: z.string().optional(),
   type: z.string().optional(),
   subtype: z.string().optional(),
+  include_inactive: z.coerce.boolean().optional(),
   order_by: z.enum(['id', 'code', 'name', 'category', 'type', 'subtype', 'cost_price', 'sell_price']).optional(),
   sort_order: z.enum(['asc', 'desc']).optional(),
   ...paginationFields
@@ -157,13 +160,15 @@ export const createSellerSchema = z.object({
   address: z.string().optional(),
   phone: z.string().optional(),
   fax: z.string().optional(),
-  mobile: z.string().optional()
+  mobile: z.string().optional(),
+  is_active: booleanField.optional()
 });
 
 export const updateSellerSchema = createSellerSchema.partial();
 
 export const sellerQuerySchema = z.object({
   name: z.string().optional(),
+  include_inactive: z.coerce.boolean().optional(),
   ...paginationFields
 });
 
@@ -172,7 +177,8 @@ const departmentCodeSchema = z.string().regex(/^\d{4}$/, 'กรุณากร�
 
 export const createDepartmentSchema = z.object({
   name: nonEmptyString,
-  department_code: departmentCodeSchema
+  department_code: departmentCodeSchema,
+  is_active: booleanField.optional()
 });
 
 export const updateDepartmentSchema = createDepartmentSchema;
@@ -180,6 +186,7 @@ export const updateDepartmentSchema = createDepartmentSchema;
 export const departmentQuerySchema = z.object({
   name: z.string().optional(),
   department_code: z.string().optional(),
+  include_inactive: z.coerce.boolean().optional(),
   ...paginationFields
 });
 
@@ -188,7 +195,8 @@ export const createCategorySchema = z.object({
   category_code: nonEmptyString,
   category: nonEmptyString,
   type: nonEmptyString,
-  subtype: nonEmptyString
+  subtype: nonEmptyString,
+  is_active: booleanField.optional()
 });
 
 export const updateCategorySchema = createCategorySchema.partial();
@@ -197,6 +205,7 @@ export const categoryQuerySchema = z.object({
   category: z.string().optional(),
   type: z.string().optional(),
   subtype: z.string().optional(),
+  include_inactive: z.coerce.boolean().optional(),
   ...paginationFields
 });
 

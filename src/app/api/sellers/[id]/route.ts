@@ -21,7 +21,7 @@ export async function GET(
     const { id } = idValidation.data;
 
     const result = await pgQuery(
-      'SELECT id, code, prefix, name, business, address, phone, fax, mobile FROM public.seller WHERE id = $1 LIMIT 1',
+      'SELECT id, code, prefix, name, business, address, phone, fax, mobile, is_active FROM public.seller WHERE id = $1 AND is_active = true LIMIT 1',
       [id]
     );
     const seller = result.rows[0];
@@ -74,6 +74,7 @@ export async function PUT(
       phone: 'phone',
       fax: 'fax',
       mobile: 'mobile',
+      is_active: 'is_active',
     };
     const assignments: string[] = [];
     const values: unknown[] = [];
@@ -86,14 +87,14 @@ export async function PUT(
     });
 
     if (assignments.length === 0) {
-      const unchangedResult = await pgQuery('SELECT id, code, prefix, name, business, address, phone, fax, mobile FROM public.seller WHERE id = $1 LIMIT 1', [id]);
+      const unchangedResult = await pgQuery('SELECT id, code, prefix, name, business, address, phone, fax, mobile, is_active FROM public.seller WHERE id = $1 LIMIT 1', [id]);
       return apiSuccess(unchangedResult.rows[0], 'Seller updated successfully');
     }
 
     values.push(id);
     const updatedResult = await pgQuery(
       `UPDATE public.seller SET ${assignments.join(', ')} WHERE id = $${values.length}
-       RETURNING id, code, prefix, name, business, address, phone, fax, mobile`,
+       RETURNING id, code, prefix, name, business, address, phone, fax, mobile, is_active`,
       values
     );
 

@@ -14,6 +14,7 @@ interface Seller {
   phone?: string;
   fax?: string;
   mobile?: string;
+  is_active?: boolean;
 }
 
 export default function SellersPage() {
@@ -27,7 +28,8 @@ export default function SellersPage() {
     address: '',
     phone: '',
     fax: '',
-    mobile: ''
+    mobile: '',
+    is_active: true
   });
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editData, setEditData] = useState({
@@ -38,7 +40,8 @@ export default function SellersPage() {
     address: '',
     phone: '',
     fax: '',
-    mobile: ''
+    mobile: '',
+    is_active: true
   });
   const [showBulkForm, setShowBulkForm] = useState(false);
   const [bulkRecords, setBulkRecords] = useState<any[]>([]);
@@ -68,7 +71,8 @@ export default function SellersPage() {
     address: '',
     phone: '',
     fax: '',
-    mobile: ''
+    mobile: '',
+    is_active: true
   });
 
   const createEmptyBulkSellerRecord = () => ({
@@ -88,7 +92,7 @@ export default function SellersPage() {
   const fetchSellers = async () => {
     try {
       setLoading(true);
-      const response = await fetch('/api/sellers');
+      const response = await fetch('/api/sellers?include_inactive=true');
       const result = await response.json();
       
       if (result.success) {
@@ -141,7 +145,8 @@ export default function SellersPage() {
           address: formData.address || '',
           phone: formData.phone || '',
           fax: formData.fax || '',
-          mobile: formData.mobile || ''
+          mobile: formData.mobile || '',
+          is_active: formData.is_active
         }),
       });
 
@@ -271,7 +276,8 @@ export default function SellersPage() {
       address: seller.address || '',
       phone: seller.phone || '',
       fax: seller.fax || '',
-      mobile: seller.mobile || ''
+      mobile: seller.mobile || '',
+      is_active: seller.is_active ?? true
     });
   };
 
@@ -286,9 +292,7 @@ export default function SellersPage() {
 
       if (response.ok) {
         setEditingId(null);
-        setEditData({
-          code: '', prefix: '', name: '', business: '', address: '', phone: '', fax: '', mobile: ''
-        });
+        setEditData(createEmptySellerRecord());
         fetchSellers();
 
         setToast({
@@ -329,9 +333,7 @@ export default function SellersPage() {
   // Cancel inline edit
   const cancelInlineEdit = () => {
     setEditingId(null);
-    setEditData({
-      code: '', prefix: '', name: '', business: '', address: '', phone: '', fax: '', mobile: ''
-    });
+    setEditData(createEmptySellerRecord());
   };
 
   // Save bulk sellers
@@ -547,6 +549,7 @@ export default function SellersPage() {
                   <th className="px-6 py-3 text-left text-[10px] font-medium text-gray-500 uppercase tracking-wider">ประเภทธุรกิจ</th>
                   <th className="px-6 py-3 text-left text-[10px] font-medium text-gray-500 uppercase tracking-wider">เบอร์โทร</th>
                   <th className="px-6 py-3 text-left text-[10px] font-medium text-gray-500 uppercase tracking-wider">มือถือ</th>
+                  <th className="px-6 py-3 text-left text-[10px] font-medium text-gray-500 uppercase tracking-wider">เปิดใช้งาน</th>
                   <th className="px-6 py-3 text-left text-[10px] font-medium text-gray-500 uppercase tracking-wider">ACTION</th>
                 </tr>
               </thead>
@@ -614,6 +617,14 @@ export default function SellersPage() {
                         onChange={(e) => setFormData({ ...formData, mobile: e.target.value })}
                         className="w-full px-2 py-1 border border-gray-300 rounded text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
                         placeholder="มือถือ"
+                      />
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-xs text-gray-900">
+                      <input
+                        type="checkbox"
+                        checked={formData.is_active}
+                        onChange={(e) => setFormData({ ...formData, is_active: e.target.checked })}
+                        className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                       />
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-xs font-medium w-32">
@@ -703,6 +714,23 @@ export default function SellersPage() {
                         />
                       ) : (
                         seller.mobile
+                      )}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-xs text-gray-900">
+                      {editingId === seller.id ? (
+                        <input
+                          type="checkbox"
+                          checked={Boolean(editData.is_active)}
+                          onChange={(e) => setEditData({ ...editData, is_active: e.target.checked })}
+                          className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                        />
+                      ) : (
+                        <input
+                          type="checkbox"
+                          checked={Boolean(seller.is_active)}
+                          readOnly
+                          className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                        />
                       )}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-xs font-medium w-32">

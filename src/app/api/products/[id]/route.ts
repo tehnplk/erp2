@@ -5,7 +5,7 @@ import { cacheDelByPattern } from '@/lib/redis';
 import { validateRequest } from '@/lib/validation/validate';
 import { idParamSchema, updateProductSchema } from '@/lib/validation/schemas';
 
-const productSelect = `SELECT id, code, category, name, type, subtype, unit, cost_price::float8 AS cost_price, sell_price::float8 AS sell_price, stock_balance, stock_value::float8 AS stock_value, seller_code, image, flag_activate, admin_note FROM public.product`;
+const productSelect = `SELECT id, code, category, name, type, subtype, unit, cost_price::float8 AS cost_price, sell_price::float8 AS sell_price, stock_balance, stock_value::float8 AS stock_value, seller_code, image, flag_activate, admin_note, is_active FROM public.product`;
 
 export async function GET(
   request: NextRequest,
@@ -19,7 +19,7 @@ export async function GET(
     }
 
     const { id } = idValidation.data;
-    const productResult = await pgQuery(`${productSelect} WHERE id = $1 LIMIT 1`, [id]);
+    const productResult = await pgQuery(`${productSelect} WHERE is_active = true AND id = $1 LIMIT 1`, [id]);
     const product = productResult.rows[0];
 
     if (!product) {
@@ -79,6 +79,7 @@ export async function PUT(
       seller_code: 'seller_code',
       image: 'image',
       admin_note: 'admin_note',
+      is_active: 'is_active',
     };
 
     const assignments: string[] = [];
@@ -92,13 +93,13 @@ export async function PUT(
     });
 
     if (assignments.length === 0) {
-      const unchangedResult = await pgQuery(`${productSelect} WHERE id = $1 LIMIT 1`, [id]);
+      const unchangedResult = await pgQuery(`${productSelect} WHERE is_active = true AND id = $1 LIMIT 1`, [id]);
       return apiSuccess(unchangedResult.rows[0], 'Product updated successfully');
     }
 
     values.push(id);
     const result = await pgQuery(
-      `UPDATE public.product SET ${assignments.join(', ')} WHERE id = $${values.length} RETURNING id, code, category, name, type, subtype, unit, cost_price::float8 AS cost_price, sell_price::float8 AS sell_price, stock_balance, stock_value::float8 AS stock_value, seller_code, image, flag_activate, admin_note`,
+      `UPDATE public.product SET ${assignments.join(', ')} WHERE id = $${values.length} RETURNING id, code, category, name, type, subtype, unit, cost_price::float8 AS cost_price, sell_price::float8 AS sell_price, stock_balance, stock_value::float8 AS stock_value, seller_code, image, flag_activate, admin_note, is_active`,
       values
     );
 

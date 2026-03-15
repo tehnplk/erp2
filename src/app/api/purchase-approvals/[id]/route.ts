@@ -138,7 +138,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     });
 
     if (assignments.length === 0) {
-      const unchanged = await pgQuery('SELECT pa.id, pa.doc_seq, pa.approve_code, pa.doc_no, pa.doc_date, pa.budget_year, ads.status, pa.status AS status_code, pa.total_amount, pa.total_items, pa.prepared_by, pa.approved_by, pa.approved_at, pa.notes, pa.pending_note, pa.created_at, pa.updated_at, pa.version FROM public.purchase_approval pa LEFT JOIN public.approval_doc_status ads ON ads.code = pa.status WHERE pa.id = $1 LIMIT 1', [numericId]);
+      const unchanged = await pgQuery('SELECT pa.id, pa.doc_seq, pa.approve_code, pa.doc_no, pa.doc_date, pa.budget_year, ads.status, pa.status AS status_code, pa.total_amount, pa.total_items, pa.prepared_by, pa.approved_by, pa.approved_at, pa.notes, pa.pending_note, pa.created_at, pa.updated_at, pa.version FROM public.purchase_approval pa LEFT JOIN public.approval_doc_status ads ON ads.code = pa.status AND ads.is_active = true WHERE pa.id = $1 LIMIT 1', [numericId]);
       return NextResponse.json(unchanged.rows[0]);
     }
 

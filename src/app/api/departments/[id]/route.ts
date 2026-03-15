@@ -26,7 +26,7 @@ export async function GET(
       return NextResponse.json(cached);
     }
 
-    const result = await pgQuery('SELECT id, name, department_code FROM public.department WHERE id = $1 LIMIT 1', [numericId]);
+    const result = await pgQuery('SELECT id, name, department_code, is_active FROM public.department WHERE id = $1 AND is_active = true LIMIT 1', [numericId]);
     const department = result.rows[0];
 
     if (!department) {
@@ -69,7 +69,7 @@ export async function PUT(
     if (!validation.success) {
       return validation.error;
     }
-    const { name, department_code: departmentCode } = validation.data;
+    const { name, department_code: departmentCode, is_active: isActive } = validation.data;
 
     const existingResult = await pgQuery('SELECT id FROM public.department WHERE id = $1 LIMIT 1', [numericId]);
 
@@ -82,8 +82,8 @@ export async function PUT(
 
     try {
       const updatedResult = await pgQuery(
-        'UPDATE public.department SET name = $1, department_code = $2 WHERE id = $3 RETURNING id, name, department_code',
-        [name.trim(), departmentCode.trim(), numericId]
+        'UPDATE public.department SET name = $1, department_code = $2, is_active = $3 WHERE id = $4 RETURNING id, name, department_code, is_active',
+        [name.trim(), departmentCode.trim(), isActive ?? true, numericId]
       );
 
       await cacheDelByPattern('erp:departments:list:*');

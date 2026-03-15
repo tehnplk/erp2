@@ -21,6 +21,7 @@ type Product = {
   image?: string | null;
   flag_activate?: boolean;
   admin_note?: string | null;
+  is_active?: boolean;
 };
 
 interface CategoryOption {
@@ -48,6 +49,7 @@ interface ProductFormData {
   seller_code?: string;
   image?: string;
   admin_note?: string;
+  is_active: boolean;
 }
 
 const PAGE_SIZE_OPTIONS = [10, 20, 50];
@@ -83,7 +85,8 @@ function ProductsPageContent() {
     stock_value: undefined,
     seller_code: '',
     image: '',
-    admin_note: ''
+    admin_note: '',
+    is_active: true
   });
   
   // Validation state
@@ -128,7 +131,8 @@ function ProductsPageContent() {
     stock_value: undefined,
     seller_code: '',
     image: '',
-    admin_note: ''
+    admin_note: '',
+    is_active: true
   });
 
   // Bulk add state
@@ -357,6 +361,7 @@ function ProductsPageContent() {
       params.append('page', page.toString());
       params.append('page_size', pageSize.toString());
       
+      params.append('include_inactive', 'true');
       const response = await fetch(`/api/products?${params.toString()}`);
       if (!response.ok) throw new Error('Failed to fetch products');
       const data = await response.json();
@@ -503,7 +508,8 @@ function ProductsPageContent() {
       stock_value: product.stock_value ? Number(product.stock_value) : undefined,
       seller_code: product.seller_code || '',
       image: product.image || '',
-      admin_note: product.admin_note || ''
+      admin_note: product.admin_note || '',
+      is_active: product.is_active ?? true
     });
     setShowForm(true);
   };
@@ -569,7 +575,8 @@ function ProductsPageContent() {
       stock_value: undefined,
       seller_code: '',
       image: '',
-      admin_note: ''
+      admin_note: '',
+      is_active: true
     });
     setErrors({});
     setShowForm(false);
@@ -595,7 +602,8 @@ function ProductsPageContent() {
       stock_value: product.stock_value ? Number(product.stock_value) : undefined,
       seller_code: product.seller_code || '',
       image: product.image || '',
-      admin_note: product.admin_note || ''
+      admin_note: product.admin_note || '',
+      is_active: product.is_active ?? true
     });
   };
 
@@ -612,7 +620,7 @@ function ProductsPageContent() {
         setEditData({
           code: '', category: '', name: '', type: '', subtype: '', unit: '',
           cost_price: undefined, sell_price: undefined, stock_balance: undefined,
-          stock_value: undefined, seller_code: '', image: '', admin_note: ''
+          stock_value: undefined, seller_code: '', image: '', admin_note: '', is_active: true
         });
         fetchProducts();
 
@@ -656,7 +664,7 @@ function ProductsPageContent() {
     setEditData({
       code: '', category: '', name: '', type: '', subtype: '', unit: '',
       cost_price: undefined, sell_price: undefined, stock_balance: undefined,
-      stock_value: undefined, seller_code: '', image: '', admin_note: ''
+      stock_value: undefined, seller_code: '', image: '', admin_note: '', is_active: true
     });
   };
 
@@ -1006,6 +1014,15 @@ function ProductsPageContent() {
                           placeholder="ข้อมูลเพิ่มเติม ข้อสังเกต หรือการดูแล"
                         />
                       </div>
+                      <label className="flex items-center gap-3 rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700">
+                        <input
+                          type="checkbox"
+                          checked={formData.is_active}
+                          onChange={(e) => setFormData((prev) => ({ ...prev, is_active: e.target.checked }))}
+                          className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                        />
+                        <span>เปิดใช้งาน</span>
+                      </label>
                     </div>
                   </div>
                 </div>
@@ -1472,9 +1489,9 @@ function ProductsPageContent() {
                 </td>
                 <td className="px-3 py-4 whitespace-nowrap w-24">
                   <span className={`px-2 inline-flex text-[10px] leading-4 font-semibold rounded-full ${
-                    product.flag_activate ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                    product.is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
                   }`}>
-                    {product.flag_activate ? (
+                    {product.is_active ? (
                       <Check className="h-4 w-4" />
                     ) : (
                       <X className="h-4 w-4" />

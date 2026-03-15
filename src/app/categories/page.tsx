@@ -10,6 +10,7 @@ interface Category {
   category: string;
   type: string;
   subtype: string;
+  is_active?: boolean;
 }
 
 export default function CategoriesPage() {
@@ -20,21 +21,24 @@ export default function CategoriesPage() {
     category_code: '',
     category: '',
     type: '',
-    subtype: ''
+    subtype: '',
+    is_active: true
   });
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editData, setEditData] = useState({
     category_code: '',
     category: '',
     type: '',
-    subtype: ''
+    subtype: '',
+    is_active: true
   });
   const [addingNew, setAddingNew] = useState(false);
   const [newRecordData, setNewRecordData] = useState({
     category_code: '',
     category: '',
     type: '',
-    subtype: ''
+    subtype: '',
+    is_active: true
   });
   const [showBulkForm, setShowBulkForm] = useState(false);
   const [bulkRecords, setBulkRecords] = useState<any[]>([]);
@@ -61,7 +65,8 @@ export default function CategoriesPage() {
     category_code: '',
     category: '',
     type: '',
-    subtype: ''
+    subtype: '',
+    is_active: true
   });
 
   const createEmptyBulkCategoryRecord = () => ({
@@ -72,7 +77,7 @@ export default function CategoriesPage() {
   // Fetch categories
   const fetchCategories = async () => {
     try {
-      const response = await fetch('/api/categories');
+      const response = await fetch('/api/categories?include_inactive=true');
       const result = await response.json();
       if (result.success) {
         setCategories(result.data);
@@ -140,8 +145,8 @@ export default function CategoriesPage() {
   };
 
   // Get unique values for filter dropdowns
-  const getUniqueValues = (field: keyof Category) => {
-    return [...new Set(categories.map(cat => cat[field]))].sort();
+  const getUniqueValues = (field: 'category' | 'type' | 'subtype') => {
+    return [...new Set(categories.map(cat => cat[field]).filter(Boolean))].sort();
   };
 
   const filteredTypeOptions = [...new Set(
@@ -192,7 +197,8 @@ export default function CategoriesPage() {
       category_code: category.category_code,
       category: category.category,
       type: category.type,
-      subtype: category.subtype
+      subtype: category.subtype,
+      is_active: category.is_active ?? true
     });
   };
 
@@ -207,7 +213,7 @@ export default function CategoriesPage() {
 
       if (response.ok) {
         setEditingId(null);
-        setEditData({ category_code: '', category: '', type: '', subtype: '' });
+        setEditData(createEmptyCategoryRecord());
         fetchCategories();
 
         // Show success toast
@@ -278,13 +284,14 @@ export default function CategoriesPage() {
           category_code: newRecordData.category_code.trim(),
           category: newRecordData.category.trim(),
           type: newRecordData.type.trim(),
-          subtype: newRecordData.subtype.trim()
+          subtype: newRecordData.subtype.trim(),
+          is_active: newRecordData.is_active
         })
       });
 
       if (response.ok) {
         setAddingNew(false);
-        setNewRecordData({ category_code: '', category: '', type: '', subtype: '' });
+        setNewRecordData(createEmptyCategoryRecord());
         fetchCategories();
 
         // Show success toast
@@ -414,7 +421,7 @@ export default function CategoriesPage() {
   // Cancel inline edit
   const cancelInlineEdit = () => {
     setEditingId(null);
-    setEditData({ category_code: '', category: '', type: '', subtype: '' });
+    setEditData(createEmptyCategoryRecord());
   };
 
   const cancelNewRecord = () => {
@@ -805,6 +812,9 @@ export default function CategoriesPage() {
                   ประเภทย่อย
                 </th>
                 <th className="px-6 py-3 text-left text-[10px] font-medium text-gray-500 uppercase tracking-wider">
+                  เปิดใช้งาน
+                </th>
+                <th className="px-6 py-3 text-left text-[10px] font-medium text-gray-500 uppercase tracking-wider">
                   ACTION
                 </th>
               </tr>
@@ -847,6 +857,14 @@ export default function CategoriesPage() {
                       onChange={(e) => setNewRecordData({ ...newRecordData, subtype: e.target.value })}
                       className="w-full px-2 py-1 border border-gray-300 rounded text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
                       placeholder="ประเภทย่อย"
+                    />
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-xs text-gray-900">
+                    <input
+                      type="checkbox"
+                      checked={newRecordData.is_active}
+                      onChange={(e) => setNewRecordData({ ...newRecordData, is_active: e.target.checked })}
+                      className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                     />
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-xs font-medium w-32">
@@ -920,6 +938,23 @@ export default function CategoriesPage() {
                       />
                     ) : (
                       cat.subtype
+                    )}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-xs text-gray-900">
+                    {editingId === cat.id ? (
+                      <input
+                        type="checkbox"
+                        checked={Boolean(editData.is_active)}
+                        onChange={(e) => setEditData({ ...editData, is_active: e.target.checked })}
+                        className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                      />
+                    ) : (
+                      <input
+                        type="checkbox"
+                        checked={Boolean(cat.is_active)}
+                        readOnly
+                        className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                      />
                     )}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-xs font-medium w-32">

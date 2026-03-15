@@ -15,7 +15,7 @@ export async function GET(request: NextRequest) {
       return queryValidation.error;
     }
 
-    const { category, type, subtype, page, page_size: pageSize } = queryValidation.data as any;
+    const { category, type, subtype, include_inactive: includeInactive, page, page_size: pageSize } = queryValidation.data as any;
 
     const whereClauses: string[] = [];
     const params: unknown[] = [];
@@ -33,8 +33,11 @@ export async function GET(request: NextRequest) {
       whereClauses.push(`subtype ILIKE $${params.length}`);
     }
 
+    if (!includeInactive) {
+      whereClauses.unshift('is_active = true');
+    }
     const whereSql = whereClauses.length ? `WHERE ${whereClauses.join(' AND ')}` : '';
-    const baseSelect = 'SELECT id, category_code, category, type, subtype FROM public.category';
+    const baseSelect = 'SELECT id, category_code, category, type, subtype, is_active FROM public.category';
     const cacheKeyAll = `erp:categories:list:all:${JSON.stringify(params)}`;
     if (!page || !pageSize) {
       const cachedAll = await cacheGet<any>(cacheKeyAll);
@@ -84,10 +87,10 @@ export async function POST(request: NextRequest) {
     }
 
     const result = await pgQuery(
-      `INSERT INTO public.category (category_code, category, type, subtype)
-       VALUES ($1, $2, $3, $4)
-       RETURNING id, category_code, category, type, subtype`,
-      [validation.data.category_code, validation.data.category, validation.data.type, validation.data.subtype]
+      `INSERT INTO public.category (category_code, category, type, subtype, is_active)
+       VALUES ($1, $2, $3, $4, $5)
+       RETURNING id, category_code, category, type, subtype, is_active`,
+      [validation.data.category_code, validation.data.category, validation.data.type, validation.data.subtype, validation.data.is_active ?? true]
     );
 
     await cacheDelByPattern('erp:categories:list:*');

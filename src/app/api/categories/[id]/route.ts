@@ -28,7 +28,7 @@ export async function GET(
     }
 
     const result = await pgQuery(
-      'SELECT id, category_code, category, type, subtype FROM public.category WHERE id = $1 LIMIT 1',
+      'SELECT id, category_code, category, type, subtype, is_active FROM public.category WHERE id = $1 AND is_active = true LIMIT 1',
       [numericId]
     );
     const category = result.rows[0];
@@ -64,7 +64,7 @@ export async function PUT(
     const { id } = await params;
     const numericId = parseInt(id, 10);
     const body = await request.json();
-    const { category_code, category, type, subtype } = body;
+    const { category_code, category, type, subtype, is_active } = body;
 
     if (isNaN(numericId)) {
       return NextResponse.json(
@@ -90,10 +90,10 @@ export async function PUT(
 
     const updatedResult = await pgQuery(
       `UPDATE public.category
-       SET category_code = $1, category = $2, type = $3, subtype = $4
-       WHERE id = $5
-       RETURNING id, category_code, category, type, subtype`,
-      [category_code, category, type, subtype, numericId]
+       SET category_code = $1, category = $2, type = $3, subtype = $4, is_active = $5
+       WHERE id = $6
+       RETURNING id, category_code, category, type, subtype, is_active`,
+      [category_code, category, type, subtype, is_active ?? true, numericId]
     );
 
     await cacheDelByPattern('erp:categories:list:*');

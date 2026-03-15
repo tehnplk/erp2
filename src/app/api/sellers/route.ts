@@ -15,7 +15,7 @@ export async function GET(request: NextRequest) {
       return queryValidation.error;
     }
 
-    const { name, page, page_size: pageSize } = queryValidation.data as any;
+    const { name, include_inactive: includeInactive, page, page_size: pageSize } = queryValidation.data as any;
 
     const whereClauses: string[] = [];
     const params: unknown[] = [];
@@ -24,8 +24,11 @@ export async function GET(request: NextRequest) {
       whereClauses.push(`name ILIKE $${params.length}`);
     }
 
+    if (!includeInactive) {
+      whereClauses.unshift('is_active = true');
+    }
     const whereSql = whereClauses.length ? `WHERE ${whereClauses.join(' AND ')}` : '';
-    const baseSelect = 'SELECT id, code, prefix, name, business, address, phone, fax, mobile FROM public.seller';
+    const baseSelect = 'SELECT id, code, prefix, name, business, address, phone, fax, mobile, is_active FROM public.seller';
 
     const cacheKeyAll = `erp:sellers:list:all:${JSON.stringify(params)}`;
     if (!page || !pageSize) {
@@ -85,9 +88,9 @@ export async function POST(request: NextRequest) {
     }
 
     const result = await pgQuery(
-      `INSERT INTO public.seller (code, prefix, name, business, address, phone, fax, mobile)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-       RETURNING id, code, prefix, name, business, address, phone, fax, mobile`,
+      `INSERT INTO public.seller (code, prefix, name, business, address, phone, fax, mobile, is_active)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+       RETURNING id, code, prefix, name, business, address, phone, fax, mobile, is_active`,
       [
         validation.data.code,
         validation.data.prefix || null,
@@ -97,6 +100,7 @@ export async function POST(request: NextRequest) {
         validation.data.phone || null,
         validation.data.fax || null,
         validation.data.mobile || null,
+        validation.data.is_active ?? true,
       ]
     );
 

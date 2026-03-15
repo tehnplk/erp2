@@ -39,16 +39,16 @@ const normalizeChartRows = (rows: ChartRow[]) => rows.map((row) => ({
     departmentValueResult,
     purchasePlanDepartmentSpendResult,
   ] = await Promise.all([
-    pgQuery<CountRow>('SELECT COUNT(*)::int AS count FROM public.product'),
+    pgQuery<CountRow>('SELECT COUNT(*)::int AS count FROM public.product WHERE is_active = true'),
     pgQuery<CountRow>('SELECT COUNT(*)::int AS count FROM public.usage_plan'),
     pgQuery<CountRow>('SELECT COUNT(*)::int AS count FROM public.purchase_plan'),
     pgQuery<CountRow>('SELECT COUNT(*)::int AS count FROM public.purchase_approval'),
-    pgQuery<CountRow>('SELECT COUNT(*)::int AS count FROM public.department'),
+    pgQuery<CountRow>('SELECT COUNT(*)::int AS count FROM public.department WHERE is_active = true'),
     pgQuery<SumRow>('SELECT COALESCE(SUM(COALESCE(requested_amount, 0) * COALESCE(price_per_unit, 0)), 0)::float8 AS total FROM public.usage_plan'),
     pgQuery<SumRow>('SELECT COALESCE(SUM(COALESCE(purchase_value, 0)), 0)::float8 AS total FROM public.purchase_plan'),
     pgQuery<SumRow>('SELECT COALESCE(SUM(COALESCE(pa.total_amount, 0)), 0)::float8 AS total FROM public.purchase_approval pa'),
     pgQuery<ChartRow>(
-      'SELECT category AS name, COUNT(*)::int AS value FROM public.product GROUP BY category ORDER BY value DESC, name ASC LIMIT 6'
+      'SELECT category AS name, COUNT(*)::int AS value FROM public.product WHERE is_active = true GROUP BY category ORDER BY value DESC, name ASC LIMIT 6'
     ),
     pgQuery<ChartRow>(
       'SELECT requesting_dept AS name, COUNT(*)::int AS value FROM public.usage_plan GROUP BY requesting_dept ORDER BY value DESC, name ASC LIMIT 6'

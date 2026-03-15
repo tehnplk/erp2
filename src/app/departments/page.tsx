@@ -8,6 +8,7 @@ interface Department {
   id: number;
   name: string;
   department_code: string;
+  is_active?: boolean;
 }
 
 export default function DepartmentsPage() {
@@ -17,12 +18,14 @@ export default function DepartmentsPage() {
   const [showForm, setShowForm] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
-    department_code: ''
+    department_code: '',
+    is_active: true
   });
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editData, setEditData] = useState({
     name: '',
-    department_code: ''
+    department_code: '',
+    is_active: true
   });
   const [showBulkForm, setShowBulkForm] = useState(false);
   const [bulkRecords, setBulkRecords] = useState<any[]>([]);
@@ -45,7 +48,8 @@ export default function DepartmentsPage() {
 
   const createEmptyDepartmentRecord = () => ({
     name: '',
-    department_code: ''
+    department_code: '',
+    is_active: true
   });
 
   const createEmptyBulkDepartmentRecord = () => ({
@@ -55,7 +59,7 @@ export default function DepartmentsPage() {
 
   const fetchDepartments = async () => {
     try {
-      const response = await fetch('/api/departments');
+      const response = await fetch('/api/departments?include_inactive=true');
       if (response.ok) {
         const json = await response.json();
         const items: Department[] = Array.isArray(json)
@@ -112,7 +116,8 @@ export default function DepartmentsPage() {
         },
         body: JSON.stringify({
           name: formData.name.trim(),
-          department_code: formData.department_code.trim()
+          department_code: formData.department_code.trim(),
+          is_active: formData.is_active
         }),
       });
 
@@ -224,7 +229,8 @@ export default function DepartmentsPage() {
     setEditingId(department.id);
     setEditData({
       name: department.name,
-      department_code: department.department_code
+      department_code: department.department_code,
+      is_active: department.is_active ?? true
     });
   };
 
@@ -262,13 +268,14 @@ export default function DepartmentsPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           name: editData.name.trim(),
-          department_code: editData.department_code.trim()
+          department_code: editData.department_code.trim(),
+          is_active: editData.is_active
         })
       });
 
       if (response.ok) {
         setEditingId(null);
-        setEditData({ name: '', department_code: '' });
+        setEditData(createEmptyDepartmentRecord());
         fetchDepartments();
 
         setToast({
@@ -310,7 +317,7 @@ export default function DepartmentsPage() {
   // Cancel inline edit
   const cancelInlineEdit = () => {
     setEditingId(null);
-    setEditData({ name: '', department_code: '' });
+    setEditData(createEmptyDepartmentRecord());
   };
 
   // Save bulk departments
@@ -389,7 +396,7 @@ export default function DepartmentsPage() {
   // Cancel form
   const cancelForm = () => {
     setShowForm(false);
-    setFormData({ name: '', department_code: '' });
+    setFormData(createEmptyDepartmentRecord());
   };
 
   // Initialize data on component mount
@@ -669,6 +676,9 @@ export default function DepartmentsPage() {
                   ชื่อแผนก
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  เปิดใช้งาน
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   ACTION
                 </th>
               </tr>
@@ -694,6 +704,14 @@ export default function DepartmentsPage() {
                       onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                       className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
                       placeholder="ชื่อแผนก"
+                    />
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    <input
+                      type="checkbox"
+                      checked={formData.is_active}
+                      onChange={(e) => setFormData({ ...formData, is_active: e.target.checked })}
+                      className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                     />
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium w-32">
@@ -744,6 +762,23 @@ export default function DepartmentsPage() {
                       />
                     ) : (
                       dept.name
+                    )}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    {editingId === dept.id ? (
+                      <input
+                        type="checkbox"
+                        checked={Boolean(editData.is_active)}
+                        onChange={(e) => setEditData({ ...editData, is_active: e.target.checked })}
+                        className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                      />
+                    ) : (
+                      <input
+                        type="checkbox"
+                        checked={Boolean(dept.is_active)}
+                        readOnly
+                        className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                      />
                     )}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium w-32">

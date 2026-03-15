@@ -14,9 +14,10 @@ export async function GET(request: NextRequest) {
       pgQuery(
         `SELECT category, type, subtype
          FROM public.category
+         WHERE is_active = true
          ORDER BY category ASC, type ASC, subtype ASC`
       ),
-      pgQuery('SELECT name FROM public.department WHERE name IS NOT NULL ORDER BY name ASC'),
+      pgQuery('SELECT name FROM public.department WHERE is_active = true AND name IS NOT NULL ORDER BY name ASC'),
       pgQuery('SELECT DISTINCT budget_year FROM public.usage_plan WHERE budget_year IS NOT NULL ORDER BY budget_year DESC')
     ]);
 

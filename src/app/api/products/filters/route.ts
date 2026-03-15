@@ -12,17 +12,20 @@ export async function GET() {
       pgQuery(
         `SELECT category, type, subtype
          FROM public.category
+         WHERE is_active = true
          ORDER BY category ASC, type ASC, subtype ASC`
       ),
       pgQuery(
         `SELECT DISTINCT unit
          FROM public.product
-         WHERE unit IS NOT NULL
+         WHERE is_active = true
+           AND unit IS NOT NULL
          ORDER BY unit ASC`
       ),
       pgQuery(
         `SELECT code, name
          FROM public.seller
+         WHERE is_active = true
          ORDER BY code ASC`
       ),
     ]);

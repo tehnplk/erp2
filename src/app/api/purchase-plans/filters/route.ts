@@ -14,6 +14,7 @@ export async function GET() {
       pgQuery(
         `SELECT category, type, subtype
          FROM public.category
+         WHERE is_active = true
          ORDER BY category ASC, type ASC, subtype ASC`,
       ),
       pgQuery(

@@ -51,7 +51,7 @@ const purchaseApprovalSelect = `
 
 const purchaseApprovalFrom = `
   FROM public.purchase_approval pa
-  LEFT JOIN public.approval_doc_status ads ON ads.code = pa.status
+  LEFT JOIN public.approval_doc_status ads ON ads.code = pa.status AND ads.is_active = true
   LEFT JOIN public.purchase_approval_detail pad ON pad.purchase_approval_id = pa.id
   LEFT JOIN public.purchase_plan pp ON pp.id = pad.purchase_plan_id
   LEFT JOIN public.usage_plan up ON up.id = pp.usage_plan_id

@@ -17,6 +17,7 @@ const get_approval_doc_status_items = async (): Promise<approval_doc_status_row[
   const result = await pgQuery<approval_doc_status_row>(
     `SELECT code, status
      FROM public.approval_doc_status
+     WHERE is_active = true
      ORDER BY code ASC`
   );
 
