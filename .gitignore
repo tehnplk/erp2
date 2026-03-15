@@ -50,3 +50,8 @@ docs/supabase.md
 # playwright automation
 .playwright-mcp/
 .playwright-cli/
+
+# backup and sql files
+*.bak
+*.back
+*.sql
