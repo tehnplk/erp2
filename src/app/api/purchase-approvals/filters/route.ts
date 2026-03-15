@@ -32,8 +32,9 @@ export async function GET() {
       pgQuery('SELECT DISTINCT prepared_by FROM public.purchase_approval WHERE prepared_by IS NOT NULL ORDER BY prepared_by ASC'),
       pgQuery('SELECT DISTINCT approved_by FROM public.purchase_approval WHERE approved_by IS NOT NULL ORDER BY approved_by ASC'),
       pgQuery(`
-        SELECT DISTINCT unnest(ARRAY['DRAFT', 'PENDING', 'APPROVED', 'REJECTED', 'CANCELLED']) as status
-        ORDER BY status ASC
+        SELECT status
+        FROM public.approval_doc_status
+        ORDER BY code ASC
       `),
     ]);
 

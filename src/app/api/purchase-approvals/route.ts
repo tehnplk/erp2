@@ -4,6 +4,7 @@ import { apiSuccess, apiError } from '@/lib/api-response';
 import { cacheGet, cacheSet, cacheDelByPattern } from '@/lib/redis';
 import { validateQuery, validateRequest } from '@/lib/validation/validate';
 import { purchaseApprovalQuerySchema, createPurchaseApprovalSchema } from '@/lib/validation/schemas';
+import { get_approval_doc_status_code, get_approval_doc_status_value } from '@/lib/approval-doc-status';
 
 const DEFAULT_DOC_NO = 'พล. 0733.301/พิเศษ';
 
@@ -34,7 +35,8 @@ const purchaseApprovalSelect = `
     pa.doc_no,
     pa.doc_date,
     pa.budget_year,
-    pa.status,
+    ads.status,
+    pa.status AS status_code,
     pa.total_amount,
     pa.total_items,
     pa.prepared_by,
@@ -49,6 +51,7 @@ const purchaseApprovalSelect = `
 
 const purchaseApprovalFrom = `
   FROM public.purchase_approval pa
+  LEFT JOIN public.approval_doc_status ads ON ads.code = pa.status
   LEFT JOIN public.purchase_approval_detail pad ON pad.purchase_approval_id = pa.id
   LEFT JOIN public.purchase_plan pp ON pp.id = pad.purchase_plan_id
   LEFT JOIN public.usage_plan up ON up.id = pp.usage_plan_id
@@ -104,6 +107,13 @@ export async function GET(request: NextRequest) {
       params.push(Number(budget_year));
       whereClauses.push(`pa.budget_year = $${params.length}`);
     }
+    if (queryValidation.data.status) {
+      const statusCode = get_approval_doc_status_code(queryValidation.data.status);
+      if (statusCode) {
+        params.push(statusCode);
+        whereClauses.push(`pa.status = $${params.length}`);
+      }
+    }
 
     const allowedOrderFields: Record<string, string> = {
       id: 'pa.id',
@@ -111,7 +121,7 @@ export async function GET(request: NextRequest) {
       approve_code: 'pa.approve_code',
       doc_no: 'pa.doc_no',
       doc_date: 'pa.doc_date',
-      status: 'pa.status',
+      status: 'ads.status',
       total_amount: 'pa.total_amount',
       total_items: 'pa.total_items',
       created_at: 'pa.created_at',
@@ -127,7 +137,7 @@ export async function GET(request: NextRequest) {
     const safeOrderField = allowedOrderFields[order_by || 'created_at'] || 'pa.created_at';
     const safeSortOrder = sort_order === 'asc' ? 'ASC' : 'DESC';
     const whereSql = whereClauses.length ? `WHERE ${whereClauses.join(' AND ')}` : '';
-    const groupedSql = `${purchaseApprovalSelect} ${purchaseApprovalFrom} ${whereSql} GROUP BY pa.id, pa.doc_seq, pa.approve_code, pa.doc_no, pa.doc_date, pa.budget_year, pa.status, pa.total_amount, pa.total_items, pa.prepared_by, pa.approved_by, pa.approved_at, pa.notes, pa.created_at, pa.updated_at, pa.version`;
+    const groupedSql = `${purchaseApprovalSelect} ${purchaseApprovalFrom} ${whereSql} GROUP BY pa.id, pa.doc_seq, pa.approve_code, pa.doc_no, pa.doc_date, pa.budget_year, ads.status, pa.status, pa.total_amount, pa.total_items, pa.prepared_by, pa.approved_by, pa.approved_at, pa.notes, pa.created_at, pa.updated_at, pa.version`;
 
     const pageParam = searchParams.get('page');
     const pageSizeParam = searchParams.get('page_size');
@@ -205,20 +215,21 @@ export async function POST(request: NextRequest) {
     const item = await pgQuery(
       `INSERT INTO public.purchase_approval (doc_seq, approve_code, doc_no, doc_date, budget_year, status, prepared_by, notes, created_by, updated_by)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-       RETURNING id, doc_seq, approve_code, doc_no, doc_date, budget_year, status, total_amount, total_items, prepared_by, approved_by, approved_at, notes, created_at, updated_at, version`,
+       RETURNING id, doc_seq, approve_code, doc_no, doc_date, budget_year, status AS status_code, total_amount, total_items, prepared_by, approved_by, approved_at, notes, created_at, updated_at, version`,
       [
         docSeq,
         validation.data.approve_code || null,
         validation.data.doc_no || DEFAULT_DOC_NO,
         docDate,
         budgetYear,
-        validation.data.status || 'DRAFT',
+        get_approval_doc_status_code(validation.data.status) || '001',
         validation.data.prepared_by || validation.data.created_by || 'SYSTEM',
         validation.data.notes || null,
         validation.data.created_by || 'SYSTEM',
         validation.data.updated_by || validation.data.created_by || 'SYSTEM',
       ]
     );
+    item.rows[0].status = get_approval_doc_status_value(item.rows[0].status_code);
     
     await cacheDelByPattern('erp:purchase:approvals:list:*');
     

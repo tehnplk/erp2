@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server';
 import { pgQuery } from '@/lib/pg';
 import { apiSuccess, apiError } from '@/lib/api-response';
+import { get_approval_doc_status_code } from '@/lib/approval-doc-status';
 
 export async function GET(request: NextRequest) {
   try {
@@ -46,7 +47,7 @@ export async function GET(request: NextRequest) {
       whereClauses.push(`pa.budget_year = $${params.length}`);
     }
     if (status) {
-      params.push(status);
+      params.push(get_approval_doc_status_code(status) || status);
       whereClauses.push(`pa.status = $${params.length}`);
     }
 
@@ -59,7 +60,8 @@ export async function GET(request: NextRequest) {
         pa.doc_no,
         pa.doc_date,
         pa.budget_year,
-        pa.status,
+        ads.status,
+        pa.status AS status_code,
         pa.total_amount,
         pa.total_items,
         pa.prepared_by,
@@ -72,11 +74,12 @@ export async function GET(request: NextRequest) {
         MAX(up.requesting_dept) as department,
         COUNT(pad.id) as item_count
       FROM public.purchase_approval pa
+      LEFT JOIN public.approval_doc_status ads ON ads.code = pa.status
       LEFT JOIN public.purchase_approval_detail pad ON pad.purchase_approval_id = pa.id
       LEFT JOIN public.purchase_plan pp ON pad.purchase_plan_id = pp.id
       LEFT JOIN public.usage_plan up ON pp.usage_plan_id = up.id
       ${whereSql}
-      GROUP BY pa.id, pa.approve_code, pa.doc_no, pa.doc_date, pa.budget_year, pa.status, pa.total_amount, pa.total_items,
+      GROUP BY pa.id, pa.approve_code, pa.doc_no, pa.doc_date, pa.budget_year, ads.status, pa.status, pa.total_amount, pa.total_items,
                pa.prepared_by, pa.approved_by, pa.approved_at, pa.notes, pa.created_at, pa.updated_at, pa.version
       ORDER BY MAX(pa.created_at) DESC
     `;

@@ -4,6 +4,7 @@ import { apiSuccess, apiError } from '@/lib/api-response';
 import { cacheDelByPattern } from '@/lib/redis';
 import { validateRequest } from '@/lib/validation/validate';
 import { createPurchaseApprovalWithDetailsSchema } from '@/lib/validation/schemas';
+import { get_approval_doc_status_code, get_approval_doc_status_value } from '@/lib/approval-doc-status';
 
 const DEFAULT_DOC_NO = 'พล. 0733.301/พิเศษ';
 
@@ -102,7 +103,7 @@ export async function POST(request: NextRequest) {
       `INSERT INTO public.purchase_approval 
        (id, doc_seq, approve_code, doc_no, doc_date, budget_year, status, prepared_by, approved_by, approved_at, notes, total_amount, total_items, created_by, updated_by, version)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, 1)
-       RETURNING id, doc_seq, approve_code, doc_no, doc_date, budget_year, status, total_amount, total_items, 
+       RETURNING id, doc_seq, approve_code, doc_no, doc_date, budget_year, status AS status_code, total_amount, total_items, 
                 prepared_by, approved_by, approved_at, notes, created_at, updated_at, version`,
       [
         seqId,
@@ -111,7 +112,7 @@ export async function POST(request: NextRequest) {
         docNo,
         docDate,
         budgetYear,
-        header.status || 'DRAFT',
+        get_approval_doc_status_code(header.status) || '001',
         header.prepared_by || header.created_by || 'SYSTEM',
         header.approved_by || null,
         header.approved_at || null,
@@ -122,6 +123,7 @@ export async function POST(request: NextRequest) {
         header.updated_by || header.created_by || 'SYSTEM'
       ]
     );
+    headerResult.rows[0].status = get_approval_doc_status_value(headerResult.rows[0].status_code);
 
     const purchaseApprovalId = headerResult.rows[0].id;
     const createdItems = [headerResult.rows[0]];

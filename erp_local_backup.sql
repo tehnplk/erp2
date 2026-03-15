@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict EiN3xa8chRtyaEvjqS9bfMUIyLIufgeZTGjGodZXEspClbHYNewF1Lgu4pew39N
+\restrict I1HZ2pG5zIu4xoCtZQe6FbJpRtBUCrPs5dyJ9oXd3ok3HpGd90aesI8PIYV7rnd
 
 -- Dumped from database version 17.6
 -- Dumped by pg_dump version 17.6
@@ -19,444 +19,6 @@ SET xmloption = content;
 SET client_min_messages = warning;
 SET row_security = off;
 
-DROP EVENT TRIGGER IF EXISTS pgrst_drop_watch;
-DROP EVENT TRIGGER IF EXISTS pgrst_ddl_watch;
-DROP EVENT TRIGGER IF EXISTS issue_pg_net_access;
-DROP EVENT TRIGGER IF EXISTS issue_pg_graphql_access;
-DROP EVENT TRIGGER IF EXISTS issue_pg_cron_access;
-DROP EVENT TRIGGER IF EXISTS issue_graphql_placeholder;
-DROP PUBLICATION IF EXISTS supabase_realtime;
-ALTER TABLE IF EXISTS ONLY storage.vector_indexes DROP CONSTRAINT IF EXISTS vector_indexes_bucket_id_fkey;
-ALTER TABLE IF EXISTS ONLY storage.s3_multipart_uploads_parts DROP CONSTRAINT IF EXISTS s3_multipart_uploads_parts_upload_id_fkey;
-ALTER TABLE IF EXISTS ONLY storage.s3_multipart_uploads_parts DROP CONSTRAINT IF EXISTS s3_multipart_uploads_parts_bucket_id_fkey;
-ALTER TABLE IF EXISTS ONLY storage.s3_multipart_uploads DROP CONSTRAINT IF EXISTS s3_multipart_uploads_bucket_id_fkey;
-ALTER TABLE IF EXISTS ONLY storage.objects DROP CONSTRAINT IF EXISTS "objects_bucketId_fkey";
-ALTER TABLE IF EXISTS ONLY storage.iceberg_tables DROP CONSTRAINT IF EXISTS iceberg_tables_namespace_id_fkey;
-ALTER TABLE IF EXISTS ONLY storage.iceberg_tables DROP CONSTRAINT IF EXISTS iceberg_tables_catalog_id_fkey;
-ALTER TABLE IF EXISTS ONLY storage.iceberg_namespaces DROP CONSTRAINT IF EXISTS iceberg_namespaces_catalog_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.purchase_plan DROP CONSTRAINT IF EXISTS purchase_plan_usage_plan_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.purchase_approval_inventory_link DROP CONSTRAINT IF EXISTS purchase_approval_inventory_link_purchase_approval_detail_id_fk;
-ALTER TABLE IF EXISTS ONLY public.purchase_approval_inventory_link DROP CONSTRAINT IF EXISTS purchase_approval_inventory_link_last_receipt_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.purchase_approval_detail DROP CONSTRAINT IF EXISTS purchase_approval_detail_purchase_plan_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.purchase_approval_detail DROP CONSTRAINT IF EXISTS purchase_approval_detail_purchase_approval_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.inventory_requisition_item DROP CONSTRAINT IF EXISTS "InventoryRequisitionItem_requisitionId_fkey";
-ALTER TABLE IF EXISTS ONLY public.inventory_requisition_item DROP CONSTRAINT IF EXISTS "InventoryRequisitionItem_inventoryItemId_fkey";
-ALTER TABLE IF EXISTS ONLY public.inventory_receipt_item DROP CONSTRAINT IF EXISTS "InventoryReceiptItem_receiptId_fkey";
-ALTER TABLE IF EXISTS ONLY public.inventory_receipt_item DROP CONSTRAINT IF EXISTS "InventoryReceiptItem_inventoryItemId_fkey";
-ALTER TABLE IF EXISTS ONLY public.inventory_period_balance DROP CONSTRAINT IF EXISTS "InventoryPeriodBalance_periodId_fkey";
-ALTER TABLE IF EXISTS ONLY public.inventory_period_balance DROP CONSTRAINT IF EXISTS "InventoryPeriodBalance_inventoryItemId_fkey";
-ALTER TABLE IF EXISTS ONLY public.inventory_movement DROP CONSTRAINT IF EXISTS "InventoryMovement_inventoryItemId_fkey";
-ALTER TABLE IF EXISTS ONLY public.inventory_location DROP CONSTRAINT IF EXISTS "InventoryLocation_warehouseId_fkey";
-ALTER TABLE IF EXISTS ONLY public.inventory_item DROP CONSTRAINT IF EXISTS "InventoryItem_warehouseId_fkey";
-ALTER TABLE IF EXISTS ONLY public.inventory_item DROP CONSTRAINT IF EXISTS "InventoryItem_locationId_fkey";
-ALTER TABLE IF EXISTS ONLY public.inventory_issue DROP CONSTRAINT IF EXISTS "InventoryIssue_requisitionId_fkey";
-ALTER TABLE IF EXISTS ONLY public.inventory_issue_item DROP CONSTRAINT IF EXISTS "InventoryIssueItem_requisitionItemId_fkey";
-ALTER TABLE IF EXISTS ONLY public.inventory_issue_item DROP CONSTRAINT IF EXISTS "InventoryIssueItem_issueId_fkey";
-ALTER TABLE IF EXISTS ONLY public.inventory_issue_item DROP CONSTRAINT IF EXISTS "InventoryIssueItem_inventoryItemId_fkey";
-ALTER TABLE IF EXISTS ONLY public.inventory_balance DROP CONSTRAINT IF EXISTS "InventoryBalance_inventoryItemId_fkey";
-ALTER TABLE IF EXISTS ONLY public.inventory_adjustment_item DROP CONSTRAINT IF EXISTS "InventoryAdjustmentItem_inventoryItemId_fkey";
-ALTER TABLE IF EXISTS ONLY public.inventory_adjustment_item DROP CONSTRAINT IF EXISTS "InventoryAdjustmentItem_adjustmentId_fkey";
-ALTER TABLE IF EXISTS ONLY auth.sso_domains DROP CONSTRAINT IF EXISTS sso_domains_sso_provider_id_fkey;
-ALTER TABLE IF EXISTS ONLY auth.sessions DROP CONSTRAINT IF EXISTS sessions_user_id_fkey;
-ALTER TABLE IF EXISTS ONLY auth.sessions DROP CONSTRAINT IF EXISTS sessions_oauth_client_id_fkey;
-ALTER TABLE IF EXISTS ONLY auth.saml_relay_states DROP CONSTRAINT IF EXISTS saml_relay_states_sso_provider_id_fkey;
-ALTER TABLE IF EXISTS ONLY auth.saml_relay_states DROP CONSTRAINT IF EXISTS saml_relay_states_flow_state_id_fkey;
-ALTER TABLE IF EXISTS ONLY auth.saml_providers DROP CONSTRAINT IF EXISTS saml_providers_sso_provider_id_fkey;
-ALTER TABLE IF EXISTS ONLY auth.refresh_tokens DROP CONSTRAINT IF EXISTS refresh_tokens_session_id_fkey;
-ALTER TABLE IF EXISTS ONLY auth.one_time_tokens DROP CONSTRAINT IF EXISTS one_time_tokens_user_id_fkey;
-ALTER TABLE IF EXISTS ONLY auth.oauth_consents DROP CONSTRAINT IF EXISTS oauth_consents_user_id_fkey;
-ALTER TABLE IF EXISTS ONLY auth.oauth_consents DROP CONSTRAINT IF EXISTS oauth_consents_client_id_fkey;
-ALTER TABLE IF EXISTS ONLY auth.oauth_authorizations DROP CONSTRAINT IF EXISTS oauth_authorizations_user_id_fkey;
-ALTER TABLE IF EXISTS ONLY auth.oauth_authorizations DROP CONSTRAINT IF EXISTS oauth_authorizations_client_id_fkey;
-ALTER TABLE IF EXISTS ONLY auth.mfa_factors DROP CONSTRAINT IF EXISTS mfa_factors_user_id_fkey;
-ALTER TABLE IF EXISTS ONLY auth.mfa_challenges DROP CONSTRAINT IF EXISTS mfa_challenges_auth_factor_id_fkey;
-ALTER TABLE IF EXISTS ONLY auth.mfa_amr_claims DROP CONSTRAINT IF EXISTS mfa_amr_claims_session_id_fkey;
-ALTER TABLE IF EXISTS ONLY auth.identities DROP CONSTRAINT IF EXISTS identities_user_id_fkey;
-ALTER TABLE IF EXISTS ONLY _realtime.extensions DROP CONSTRAINT IF EXISTS extensions_tenant_external_id_fkey;
-DROP TRIGGER IF EXISTS update_objects_updated_at ON storage.objects;
-DROP TRIGGER IF EXISTS protect_objects_delete ON storage.objects;
-DROP TRIGGER IF EXISTS protect_buckets_delete ON storage.buckets;
-DROP TRIGGER IF EXISTS enforce_bucket_name_length_trigger ON storage.buckets;
-DROP TRIGGER IF EXISTS tr_check_filters ON realtime.subscription;
-DROP TRIGGER IF EXISTS purchase_approval_updated_at ON public.purchase_approval;
-DROP TRIGGER IF EXISTS purchase_approval_detail_updated_at ON public.purchase_approval_detail;
-DROP INDEX IF EXISTS supabase_functions.supabase_functions_hooks_request_id_idx;
-DROP INDEX IF EXISTS supabase_functions.supabase_functions_hooks_h_table_id_h_name_idx;
-DROP INDEX IF EXISTS storage.vector_indexes_name_bucket_id_idx;
-DROP INDEX IF EXISTS storage.name_prefix_search;
-DROP INDEX IF EXISTS storage.idx_objects_bucket_id_name_lower;
-DROP INDEX IF EXISTS storage.idx_objects_bucket_id_name;
-DROP INDEX IF EXISTS storage.idx_multipart_uploads_list;
-DROP INDEX IF EXISTS storage.idx_iceberg_tables_namespace_id;
-DROP INDEX IF EXISTS storage.idx_iceberg_tables_location;
-DROP INDEX IF EXISTS storage.idx_iceberg_namespaces_bucket_id;
-DROP INDEX IF EXISTS storage.buckets_analytics_unique_name_idx;
-DROP INDEX IF EXISTS storage.bucketid_objname;
-DROP INDEX IF EXISTS storage.bname;
-DROP INDEX IF EXISTS realtime.subscription_subscription_id_entity_filters_action_filter_key;
-DROP INDEX IF EXISTS realtime.messages_inserted_at_topic_index;
-DROP INDEX IF EXISTS realtime.ix_realtime_subscription_entity;
-DROP INDEX IF EXISTS public.inventory_movement_item_date_idx;
-DROP INDEX IF EXISTS public.inventory_item_unique_product_wh_location_lot;
-DROP INDEX IF EXISTS public.idx_purchase_approval_status;
-DROP INDEX IF EXISTS public.idx_purchase_approval_inventory_link_detail_unique;
-DROP INDEX IF EXISTS public.idx_purchase_approval_inventory_link_detail_id;
-DROP INDEX IF EXISTS public.idx_purchase_approval_doc_no;
-DROP INDEX IF EXISTS public.idx_purchase_approval_doc_date;
-DROP INDEX IF EXISTS public.idx_purchase_approval_detail_status;
-DROP INDEX IF EXISTS public.idx_purchase_approval_detail_purchase_plan_id;
-DROP INDEX IF EXISTS public.idx_purchase_approval_detail_purchase_approval_id;
-DROP INDEX IF EXISTS public.idx_purchase_approval_approve_code;
-DROP INDEX IF EXISTS public."Survey_budget_dept_product_sequence_uidx";
-DROP INDEX IF EXISTS public."Seller_code_key";
-DROP INDEX IF EXISTS public."Product_code_key";
-DROP INDEX IF EXISTS auth.users_is_anonymous_idx;
-DROP INDEX IF EXISTS auth.users_instance_id_idx;
-DROP INDEX IF EXISTS auth.users_instance_id_email_idx;
-DROP INDEX IF EXISTS auth.users_email_partial_key;
-DROP INDEX IF EXISTS auth.user_id_created_at_idx;
-DROP INDEX IF EXISTS auth.unique_phone_factor_per_user;
-DROP INDEX IF EXISTS auth.sso_providers_resource_id_pattern_idx;
-DROP INDEX IF EXISTS auth.sso_providers_resource_id_idx;
-DROP INDEX IF EXISTS auth.sso_domains_sso_provider_id_idx;
-DROP INDEX IF EXISTS auth.sso_domains_domain_idx;
-DROP INDEX IF EXISTS auth.sessions_user_id_idx;
-DROP INDEX IF EXISTS auth.sessions_oauth_client_id_idx;
-DROP INDEX IF EXISTS auth.sessions_not_after_idx;
-DROP INDEX IF EXISTS auth.saml_relay_states_sso_provider_id_idx;
-DROP INDEX IF EXISTS auth.saml_relay_states_for_email_idx;
-DROP INDEX IF EXISTS auth.saml_relay_states_created_at_idx;
-DROP INDEX IF EXISTS auth.saml_providers_sso_provider_id_idx;
-DROP INDEX IF EXISTS auth.refresh_tokens_updated_at_idx;
-DROP INDEX IF EXISTS auth.refresh_tokens_session_id_revoked_idx;
-DROP INDEX IF EXISTS auth.refresh_tokens_parent_idx;
-DROP INDEX IF EXISTS auth.refresh_tokens_instance_id_user_id_idx;
-DROP INDEX IF EXISTS auth.refresh_tokens_instance_id_idx;
-DROP INDEX IF EXISTS auth.recovery_token_idx;
-DROP INDEX IF EXISTS auth.reauthentication_token_idx;
-DROP INDEX IF EXISTS auth.one_time_tokens_user_id_token_type_key;
-DROP INDEX IF EXISTS auth.one_time_tokens_token_hash_hash_idx;
-DROP INDEX IF EXISTS auth.one_time_tokens_relates_to_hash_idx;
-DROP INDEX IF EXISTS auth.oauth_consents_user_order_idx;
-DROP INDEX IF EXISTS auth.oauth_consents_active_user_client_idx;
-DROP INDEX IF EXISTS auth.oauth_consents_active_client_idx;
-DROP INDEX IF EXISTS auth.oauth_clients_deleted_at_idx;
-DROP INDEX IF EXISTS auth.oauth_auth_pending_exp_idx;
-DROP INDEX IF EXISTS auth.mfa_factors_user_id_idx;
-DROP INDEX IF EXISTS auth.mfa_factors_user_friendly_name_unique;
-DROP INDEX IF EXISTS auth.mfa_challenge_created_at_idx;
-DROP INDEX IF EXISTS auth.idx_user_id_auth_method;
-DROP INDEX IF EXISTS auth.idx_oauth_client_states_created_at;
-DROP INDEX IF EXISTS auth.idx_auth_code;
-DROP INDEX IF EXISTS auth.identities_user_id_idx;
-DROP INDEX IF EXISTS auth.identities_email_idx;
-DROP INDEX IF EXISTS auth.flow_state_created_at_idx;
-DROP INDEX IF EXISTS auth.factor_id_created_at_idx;
-DROP INDEX IF EXISTS auth.email_change_token_new_idx;
-DROP INDEX IF EXISTS auth.email_change_token_current_idx;
-DROP INDEX IF EXISTS auth.custom_oauth_providers_provider_type_idx;
-DROP INDEX IF EXISTS auth.custom_oauth_providers_identifier_idx;
-DROP INDEX IF EXISTS auth.custom_oauth_providers_enabled_idx;
-DROP INDEX IF EXISTS auth.custom_oauth_providers_created_at_idx;
-DROP INDEX IF EXISTS auth.confirmation_token_idx;
-DROP INDEX IF EXISTS auth.audit_logs_instance_id_idx;
-DROP INDEX IF EXISTS _realtime.tenants_external_id_index;
-DROP INDEX IF EXISTS _realtime.extensions_tenant_external_id_type_index;
-DROP INDEX IF EXISTS _realtime.extensions_tenant_external_id_index;
-ALTER TABLE IF EXISTS ONLY supabase_functions.migrations DROP CONSTRAINT IF EXISTS migrations_pkey;
-ALTER TABLE IF EXISTS ONLY supabase_functions.hooks DROP CONSTRAINT IF EXISTS hooks_pkey;
-ALTER TABLE IF EXISTS ONLY storage.vector_indexes DROP CONSTRAINT IF EXISTS vector_indexes_pkey;
-ALTER TABLE IF EXISTS ONLY storage.s3_multipart_uploads DROP CONSTRAINT IF EXISTS s3_multipart_uploads_pkey;
-ALTER TABLE IF EXISTS ONLY storage.s3_multipart_uploads_parts DROP CONSTRAINT IF EXISTS s3_multipart_uploads_parts_pkey;
-ALTER TABLE IF EXISTS ONLY storage.objects DROP CONSTRAINT IF EXISTS objects_pkey;
-ALTER TABLE IF EXISTS ONLY storage.migrations DROP CONSTRAINT IF EXISTS migrations_pkey;
-ALTER TABLE IF EXISTS ONLY storage.migrations DROP CONSTRAINT IF EXISTS migrations_name_key;
-ALTER TABLE IF EXISTS ONLY storage.iceberg_tables DROP CONSTRAINT IF EXISTS iceberg_tables_pkey;
-ALTER TABLE IF EXISTS ONLY storage.iceberg_namespaces DROP CONSTRAINT IF EXISTS iceberg_namespaces_pkey;
-ALTER TABLE IF EXISTS ONLY storage.buckets_vectors DROP CONSTRAINT IF EXISTS buckets_vectors_pkey;
-ALTER TABLE IF EXISTS ONLY storage.buckets DROP CONSTRAINT IF EXISTS buckets_pkey;
-ALTER TABLE IF EXISTS ONLY storage.buckets_analytics DROP CONSTRAINT IF EXISTS buckets_analytics_pkey;
-ALTER TABLE IF EXISTS ONLY realtime.schema_migrations DROP CONSTRAINT IF EXISTS schema_migrations_pkey;
-ALTER TABLE IF EXISTS ONLY realtime.subscription DROP CONSTRAINT IF EXISTS pk_subscription;
-ALTER TABLE IF EXISTS ONLY realtime.messages_2026_03_17 DROP CONSTRAINT IF EXISTS messages_2026_03_17_pkey;
-ALTER TABLE IF EXISTS ONLY realtime.messages_2026_03_16 DROP CONSTRAINT IF EXISTS messages_2026_03_16_pkey;
-ALTER TABLE IF EXISTS ONLY realtime.messages_2026_03_15 DROP CONSTRAINT IF EXISTS messages_2026_03_15_pkey;
-ALTER TABLE IF EXISTS ONLY realtime.messages_2026_03_14 DROP CONSTRAINT IF EXISTS messages_2026_03_14_pkey;
-ALTER TABLE IF EXISTS ONLY realtime.messages_2026_03_13 DROP CONSTRAINT IF EXISTS messages_2026_03_13_pkey;
-ALTER TABLE IF EXISTS ONLY realtime.messages_2026_03_12 DROP CONSTRAINT IF EXISTS messages_2026_03_12_pkey;
-ALTER TABLE IF EXISTS ONLY realtime.messages DROP CONSTRAINT IF EXISTS messages_pkey;
-ALTER TABLE IF EXISTS ONLY public.test_data DROP CONSTRAINT IF EXISTS test_data_pkey;
-ALTER TABLE IF EXISTS ONLY public.purchase_plan DROP CONSTRAINT IF EXISTS purchase_plan_usage_plan_id_key;
-ALTER TABLE IF EXISTS ONLY public.purchase_approval DROP CONSTRAINT IF EXISTS purchase_approval_pkey;
-ALTER TABLE IF EXISTS ONLY public.purchase_approval_detail DROP CONSTRAINT IF EXISTS purchase_approval_detail_unique_plan_per_approval;
-ALTER TABLE IF EXISTS ONLY public.purchase_approval_detail DROP CONSTRAINT IF EXISTS purchase_approval_detail_pkey;
-ALTER TABLE IF EXISTS ONLY public.purchase_approval DROP CONSTRAINT IF EXISTS purchase_approval_approve_code_key;
-ALTER TABLE IF EXISTS ONLY public.inventory_period DROP CONSTRAINT IF EXISTS inventory_period_unique_period;
-ALTER TABLE IF EXISTS ONLY public.inventory_period_balance DROP CONSTRAINT IF EXISTS inventory_period_balance_unique_item_per_period;
-ALTER TABLE IF EXISTS ONLY public.inventory_location DROP CONSTRAINT IF EXISTS inventory_location_warehouse_id_location_code_key;
-ALTER TABLE IF EXISTS ONLY public.department DROP CONSTRAINT IF EXISTS department_department_code_key;
-ALTER TABLE IF EXISTS ONLY public.usage_plan DROP CONSTRAINT IF EXISTS "Survey_pkey";
-ALTER TABLE IF EXISTS ONLY public.seller DROP CONSTRAINT IF EXISTS "Seller_pkey";
-ALTER TABLE IF EXISTS ONLY public.purchase_plan DROP CONSTRAINT IF EXISTS "PurchasePlan_pkey";
-ALTER TABLE IF EXISTS ONLY public.purchase_approval_inventory_link DROP CONSTRAINT IF EXISTS "PurchaseApprovalInventoryLink_pkey";
-ALTER TABLE IF EXISTS ONLY public.product DROP CONSTRAINT IF EXISTS "Product_pkey";
-ALTER TABLE IF EXISTS ONLY public.inventory_warehouse DROP CONSTRAINT IF EXISTS "InventoryWarehouse_warehouseCode_key";
-ALTER TABLE IF EXISTS ONLY public.inventory_warehouse DROP CONSTRAINT IF EXISTS "InventoryWarehouse_pkey";
-ALTER TABLE IF EXISTS ONLY public.inventory_requisition DROP CONSTRAINT IF EXISTS "InventoryRequisition_requisitionNo_key";
-ALTER TABLE IF EXISTS ONLY public.inventory_requisition DROP CONSTRAINT IF EXISTS "InventoryRequisition_pkey";
-ALTER TABLE IF EXISTS ONLY public.inventory_requisition_item DROP CONSTRAINT IF EXISTS "InventoryRequisitionItem_pkey";
-ALTER TABLE IF EXISTS ONLY public.inventory_receipt DROP CONSTRAINT IF EXISTS "InventoryReceipt_receiptNo_key";
-ALTER TABLE IF EXISTS ONLY public.inventory_receipt DROP CONSTRAINT IF EXISTS "InventoryReceipt_pkey";
-ALTER TABLE IF EXISTS ONLY public.inventory_receipt_item DROP CONSTRAINT IF EXISTS "InventoryReceiptItem_pkey";
-ALTER TABLE IF EXISTS ONLY public.inventory_period DROP CONSTRAINT IF EXISTS "InventoryPeriod_pkey";
-ALTER TABLE IF EXISTS ONLY public.inventory_period_balance DROP CONSTRAINT IF EXISTS "InventoryPeriodBalance_pkey";
-ALTER TABLE IF EXISTS ONLY public.inventory_movement DROP CONSTRAINT IF EXISTS "InventoryMovement_pkey";
-ALTER TABLE IF EXISTS ONLY public.inventory_location DROP CONSTRAINT IF EXISTS "InventoryLocation_pkey";
-ALTER TABLE IF EXISTS ONLY public.inventory_item DROP CONSTRAINT IF EXISTS "InventoryItem_pkey";
-ALTER TABLE IF EXISTS ONLY public.inventory_issue DROP CONSTRAINT IF EXISTS "InventoryIssue_pkey";
-ALTER TABLE IF EXISTS ONLY public.inventory_issue DROP CONSTRAINT IF EXISTS "InventoryIssue_issueNo_key";
-ALTER TABLE IF EXISTS ONLY public.inventory_issue_item DROP CONSTRAINT IF EXISTS "InventoryIssueItem_pkey";
-ALTER TABLE IF EXISTS ONLY public.inventory_balance DROP CONSTRAINT IF EXISTS "InventoryBalance_pkey";
-ALTER TABLE IF EXISTS ONLY public.inventory_balance DROP CONSTRAINT IF EXISTS "InventoryBalance_inventoryItemId_key";
-ALTER TABLE IF EXISTS ONLY public.inventory_adjustment DROP CONSTRAINT IF EXISTS "InventoryAdjustment_pkey";
-ALTER TABLE IF EXISTS ONLY public.inventory_adjustment DROP CONSTRAINT IF EXISTS "InventoryAdjustment_adjustmentNo_key";
-ALTER TABLE IF EXISTS ONLY public.inventory_adjustment_item DROP CONSTRAINT IF EXISTS "InventoryAdjustmentItem_pkey";
-ALTER TABLE IF EXISTS ONLY public.department DROP CONSTRAINT IF EXISTS "Department_pkey";
-ALTER TABLE IF EXISTS ONLY public.category DROP CONSTRAINT IF EXISTS "Category_pkey";
-ALTER TABLE IF EXISTS ONLY auth.users DROP CONSTRAINT IF EXISTS users_pkey;
-ALTER TABLE IF EXISTS ONLY auth.users DROP CONSTRAINT IF EXISTS users_phone_key;
-ALTER TABLE IF EXISTS ONLY auth.sso_providers DROP CONSTRAINT IF EXISTS sso_providers_pkey;
-ALTER TABLE IF EXISTS ONLY auth.sso_domains DROP CONSTRAINT IF EXISTS sso_domains_pkey;
-ALTER TABLE IF EXISTS ONLY auth.sessions DROP CONSTRAINT IF EXISTS sessions_pkey;
-ALTER TABLE IF EXISTS ONLY auth.schema_migrations DROP CONSTRAINT IF EXISTS schema_migrations_pkey;
-ALTER TABLE IF EXISTS ONLY auth.saml_relay_states DROP CONSTRAINT IF EXISTS saml_relay_states_pkey;
-ALTER TABLE IF EXISTS ONLY auth.saml_providers DROP CONSTRAINT IF EXISTS saml_providers_pkey;
-ALTER TABLE IF EXISTS ONLY auth.saml_providers DROP CONSTRAINT IF EXISTS saml_providers_entity_id_key;
-ALTER TABLE IF EXISTS ONLY auth.refresh_tokens DROP CONSTRAINT IF EXISTS refresh_tokens_token_unique;
-ALTER TABLE IF EXISTS ONLY auth.refresh_tokens DROP CONSTRAINT IF EXISTS refresh_tokens_pkey;
-ALTER TABLE IF EXISTS ONLY auth.one_time_tokens DROP CONSTRAINT IF EXISTS one_time_tokens_pkey;
-ALTER TABLE IF EXISTS ONLY auth.oauth_consents DROP CONSTRAINT IF EXISTS oauth_consents_user_client_unique;
-ALTER TABLE IF EXISTS ONLY auth.oauth_consents DROP CONSTRAINT IF EXISTS oauth_consents_pkey;
-ALTER TABLE IF EXISTS ONLY auth.oauth_clients DROP CONSTRAINT IF EXISTS oauth_clients_pkey;
-ALTER TABLE IF EXISTS ONLY auth.oauth_client_states DROP CONSTRAINT IF EXISTS oauth_client_states_pkey;
-ALTER TABLE IF EXISTS ONLY auth.oauth_authorizations DROP CONSTRAINT IF EXISTS oauth_authorizations_pkey;
-ALTER TABLE IF EXISTS ONLY auth.oauth_authorizations DROP CONSTRAINT IF EXISTS oauth_authorizations_authorization_id_key;
-ALTER TABLE IF EXISTS ONLY auth.oauth_authorizations DROP CONSTRAINT IF EXISTS oauth_authorizations_authorization_code_key;
-ALTER TABLE IF EXISTS ONLY auth.mfa_factors DROP CONSTRAINT IF EXISTS mfa_factors_pkey;
-ALTER TABLE IF EXISTS ONLY auth.mfa_factors DROP CONSTRAINT IF EXISTS mfa_factors_last_challenged_at_key;
-ALTER TABLE IF EXISTS ONLY auth.mfa_challenges DROP CONSTRAINT IF EXISTS mfa_challenges_pkey;
-ALTER TABLE IF EXISTS ONLY auth.mfa_amr_claims DROP CONSTRAINT IF EXISTS mfa_amr_claims_session_id_authentication_method_pkey;
-ALTER TABLE IF EXISTS ONLY auth.instances DROP CONSTRAINT IF EXISTS instances_pkey;
-ALTER TABLE IF EXISTS ONLY auth.identities DROP CONSTRAINT IF EXISTS identities_provider_id_provider_unique;
-ALTER TABLE IF EXISTS ONLY auth.identities DROP CONSTRAINT IF EXISTS identities_pkey;
-ALTER TABLE IF EXISTS ONLY auth.flow_state DROP CONSTRAINT IF EXISTS flow_state_pkey;
-ALTER TABLE IF EXISTS ONLY auth.custom_oauth_providers DROP CONSTRAINT IF EXISTS custom_oauth_providers_pkey;
-ALTER TABLE IF EXISTS ONLY auth.custom_oauth_providers DROP CONSTRAINT IF EXISTS custom_oauth_providers_identifier_key;
-ALTER TABLE IF EXISTS ONLY auth.audit_log_entries DROP CONSTRAINT IF EXISTS audit_log_entries_pkey;
-ALTER TABLE IF EXISTS ONLY auth.mfa_amr_claims DROP CONSTRAINT IF EXISTS amr_id_pk;
-ALTER TABLE IF EXISTS ONLY _realtime.tenants DROP CONSTRAINT IF EXISTS tenants_pkey;
-ALTER TABLE IF EXISTS ONLY _realtime.schema_migrations DROP CONSTRAINT IF EXISTS schema_migrations_pkey;
-ALTER TABLE IF EXISTS ONLY _realtime.extensions DROP CONSTRAINT IF EXISTS extensions_pkey;
-ALTER TABLE IF EXISTS supabase_functions.hooks ALTER COLUMN id DROP DEFAULT;
-ALTER TABLE IF EXISTS public.usage_plan ALTER COLUMN id DROP DEFAULT;
-ALTER TABLE IF EXISTS public.test_data ALTER COLUMN id DROP DEFAULT;
-ALTER TABLE IF EXISTS public.seller ALTER COLUMN id DROP DEFAULT;
-ALTER TABLE IF EXISTS public.purchase_plan ALTER COLUMN id DROP DEFAULT;
-ALTER TABLE IF EXISTS public.purchase_approval_inventory_link ALTER COLUMN id DROP DEFAULT;
-ALTER TABLE IF EXISTS public.purchase_approval_detail ALTER COLUMN id DROP DEFAULT;
-ALTER TABLE IF EXISTS public.purchase_approval ALTER COLUMN id DROP DEFAULT;
-ALTER TABLE IF EXISTS public.product ALTER COLUMN id DROP DEFAULT;
-ALTER TABLE IF EXISTS public.inventory_warehouse ALTER COLUMN id DROP DEFAULT;
-ALTER TABLE IF EXISTS public.inventory_requisition_item ALTER COLUMN id DROP DEFAULT;
-ALTER TABLE IF EXISTS public.inventory_requisition ALTER COLUMN id DROP DEFAULT;
-ALTER TABLE IF EXISTS public.inventory_receipt_item ALTER COLUMN id DROP DEFAULT;
-ALTER TABLE IF EXISTS public.inventory_receipt ALTER COLUMN id DROP DEFAULT;
-ALTER TABLE IF EXISTS public.inventory_period_balance ALTER COLUMN id DROP DEFAULT;
-ALTER TABLE IF EXISTS public.inventory_period ALTER COLUMN id DROP DEFAULT;
-ALTER TABLE IF EXISTS public.inventory_movement ALTER COLUMN id DROP DEFAULT;
-ALTER TABLE IF EXISTS public.inventory_location ALTER COLUMN id DROP DEFAULT;
-ALTER TABLE IF EXISTS public.inventory_item ALTER COLUMN id DROP DEFAULT;
-ALTER TABLE IF EXISTS public.inventory_issue_item ALTER COLUMN id DROP DEFAULT;
-ALTER TABLE IF EXISTS public.inventory_issue ALTER COLUMN id DROP DEFAULT;
-ALTER TABLE IF EXISTS public.inventory_balance ALTER COLUMN id DROP DEFAULT;
-ALTER TABLE IF EXISTS public.inventory_adjustment_item ALTER COLUMN id DROP DEFAULT;
-ALTER TABLE IF EXISTS public.inventory_adjustment ALTER COLUMN id DROP DEFAULT;
-ALTER TABLE IF EXISTS public.department ALTER COLUMN id DROP DEFAULT;
-ALTER TABLE IF EXISTS public.category ALTER COLUMN id DROP DEFAULT;
-ALTER TABLE IF EXISTS auth.refresh_tokens ALTER COLUMN id DROP DEFAULT;
-DROP TABLE IF EXISTS supabase_functions.migrations;
-DROP SEQUENCE IF EXISTS supabase_functions.hooks_id_seq;
-DROP TABLE IF EXISTS supabase_functions.hooks;
-DROP TABLE IF EXISTS storage.vector_indexes;
-DROP TABLE IF EXISTS storage.s3_multipart_uploads_parts;
-DROP TABLE IF EXISTS storage.s3_multipart_uploads;
-DROP TABLE IF EXISTS storage.objects;
-DROP TABLE IF EXISTS storage.migrations;
-DROP TABLE IF EXISTS storage.iceberg_tables;
-DROP TABLE IF EXISTS storage.iceberg_namespaces;
-DROP TABLE IF EXISTS storage.buckets_vectors;
-DROP TABLE IF EXISTS storage.buckets_analytics;
-DROP TABLE IF EXISTS storage.buckets;
-DROP TABLE IF EXISTS realtime.subscription;
-DROP TABLE IF EXISTS realtime.schema_migrations;
-DROP TABLE IF EXISTS realtime.messages_2026_03_17;
-DROP TABLE IF EXISTS realtime.messages_2026_03_16;
-DROP TABLE IF EXISTS realtime.messages_2026_03_15;
-DROP TABLE IF EXISTS realtime.messages_2026_03_14;
-DROP TABLE IF EXISTS realtime.messages_2026_03_13;
-DROP TABLE IF EXISTS realtime.messages_2026_03_12;
-DROP TABLE IF EXISTS realtime.messages;
-DROP SEQUENCE IF EXISTS public.test_data_id_seq;
-DROP TABLE IF EXISTS public.test_data;
-DROP TABLE IF EXISTS public.purchase_approval_inventory_link_backup;
-DROP SEQUENCE IF EXISTS public.purchase_approval_id_seq;
-DROP SEQUENCE IF EXISTS public.purchase_approval_detail_id_seq;
-DROP TABLE IF EXISTS public.purchase_approval_detail;
-DROP TABLE IF EXISTS public.purchase_approval_backup;
-DROP SEQUENCE IF EXISTS public.purchase_approval_approval_id_seq;
-DROP TABLE IF EXISTS public.purchase_approval;
-DROP SEQUENCE IF EXISTS public.inventory_warehouse_id_seq;
-DROP TABLE IF EXISTS public.inventory_warehouse;
-DROP SEQUENCE IF EXISTS public.inventory_requisition_item_id_seq;
-DROP TABLE IF EXISTS public.inventory_requisition_item;
-DROP SEQUENCE IF EXISTS public.inventory_requisition_id_seq;
-DROP TABLE IF EXISTS public.inventory_requisition;
-DROP SEQUENCE IF EXISTS public.inventory_receipt_item_id_seq;
-DROP TABLE IF EXISTS public.inventory_receipt_item;
-DROP SEQUENCE IF EXISTS public.inventory_receipt_id_seq;
-DROP TABLE IF EXISTS public.inventory_receipt;
-DROP SEQUENCE IF EXISTS public.inventory_period_id_seq;
-DROP SEQUENCE IF EXISTS public.inventory_period_balance_id_seq;
-DROP TABLE IF EXISTS public.inventory_period_balance;
-DROP TABLE IF EXISTS public.inventory_period;
-DROP SEQUENCE IF EXISTS public.inventory_movement_id_seq;
-DROP TABLE IF EXISTS public.inventory_movement;
-DROP SEQUENCE IF EXISTS public.inventory_location_id_seq;
-DROP TABLE IF EXISTS public.inventory_location;
-DROP SEQUENCE IF EXISTS public.inventory_item_id_seq;
-DROP TABLE IF EXISTS public.inventory_item;
-DROP SEQUENCE IF EXISTS public.inventory_issue_item_id_seq;
-DROP TABLE IF EXISTS public.inventory_issue_item;
-DROP SEQUENCE IF EXISTS public.inventory_issue_id_seq;
-DROP TABLE IF EXISTS public.inventory_issue;
-DROP SEQUENCE IF EXISTS public.inventory_balance_id_seq;
-DROP TABLE IF EXISTS public.inventory_balance;
-DROP SEQUENCE IF EXISTS public.inventory_adjustment_item_id_seq;
-DROP TABLE IF EXISTS public.inventory_adjustment_item;
-DROP SEQUENCE IF EXISTS public.inventory_adjustment_id_seq;
-DROP TABLE IF EXISTS public.inventory_adjustment;
-DROP SEQUENCE IF EXISTS public."Survey_id_seq";
-DROP TABLE IF EXISTS public.usage_plan;
-DROP SEQUENCE IF EXISTS public."Seller_id_seq";
-DROP TABLE IF EXISTS public.seller;
-DROP SEQUENCE IF EXISTS public."PurchasePlan_id_seq";
-DROP TABLE IF EXISTS public.purchase_plan;
-DROP SEQUENCE IF EXISTS public."PurchaseApprovalInventoryLink_id_seq";
-DROP TABLE IF EXISTS public.purchase_approval_inventory_link;
-DROP SEQUENCE IF EXISTS public."Product_id_seq";
-DROP TABLE IF EXISTS public.product;
-DROP SEQUENCE IF EXISTS public."Department_id_seq";
-DROP TABLE IF EXISTS public.department;
-DROP SEQUENCE IF EXISTS public."Category_id_seq";
-DROP TABLE IF EXISTS public.category;
-DROP TABLE IF EXISTS auth.users;
-DROP TABLE IF EXISTS auth.sso_providers;
-DROP TABLE IF EXISTS auth.sso_domains;
-DROP TABLE IF EXISTS auth.sessions;
-DROP TABLE IF EXISTS auth.schema_migrations;
-DROP TABLE IF EXISTS auth.saml_relay_states;
-DROP TABLE IF EXISTS auth.saml_providers;
-DROP SEQUENCE IF EXISTS auth.refresh_tokens_id_seq;
-DROP TABLE IF EXISTS auth.refresh_tokens;
-DROP TABLE IF EXISTS auth.one_time_tokens;
-DROP TABLE IF EXISTS auth.oauth_consents;
-DROP TABLE IF EXISTS auth.oauth_clients;
-DROP TABLE IF EXISTS auth.oauth_client_states;
-DROP TABLE IF EXISTS auth.oauth_authorizations;
-DROP TABLE IF EXISTS auth.mfa_factors;
-DROP TABLE IF EXISTS auth.mfa_challenges;
-DROP TABLE IF EXISTS auth.mfa_amr_claims;
-DROP TABLE IF EXISTS auth.instances;
-DROP TABLE IF EXISTS auth.identities;
-DROP TABLE IF EXISTS auth.flow_state;
-DROP TABLE IF EXISTS auth.custom_oauth_providers;
-DROP TABLE IF EXISTS auth.audit_log_entries;
-DROP TABLE IF EXISTS _realtime.tenants;
-DROP TABLE IF EXISTS _realtime.schema_migrations;
-DROP TABLE IF EXISTS _realtime.extensions;
-DROP FUNCTION IF EXISTS supabase_functions.http_request();
-DROP FUNCTION IF EXISTS storage.update_updated_at_column();
-DROP FUNCTION IF EXISTS storage.search_v2(prefix text, bucket_name text, limits integer, levels integer, start_after text, sort_order text, sort_column text, sort_column_after text);
-DROP FUNCTION IF EXISTS storage.search_by_timestamp(p_prefix text, p_bucket_id text, p_limit integer, p_level integer, p_start_after text, p_sort_order text, p_sort_column text, p_sort_column_after text);
-DROP FUNCTION IF EXISTS storage.search(prefix text, bucketname text, limits integer, levels integer, offsets integer, search text, sortcolumn text, sortorder text);
-DROP FUNCTION IF EXISTS storage.protect_delete();
-DROP FUNCTION IF EXISTS storage.operation();
-DROP FUNCTION IF EXISTS storage.list_objects_with_delimiter(_bucket_id text, prefix_param text, delimiter_param text, max_keys integer, start_after text, next_token text, sort_order text);
-DROP FUNCTION IF EXISTS storage.list_multipart_uploads_with_delimiter(bucket_id text, prefix_param text, delimiter_param text, max_keys integer, next_key_token text, next_upload_token text);
-DROP FUNCTION IF EXISTS storage.get_size_by_bucket();
-DROP FUNCTION IF EXISTS storage.get_common_prefix(p_key text, p_prefix text, p_delimiter text);
-DROP FUNCTION IF EXISTS storage.foldername(name text);
-DROP FUNCTION IF EXISTS storage.filename(name text);
-DROP FUNCTION IF EXISTS storage.extension(name text);
-DROP FUNCTION IF EXISTS storage.enforce_bucket_name_length();
-DROP FUNCTION IF EXISTS storage.can_insert_object(bucketid text, name text, owner uuid, metadata jsonb);
-DROP FUNCTION IF EXISTS realtime.topic();
-DROP FUNCTION IF EXISTS realtime.to_regrole(role_name text);
-DROP FUNCTION IF EXISTS realtime.subscription_check_filters();
-DROP FUNCTION IF EXISTS realtime.send(payload jsonb, event text, topic text, private boolean);
-DROP FUNCTION IF EXISTS realtime.quote_wal2json(entity regclass);
-DROP FUNCTION IF EXISTS realtime.list_changes(publication name, slot_name name, max_changes integer, max_record_bytes integer);
-DROP FUNCTION IF EXISTS realtime.is_visible_through_filters(columns realtime.wal_column[], filters realtime.user_defined_filter[]);
-DROP FUNCTION IF EXISTS realtime.check_equality_op(op realtime.equality_op, type_ regtype, val_1 text, val_2 text);
-DROP FUNCTION IF EXISTS realtime."cast"(val text, type_ regtype);
-DROP FUNCTION IF EXISTS realtime.build_prepared_statement_sql(prepared_statement_name text, entity regclass, columns realtime.wal_column[]);
-DROP FUNCTION IF EXISTS realtime.broadcast_changes(topic_name text, event_name text, operation text, table_name text, table_schema text, new record, old record, level text);
-DROP FUNCTION IF EXISTS realtime.apply_rls(wal jsonb, max_record_bytes integer);
-DROP FUNCTION IF EXISTS public.update_updated_at_column();
-DROP FUNCTION IF EXISTS public.update_purchase_approval_updated_at();
-DROP FUNCTION IF EXISTS public.update_purchase_approval_detail_updated_at();
-DROP FUNCTION IF EXISTS pgbouncer.get_auth(p_usename text);
-DROP FUNCTION IF EXISTS extensions.set_graphql_placeholder();
-DROP FUNCTION IF EXISTS extensions.pgrst_drop_watch();
-DROP FUNCTION IF EXISTS extensions.pgrst_ddl_watch();
-DROP FUNCTION IF EXISTS extensions.grant_pg_net_access();
-DROP FUNCTION IF EXISTS extensions.grant_pg_graphql_access();
-DROP FUNCTION IF EXISTS extensions.grant_pg_cron_access();
-DROP FUNCTION IF EXISTS auth.uid();
-DROP FUNCTION IF EXISTS auth.role();
-DROP FUNCTION IF EXISTS auth.jwt();
-DROP FUNCTION IF EXISTS auth.email();
-DROP TYPE IF EXISTS storage.buckettype;
-DROP TYPE IF EXISTS realtime.wal_rls;
-DROP TYPE IF EXISTS realtime.wal_column;
-DROP TYPE IF EXISTS realtime.user_defined_filter;
-DROP TYPE IF EXISTS realtime.equality_op;
-DROP TYPE IF EXISTS realtime.action;
-DROP TYPE IF EXISTS auth.one_time_token_type;
-DROP TYPE IF EXISTS auth.oauth_response_type;
-DROP TYPE IF EXISTS auth.oauth_registration_type;
-DROP TYPE IF EXISTS auth.oauth_client_type;
-DROP TYPE IF EXISTS auth.oauth_authorization_status;
-DROP TYPE IF EXISTS auth.factor_type;
-DROP TYPE IF EXISTS auth.factor_status;
-DROP TYPE IF EXISTS auth.code_challenge_method;
-DROP TYPE IF EXISTS auth.aal_level;
-DROP EXTENSION IF EXISTS "uuid-ossp";
-DROP EXTENSION IF EXISTS supabase_vault;
-DROP EXTENSION IF EXISTS pgcrypto;
-DROP EXTENSION IF EXISTS pg_stat_statements;
-DROP EXTENSION IF EXISTS pg_graphql;
-DROP SCHEMA IF EXISTS vault;
-DROP SCHEMA IF EXISTS supabase_functions;
-DROP SCHEMA IF EXISTS storage;
-DROP SCHEMA IF EXISTS realtime;
-DROP SCHEMA IF EXISTS pgbouncer;
-DROP EXTENSION IF EXISTS pg_net;
-DROP SCHEMA IF EXISTS graphql_public;
-DROP SCHEMA IF EXISTS graphql;
-DROP SCHEMA IF EXISTS extensions;
-DROP SCHEMA IF EXISTS auth;
-DROP SCHEMA IF EXISTS _realtime;
 --
 -- Name: _realtime; Type: SCHEMA; Schema: -; Owner: postgres
 --
@@ -1238,6 +800,29 @@ $_$;
 
 
 ALTER FUNCTION pgbouncer.get_auth(p_usename text) OWNER TO supabase_admin;
+
+--
+-- Name: set_purchase_approval_budget_year(); Type: FUNCTION; Schema: public; Owner: postgres
+--
+
+CREATE FUNCTION public.set_purchase_approval_budget_year() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+  IF NEW.doc_date IS NULL THEN
+    NEW.budget_year := NULL;
+  ELSIF EXTRACT(MONTH FROM NEW.doc_date) >= 10 THEN
+    NEW.budget_year := EXTRACT(YEAR FROM NEW.doc_date)::int + 544;
+  ELSE
+    NEW.budget_year := EXTRACT(YEAR FROM NEW.doc_date)::int + 543;
+  END IF;
+
+  RETURN NEW;
+END;
+$$;
+
+
+ALTER FUNCTION public.set_purchase_approval_budget_year() OWNER TO postgres;
 
 --
 -- Name: update_purchase_approval_detail_updated_at(); Type: FUNCTION; Schema: public; Owner: postgres
@@ -4649,6 +4234,9 @@ CREATE TABLE public.purchase_approval (
     updated_by text,
     updated_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
     version integer DEFAULT 1 NOT NULL,
+    doc_seq integer,
+    pending_note text,
+    budget_year integer,
     CONSTRAINT purchase_approval_status_check CHECK ((status = ANY (ARRAY['DRAFT'::text, 'PENDING'::text, 'APPROVED'::text, 'REJECTED'::text, 'CANCELLED'::text])))
 );
 
@@ -4963,6 +4551,24 @@ CREATE TABLE realtime.messages_2026_03_17 (
 
 
 ALTER TABLE realtime.messages_2026_03_17 OWNER TO supabase_admin;
+
+--
+-- Name: messages_2026_03_18; Type: TABLE; Schema: realtime; Owner: supabase_admin
+--
+
+CREATE TABLE realtime.messages_2026_03_18 (
+    topic text NOT NULL,
+    extension text NOT NULL,
+    payload jsonb,
+    event text,
+    private boolean DEFAULT false,
+    updated_at timestamp without time zone DEFAULT now() NOT NULL,
+    inserted_at timestamp without time zone DEFAULT now() NOT NULL,
+    id uuid DEFAULT gen_random_uuid() NOT NULL
+);
+
+
+ALTER TABLE realtime.messages_2026_03_18 OWNER TO supabase_admin;
 
 --
 -- Name: schema_migrations; Type: TABLE; Schema: realtime; Owner: supabase_admin
@@ -5305,6 +4911,13 @@ ALTER TABLE ONLY realtime.messages ATTACH PARTITION realtime.messages_2026_03_17
 
 
 --
+-- Name: messages_2026_03_18; Type: TABLE ATTACH; Schema: realtime; Owner: supabase_admin
+--
+
+ALTER TABLE ONLY realtime.messages ATTACH PARTITION realtime.messages_2026_03_18 FOR VALUES FROM ('2026-03-18 00:00:00') TO ('2026-03-19 00:00:00');
+
+
+--
 -- Name: refresh_tokens id; Type: DEFAULT; Schema: auth; Owner: supabase_auth_admin
 --
 
@@ -5498,7 +5111,7 @@ ALTER TABLE ONLY supabase_functions.hooks ALTER COLUMN id SET DEFAULT nextval('s
 --
 
 COPY _realtime.extensions (id, type, settings, tenant_external_id, inserted_at, updated_at) FROM stdin;
-ef9623f2-316b-4015-9e5c-8a851a017137	postgres_cdc_rls	{"region": "us-east-1", "db_host": "ZP148Qnanu3FH115eFru4w==", "db_name": "sWBpZNdjggEPTQVlI52Zfw==", "db_port": "+enMDFi1J/3IrrquHHwUmA==", "db_user": "uxbEq/zz8DXVD53TOI1zmw==", "slot_name": "supabase_realtime_replication_slot", "db_password": "sWBpZNdjggEPTQVlI52Zfw==", "publication": "supabase_realtime", "ssl_enforced": false, "poll_interval_ms": 100, "poll_max_changes": 100, "poll_max_record_bytes": 1048576}	realtime-dev	2026-03-14 02:38:09	2026-03-14 02:38:09
+59384680-3e9a-47ce-8662-f6516b52009c	postgres_cdc_rls	{"region": "us-east-1", "db_host": "ZP148Qnanu3FH115eFru4w==", "db_name": "sWBpZNdjggEPTQVlI52Zfw==", "db_port": "+enMDFi1J/3IrrquHHwUmA==", "db_user": "uxbEq/zz8DXVD53TOI1zmw==", "slot_name": "supabase_realtime_replication_slot", "db_password": "sWBpZNdjggEPTQVlI52Zfw==", "publication": "supabase_realtime", "ssl_enforced": false, "poll_interval_ms": 100, "poll_max_changes": 100, "poll_max_record_bytes": 1048576}	realtime-dev	2026-03-15 06:00:22	2026-03-15 06:00:22
 \.
 
 
@@ -5545,7 +5158,7 @@ COPY _realtime.schema_migrations (version, inserted_at) FROM stdin;
 --
 
 COPY _realtime.tenants (id, name, external_id, jwt_secret, max_concurrent_users, inserted_at, updated_at, max_events_per_second, postgres_cdc_default, max_bytes_per_second, max_channels_per_client, max_joins_per_second, suspend, jwt_jwks, notify_private_alpha, private_only, migrations_ran, broadcast_adapter, max_presence_events_per_second, max_payload_size_in_kb, max_client_presence_events_per_window, client_presence_window_ms, presence_enabled) FROM stdin;
-d51083f8-a358-454c-8908-b37ad54399b2	realtime-dev	realtime-dev	iNjicxc4+llvc9wovDvqymwfnj9teWMlyOIbJ8Fh6j2WNU8CIJ2ZgjR6MUIKqSmeDmvpsKLsZ9jgXJmQPpwL8w==	200	2026-03-14 02:38:09	2026-03-14 02:38:09	100	postgres_cdc_rls	100000	100	100	f	{"keys": [{"x": "M5Sjqn5zwC9Kl1zVfUUGvv9boQjCGd45G8sdopBExB4", "y": "P6IXMvA2WYXSHSOMTBH2jsw_9rrzGy89FjPf6oOsIxQ", "alg": "ES256", "crv": "P-256", "ext": true, "kid": "b81269f1-21d8-4f2e-b719-c2240a840d90", "kty": "EC", "use": "sig", "key_ops": ["verify"]}, {"k": "c3VwZXItc2VjcmV0LWp3dC10b2tlbi13aXRoLWF0LWxlYXN0LTMyLWNoYXJhY3RlcnMtbG9uZw", "kty": "oct"}]}	f	f	68	gen_rpc	1000	3000	\N	\N	f
+7deab3b0-2b9b-4c83-9fbc-1501877f357d	realtime-dev	realtime-dev	iNjicxc4+llvc9wovDvqymwfnj9teWMlyOIbJ8Fh6j2WNU8CIJ2ZgjR6MUIKqSmeDmvpsKLsZ9jgXJmQPpwL8w==	200	2026-03-15 06:00:22	2026-03-15 06:00:22	100	postgres_cdc_rls	100000	100	100	f	{"keys": [{"x": "M5Sjqn5zwC9Kl1zVfUUGvv9boQjCGd45G8sdopBExB4", "y": "P6IXMvA2WYXSHSOMTBH2jsw_9rrzGy89FjPf6oOsIxQ", "alg": "ES256", "crv": "P-256", "ext": true, "kid": "b81269f1-21d8-4f2e-b719-c2240a840d90", "kty": "EC", "use": "sig", "key_ops": ["verify"]}, {"k": "c3VwZXItc2VjcmV0LWp3dC10b2tlbi13aXRoLWF0LWxlYXN0LTMyLWNoYXJhY3RlcnMtbG9uZw", "kty": "oct"}]}	f	f	68	gen_rpc	1000	3000	\N	\N	f
 \.
 
 
@@ -8137,12 +7750,20 @@ COPY public.product (id, code, category, name, type, subtype, unit, cost_price, 
 -- Data for Name: purchase_approval; Type: TABLE DATA; Schema: public; Owner: postgres
 --
 
-COPY public.purchase_approval (id, approve_code, doc_no, doc_date, status, total_amount, total_items, prepared_by, approved_by, approved_at, notes, created_by, created_at, updated_by, updated_at, version) FROM stdin;
-36	APV2026000035	พล. 0733.301/พิเศษ	2026-03-14	DRAFT	1170.00	2	system	\N	\N	สร้างจากแผนจัดซื้อ 2 รายการ	system	2026-03-14 08:52:45.290965	system	2026-03-14 08:52:45.311425	2
-38	APV2026000037	พล. 0733.301/พิเศษ	2026-03-14	DRAFT	825.00	2	system	\N	\N	สร้างจากแผนจัดซื้อ 2 รายการ	system	2026-03-14 08:53:04.723716	system	2026-03-14 08:53:04.743043	2
-40	APV2026000039	พล. 0733.301/พิเศษ	2026-03-14	DRAFT	700.00	2	system	\N	\N	สร้างจากแผนจัดซื้อ 2 รายการ	system	2026-03-14 08:54:01.139461	SYSTEM	2026-03-14 08:54:52.887929	3
-42	APV2026000041	พล. 0733.301/พิเศษ	2026-03-14	DRAFT	1120.00	2	system	\N	\N	สร้างจากแผนจัดซื้อ 2 รายการ	system	2026-03-14 08:56:34.574335	system	2026-03-14 08:56:34.597736	2
-44	APV2026000043	พล. 0733.301/พิเศษ	2026-03-14	DRAFT	3090.00	2	system	\N	\N	สร้างจากแผนจัดซื้อ 2 รายการ	system	2026-03-14 08:58:24.409082	system	2026-03-14 08:58:24.429762	2
+COPY public.purchase_approval (id, approve_code, doc_no, doc_date, status, total_amount, total_items, prepared_by, approved_by, approved_at, notes, created_by, created_at, updated_by, updated_at, version, doc_seq, pending_note, budget_year) FROM stdin;
+38	230-2569-0002	พล. 0733.301/พิเศษ	2026-03-14	CANCELLED	825.00	2	system	\N	\N	สร้างจากแผนจัดซื้อ 2 รายการ	system	2026-03-14 08:53:04.723716	system	2026-03-15 13:54:10.330297	7	2	\N	2569
+36	230-2569-0001	พล. 0733.301/พิเศษ	2026-03-14	DRAFT	1170.00	2	system	\N	\N	สร้างจากแผนจัดซื้อ 2 รายการ	system	2026-03-14 08:52:45.290965	system	2026-03-15 13:54:10.330297	6	1	\N	2569
+44	230-2569-0005	พล. 0733.301/พิเศษ	2026-03-14	APPROVED	3090.00	2	system	\N	\N	สร้างจากแผนจัดซื้อ 2 รายการ	system	2026-03-14 08:58:24.409082	system	2026-03-15 13:54:10.330297	7	5	\N	2569
+40	230-2569-0003	พล. 0733.301/พิเศษ	2026-03-14	DRAFT	700.00	2	system	\N	\N	สร้างจากแผนจัดซื้อ 2 รายการ	system	2026-03-14 08:54:01.139461	SYSTEM	2026-03-15 13:54:10.330297	7	3	\N	2569
+42	230-2569-0004	พล. 0733.301/พิเศษ	2026-03-14	DRAFT	1120.00	2	system	\N	\N	สร้างจากแผนจัดซื้อ 2 รายการ	system	2026-03-14 08:56:34.574335	system	2026-03-15 14:13:42.061345	8	4	\N	2569
+56	230-2569-0012	พล. 0733.301/พิเศษ	2026-03-13	PENDING	680.00	2	system	\N	\N	สร้างจากแผนจัดซื้อ 2 รายการ	system	2026-03-15 11:39:11.573016	SYSTEM	2026-03-15 13:54:10.330297	7	12	รอการตรวจสอบ	2569
+54	230-2569-0010	พล. 0733.301/พิเศษ	2026-03-15	DRAFT	220.00	1	system	\N	\N	สร้างจากแผนจัดซื้อ 1 รายการ	system	2026-03-15 10:57:29.25303	SYSTEM	2026-03-15 13:54:10.330297	7	10	\N	2569
+50	230-2569-0008	พล. 0733.301/พิเศษ	2026-03-14	REJECTED	2730.00	2	system	\N	\N	สร้างจากแผนจัดซื้อ 2 รายการ	system	2026-03-14 09:46:08.585109	system	2026-03-15 13:54:10.330297	7	8	\N	2569
+52	230-2569-0009	พล. 0733.301/พิเศษ	2026-03-15	APPROVED	1765.00	2	system	\N	\N	สร้างจากแผนจัดซื้อ 2 รายการ	system	2026-03-15 10:54:52.186638	system	2026-03-15 13:54:10.330297	9	9	\N	2569
+48	230-2569-0007	พล. 0733.301/พิเศษ	2026-03-14	APPROVED	1400.00	2	system	\N	\N	สร้างจากแผนจัดซื้อ 2 รายการ	system	2026-03-14 09:44:07.48396	system	2026-03-15 13:54:10.330297	7	7	\N	2569
+46	230-2569-0006	พล. 0733.301/พิเศษ	2026-03-14	PENDING	4736.00	5	system	\N	\N	สร้างจากแผนจัดซื้อ 5 รายการ	system	2026-03-14 09:20:39.991315	system	2026-03-15 13:54:10.330297	7	6	รอการตรวจสอบจากหัวหน้าแผนกก่อนอนุมัติ	2569
+55	230-2569-0011	พล. 0733.301/พิเศษ	2026-03-15	DRAFT	225.00	1	system	\N	\N	สร้างจากแผนจัดซื้อ 1 รายการ	system	2026-03-15 11:20:53.533198	SYSTEM	2026-03-15 14:16:39.849612	11	11	\N	2569
+58	230-2569-0013	พล. 0733.301/พิเศษ	2026-03-15	DRAFT	2890.00	3	system	\N	\N	สร้างจากแผนจัดซื้อ 3 รายการ	system	2026-03-15 14:17:57.007074	SYSTEM	2026-03-15 14:20:13.728806	5	13	\N	2569
 \.
 
 
@@ -8171,6 +7792,24 @@ COPY public.purchase_approval_detail (id, purchase_approval_id, purchase_plan_id
 29	42	8	2	PENDING	1	120.00	\N	system	2026-03-14 08:56:34.588606	system	2026-03-14 08:56:34.588606	1
 30	44	7	1	PENDING	4	1200.00	\N	system	2026-03-14 08:58:24.413188	system	2026-03-14 08:58:24.413188	1
 31	44	6	2	PENDING	3	1890.00	\N	system	2026-03-14 08:58:24.421391	system	2026-03-14 08:58:24.421391	1
+32	46	33	1	PENDING	2	36.00	\N	system	2026-03-14 09:20:39.996153	system	2026-03-14 09:20:39.996153	1
+33	46	31	2	PENDING	5	200.00	\N	system	2026-03-14 09:20:40.006143	system	2026-03-14 09:20:40.006143	1
+34	46	30	3	PENDING	1	100.00	\N	system	2026-03-14 09:20:40.013228	system	2026-03-14 09:20:40.013228	1
+35	46	29	4	PENDING	2	400.00	\N	system	2026-03-14 09:20:40.023489	system	2026-03-14 09:20:40.023489	1
+36	46	28	5	PENDING	1	4000.00	\N	system	2026-03-14 09:20:40.03094	system	2026-03-14 09:20:40.03094	1
+37	48	27	1	PENDING	10	1200.00	\N	system	2026-03-14 09:44:07.488401	system	2026-03-14 09:44:07.488401	1
+38	48	26	2	PENDING	1	200.00	\N	system	2026-03-14 09:44:07.49773	system	2026-03-14 09:44:07.49773	1
+39	50	24	1	PENDING	5	2500.00	\N	system	2026-03-14 09:46:08.593594	system	2026-03-14 09:46:08.593594	1
+40	50	23	2	PENDING	1	230.00	\N	system	2026-03-14 09:46:08.608459	system	2026-03-14 09:46:08.608459	1
+41	52	39	1	PENDING	20	400.00	\N	system	2026-03-15 10:54:52.19405	system	2026-03-15 10:54:52.19405	1
+42	52	38	2	PENDING	21	1365.00	\N	system	2026-03-15 10:54:52.212927	system	2026-03-15 10:54:52.212927	1
+43	54	32	1	PENDING	10	220.00	\N	system	2026-03-15 10:57:29.258358	system	2026-03-15 10:57:29.258358	1
+44	55	22	1	PENDING	5	225.00	\N	system	2026-03-15 11:20:53.545285	system	2026-03-15 11:20:53.545285	1
+45	56	21	1	PENDING	1	630.00	\N	system	2026-03-15 11:39:11.588432	system	2026-03-15 11:39:11.588432	1
+46	56	19	2	PENDING	1	50.00	\N	system	2026-03-15 11:39:11.754929	system	2026-03-15 11:39:11.754929	1
+47	58	18	1	PENDING	1	730.00	\N	system	2026-03-15 14:17:57.01661	system	2026-03-15 14:17:57.01661	1
+48	58	12	2	PENDING	10	1200.00	\N	system	2026-03-15 14:17:57.02699	system	2026-03-15 14:17:57.02699	1
+49	58	5	3	PENDING	8	960.00	\N	system	2026-03-15 14:17:57.037517	system	2026-03-15 14:17:57.037517	1
 \.
 
 
@@ -8189,6 +7828,24 @@ COPY public.purchase_approval_inventory_link (id, purchase_approval_id, inventor
 29	29	PENDING	0	\N	2026-03-14 08:56:34.59348	2026-03-14 08:56:34.59348	29
 30	30	PENDING	0	\N	2026-03-14 08:58:24.417842	2026-03-14 08:58:24.417842	30
 31	31	PENDING	0	\N	2026-03-14 08:58:24.426865	2026-03-14 08:58:24.426865	31
+32	32	PENDING	0	\N	2026-03-14 09:20:40.001456	2026-03-14 09:20:40.001456	32
+33	33	PENDING	0	\N	2026-03-14 09:20:40.00944	2026-03-14 09:20:40.00944	33
+34	34	PENDING	0	\N	2026-03-14 09:20:40.017557	2026-03-14 09:20:40.017557	34
+35	35	PENDING	0	\N	2026-03-14 09:20:40.026904	2026-03-14 09:20:40.026904	35
+36	36	PENDING	0	\N	2026-03-14 09:20:40.035364	2026-03-14 09:20:40.035364	36
+37	37	PENDING	0	\N	2026-03-14 09:44:07.493365	2026-03-14 09:44:07.493365	37
+38	38	PENDING	0	\N	2026-03-14 09:44:07.500654	2026-03-14 09:44:07.500654	38
+39	39	PENDING	0	\N	2026-03-14 09:46:08.601452	2026-03-14 09:46:08.601452	39
+40	40	PENDING	0	\N	2026-03-14 09:46:08.615719	2026-03-14 09:46:08.615719	40
+41	41	PENDING	0	\N	2026-03-15 10:54:52.202548	2026-03-15 10:54:52.202548	41
+42	42	PENDING	0	\N	2026-03-15 10:54:52.217033	2026-03-15 10:54:52.217033	42
+43	43	PENDING	0	\N	2026-03-15 10:57:29.263355	2026-03-15 10:57:29.263355	43
+44	44	PENDING	0	\N	2026-03-15 11:20:53.555055	2026-03-15 11:20:53.555055	44
+45	45	PENDING	0	\N	2026-03-15 11:39:11.596982	2026-03-15 11:39:11.596982	45
+46	46	PENDING	0	\N	2026-03-15 11:39:11.840986	2026-03-15 11:39:11.840986	46
+47	47	PENDING	0	\N	2026-03-15 14:17:57.021849	2026-03-15 14:17:57.021849	47
+48	48	PENDING	0	\N	2026-03-15 14:17:57.03302	2026-03-15 14:17:57.03302	48
+49	49	PENDING	0	\N	2026-03-15 14:17:57.041218	2026-03-15 14:17:57.041218	49
 \.
 
 
@@ -8224,18 +7881,21 @@ COPY public.purchase_plan (id, usage_plan_id, inventory_qty, inventory_value, pu
 17	3371	0	0.00	5	150.00
 18	3362	0	0.00	1	730.00
 19	3376	0	0.00	1	50.00
-20	3375	0	0.00	10	1200.00
 21	3364	0	0.00	1	630.00
 22	3379	0	0.00	5	225.00
 23	3369	0	0.00	1	230.00
 24	3365	0	0.00	5	2500.00
-25	3372	0	0.00	2	8000.00
 26	3360	0	0.00	1	200.00
 27	3374	0	0.00	10	1200.00
 28	3378	0	0.00	1	4000.00
 29	3377	0	0.00	2	400.00
 30	3361	0	0.00	1	100.00
 31	3366	0	0.00	5	200.00
+32	3352	0	0.00	10	220.00
+33	3353	0	0.00	2	36.00
+38	3381	0	0.00	21	1365.00
+39	3382	0	0.00	20	400.00
+20	3375	0	0.00	10	1200.00
 \.
 
 
@@ -8962,7 +8622,6 @@ COPY public.usage_plan (id, product_code, category, type, subtype, product_name,
 716	P230-000716	วัสดุใช้ไป	วัสดุช่างและก่อสร้าง	วัสดุช่างและก่อสร้าง	น๊อต สำหรับหน้าแปลน	0	ชุด	30.00	กลุ่มงานบริหารทั่วไป	0	2569	1	2026-03-06 14:26:06.795182	2026-03-06 14:28:59.901955	0001
 717	P230-000717	วัสดุใช้ไป	วัสดุช่างและก่อสร้าง	วัสดุช่างและก่อสร้าง	ยางประเก็น สำหรับหน้าแปลน	0	อัน	120.00	กลุ่มงานบริหารทั่วไป	0	2569	1	2026-03-06 14:26:06.795182	2026-03-06 14:28:59.901955	0001
 718	P230-000718	วัสดุใช้ไป	วัสดุช่างและก่อสร้าง	วัสดุช่างและก่อสร้าง	ชุดกรองอากาศ (Silencer valve) สำหรับเครื่องเติมอากาศ	0	ชุด	19474.00	กลุ่มงานบริหารทั่วไป	0	2569	1	2026-03-06 14:26:06.795182	2026-03-06 14:28:59.901955	0001
-3350	P230-000343	วัสดุใช้ไป	วัสดุบริโภค	วัสดุบริโภค	น้ำหวาน สำหรับผู้ป่วยเบาหวาน สีแดง	20	ขวด	65.00	กลุ่มงานประกันสุขภาพ	20	2569	1	2026-03-11 00:38:34.699039	2026-03-11 00:38:34.699039	0007
 775	P230-000775	วัสดุใช้ไป	วัสดุช่างและก่อสร้าง	วัสดุช่างและก่อสร้าง	สีน้ำ สีขาว	0	กระป๋อง	95.00	กลุ่มงานบริหารทั่วไป	0	2569	1	2026-03-06 14:26:06.795182	2026-03-06 14:28:59.901955	0001
 719	P230-000719	วัสดุใช้ไป	วัสดุช่างและก่อสร้าง	วัสดุช่างและก่อสร้าง	ชุดน้ำทิ้ง สำหรับอ่างล้างเครื่องมือ	2	ชุด	358.00	กลุ่มงานบริหารทั่วไป	2	2569	1	2026-03-06 14:26:06.795182	2026-03-06 14:28:59.901955	0001
 720	P230-000720	วัสดุใช้ไป	วัสดุช่างและก่อสร้าง	วัสดุช่างและก่อสร้าง	ลูกบิด ชนิดหัวกลม	7	อัน	99.00	กลุ่มงานบริหารทั่วไป	7	2569	1	2026-03-06 14:26:06.795182	2026-03-06 14:28:59.901955	0001
@@ -9647,6 +9306,8 @@ COPY public.usage_plan (id, product_code, category, type, subtype, product_name,
 3349	P230-000063	วัสดุใช้ไป	วัสดุงานบ้านงานครัว	วัสดุงานบ้านงานครัว	กระดาษชำระ ชนิดม้วน แบบ 2 ชั้น ขนาดยาว 300 เมตร	50	ม้วน	65.00	กลุ่มงานทันตกรรม	10	2569	1	2026-03-11 00:29:45.838887	2026-03-14 07:21:32.942705	0003
 3376	P230-000011	วัสดุใช้ไป	วัสดุการเกษตร	วัสดุการเกษตร	ลูกยางกดน้ำมัน สำหรับเครื่องตัดหญ้า	1	ลูก	50.00	กลุ่มงานบริหารทั่วไป	1	2569	2	2026-03-14 08:01:55.905645	2026-03-14 08:01:55.905645	0001
 3378	P230-000085	วัสดุใช้ไป	วัสดุงานบ้านงานครัว	วัสดุงานบ้านงานครัว	เตา Hotplate แบบใช้ไฟฟ้า ขนาด 9 นิ้ว	1	ตัว	4000.00	กลุ่มงานเภสัชกรรม	1	2569	1	2026-03-14 08:02:50.332027	2026-03-14 08:02:50.332027	0004
+3381	P230-000343	วัสดุใช้ไป	วัสดุบริโภค	วัสดุบริโภค	น้ำหวาน สำหรับผู้ป่วยเบาหวาน สีแดง	21	ขวด	65.00	กลุ่มงานบริหารทั่วไป	21	2569	2	2026-03-15 10:33:23.65314	2026-03-15 10:33:23.65314	0001
+3382	P230-000432	วัสดุใช้ไป	วัสดุสำนักงาน	วัสดุสำนักงาน	กระดาษกาวย่น แบบม้วน ขนาดกว้าง 1/2 นิ้ว 36x20 หลา	20	ม้วน	20.00	กลุ่มงานบริหารทั่วไป	20	2569	2	2026-03-15 10:53:41.191553	2026-03-15 10:53:41.191553	0001
 \.
 
 
@@ -9695,6 +9356,14 @@ COPY realtime.messages_2026_03_16 (topic, extension, payload, event, private, up
 --
 
 COPY realtime.messages_2026_03_17 (topic, extension, payload, event, private, updated_at, inserted_at, id) FROM stdin;
+\.
+
+
+--
+-- Data for Name: messages_2026_03_18; Type: TABLE DATA; Schema: realtime; Owner: supabase_admin
+--
+
+COPY realtime.messages_2026_03_18 (topic, extension, payload, event, private, updated_at, inserted_at, id) FROM stdin;
 \.
 
 
@@ -9977,14 +9646,14 @@ SELECT pg_catalog.setval('public."Product_id_seq"', 1, false);
 -- Name: PurchaseApprovalInventoryLink_id_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
 --
 
-SELECT pg_catalog.setval('public."PurchaseApprovalInventoryLink_id_seq"', 31, true);
+SELECT pg_catalog.setval('public."PurchaseApprovalInventoryLink_id_seq"', 49, true);
 
 
 --
 -- Name: PurchasePlan_id_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
 --
 
-SELECT pg_catalog.setval('public."PurchasePlan_id_seq"', 31, true);
+SELECT pg_catalog.setval('public."PurchasePlan_id_seq"', 39, true);
 
 
 --
@@ -9998,7 +9667,7 @@ SELECT pg_catalog.setval('public."Seller_id_seq"', 5, true);
 -- Name: Survey_id_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
 --
 
-SELECT pg_catalog.setval('public."Survey_id_seq"', 3380, true);
+SELECT pg_catalog.setval('public."Survey_id_seq"', 3382, true);
 
 
 --
@@ -10117,14 +9786,14 @@ SELECT pg_catalog.setval('public.purchase_approval_approval_id_seq', 102, true);
 -- Name: purchase_approval_detail_id_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
 --
 
-SELECT pg_catalog.setval('public.purchase_approval_detail_id_seq', 31, true);
+SELECT pg_catalog.setval('public.purchase_approval_detail_id_seq', 49, true);
 
 
 --
 -- Name: purchase_approval_id_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
 --
 
-SELECT pg_catalog.setval('public.purchase_approval_id_seq', 44, true);
+SELECT pg_catalog.setval('public.purchase_approval_id_seq', 58, true);
 
 
 --
@@ -10725,6 +10394,14 @@ ALTER TABLE ONLY public.test_data
 
 
 --
+-- Name: usage_plan usage_plan_composite_unique; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.usage_plan
+    ADD CONSTRAINT usage_plan_composite_unique UNIQUE (product_code, budget_year, requesting_dept, sequence_no);
+
+
+--
 -- Name: messages messages_pkey; Type: CONSTRAINT; Schema: realtime; Owner: supabase_realtime_admin
 --
 
@@ -10778,6 +10455,14 @@ ALTER TABLE ONLY realtime.messages_2026_03_16
 
 ALTER TABLE ONLY realtime.messages_2026_03_17
     ADD CONSTRAINT messages_2026_03_17_pkey PRIMARY KEY (id, inserted_at);
+
+
+--
+-- Name: messages_2026_03_18 messages_2026_03_18_pkey; Type: CONSTRAINT; Schema: realtime; Owner: supabase_admin
+--
+
+ALTER TABLE ONLY realtime.messages_2026_03_18
+    ADD CONSTRAINT messages_2026_03_18_pkey PRIMARY KEY (id, inserted_at);
 
 
 --
@@ -11314,6 +10999,13 @@ CREATE INDEX idx_purchase_approval_approve_code ON public.purchase_approval USIN
 
 
 --
+-- Name: idx_purchase_approval_budget_year; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX idx_purchase_approval_budget_year ON public.purchase_approval USING btree (budget_year);
+
+
+--
 -- Name: idx_purchase_approval_detail_purchase_approval_id; Type: INDEX; Schema: public; Owner: postgres
 --
 
@@ -11437,6 +11129,13 @@ CREATE INDEX messages_2026_03_16_inserted_at_topic_idx ON realtime.messages_2026
 --
 
 CREATE INDEX messages_2026_03_17_inserted_at_topic_idx ON realtime.messages_2026_03_17 USING btree (inserted_at DESC, topic) WHERE ((extension = 'broadcast'::text) AND (private IS TRUE));
+
+
+--
+-- Name: messages_2026_03_18_inserted_at_topic_idx; Type: INDEX; Schema: realtime; Owner: supabase_admin
+--
+
+CREATE INDEX messages_2026_03_18_inserted_at_topic_idx ON realtime.messages_2026_03_18 USING btree (inserted_at DESC, topic) WHERE ((extension = 'broadcast'::text) AND (private IS TRUE));
 
 
 --
@@ -11622,6 +11321,20 @@ ALTER INDEX realtime.messages_pkey ATTACH PARTITION realtime.messages_2026_03_17
 
 
 --
+-- Name: messages_2026_03_18_inserted_at_topic_idx; Type: INDEX ATTACH; Schema: realtime; Owner: supabase_realtime_admin
+--
+
+ALTER INDEX realtime.messages_inserted_at_topic_index ATTACH PARTITION realtime.messages_2026_03_18_inserted_at_topic_idx;
+
+
+--
+-- Name: messages_2026_03_18_pkey; Type: INDEX ATTACH; Schema: realtime; Owner: supabase_realtime_admin
+--
+
+ALTER INDEX realtime.messages_pkey ATTACH PARTITION realtime.messages_2026_03_18_pkey;
+
+
+--
 -- Name: purchase_approval_detail purchase_approval_detail_updated_at; Type: TRIGGER; Schema: public; Owner: postgres
 --
 
@@ -11633,6 +11346,13 @@ CREATE TRIGGER purchase_approval_detail_updated_at BEFORE UPDATE ON public.purch
 --
 
 CREATE TRIGGER purchase_approval_updated_at BEFORE UPDATE ON public.purchase_approval FOR EACH ROW EXECUTE FUNCTION public.update_purchase_approval_updated_at();
+
+
+--
+-- Name: purchase_approval trg_purchase_approval_budget_year; Type: TRIGGER; Schema: public; Owner: postgres
+--
+
+CREATE TRIGGER trg_purchase_approval_budget_year BEFORE INSERT OR UPDATE OF doc_date ON public.purchase_approval FOR EACH ROW EXECUTE FUNCTION public.set_purchase_approval_budget_year();
 
 
 --
@@ -12816,6 +12536,15 @@ GRANT ALL ON FUNCTION pgbouncer.get_auth(p_usename text) TO pgbouncer;
 
 
 --
+-- Name: FUNCTION set_purchase_approval_budget_year(); Type: ACL; Schema: public; Owner: postgres
+--
+
+GRANT ALL ON FUNCTION public.set_purchase_approval_budget_year() TO anon;
+GRANT ALL ON FUNCTION public.set_purchase_approval_budget_year() TO authenticated;
+GRANT ALL ON FUNCTION public.set_purchase_approval_budget_year() TO service_role;
+
+
+--
 -- Name: FUNCTION update_purchase_approval_detail_updated_at(); Type: ACL; Schema: public; Owner: postgres
 --
 
@@ -13750,6 +13479,14 @@ GRANT ALL ON TABLE realtime.messages_2026_03_17 TO dashboard_user;
 
 
 --
+-- Name: TABLE messages_2026_03_18; Type: ACL; Schema: realtime; Owner: supabase_admin
+--
+
+GRANT ALL ON TABLE realtime.messages_2026_03_18 TO postgres;
+GRANT ALL ON TABLE realtime.messages_2026_03_18 TO dashboard_user;
+
+
+--
 -- Name: TABLE schema_migrations; Type: ACL; Schema: realtime; Owner: supabase_admin
 --
 
@@ -14231,5 +13968,5 @@ ALTER EVENT TRIGGER pgrst_drop_watch OWNER TO supabase_admin;
 -- PostgreSQL database dump complete
 --
 
-\unrestrict EiN3xa8chRtyaEvjqS9bfMUIyLIufgeZTGjGodZXEspClbHYNewF1Lgu4pew39N
+\unrestrict I1HZ2pG5zIu4xoCtZQe6FbJpRtBUCrPs5dyJ9oXd3ok3HpGd90aesI8PIYV7rnd
 

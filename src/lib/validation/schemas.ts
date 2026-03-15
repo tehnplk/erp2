@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { get_approval_doc_status_code } from '@/lib/approval-doc-status';
 
 // Common validation patterns
 const positiveNumber = z.string().transform((val: string) => parseFloat(val)).pipe(z.number().min(0));
@@ -246,7 +247,7 @@ export const createPurchaseApprovalSchema = z.object({
   approve_code: z.string().optional(),
   doc_no: z.string().optional(),
   doc_date: z.string().optional(),
-  status: z.enum(['DRAFT', 'PENDING', 'APPROVED', 'REJECTED', 'CANCELLED']).optional(),
+  status: z.string().refine((value) => get_approval_doc_status_code(value) !== null, 'Invalid approval status').optional(),
   total_amount: z.number().optional(),
   total_items: z.number().optional(),
   prepared_by: z.string().optional(),
@@ -281,7 +282,7 @@ export const purchaseApprovalQuerySchema = z.object({
   product_subtype: z.string().optional(),
   department: z.string().optional(),
   budget_year: z.string().optional(),
-  status: z.enum(['DRAFT', 'PENDING', 'APPROVED', 'REJECTED', 'CANCELLED']).optional(),
+  status: z.string().refine((value) => get_approval_doc_status_code(value) !== null, 'Invalid approval status').optional(),
   order_by: z.enum([
     'id', 'approve_code', 'doc_no', 'doc_date', 'status', 'total_amount', 'total_items',
     'prepared_by', 'approved_by', 'approved_at', 'notes', 'created_at', 'updated_at', 'version',

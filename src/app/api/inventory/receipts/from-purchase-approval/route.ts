@@ -46,7 +46,8 @@ export async function POST(request: NextRequest) {
         pa.id AS purchase_approval_header_id,
         pa.approve_code,
         pa.doc_no,
-        pa.status,
+        ads.status,
+        pa.status AS status_code,
         up.requesting_dept AS department,
         up.requesting_dept_code AS department_code,
         up.budget_year,
@@ -67,6 +68,7 @@ export async function POST(request: NextRequest) {
         link.received_qty
       FROM public.purchase_approval_detail pad
       INNER JOIN public.purchase_approval pa ON pa.id = pad.purchase_approval_id
+      LEFT JOIN public.approval_doc_status ads ON ads.code = pa.status
       INNER JOIN public.purchase_plan pp ON pp.id = pad.purchase_plan_id
       INNER JOIN public.usage_plan up ON up.id = pp.usage_plan_id
       INNER JOIN public.purchase_approval_inventory_link link ON link.purchase_approval_detail_id = pad.id
