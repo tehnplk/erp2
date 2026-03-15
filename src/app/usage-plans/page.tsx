@@ -38,7 +38,7 @@ interface ProductOption {
   cost_price?: number | null;
 }
 
-interface BulkSurveyRecord {
+interface BulkUsagePlanRecord {
   id: number;
   productSearch: string;
   product_code: string;
@@ -55,7 +55,7 @@ interface BulkSurveyRecord {
   sequence_no: string;
 }
 
-interface Survey {
+interface UsagePlan {
   id: number;
   product_code: string | null;
   category: string | null;
@@ -75,7 +75,7 @@ interface Survey {
   has_purchase_approval?: boolean;
 }
 
-interface SurveyFormData {
+interface UsagePlanFormData {
   product_code: string;
   category: string;
   type: string;
@@ -301,7 +301,7 @@ function DepartmentCombobox({
   );
 }
 
-function SurveysPageContent() {
+function UsagePlansPageContent() {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -316,16 +316,16 @@ function SurveysPageContent() {
   const initialSortOrder = (searchParams.get('sort_order') === 'asc' ? 'asc' : 'desc') as 'asc' | 'desc';
   const initialPage = Math.max(1, parseInt(searchParams.get('page') || '1', 10) || 1);
   const initialPageSize = Math.max(1, parseInt(searchParams.get('page_size') || '20', 10) || 20);
-  const [surveys, setSurveys] = useState<Survey[]>([]);
-  const [statusCountSurveys, setStatusCountSurveys] = useState<Survey[]>([]);
+  const [usage_plans, setUsagePlans] = useState<UsagePlan[]>([]);
+  const [statusCountUsagePlans, setStatusCountUsagePlans] = useState<UsagePlan[]>([]);
   const [totalRequestedValue, setTotalRequestedValue] = useState(0);
   const [totalApprovedValue, setTotalApprovedValue] = useState(0);
   const [totalCount, setTotalCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
-  const [editingSurvey, setEditingSurvey] = useState<Survey | null>(null);
+  const [editingUsagePlan, setEditingUsagePlan] = useState<UsagePlan | null>(null);
   const [importing, setImporting] = useState(false);
-  const [formData, setFormData] = useState<SurveyFormData>({
+  const [formData, setFormData] = useState<UsagePlanFormData>({
     product_code: '',
     category: '',
     type: '',
@@ -357,7 +357,7 @@ function SurveysPageContent() {
     sequence_no: '1'
   });
   const [showBulkForm, setShowBulkForm] = useState(false);
-  const [bulkRecords, setBulkRecords] = useState<BulkSurveyRecord[]>([]);
+  const [bulkRecords, setBulkRecords] = useState<BulkUsagePlanRecord[]>([]);
   const [toast, setToast] = useState<{
     message: string;
     type: 'success' | 'error';
@@ -606,7 +606,7 @@ function SurveysPageContent() {
     highlightedElement?.scrollIntoView({ block: 'nearest' });
   }, [highlightedBulkProductIndex, showBulkProductSuggestions]);
 
-  // Fetch surveys when filters, sorting or pagination change (current page only)
+  // Fetch usage_plans when filters, sorting or pagination change (current page only)
   useEffect(() => {
     fetchUsagePlans();
   }, [productNameFilter, categoryFilter, typeFilter, subtypeFilter, requestingDeptFilter, budgetYearFilter, hasPurchasePlanFilter, sortField, sortOrder, page, pageSize]);
@@ -629,7 +629,7 @@ function SurveysPageContent() {
       }
 
       const data = await response.json();
-      setStatusCountSurveys(Array.isArray(data?.surveys) ? data.surveys : []);
+      setStatusCountUsagePlans(Array.isArray(data?.usage_plans) ? data.usage_plans : []);
     } catch (error) {
       console.error('Error fetching usage plan status counts:', error);
     }
@@ -833,12 +833,12 @@ function SurveysPageContent() {
     }
   };
 
-  const purchasePlannedCount = statusCountSurveys.filter((survey) => survey.has_purchase_plan).length;
-  const purchaseNotPlannedCount = statusCountSurveys.filter((survey) => !survey.has_purchase_plan).length;
+  const purchasePlannedCount = statusCountUsagePlans.filter((survey) => survey.has_purchase_plan).length;
+  const purchaseNotPlannedCount = statusCountUsagePlans.filter((survey) => !survey.has_purchase_plan).length;
 
   const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
   const pageStart = totalCount === 0 ? 0 : (page - 1) * pageSize + 1;
-  const pageEnd = totalCount === 0 ? 0 : Math.min(totalCount, pageStart + (surveys.length || 0) - 1);
+  const pageEnd = totalCount === 0 ? 0 : Math.min(totalCount, pageStart + (usage_plans.length || 0) - 1);
 
   const goToUsagePlanPage = (newPage: number) => {
     if (newPage < 1 || newPage > totalPages) return;
@@ -866,7 +866,7 @@ function SurveysPageContent() {
   const handleSelectAll = (checked: boolean) => {
     if (checked) {
       // Only select items that don't have purchase plans AND have quota > 0
-      const selectableIds = new Set(surveys.filter(survey => !survey.has_purchase_plan && (survey.approved_quota ?? 0) > 0).map(survey => survey.id));
+      const selectableIds = new Set(usage_plans.filter(survey => !survey.has_purchase_plan && (survey.approved_quota ?? 0) > 0).map(survey => survey.id));
       setSelectedRows(selectableIds);
     } else {
       setSelectedRows(new Set());
@@ -875,7 +875,7 @@ function SurveysPageContent() {
 
   const handleRowSelect = (id: number, checked: boolean) => {
     // Find the survey to check if it has a purchase plan or zero quota
-    const survey = surveys.find(s => s.id === id);
+    const survey = usage_plans.find(s => s.id === id);
     if (survey?.has_purchase_plan || ((survey?.approved_quota ?? 0) === 0)) {
       // Don't allow selection of items that already have purchase plans or have zero quota
       return;
@@ -893,19 +893,19 @@ function SurveysPageContent() {
   };
 
   // Calculate eligible items (selected items with approved_quota > 0)
-  const eligibleItemsCount = surveys.filter(survey => 
+  const eligibleItemsCount = usage_plans.filter(survey => 
     selectedRows.has(survey.id) && (survey.approved_quota ?? 0) > 0
   ).length;
 
-  const isAllSelected = surveys.length > 0 &&
-    surveys.filter(survey => !survey.has_purchase_plan && (survey.approved_quota ?? 0) > 0).length > 0 &&
-    selectedRows.size === surveys.filter(survey => !survey.has_purchase_plan && (survey.approved_quota ?? 0) > 0).length;
+  const isAllSelected = usage_plans.length > 0 &&
+    usage_plans.filter(survey => !survey.has_purchase_plan && (survey.approved_quota ?? 0) > 0).length > 0 &&
+    selectedRows.size === usage_plans.filter(survey => !survey.has_purchase_plan && (survey.approved_quota ?? 0) > 0).length;
   const isIndeterminate = selectedRows.size > 0 &&
-    selectedRows.size < surveys.filter(survey => !survey.has_purchase_plan && (survey.approved_quota ?? 0) > 0).length;
+    selectedRows.size < usage_plans.filter(survey => !survey.has_purchase_plan && (survey.approved_quota ?? 0) > 0).length;
 
   const handleSendToPurchasePlan = async () => {
     // Get selected usage plans that have approved_quota > 0
-    const eligibleItems = surveys.filter(survey => 
+    const eligibleItems = usage_plans.filter(survey => 
       selectedRows.has(survey.id) && (survey.approved_quota ?? 0) > 0
     );
 
@@ -1017,8 +1017,8 @@ function SurveysPageContent() {
         if (requestId !== dataRequestIdRef.current) {
           return;
         }
-        const fetchedSurveys = Array.isArray(data.surveys) ? data.surveys : [];
-        const exactFilteredSurveys = fetchedSurveys.filter((survey: Survey) => {
+        const fetchedUsagePlans = Array.isArray(data.usage_plans) ? data.usage_plans : [];
+        const exactFilteredUsagePlans = fetchedUsagePlans.filter((survey: UsagePlan) => {
           if (categoryFilter && survey.category !== categoryFilter) return false;
           if (typeFilter && survey.type !== typeFilter) return false;
           if (subtypeFilter && survey.subtype !== subtypeFilter) return false;
@@ -1035,17 +1035,17 @@ function SurveysPageContent() {
           Boolean(requestingDeptFilter) ||
           Boolean(budgetYearFilter) ||
           Boolean(hasPurchasePlanFilter);
-        const surveysToUse = shouldUseExactFiltered ? exactFilteredSurveys : fetchedSurveys;
-        setSurveys(surveysToUse);
+        const usage_plansToUse = shouldUseExactFiltered ? exactFilteredUsagePlans : fetchedUsagePlans;
+        setUsagePlans(usage_plansToUse);
         setSelectedRows((prev) => {
           if (prev.size === 0) {
             return prev;
           }
 
           const selectableIds = new Set(
-            surveysToUse
-              .filter((survey: Survey) => !survey.has_purchase_plan && (survey.approved_quota ?? 0) > 0)
-              .map((survey: Survey) => survey.id)
+            usage_plansToUse
+              .filter((survey: UsagePlan) => !survey.has_purchase_plan && (survey.approved_quota ?? 0) > 0)
+              .map((survey: UsagePlan) => survey.id)
           );
           const nextSelected = new Set(Array.from(prev).filter((id) => selectableIds.has(id)));
 
@@ -1066,7 +1066,7 @@ function SurveysPageContent() {
         }
       }
     } catch (error) {
-      console.error('Error fetching surveys:', error);
+      console.error('Error fetching usage_plans:', error);
     } finally {
       if (requestId === dataRequestIdRef.current) {
         setLoading(false);
@@ -1078,7 +1078,7 @@ function SurveysPageContent() {
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     setFormData(prev => {
-      if (name === 'requested_amount' && !editingSurvey) {
+      if (name === 'requested_amount' && !editingUsagePlan) {
         const shouldSyncApprovedQuota =
           prev.approved_quota === '' ||
           prev.approved_quota === prev.requested_amount;
@@ -1178,8 +1178,8 @@ function SurveysPageContent() {
     }
     
     try {
-      const url = editingSurvey ? `/api/usage-plans/${editingSurvey.id}` : '/api/usage-plans';
-      const method = editingSurvey ? 'PUT' : 'POST';
+      const url = editingUsagePlan ? `/api/usage-plans/${editingUsagePlan.id}` : '/api/usage-plans';
+      const method = editingUsagePlan ? 'PUT' : 'POST';
       
       const response = await fetch(url, {
         method,
@@ -1194,13 +1194,13 @@ function SurveysPageContent() {
       });
       
       if (response.ok) {
-        const savedSurvey = await response.json();
+        const savedUsagePlan = await response.json();
         
         closeForm();
         resetUsagePlanSortToNewestFirst();
         await fetchUsagePlans();
-        if (savedSurvey?.id) {
-          setEditingSurvey(null);
+        if (savedUsagePlan?.id) {
+          setEditingUsagePlan(null);
         }
       } else {
         const errorData = await response.json().catch(() => null);
@@ -1220,8 +1220,8 @@ function SurveysPageContent() {
     }
   };
 
-  const handleEdit = (survey: Survey) => {
-    setEditingSurvey(survey);
+  const handleEdit = (survey: UsagePlan) => {
+    setEditingUsagePlan(survey);
     const label = survey.product_code && survey.product_name ? `${survey.product_code} - ${survey.product_name}` : survey.product_code || survey.product_name || '';
     setProductSearch(label);
     setSelectedProductLabel(label);
@@ -1244,7 +1244,7 @@ function SurveysPageContent() {
     setShowForm(true);
   };
 
-  const handleDelete = async (survey: Survey) => {
+  const handleDelete = async (survey: UsagePlan) => {
     // Prevent deletion if item is already in purchase plans
     if (survey.has_purchase_plan) {
       await Swal.fire({
@@ -1283,10 +1283,10 @@ function SurveysPageContent() {
           resetUsagePlanSortToNewestFirst();
           fetchUsagePlans();
         } else {
-          throw new Error('Failed to delete survey');
+          throw new Error('Failed to delete usage plan');
         }
       } catch (error) {
-        console.error('Error deleting survey:', error);
+        console.error('Error deleting usage plan:', error);
         await Swal.fire({
           title: 'เกิดข้อผิดพลาด!',
           text: 'ไม่สามารถลบข้อมูลได้',
@@ -1299,7 +1299,7 @@ function SurveysPageContent() {
 
   const closeForm = () => {
     setShowForm(false);
-    setEditingSurvey(null);
+    setEditingUsagePlan(null);
     setProductSearch('');
     setSelectedProductLabel('');
     setShowProductSuggestions(false);
@@ -1394,7 +1394,7 @@ function SurveysPageContent() {
   };
 
   // Start inline editing
-  const startInlineEdit = (survey: Survey, field: 'requestedAmount' | 'requestingDept' | 'approvedQuota') => {
+  const startInlineEdit = (survey: UsagePlan, field: 'requestedAmount' | 'requestingDept' | 'approvedQuota') => {
     // Prevent editing if item is already in purchase plans
     if (survey.has_purchase_plan) {
       return;
@@ -1445,7 +1445,7 @@ function SurveysPageContent() {
       });
 
       if (response.ok) {
-        setSurveys((prev) => prev.map((survey) => (
+        setUsagePlans((prev) => prev.map((survey) => (
           survey.id === id
             ? {
                 ...survey,
@@ -1510,7 +1510,7 @@ function SurveysPageContent() {
     []
   );
 
-  const createEmptyBulkRecord = (id: number): BulkSurveyRecord => ({
+  const createEmptyBulkRecord = (id: number): BulkUsagePlanRecord => ({
     id,
     productSearch: '',
     product_code: '',
@@ -1527,7 +1527,7 @@ function SurveysPageContent() {
     sequence_no: '1'
   });
 
-  const updateBulkRecord = (id: number, updater: (record: BulkSurveyRecord) => BulkSurveyRecord) => {
+  const updateBulkRecord = (id: number, updater: (record: BulkUsagePlanRecord) => BulkUsagePlanRecord) => {
     setBulkRecords((prev) => prev.map((record) => (record.id === id ? updater(record) : record)));
   };
 
@@ -1613,8 +1613,8 @@ function SurveysPageContent() {
     });
   };
 
-  // Save bulk surveys
-  const saveBulkSurveys = async () => {
+  // Save bulk usage_plans
+  const saveBulkUsagePlans = async () => {
     try {
       const nextValidationErrors: Record<number, { requestedAmount?: string; requestingDept?: string }> = {};
 
@@ -1795,7 +1795,7 @@ function SurveysPageContent() {
         hideUsagePlanToastLater();
       }
     } catch (error) {
-      console.error('Error saving bulk surveys:', error);
+      console.error('Error saving bulk usage_plans:', error);
 
       setToast({
         message: 'เกิดข้อผิดพลาดในการบันทึกข้อมูล',
@@ -1868,8 +1868,8 @@ function SurveysPageContent() {
           
           <div className="flex items-center gap-3">
             <input
-              id="surveys-import-file"
-              name="surveysImportFile"
+              id="usage_plans-import-file"
+              name="usage_plansImportFile"
               ref={fileInputRef}
               type="file"
               accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
@@ -1922,7 +1922,7 @@ function SurveysPageContent() {
             <div className="grid grid-cols-1 md:grid-cols-7 gap-4 mb-4">
             <div>
               <select
-                id="surveys-filter-budget-year"
+                id="usage_plans-filter-budget-year"
                 name="budgetYearFilter"
                 value={budgetYearFilter}
                 onChange={(e) => setBudgetYearFilter(e.target.value)}
@@ -1937,7 +1937,7 @@ function SurveysPageContent() {
 
             <div>
               <select
-                id="surveys-filter-requesting-dept"
+                id="usage_plans-filter-requesting-dept"
                 name="requestingDeptFilter"
                 value={requestingDeptFilter}
                 onChange={(e) => setRequestingDeptFilter(e.target.value)}
@@ -1952,7 +1952,7 @@ function SurveysPageContent() {
 
             <div>
               <select
-                id="surveys-filter-has-purchase-plan"
+                id="usage_plans-filter-has-purchase-plan"
                 name="hasPurchasePlanFilter"
                 value={hasPurchasePlanFilter}
                 onChange={(e) => setHasPurchasePlanFilter(e.target.value)}
@@ -1966,7 +1966,7 @@ function SurveysPageContent() {
 
             <div className="relative">
               <input
-                id="surveys-filter-product-name"
+                id="usage_plans-filter-product-name"
                 name="productNameFilter"
                 type="text"
                 value={productNameFilter}
@@ -1989,7 +1989,7 @@ function SurveysPageContent() {
             
             <div>
               <select
-                id="surveys-filter-category"
+                id="usage_plans-filter-category"
                 name="categoryFilter"
                 value={categoryFilter}
                 onChange={(e) => {
@@ -2008,7 +2008,7 @@ function SurveysPageContent() {
             
             <div>
               <select
-                id="surveys-filter-type"
+                id="usage_plans-filter-type"
                 name="typeFilter"
                 value={typeFilter}
                 onChange={(e) => {
@@ -2026,7 +2026,7 @@ function SurveysPageContent() {
             
             <div>
               <select
-                id="surveys-filter-subtype"
+                id="usage_plans-filter-subtype"
                 name="subtypeFilter"
                 value={subtypeFilter}
                 onChange={(e) => setSubtypeFilter(e.target.value)}
@@ -2071,9 +2071,9 @@ function SurveysPageContent() {
           </div>
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
             <div className="flex items-center gap-2">
-              <label htmlFor="surveys-page-size" className="text-sm text-gray-600">แสดงต่อหน้า</label>
+              <label htmlFor="usage_plans-page-size" className="text-sm text-gray-600">แสดงต่อหน้า</label>
               <select
-                id="surveys-page-size"
+                id="usage_plans-page-size"
                 name="page_size"
                 value={pageSize}
                 onChange={handleUsagePlanPageSizeChange}
@@ -2114,7 +2114,7 @@ function SurveysPageContent() {
             <div className="flex justify-center items-center py-12">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
             </div>
-          ) : surveys.length === 0 ? (
+          ) : usage_plans.length === 0 ? (
             <div className="text-center py-12">
               <p className="text-gray-500">ไม่พบข้อมูล</p>
             </div>
@@ -2169,7 +2169,7 @@ function SurveysPageContent() {
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                  {surveys.map((survey) => (
+                  {usage_plans.map((survey) => (
                     <tr key={survey.id} className="hover:bg-gray-50">
                       <td className="px-6 py-4 whitespace-nowrap">
                         <input
@@ -2357,7 +2357,7 @@ function SurveysPageContent() {
             <div className="w-full max-w-4xl max-h-[90vh] overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_24px_80px_rgba(15,23,42,0.18)] ring-1 ring-slate-200">
               <div className="border-b border-slate-200 bg-gradient-to-r from-blue-50 via-white to-slate-50 px-6 py-5">
                 <h2 className="text-xl font-semibold text-gray-800">
-                  {editingSurvey ? 'แก้ไขข้อมูลความต้องการ' : 'เพิ่มข้อมูลความต้องการ'}
+                  {editingUsagePlan ? 'แก้ไขข้อมูลความต้องการ' : 'เพิ่มข้อมูลความต้องการ'}
                 </h2>
                 <p className="mt-1 text-sm text-slate-500">เลือกสินค้าและกรอกรายละเอียดที่จำเป็นให้ครบถ้วนก่อนบันทึก</p>
               </div>
@@ -2376,18 +2376,18 @@ function SurveysPageContent() {
                       value={productSearch}
                       onChange={(e) => handleProductSelect(e.target.value)}
                       onFocus={() => {
-                        if (!editingSurvey && productSearch.trim() && productSearch.trim() !== selectedProductLabel.trim()) {
+                        if (!editingUsagePlan && productSearch.trim() && productSearch.trim() !== selectedProductLabel.trim()) {
                           setShowProductSuggestions(true);
                         }
                       }}
                       onKeyDown={handleProductSearchKeyDown}
-                      readOnly={Boolean(editingSurvey)}
+                      readOnly={Boolean(editingUsagePlan)}
                       autoComplete="off"
                       aria-label="ค้นหารหัสหรือชื่อสินค้า"
                       placeholder="พิมพ์รหัสสินค้า หรือชื่อสินค้า"
-                      className={`w-full rounded-md border px-3 py-2 pl-9 pr-9 focus:outline-none focus:ring-2 focus:ring-blue-500 ${errors.product_code ? 'border-red-500' : 'border-gray-300'} ${editingSurvey ? 'bg-gray-50' : 'bg-white'}`}
+                      className={`w-full rounded-md border px-3 py-2 pl-9 pr-9 focus:outline-none focus:ring-2 focus:ring-blue-500 ${errors.product_code ? 'border-red-500' : 'border-gray-300'} ${editingUsagePlan ? 'bg-gray-50' : 'bg-white'}`}
                     />
-                    {productSearch && !editingSurvey && (
+                    {productSearch && !editingUsagePlan && (
                       <button
                         type="button"
                         onClick={() => handleProductSelect('')}
@@ -2397,7 +2397,7 @@ function SurveysPageContent() {
                         <X className="h-4 w-4" />
                       </button>
                     )}
-                    {showProductSuggestions && !editingSurvey && (
+                    {showProductSuggestions && !editingUsagePlan && (
                       <div className="absolute z-10 mt-2 max-h-72 w-full overflow-auto rounded-md border border-gray-200 bg-white shadow-lg">
                         {shouldShowProductNoResults ? (
                           <div className="px-4 py-3 text-sm text-gray-500">ไม่พบรายการที่ค้นหา</div>
@@ -2424,7 +2424,7 @@ function SurveysPageContent() {
                   {errors.product_code && <p className="mt-2 text-sm text-red-600">{errors.product_code}</p>}
                 </div>
 
-                {(editingSurvey || formData.product_name) && (
+                {(editingUsagePlan || formData.product_name) && (
                   <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
                     <div className="border-b border-slate-200 px-4 py-3">
                       <h3 className="text-sm font-semibold text-slate-700">รายการที่เลือก</h3>
@@ -2531,7 +2531,7 @@ function SurveysPageContent() {
                     type="submit"
                     className="rounded-lg bg-blue-600 px-4 py-2 text-white shadow-sm transition-colors hover:bg-blue-700"
                   >
-                    {editingSurvey ? 'บันทึกการแก้ไข' : 'บันทึกข้อมูล'}
+                    {editingUsagePlan ? 'บันทึกการแก้ไข' : 'บันทึกข้อมูล'}
                   </button>
                 </div>
               </form>
@@ -2539,7 +2539,7 @@ function SurveysPageContent() {
           </div>
         )}
 
-        {/* Bulk Add Surveys Modal */}
+        {/* Bulk Add UsagePlans Modal */}
         {showBulkForm && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-100/80 p-2 backdrop-blur-sm md:p-4">
             <div className="flex h-[96vh] w-[98vw] flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_24px_80px_rgba(15,23,42,0.18)] ring-1 ring-slate-200">
@@ -2804,7 +2804,7 @@ function SurveysPageContent() {
                 </button>
                 <button
                   type="button"
-                  onClick={saveBulkSurveys}
+                  onClick={saveBulkUsagePlans}
                   className="rounded-lg bg-blue-600 px-6 py-2.5 text-white shadow-sm transition-colors hover:bg-blue-700"
                 >
                   บันทึกทั้งหมด ({bulkRecords.length} รายการ)
@@ -2819,10 +2819,10 @@ function SurveysPageContent() {
   );
 }
 
-export default function SurveysPage() {
+export default function UsagePlansPage() {
   return (
     <Suspense fallback={<div className="min-h-screen bg-gray-50" />}>
-      <SurveysPageContent />
+      <UsagePlansPageContent />
     </Suspense>
   );
 }

@@ -903,7 +903,7 @@ function PurchasePlansPageContent() {
       await Swal.fire({ 
         icon: 'success', 
         title: 'ทำรายการอนุมัติจัดซื้อสำเร็จ', 
-        html: `สร้างรายการอนุมัติจัดซื้อ ${payload.data?.created || 0} รายการเรียบร้อยแล้ว<br/><strong>รหัสอนุมัติ: ${payload.data?.approve_code || 'N/A'}</strong><br/><strong>รหัสเอกสาร: ${payload.data?.doc_no || 'N/A'}</strong>` 
+        html: `สร้างรายการอนุมัติจัดซื้อ ${payload.data?.created || 0} รายการเรียบร้อยแล้ว<br/><strong>รหัสเอกสาร: ${payload.data?.approve_code || 'N/A'}</strong><br/><strong>เลขที่หนังสือ: ${payload.data?.doc_no || 'N/A'}</strong>` 
       });
 
       // Clear selection and refresh data

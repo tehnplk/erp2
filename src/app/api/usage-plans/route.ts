@@ -2,10 +2,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { pgQuery } from '@/lib/pg';
 import { cacheDelByPattern } from '@/lib/redis';
 import { validateQuery, validateRequest } from '@/lib/validation/validate';
-import { surveyQuerySchema, createSurveySchema } from '@/lib/validation/schemas';
+import { usage_plan_query_schema, create_usage_plan_schema } from '@/lib/validation/schemas';
 import { findDepartmentCodeByName } from '@/lib/department-code';
 
-const buildSurveyConstraintError = () =>
+const buildUsagePlanConstraintError = () =>
   NextResponse.json(
     { error: 'ในปีงบประมาณนี้ แผนกนี้ ขอใช้สินค้านี้ ครบ 2 ครั้งแล้ว' },
     { status: 400 }
@@ -15,7 +15,7 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
 
-    const queryValidation = validateQuery(surveyQuerySchema, searchParams);
+    const queryValidation = validateQuery(usage_plan_query_schema, searchParams);
     if (!queryValidation.success) {
       return queryValidation.error;
     }
@@ -108,7 +108,7 @@ export async function GET(request: NextRequest) {
     const hasPagination = validatedPage !== undefined || validatedPageSize !== undefined;
 
     if (!hasPagination) {
-      const [surveysResult, totalCountResult] = await Promise.all([
+      const [usagePlansResult, totalCountResult] = await Promise.all([
         pgQuery(
           `SELECT 
             up.id, up.product_code, up.category, up.type, up.subtype, up.product_name, 
@@ -125,11 +125,11 @@ export async function GET(request: NextRequest) {
         pgQuery(`SELECT COUNT(*)::int AS count FROM public.usage_plan up ${whereSql}`, params)
       ]);
 
-      const filteredSurveys = surveysResult.rows.filter(matches_exact_filter);
+      const filteredUsagePlans = usagePlansResult.rows.filter(matches_exact_filter);
 
       const result = {
-        surveys: filteredSurveys,
-        totalCount: subtype ? filteredSurveys.length : totalCountResult.rows[0]?.count || 0,
+        usage_plans: filteredUsagePlans,
+        totalCount: subtype ? filteredUsagePlans.length : totalCountResult.rows[0]?.count || 0,
       };
 
       return NextResponse.json(result);
@@ -141,7 +141,7 @@ export async function GET(request: NextRequest) {
 
     const paginatedParams = [...params, pageSize, offset];
 
-    const [surveysResult, totalCountResult, summaryResult, filteredSummaryResult] = await Promise.all([
+    const [usagePlansResult, totalCountResult, summaryResult, filteredSummaryResult] = await Promise.all([
       pgQuery(
         `SELECT 
           up.id, up.product_code, up.category, up.type, up.subtype, up.product_name, 
@@ -166,11 +166,11 @@ export async function GET(request: NextRequest) {
       ),
     ]);
 
-    const filteredSurveys = surveysResult.rows.filter(matches_exact_filter);
+    const filteredUsagePlans = usagePlansResult.rows.filter(matches_exact_filter);
     const filteredSummaryRow = filteredSummaryResult.rows[0];
 
     const paginatedResult = {
-      surveys: filteredSurveys,
+      usage_plans: filteredUsagePlans,
       totalCount: filteredSummaryRow?.count || totalCountResult.rows[0]?.count || 0,
       total_requested_value: filteredSummaryRow?.total_requested_value ?? summaryResult.rows[0]?.total_requested_value ?? 0,
       total_approved_value: filteredSummaryRow?.total_approved_value ?? summaryResult.rows[0]?.total_approved_value ?? 0,
@@ -180,9 +180,9 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json(paginatedResult);
   } catch (error) {
-    console.error('Error fetching surveys:', error);
+    console.error('Error fetching usage plans:', error);
     return NextResponse.json(
-      { error: 'Failed to fetch surveys' },
+      { error: 'Failed to fetch usage plans' },
       { status: 500 }
     );
   }
@@ -192,79 +192,79 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
 
-    const validation = await validateRequest(createSurveySchema, body);
+    const validation = await validateRequest(create_usage_plan_schema, body);
     if (!validation.success) {
       return validation.error;
     }
 
-    const surveyData = validation.data as any;
+    const usagePlanData = validation.data as any;
 
-    if (surveyData.budget_year === null || surveyData.budget_year === undefined) {
-      surveyData.budget_year = 2569;
+    if (usagePlanData.budget_year === null || usagePlanData.budget_year === undefined) {
+      usagePlanData.budget_year = 2569;
     }
 
-    if (surveyData.budget_year !== null && surveyData.budget_year !== undefined && surveyData.sequence_no !== null && surveyData.sequence_no !== undefined) {
+    if (usagePlanData.budget_year !== null && usagePlanData.budget_year !== undefined && usagePlanData.sequence_no !== null && usagePlanData.sequence_no !== undefined) {
       const existing = await pgQuery(
         `SELECT id FROM public.usage_plan WHERE budget_year = $1 AND requesting_dept IS NOT DISTINCT FROM $2 AND product_code IS NOT DISTINCT FROM $3 AND sequence_no = $4 LIMIT 1`,
-        [surveyData.budget_year, surveyData.requesting_dept || null, surveyData.product_code || null, surveyData.sequence_no]
+        [usagePlanData.budget_year, usagePlanData.requesting_dept || null, usagePlanData.product_code || null, usagePlanData.sequence_no]
       );
 
       if (existing.rows.length > 0) {
-        return buildSurveyConstraintError();
+        return buildUsagePlanConstraintError();
       }
     }
 
-    if (surveyData.budget_year !== null && surveyData.budget_year !== undefined) {
+    if (usagePlanData.budget_year !== null && usagePlanData.budget_year !== undefined) {
       const existingCountResult = await pgQuery(
         `SELECT COUNT(*)::int AS count FROM public.usage_plan WHERE budget_year = $1 AND requesting_dept IS NOT DISTINCT FROM $2 AND product_code IS NOT DISTINCT FROM $3`,
-        [surveyData.budget_year, surveyData.requesting_dept || null, surveyData.product_code || null]
+        [usagePlanData.budget_year, usagePlanData.requesting_dept || null, usagePlanData.product_code || null]
       );
       const existingCount = existingCountResult.rows[0]?.count || 0;
 
       if (existingCount >= 2) {
-        return buildSurveyConstraintError();
+        return buildUsagePlanConstraintError();
       }
 
-      if (surveyData.sequence_no === null || surveyData.sequence_no === undefined) {
-        surveyData.sequence_no = existingCount + 1;
+      if (usagePlanData.sequence_no === null || usagePlanData.sequence_no === undefined) {
+        usagePlanData.sequence_no = existingCount + 1;
       }
     }
 
-    if (surveyData.sequence_no === null || surveyData.sequence_no === undefined) {
-      surveyData.sequence_no = 1;
+    if (usagePlanData.sequence_no === null || usagePlanData.sequence_no === undefined) {
+      usagePlanData.sequence_no = 1;
     }
 
-    const requestingDept = surveyData.requesting_dept || null;
+    const requestingDept = usagePlanData.requesting_dept || null;
     const requestingDeptCode = await findDepartmentCodeByName(requestingDept);
 
-    const survey = await pgQuery(
+    const usagePlan = await pgQuery(
       `INSERT INTO public.usage_plan (product_code, category, type, subtype, product_name, requested_amount, unit, price_per_unit, requesting_dept, requesting_dept_code, approved_quota, budget_year, sequence_no)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
        RETURNING id, product_code, category, type, subtype, product_name, requested_amount, unit, price_per_unit::float8 AS price_per_unit, requesting_dept, requesting_dept_code, approved_quota, budget_year, sequence_no, created_at, updated_at`,
       [
-        surveyData.product_code || null,
-        surveyData.category || null,
-        surveyData.type || null,
-        surveyData.subtype || null,
-        surveyData.product_name || null,
-        surveyData.requested_amount ?? null,
-        surveyData.unit || null,
-        surveyData.price_per_unit ?? 0,
+        usagePlanData.product_code || null,
+        usagePlanData.category || null,
+        usagePlanData.type || null,
+        usagePlanData.subtype || null,
+        usagePlanData.product_name || null,
+        usagePlanData.requested_amount ?? null,
+        usagePlanData.unit || null,
+        usagePlanData.price_per_unit ?? 0,
         requestingDept,
         requestingDeptCode,
-        surveyData.approved_quota ?? null,
-        surveyData.budget_year ?? null,
-        surveyData.sequence_no ?? null,
+        usagePlanData.approved_quota ?? null,
+        usagePlanData.budget_year ?? null,
+        usagePlanData.sequence_no ?? null,
       ]
     );
     
-    await cacheDelByPattern('erp:surveys:list:*');
+    await cacheDelByPattern('erp:usage_plans:list:*');
     
-    return NextResponse.json(survey.rows[0], { status: 201 });
+    return NextResponse.json(usagePlan.rows[0], { status: 201 });
   } catch (error) {
-    console.error('Error creating survey:', error);
+    console.error('Error creating usage plan:', error);
     return NextResponse.json(
-      { error: 'Failed to create survey' },
+      { error: 'Failed to create usage plan' },
       { status: 500 }
     );
   }

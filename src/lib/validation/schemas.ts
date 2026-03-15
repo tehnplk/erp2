@@ -291,8 +291,8 @@ export const purchaseApprovalQuerySchema = z.object({
   ...paginationFields
 });
 
-// Survey schemas
-export const createSurveySchema = z.object({
+// Usage Plan schemas
+export const create_usage_plan_schema = z.object({
   product_code: z.string().nullable().optional(),
   category: z.string().nullable().optional(),
   type: z.string().nullable().optional(),
@@ -313,9 +313,9 @@ export const createSurveySchema = z.object({
     .optional()
 });
 
-export const updateSurveySchema = createSurveySchema.partial();
+export const update_usage_plan_schema = create_usage_plan_schema.partial();
 
-export const surveyQuerySchema = z.object({
+export const usage_plan_query_schema = z.object({
   product_name: z.string().optional(),
   category: z.string().optional(),
   type: z.string().optional(),
