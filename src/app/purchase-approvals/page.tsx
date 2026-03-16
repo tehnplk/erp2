@@ -368,12 +368,10 @@ function PurchaseApprovalsPageContent() {
     if (Number.isNaN(date.getTime())) return value;
     // Convert UTC to Thailand time by adding 7 hours
     const thailandTime = new Date(date.getTime() + (7 * 60 * 60 * 1000));
-    return new Intl.DateTimeFormat('th-TH-u-ca-buddhist-nu-latn', {
-      day: 'numeric',
-      month: 'long',
-      year: 'numeric',
-      timeZone: 'Asia/Bangkok',
-    }).format(thailandTime);
+    const day = thailandTime.getDate().toString().padStart(2, '0');
+    const month = (thailandTime.getMonth() + 1).toString().padStart(2, '0');
+    const year = thailandTime.getFullYear() + 543; // Convert to Buddhist year
+    return `${day}/${month}/${year}`;
   };
 
   const formatMoney = (value?: number | string) => {
@@ -1315,7 +1313,7 @@ function PurchaseApprovalsPageContent() {
                 <React.Fragment key={group.id}>
                   <tr className="hover:bg-gray-50">
                     <td className="px-3 py-2 text-xs font-medium">{(page - 1) * pageSize + index + 1}</td>
-                    <td className="px-3 py-2 text-xs">{formatDateTime(group.created_at)}</td>
+                    <td className="px-3 py-2 text-xs">{formatDate(group.created_at)}</td>
                     {/* <td className="px-3 py-2 text-xs font-medium text-blue-600">{group.id}</td> */}
                     <td className="px-3 py-2 text-xs">
                       {editingRowId === group.id && editingData.approve_code !== undefined ? (
@@ -1750,7 +1748,7 @@ function PurchaseApprovalsPageContent() {
                 </div>
                 <div className="min-w-0 text-left">
                   <span className="font-bold">วันที่</span>{' '}
-                  {formatDate(documentPreview.doc_date || documentPreview.created_at)}
+                  {formatThaiBuddhistLongDate(documentPreview.doc_date || documentPreview.created_at)}
                 </div>
               </div>
 
