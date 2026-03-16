@@ -27,11 +27,20 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     const numericId = parsedId.data.id;
     const body = await request.json();
     
-    // For PATCH, we expect to update the status and optionally pending_note
-    const { status, pending_note } = body;
-    
-    const normalizedStatusCode = await get_approval_doc_status_code(status);
-    if (!normalizedStatusCode) {
+    const { status, pending_note, is_inspection } = body;
+
+    const hasStatusUpdate = status !== undefined;
+    const hasInspectionUpdate = is_inspection !== undefined;
+
+    if (!hasStatusUpdate && !hasInspectionUpdate) {
+      return NextResponse.json({ error: 'No supported fields to update' }, { status: 400 });
+    }
+
+    const normalizedStatusCode = hasStatusUpdate
+      ? await get_approval_doc_status_code(status)
+      : null;
+
+    if (hasStatusUpdate && !normalizedStatusCode) {
       return NextResponse.json({ error: 'Invalid status. Must be DRAFT, PENDING, APPROVED, REJECTED, or CANCELLED' }, { status: 400 });
     }
 
@@ -40,21 +49,29 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       return NextResponse.json({ error: 'Purchase approval not found' }, { status: 404 });
     }
 
-    // Build the update query dynamically based on provided fields
-    const updateFields: string[] = ['status = $1', 'updated_at = CURRENT_TIMESTAMP'];
-    const queryParams: any[] = [normalizedStatusCode];
-    
-    // Add pending_note if provided (only for PENDING status)
-    if (normalizedStatusCode === '002' && pending_note !== undefined) {
-      updateFields.push('pending_note = $2');
+    const updateFields: string[] = ['updated_at = CURRENT_TIMESTAMP'];
+    const queryParams: any[] = [];
+
+    if (hasStatusUpdate) {
+      queryParams.push(normalizedStatusCode);
+      updateFields.push(`status = $${queryParams.length}`);
+    }
+
+    if (hasStatusUpdate && normalizedStatusCode === '002' && pending_note !== undefined) {
       queryParams.push(pending_note);
+      updateFields.push(`pending_note = $${queryParams.length}`);
+    }
+
+    if (hasInspectionUpdate) {
+      queryParams.push(Boolean(is_inspection));
+      updateFields.push(`is_inspection = $${queryParams.length}`);
     }
 
     const updated = await pgQuery(
       `UPDATE public.purchase_approval 
        SET ${updateFields.join(', ')}
        WHERE id = $${queryParams.length + 1}
-       RETURNING id, doc_seq, approve_code, doc_no, doc_date, budget_year, status AS status_code, total_amount, total_items, prepared_by, approved_by, approved_at, notes, pending_note, created_at, updated_at, version`,
+       RETURNING id, doc_seq, approve_code, doc_no, doc_date, budget_year, seller_id, COALESCE(is_inspection, false) AS is_inspection, status AS status_code, total_amount, total_items, prepared_by, approved_by, approved_at, notes, pending_note, created_at, updated_at, version`,
       [...queryParams, numericId]
     );
     
@@ -96,6 +113,8 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
       approve_code: validation.data.approve_code ?? null,
       doc_no: validation.data.doc_no ?? null,
       doc_date: validation.data.doc_date ?? null,
+      seller_id: validation.data.seller_id ?? null,
+      is_inspection: validation.data.is_inspection ?? null,
       status: normalizedPutStatusCode ?? null,
       total_amount: validation.data.total_amount ?? null,
       total_items: validation.data.total_items ?? null,
@@ -115,6 +134,8 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
       approve_code: 'approve_code',
       doc_no: 'doc_no',
       doc_date: 'doc_date',
+      seller_id: 'seller_id',
+      is_inspection: 'is_inspection',
       status: 'status',
       total_amount: 'total_amount',
       total_items: 'total_items',
@@ -138,7 +159,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     });
 
     if (assignments.length === 0) {
-      const unchanged = await pgQuery('SELECT pa.id, pa.doc_seq, pa.approve_code, pa.doc_no, pa.doc_date, pa.budget_year, ads.status, pa.status AS status_code, pa.total_amount, pa.total_items, pa.prepared_by, pa.approved_by, pa.approved_at, pa.notes, pa.pending_note, pa.created_at, pa.updated_at, pa.version FROM public.purchase_approval pa LEFT JOIN public.approval_doc_status ads ON ads.code = pa.status AND ads.is_active = true WHERE pa.id = $1 LIMIT 1', [numericId]);
+      const unchanged = await pgQuery('SELECT pa.id, pa.doc_seq, pa.approve_code, pa.doc_no, pa.doc_date, pa.budget_year, pa.seller_id, COALESCE(pa.is_inspection, false) AS is_inspection, ads.status, pa.status AS status_code, pa.total_amount, pa.total_items, pa.prepared_by, pa.approved_by, pa.approved_at, pa.notes, pa.pending_note, pa.created_at, pa.updated_at, pa.version FROM public.purchase_approval pa LEFT JOIN public.approval_doc_status ads ON ads.code = pa.status AND ads.is_active = true WHERE pa.id = $1 LIMIT 1', [numericId]);
       return NextResponse.json(unchanged.rows[0]);
     }
 
@@ -146,7 +167,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     values.push(numericId);
     const updated = await pgQuery(
       `UPDATE public.purchase_approval SET ${assignments.join(', ')} WHERE id = $${values.length}
-       RETURNING id, doc_seq, approve_code, doc_no, doc_date, budget_year, status AS status_code, total_amount, total_items, prepared_by, approved_by, approved_at, notes, pending_note, created_at, updated_at, version`,
+       RETURNING id, doc_seq, approve_code, doc_no, doc_date, budget_year, seller_id, COALESCE(is_inspection, false) AS is_inspection, status AS status_code, total_amount, total_items, prepared_by, approved_by, approved_at, notes, pending_note, created_at, updated_at, version`,
       values
     );
     await cacheDelByPattern('erp:purchase:approvals:list:*');

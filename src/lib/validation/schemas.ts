@@ -256,6 +256,8 @@ export const createPurchaseApprovalSchema = z.object({
   approve_code: z.string().optional(),
   doc_no: z.string().optional(),
   doc_date: z.string().optional(),
+  seller_id: z.coerce.number().int().positive().optional(),
+  is_inspection: z.boolean().optional(),
   status: z.string().refine((value) => get_approval_doc_status_code(value) !== null, 'Invalid approval status').optional(),
   total_amount: z.number().optional(),
   total_items: z.number().optional(),

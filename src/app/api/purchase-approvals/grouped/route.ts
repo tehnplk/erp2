@@ -61,6 +61,8 @@ export async function GET(request: NextRequest) {
         pa.doc_no,
         pa.doc_date,
         pa.budget_year,
+        pa.seller_id,
+        COALESCE(pa.is_inspection, false) AS is_inspection,
         ads.status,
         pa.status AS status_code,
         pa.total_amount,
@@ -80,7 +82,7 @@ export async function GET(request: NextRequest) {
       LEFT JOIN public.purchase_plan pp ON pad.purchase_plan_id = pp.id
       LEFT JOIN public.usage_plan up ON pp.usage_plan_id = up.id
       ${whereSql}
-      GROUP BY pa.id, pa.approve_code, pa.doc_no, pa.doc_date, pa.budget_year, ads.status, pa.status, pa.total_amount, pa.total_items,
+      GROUP BY pa.id, pa.approve_code, pa.doc_no, pa.doc_date, pa.budget_year, pa.seller_id, pa.is_inspection, ads.status, pa.status, pa.total_amount, pa.total_items,
                pa.prepared_by, pa.approved_by, pa.approved_at, pa.notes, pa.created_at, pa.updated_at, pa.version
       ORDER BY MAX(pa.created_at) DESC
     `;

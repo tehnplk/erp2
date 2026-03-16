@@ -5,7 +5,7 @@ import { AlignmentType, BorderStyle, Document, ImageRun, Packer, PageOrientation
 import React, { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import Swal from 'sweetalert2';
-import { ChevronDown, ChevronRight, Save, X, Trash2, Edit, FileText, CheckCircle, XCircle, Download, Printer, FileDown, Clock, RotateCcw } from 'lucide-react';
+import { ChevronDown, ChevronRight, Save, X, Trash2, Edit, FileText, CheckCircle, XCircle, Download, Printer, FileDown, Clock, RotateCcw, ShoppingCart, PackageCheck } from 'lucide-react';
 
 const DEFAULT_DOC_NO = 'พล. 0733.301/พิเศษ';
 const DOCX_FONT_FAMILY = 'TH Sarabun';
@@ -35,6 +35,8 @@ interface PurchaseApprovalGroup {
   approve_code: string;
   doc_no: string;
   doc_date: string;
+  seller_id?: number | null;
+  is_inspection?: boolean;
   status: string;
   total_amount: string;
   total_items: number;
@@ -96,6 +98,8 @@ function PurchaseApprovalsPageContent() {
   const [editingData, setEditingData] = useState<Record<string, string>>({});
   const [savingRowId, setSavingRowId] = useState<number | null>(null);
   const [documentPreview, setDocumentPreview] = useState<PurchaseApprovalGroup | null>(null);
+  const [purchaseOrderPreview, setPurchaseOrderPreview] = useState<PurchaseApprovalGroup | null>(null);
+  const [inspectionPreview, setInspectionPreview] = useState<PurchaseApprovalGroup | null>(null);
 
   // filters
   const [nameFilter, setNameFilter] = useState(searchParams.get('product_name') || '');
@@ -825,6 +829,685 @@ function PurchaseApprovalsPageContent() {
     setDocumentPreview(null);
   };
 
+  const handleDownloadPurchaseOrderDocx = async () => {
+    if (!purchaseOrderPreview) {
+      return;
+    }
+
+    try {
+      const createDocxTextRun = ({
+        text,
+        size,
+        bold,
+      }: {
+        text: string;
+        size: number;
+        bold?: boolean;
+      }) =>
+        new TextRun({
+          text,
+          size,
+          bold,
+          font: {
+            ascii: DOCX_FONT_FAMILY,
+            hAnsi: DOCX_FONT_FAMILY,
+            eastAsia: DOCX_FONT_FAMILY,
+            cs: DOCX_FONT_FAMILY,
+          },
+        });
+
+      const birdResponse = await fetch('/images/bird.jpg');
+      const birdArrayBuffer = await birdResponse.arrayBuffer();
+      const birdImage = new Uint8Array(birdArrayBuffer);
+      const thinBorder = {
+        style: BorderStyle.SINGLE,
+        size: 1,
+        color: '808080',
+      };
+      const noBorder = {
+        style: BorderStyle.NONE,
+        size: 0,
+        color: 'FFFFFF',
+      };
+
+      const tableRows = [
+        new TableRow({
+          children: [
+            'ลำดับ',
+            'ชื่อรายการ',
+            'จำนวน (หน่วย)',
+            'ขนาดบรรจุ (หน่วยนับ)',
+            'ราคา/หน่วย (บาท)',
+            'จำนวนเงิน (บาท)',
+            'หมายเหตุ เงื่อนไขแผน',
+            'ลำดับแผน',
+          ].map((text) =>
+            new TableCell({
+              borders: { top: thinBorder, bottom: thinBorder, left: thinBorder, right: thinBorder },
+              children: [
+                new Paragraph({
+                  alignment: AlignmentType.CENTER,
+                  children: [createDocxTextRun({ text, size: 30 })],
+                }),
+              ],
+            })
+          ),
+        }),
+        ...(purchaseOrderPreview.sub_items || []).map(
+          (item, index) =>
+            new TableRow({
+              children: [
+                String(index + 1),
+                `${item.product_code ? `${item.product_code} : ` : ''}${item.product_name || '-'}`,
+                Number(item.requested_quantity || 0).toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+                item.unit || '-',
+                formatMoney(item.price_per_unit),
+                formatMoney(item.total_value),
+                'จำนวน วงเงิน ราคา',
+                String(item.line_number || '-'),
+              ].map((text, cellIndex) =>
+                new TableCell({
+                  borders: { top: thinBorder, bottom: thinBorder, left: thinBorder, right: thinBorder },
+                  children: [
+                    new Paragraph({
+                      alignment:
+                        cellIndex === 0 || cellIndex === 2 || cellIndex === 3 || cellIndex === 4 || cellIndex === 5 || cellIndex === 7
+                          ? AlignmentType.CENTER
+                          : AlignmentType.LEFT,
+                      children: [createDocxTextRun({ text, size: 30 })],
+                    }),
+                  ],
+                })
+              ),
+            })
+        ),
+        new TableRow({
+          children: [
+            '',
+            'รวม',
+            '',
+            '',
+            '',
+            formatMoney(purchaseOrderPreview.total_amount),
+            '',
+            '',
+          ].map((text, cellIndex) =>
+            new TableCell({
+              borders: { top: thinBorder, bottom: thinBorder, left: thinBorder, right: thinBorder },
+              children: [
+                new Paragraph({
+                  alignment: cellIndex === 1 ? AlignmentType.CENTER : cellIndex === 5 ? AlignmentType.RIGHT : AlignmentType.LEFT,
+                  children: [createDocxTextRun({ text, size: 30, bold: cellIndex === 1 || cellIndex === 5 })],
+                }),
+              ],
+            })
+          ),
+        }),
+      ];
+
+      const doc = new Document({
+        styles: {
+          default: {
+            document: {
+              run: {
+                font: DOCX_FONT_FAMILY,
+                size: 30,
+              },
+            },
+          },
+        },
+        sections: [
+          {
+            properties: {
+              page: {
+                margin: { top: 720, right: 720, bottom: 720, left: 720 },
+                size: { orientation: PageOrientation.PORTRAIT },
+              },
+            },
+            children: [
+              new Table({
+                width: { size: 100, type: WidthType.PERCENTAGE },
+                borders: { top: noBorder, bottom: noBorder, left: noBorder, right: noBorder, insideHorizontal: noBorder, insideVertical: noBorder },
+                rows: [
+                  new TableRow({
+                    children: [
+                      new TableCell({
+                        width: { size: 15, type: WidthType.PERCENTAGE },
+                        borders: { top: noBorder, bottom: noBorder, left: noBorder, right: noBorder },
+                        children: [
+                          new Paragraph({
+                            alignment: AlignmentType.LEFT,
+                            children: [
+                              new ImageRun({
+                                data: birdImage,
+                                transformation: { width: 55, height: 55 },
+                                type: 'jpg',
+                              }),
+                            ],
+                          }),
+                        ],
+                      }),
+                      new TableCell({
+                        width: { size: 70, type: WidthType.PERCENTAGE },
+                        borders: { top: noBorder, bottom: noBorder, left: noBorder, right: noBorder },
+                        children: [
+                          new Paragraph({
+                            alignment: AlignmentType.CENTER,
+                            spacing: { before: 140, after: 80 },
+                            children: [createDocxTextRun({ text: 'ใบสั่งซื้อสั่งจ้าง', bold: true, size: 36 })],
+                          }),
+                        ],
+                      }),
+                      new TableCell({
+                        width: { size: 15, type: WidthType.PERCENTAGE },
+                        borders: { top: noBorder, bottom: noBorder, left: noBorder, right: noBorder },
+                        children: [new Paragraph({ text: '' })],
+                      }),
+                    ],
+                  }),
+                ],
+              }),
+              new Paragraph({
+                spacing: { after: 80 },
+                children: [
+                  createDocxTextRun({ text: 'ส่วนราชการ ', bold: true, size: 30 }),
+                  createDocxTextRun({ text: 'งานแผนยุทธศาสตร์ โรงพยาบาลวังทอง อำเภอวังทอง จังหวัดพิษณุโลก', size: 30 }),
+                ],
+              }),
+              new Table({
+                width: { size: 100, type: WidthType.PERCENTAGE },
+                borders: { top: noBorder, bottom: noBorder, left: noBorder, right: noBorder, insideHorizontal: noBorder, insideVertical: noBorder },
+                rows: [
+                  new TableRow({
+                    children: [
+                      new TableCell({
+                        width: { size: 50, type: WidthType.PERCENTAGE },
+                        borders: { top: noBorder, bottom: noBorder, left: noBorder, right: noBorder },
+                        children: [
+                          new Paragraph({
+                            spacing: { before: 0, after: 100 },
+                            children: [
+                              createDocxTextRun({ text: 'ที่ ', bold: true, size: 30 }),
+                              createDocxTextRun({ text: normalizeThaiDigitsToArabic(purchaseOrderPreview.doc_no || DEFAULT_DOC_NO), size: 30 }),
+                            ],
+                          }),
+                        ],
+                      }),
+                      new TableCell({
+                        width: { size: 50, type: WidthType.PERCENTAGE },
+                        borders: { top: noBorder, bottom: noBorder, left: noBorder, right: noBorder },
+                        children: [
+                          new Paragraph({
+                            alignment: AlignmentType.LEFT,
+                            spacing: { before: 0, after: 100 },
+                            children: [
+                              createDocxTextRun({ text: 'วันที่ ', bold: true, size: 30 }),
+                              createDocxTextRun({ text: formatDate(purchaseOrderPreview.doc_date || purchaseOrderPreview.created_at), size: 30 }),
+                            ],
+                          }),
+                        ],
+                      }),
+                    ],
+                  }),
+                ],
+              }),
+              new Paragraph({
+                spacing: { after: 80 },
+                children: [
+                  createDocxTextRun({ text: 'เรื่อง ', bold: true, size: 30 }),
+                  createDocxTextRun({ text: 'ใบสั่งซื้อสั่งจ้าง วัสดุใช้ไป', size: 30 }),
+                ],
+              }),
+              new Paragraph({
+                spacing: { after: 120 },
+                children: [
+                  createDocxTextRun({ text: 'เรียน ', bold: true, size: 30 }),
+                  createDocxTextRun({ text: 'ผู้ขาย/ผู้รับจ้าง', size: 30 }),
+                ],
+              }),
+              new Paragraph({
+                spacing: { after: 120 },
+                indent: { firstLine: 720 },
+                alignment: AlignmentType.JUSTIFIED,
+                children: [
+                  createDocxTextRun({
+                    text: `ตามเอกสารอนุมัติจัดซื้อ/จัดจ้างรหัส ${purchaseOrderPreview.approve_code || '-'} โรงพยาบาลวังทอง มีความประสงค์จะสั่งซื้อ/สั่งจ้าง วัสดุใช้ไป ตามรายการต่อไปนี้ จำนวน ${purchaseOrderPreview.item_count || 0} รายการ รวมเป็นเงินทั้งสิ้น ${formatMoney(purchaseOrderPreview.total_amount)} บาท (${convertNumberToThaiText(purchaseOrderPreview.total_amount)})`,
+                    size: 30,
+                  }),
+                ],
+              }),
+              new Table({
+                width: { size: 100, type: WidthType.PERCENTAGE },
+                rows: tableRows,
+              }),
+              new Paragraph({
+                spacing: { before: 120, after: 120 },
+                children: [createDocxTextRun({ text: 'หมายเหตุ :', bold: true, size: 30 })],
+              }),
+              new Paragraph({
+                indent: { firstLine: 720 },
+                spacing: { after: 320 },
+                children: [createDocxTextRun({ text: 'โปรดดำเนินการตามรายละเอียดข้างต้น', size: 30 })],
+              }),
+              new Table({
+                width: { size: 100, type: WidthType.PERCENTAGE },
+                borders: { top: noBorder, bottom: noBorder, left: noBorder, right: noBorder, insideHorizontal: noBorder, insideVertical: noBorder },
+                rows: [
+                  new TableRow({
+                    children: [
+                      new TableCell({
+                        width: { size: 58, type: WidthType.PERCENTAGE },
+                        borders: { top: noBorder, bottom: noBorder, left: noBorder, right: noBorder },
+                        children: [new Paragraph({ text: '' })],
+                      }),
+                      new TableCell({
+                        width: { size: 42, type: WidthType.PERCENTAGE },
+                        borders: { top: noBorder, bottom: noBorder, left: noBorder, right: noBorder },
+                        children: [
+                          new Paragraph({
+                            alignment: AlignmentType.LEFT,
+                            children: [createDocxTextRun({ text: 'ลงชื่อ ..........................................................', size: 30 })],
+                          }),
+                          new Paragraph({
+                            alignment: AlignmentType.CENTER,
+                            spacing: { before: 160, after: 160 },
+                            children: [createDocxTextRun({ text: '(นายจักริน สมบูรณ์จันทร์)', size: 30 })],
+                          }),
+                          new Paragraph({
+                            alignment: AlignmentType.CENTER,
+                            children: [createDocxTextRun({ text: 'ผู้อำนวยการโรงพยาบาลวังทอง', size: 30 })],
+                          }),
+                        ],
+                      }),
+                    ],
+                  }),
+                ],
+              }),
+            ],
+          },
+        ],
+      });
+
+      const blob = await Packer.toBlob(doc);
+      saveAs(blob, `${normalizeThaiDigitsToArabic(purchaseOrderPreview.doc_no || 'purchase-order')}-purchase-order.docx`);
+    } catch (error) {
+      console.error(error);
+      await Swal.fire({
+        icon: 'error',
+        title: 'สร้าง DOCX ไม่สำเร็จ',
+        text: 'กรุณาลองใหม่อีกครั้ง',
+      });
+    }
+  };
+
+  const handleOpenPurchaseOrderModal = (group: PurchaseApprovalGroup) => {
+    setPurchaseOrderPreview(group);
+  };
+
+  const handleClosePurchaseOrderModal = () => {
+    setPurchaseOrderPreview(null);
+  };
+
+  const handleDownloadInspectionDocx = async () => {
+    if (!inspectionPreview) {
+      return;
+    }
+
+    try {
+      const createDocxTextRun = ({
+        text,
+        size,
+        bold,
+      }: {
+        text: string;
+        size: number;
+        bold?: boolean;
+      }) =>
+        new TextRun({
+          text,
+          size,
+          bold,
+          font: {
+            ascii: DOCX_FONT_FAMILY,
+            hAnsi: DOCX_FONT_FAMILY,
+            eastAsia: DOCX_FONT_FAMILY,
+            cs: DOCX_FONT_FAMILY,
+          },
+        });
+
+      const birdResponse = await fetch('/images/bird.jpg');
+      const birdArrayBuffer = await birdResponse.arrayBuffer();
+      const birdImage = new Uint8Array(birdArrayBuffer);
+      const thinBorder = {
+        style: BorderStyle.SINGLE,
+        size: 1,
+        color: '808080',
+      };
+      const noBorder = {
+        style: BorderStyle.NONE,
+        size: 0,
+        color: 'FFFFFF',
+      };
+
+      const tableRows = [
+        new TableRow({
+          children: [
+            'ลำดับ',
+            'ชื่อรายการ',
+            'จำนวน (หน่วย)',
+            'ขนาดบรรจุ (หน่วยนับ)',
+            'ราคา/หน่วย (บาท)',
+            'จำนวนเงิน (บาท)',
+            'ผลตรวจรับ',
+            'ลำดับแผน',
+          ].map((text) =>
+            new TableCell({
+              borders: { top: thinBorder, bottom: thinBorder, left: thinBorder, right: thinBorder },
+              children: [
+                new Paragraph({
+                  alignment: AlignmentType.CENTER,
+                  children: [createDocxTextRun({ text, size: 30 })],
+                }),
+              ],
+            })
+          ),
+        }),
+        ...(inspectionPreview.sub_items || []).map(
+          (item, index) =>
+            new TableRow({
+              children: [
+                String(index + 1),
+                `${item.product_code ? `${item.product_code} : ` : ''}${item.product_name || '-'}`,
+                Number(item.requested_quantity || 0).toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+                item.unit || '-',
+                formatMoney(item.price_per_unit),
+                formatMoney(item.total_value),
+                'ครบถ้วน',
+                String(item.line_number || '-'),
+              ].map((text, cellIndex) =>
+                new TableCell({
+                  borders: { top: thinBorder, bottom: thinBorder, left: thinBorder, right: thinBorder },
+                  children: [
+                    new Paragraph({
+                      alignment:
+                        cellIndex === 0 || cellIndex === 2 || cellIndex === 3 || cellIndex === 4 || cellIndex === 5 || cellIndex === 7
+                          ? AlignmentType.CENTER
+                          : AlignmentType.LEFT,
+                      children: [createDocxTextRun({ text, size: 30 })],
+                    }),
+                  ],
+                })
+              ),
+            })
+        ),
+        new TableRow({
+          children: [
+            '',
+            'รวม',
+            '',
+            '',
+            '',
+            formatMoney(inspectionPreview.total_amount),
+            '',
+            '',
+          ].map((text, cellIndex) =>
+            new TableCell({
+              borders: { top: thinBorder, bottom: thinBorder, left: thinBorder, right: thinBorder },
+              children: [
+                new Paragraph({
+                  alignment: cellIndex === 1 ? AlignmentType.CENTER : cellIndex === 5 ? AlignmentType.RIGHT : AlignmentType.LEFT,
+                  children: [createDocxTextRun({ text, size: 30, bold: cellIndex === 1 || cellIndex === 5 })],
+                }),
+              ],
+            })
+          ),
+        }),
+      ];
+
+      const doc = new Document({
+        styles: {
+          default: {
+            document: {
+              run: {
+                font: DOCX_FONT_FAMILY,
+                size: 30,
+              },
+            },
+          },
+        },
+        sections: [
+          {
+            properties: {
+              page: {
+                margin: { top: 720, right: 720, bottom: 720, left: 720 },
+                size: { orientation: PageOrientation.PORTRAIT },
+              },
+            },
+            children: [
+              new Table({
+                width: { size: 100, type: WidthType.PERCENTAGE },
+                borders: { top: noBorder, bottom: noBorder, left: noBorder, right: noBorder, insideHorizontal: noBorder, insideVertical: noBorder },
+                rows: [
+                  new TableRow({
+                    children: [
+                      new TableCell({
+                        width: { size: 15, type: WidthType.PERCENTAGE },
+                        borders: { top: noBorder, bottom: noBorder, left: noBorder, right: noBorder },
+                        children: [
+                          new Paragraph({
+                            alignment: AlignmentType.LEFT,
+                            children: [
+                              new ImageRun({
+                                data: birdImage,
+                                transformation: { width: 55, height: 55 },
+                                type: 'jpg',
+                              }),
+                            ],
+                          }),
+                        ],
+                      }),
+                      new TableCell({
+                        width: { size: 70, type: WidthType.PERCENTAGE },
+                        borders: { top: noBorder, bottom: noBorder, left: noBorder, right: noBorder },
+                        children: [
+                          new Paragraph({
+                            alignment: AlignmentType.CENTER,
+                            spacing: { before: 140, after: 80 },
+                            children: [createDocxTextRun({ text: 'เอกสารตรวจรับ', bold: true, size: 36 })],
+                          }),
+                        ],
+                      }),
+                      new TableCell({
+                        width: { size: 15, type: WidthType.PERCENTAGE },
+                        borders: { top: noBorder, bottom: noBorder, left: noBorder, right: noBorder },
+                        children: [new Paragraph({ text: '' })],
+                      }),
+                    ],
+                  }),
+                ],
+              }),
+              new Paragraph({
+                spacing: { after: 80 },
+                children: [
+                  createDocxTextRun({ text: 'ส่วนราชการ ', bold: true, size: 30 }),
+                  createDocxTextRun({ text: 'งานแผนยุทธศาสตร์ โรงพยาบาลวังทอง อำเภอวังทอง จังหวัดพิษณุโลก', size: 30 }),
+                ],
+              }),
+              new Table({
+                width: { size: 100, type: WidthType.PERCENTAGE },
+                borders: { top: noBorder, bottom: noBorder, left: noBorder, right: noBorder, insideHorizontal: noBorder, insideVertical: noBorder },
+                rows: [
+                  new TableRow({
+                    children: [
+                      new TableCell({
+                        width: { size: 50, type: WidthType.PERCENTAGE },
+                        borders: { top: noBorder, bottom: noBorder, left: noBorder, right: noBorder },
+                        children: [
+                          new Paragraph({
+                            spacing: { before: 0, after: 100 },
+                            children: [
+                              createDocxTextRun({ text: 'ที่ ', bold: true, size: 30 }),
+                              createDocxTextRun({ text: normalizeThaiDigitsToArabic(inspectionPreview.doc_no || DEFAULT_DOC_NO), size: 30 }),
+                            ],
+                          }),
+                        ],
+                      }),
+                      new TableCell({
+                        width: { size: 50, type: WidthType.PERCENTAGE },
+                        borders: { top: noBorder, bottom: noBorder, left: noBorder, right: noBorder },
+                        children: [
+                          new Paragraph({
+                            alignment: AlignmentType.LEFT,
+                            spacing: { before: 0, after: 100 },
+                            children: [
+                              createDocxTextRun({ text: 'วันที่ ', bold: true, size: 30 }),
+                              createDocxTextRun({ text: formatDate(inspectionPreview.doc_date || inspectionPreview.created_at), size: 30 }),
+                            ],
+                          }),
+                        ],
+                      }),
+                    ],
+                  }),
+                ],
+              }),
+              new Paragraph({
+                spacing: { after: 80 },
+                children: [
+                  createDocxTextRun({ text: 'เรื่อง ', bold: true, size: 30 }),
+                  createDocxTextRun({ text: 'เอกสารตรวจรับพัสดุ/งานจ้าง', size: 30 }),
+                ],
+              }),
+              new Paragraph({
+                spacing: { after: 120 },
+                children: [
+                  createDocxTextRun({ text: 'เรียน ', bold: true, size: 30 }),
+                  createDocxTextRun({ text: 'คณะกรรมการตรวจรับ', size: 30 }),
+                ],
+              }),
+              new Paragraph({
+                spacing: { after: 120 },
+                indent: { firstLine: 720 },
+                alignment: AlignmentType.JUSTIFIED,
+                children: [
+                  createDocxTextRun({
+                    text: `ตามใบสั่งซื้อสั่งจ้างอ้างอิงรหัส ${inspectionPreview.approve_code || '-'} ขอรายงานผลการตรวจรับรายการพัสดุ/งานจ้าง จำนวน ${inspectionPreview.item_count || 0} รายการ รวมมูลค่า ${formatMoney(inspectionPreview.total_amount)} บาท (${convertNumberToThaiText(inspectionPreview.total_amount)}) โดยมีรายละเอียดดังต่อไปนี้`,
+                    size: 30,
+                  }),
+                ],
+              }),
+              new Table({
+                width: { size: 100, type: WidthType.PERCENTAGE },
+                rows: tableRows,
+              }),
+              new Paragraph({
+                spacing: { before: 120, after: 120 },
+                children: [createDocxTextRun({ text: 'สรุปผลการตรวจรับ :', bold: true, size: 30 })],
+              }),
+              new Paragraph({
+                indent: { firstLine: 720 },
+                spacing: { after: 320 },
+                children: [createDocxTextRun({ text: 'ตรวจรับครบถ้วนถูกต้องตามรายละเอียดที่กำหนด', size: 30 })],
+              }),
+              new Table({
+                width: { size: 100, type: WidthType.PERCENTAGE },
+                borders: { top: noBorder, bottom: noBorder, left: noBorder, right: noBorder, insideHorizontal: noBorder, insideVertical: noBorder },
+                rows: [
+                  new TableRow({
+                    children: [
+                      new TableCell({
+                        width: { size: 58, type: WidthType.PERCENTAGE },
+                        borders: { top: noBorder, bottom: noBorder, left: noBorder, right: noBorder },
+                        children: [new Paragraph({ text: '' })],
+                      }),
+                      new TableCell({
+                        width: { size: 42, type: WidthType.PERCENTAGE },
+                        borders: { top: noBorder, bottom: noBorder, left: noBorder, right: noBorder },
+                        children: [
+                          new Paragraph({
+                            alignment: AlignmentType.LEFT,
+                            children: [createDocxTextRun({ text: 'ลงชื่อ ..........................................................', size: 30 })],
+                          }),
+                          new Paragraph({
+                            alignment: AlignmentType.CENTER,
+                            spacing: { before: 160, after: 160 },
+                            children: [createDocxTextRun({ text: '(ผู้ตรวจรับ)', size: 30 })],
+                          }),
+                          new Paragraph({
+                            alignment: AlignmentType.CENTER,
+                            children: [createDocxTextRun({ text: 'กรรมการ/ประธานกรรมการตรวจรับ', size: 30 })],
+                          }),
+                        ],
+                      }),
+                    ],
+                  }),
+                ],
+              }),
+            ],
+          },
+        ],
+      });
+
+      const blob = await Packer.toBlob(doc);
+      saveAs(blob, `${normalizeThaiDigitsToArabic(inspectionPreview.doc_no || 'inspection-document')}-inspection.docx`);
+    } catch (error) {
+      console.error(error);
+      await Swal.fire({
+        icon: 'error',
+        title: 'สร้าง DOCX ไม่สำเร็จ',
+        text: 'กรุณาลองใหม่อีกครั้ง',
+      });
+    }
+  };
+
+  const handleOpenInspectionModal = (group: PurchaseApprovalGroup) => {
+    setInspectionPreview(group);
+  };
+
+  const handleCloseInspectionModal = () => {
+    setInspectionPreview(null);
+  };
+
+  const handleMarkInspectionComplete = async () => {
+    if (!inspectionPreview || inspectionPreview.is_inspection) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/purchase-approvals/${inspectionPreview.id}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          is_inspection: true,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to update inspection status');
+      }
+
+      await Swal.fire({
+        icon: 'success',
+        title: 'บันทึกการตรวจรับสำเร็จ',
+        timer: 1500,
+        showConfirmButton: false,
+      });
+
+      setInspectionPreview((prev) => prev ? { ...prev, is_inspection: true } : prev);
+      setItems((prev) => prev.map((item) => item.id === inspectionPreview.id ? { ...item, is_inspection: true } : item));
+      setSummaryItems((prev) => prev.map((item) => item.id === inspectionPreview.id ? { ...item, is_inspection: true } : item));
+      await fetchData();
+    } catch (error) {
+      console.error(error);
+      await Swal.fire({
+        icon: 'error',
+        title: 'บันทึกการตรวจรับไม่สำเร็จ',
+        text: error instanceof Error ? error.message : 'ไม่สามารถบันทึกการตรวจรับได้',
+      });
+    }
+  };
+
   const handleInlineEdit = (id: number, field: string, value: string) => {
     setEditingRowId(id);
     setEditingData({ field, [field]: value });
@@ -1304,7 +1987,9 @@ function PurchaseApprovalsPageContent() {
                 <th onClick={()=>handleSort()} className={getHeaderClass('doc_date')}>ลงวันที่</th>
                 <th onClick={()=>handleSort()} className={getHeaderClass('status')}>สถานะ</th>
                 <th className="px-3 py-3 text-left text-[10px] font-medium text-gray-500 uppercase tracking-wider w-20">รายการ</th>
-                <th className="px-3 py-3 text-center text-[10px] font-medium text-gray-500 uppercase tracking-wider w-24">เอกสาร</th>
+                <th className="px-3 py-3 text-center text-[10px] font-medium text-gray-500 uppercase tracking-wider w-24">อนุมัติ</th>
+                <th className="px-3 py-3 text-center text-[10px] font-medium text-gray-500 uppercase tracking-wider w-20">ซื้อ/จ้าง</th>
+                <th className="px-3 py-3 text-center text-[10px] font-medium text-gray-500 uppercase tracking-wider w-20">ตรวจรับ</th>
                 <th className="px-3 py-3 text-left text-[10px] font-medium text-gray-500 uppercase tracking-wider w-20">Action</th>
               </tr>
             </thead>
@@ -1417,6 +2102,34 @@ function PurchaseApprovalsPageContent() {
                       <FileText className="h-4 w-4" />
                     </button>
                   </td>
+                  <td className="px-3 py-2 text-center text-xs">
+                    <button
+                      type="button"
+                      onClick={() => handleOpenPurchaseOrderModal(group)}
+                      className="inline-flex items-center justify-center rounded-md p-1 text-green-600 hover:bg-green-50 hover:text-green-800 cursor-pointer"
+                      title="ซื้อ/จ้าง"
+                    >
+                      <ShoppingCart className="h-4 w-4" />
+                    </button>
+                  </td>
+                  <td className="px-3 py-2 text-center text-xs">
+                    <button
+                      type="button"
+                      onClick={() => handleOpenInspectionModal(group)}
+                      className={`inline-flex items-center justify-center rounded-md p-1 cursor-pointer ${
+                        group.is_inspection
+                          ? 'text-emerald-600 hover:bg-emerald-50 hover:text-emerald-800'
+                          : 'text-amber-600 hover:bg-amber-50 hover:text-amber-800'
+                      }`}
+                      title={group.is_inspection ? 'ตรวจรับแล้ว' : 'ตรวจรับ'}
+                    >
+                      {group.is_inspection ? (
+                        <CheckCircle className="h-4 w-4" />
+                      ) : (
+                        <PackageCheck className="h-4 w-4" />
+                      )}
+                    </button>
+                  </td>
                   <td className="px-3 py-2 text-xs font-medium w-32">
                     {editingRowId === group.id ? (
                       <div className="flex items-center gap-2">
@@ -1462,7 +2175,7 @@ function PurchaseApprovalsPageContent() {
                 </tr>
                 {expandedRows.has(group.id.toString()) && (
                   <tr>
-                    <td colSpan={9} className="px-0 py-0 bg-gray-50">
+                    <td colSpan={11} className="px-0 py-0 bg-gray-50">
                       <div className="px-4 py-3">
                         <div className="text-sm font-medium text-gray-700 mb-2">รายการย่อย ({group.item_count} รายการ)</div>
                         <div className="overflow-x-auto">
@@ -1838,6 +2551,509 @@ function PurchaseApprovalsPageContent() {
                   <p className="print-signature-line">ลงชื่อ ..........................................................</p>
                   <p className="print-signature-name mt-3 text-center">(นายจักริน สมบูรณ์จันทร์)</p>
                   <p className="print-signature-title mt-3 text-center">ผู้อำนวยการโรงพยาบาลวังทอง</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
+      {purchaseOrderPreview ? (
+        <div className="fixed inset-0 z-50 overflow-y-auto bg-black/60 p-4 md:p-8 print:bg-white print:p-0">
+          <style jsx global>{`
+            @media print {
+              @page {
+                size: A4 portrait;
+                margin: 0;
+              }
+
+              html,
+              body {
+                width: 210mm;
+                height: 297mm;
+                margin: 0 !important;
+                padding: 0 !important;
+                overflow: visible !important;
+                background: #fff !important;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+              }
+
+              body * {
+                visibility: hidden;
+              }
+
+              .print-document-only,
+              .print-document-only * {
+                visibility: visible;
+              }
+
+              .print-document-only {
+                position: absolute;
+                left: 0;
+                top: 0;
+                width: 210mm !important;
+                max-width: 210mm !important;
+                margin: 0;
+                padding: 0;
+                box-shadow: none !important;
+              }
+
+              .print-hide {
+                display: none !important;
+              }
+
+              .print-page {
+                width: 210mm !important;
+                min-height: auto !important;
+                padding: 24px !important;
+                margin: 0 !important;
+                box-shadow: none !important;
+                font-size: 15px !important;
+                line-height: 1.4rem !important;
+                background: #fff !important;
+              }
+
+              .print-page p,
+              .print-page div,
+              .print-page td,
+              .print-page span {
+                line-height: inherit !important;
+              }
+
+              .print-header {
+                margin-bottom: 10px !important;
+              }
+
+              .print-header-title {
+                font-size: 24px !important;
+              }
+
+              .print-emblem,
+              .print-emblem-spacer {
+                width: 80px !important;
+                height: 80px !important;
+              }
+
+              .print-table-wrapper {
+                margin-bottom: 6px !important;
+                border-width: 1px !important;
+              }
+
+              .print-table {
+                font-size: 14px !important;
+                line-height: 1.5rem !important;
+              }
+
+              .print-table td {
+                padding: 6px !important;
+                vertical-align: top !important;
+              }
+
+              .print-compact {
+                margin-bottom: 4px !important;
+                padding-bottom: 0 !important;
+              }
+
+              .print-signature-block {
+                width: 42% !important;
+                font-size: inherit !important;
+              }
+
+              .print-signature-line {
+                margin-top: 8px !important;
+              }
+
+              .print-signature-name {
+                margin-top: 8px !important;
+              }
+
+              .print-signature-title {
+                margin-top: 8px !important;
+              }
+            }
+          `}</style>
+          <div className="mx-auto w-full max-w-[230mm] print-document-only">
+            <div className="print-hide sticky top-0 z-20 mb-3 flex items-center justify-end rounded-lg border border-gray-200 bg-white px-4 py-2 shadow">
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={handleDownloadPurchaseOrderDocx}
+                  className="rounded-md border border-emerald-300 px-3 py-1.5 text-sm text-emerald-700 hover:bg-emerald-50 flex items-center gap-2 cursor-pointer"
+                >
+                  <FileDown className="h-4 w-4" />
+                  DOCX
+                </button>
+                <button
+                  type="button"
+                  onClick={handlePrintDocument}
+                  className="rounded-md border border-blue-300 px-3 py-1.5 text-sm text-blue-700 hover:bg-blue-50 flex items-center gap-2 cursor-pointer"
+                >
+                  <Printer className="h-4 w-4" />
+                  พิมพ์
+                </button>
+                <button
+                  type="button"
+                  onClick={handleClosePurchaseOrderModal}
+                  className="rounded-md border border-gray-300 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2 cursor-pointer"
+                >
+                  <X className="h-4 w-4" />
+                  ปิด
+                </button>
+              </div>
+            </div>
+
+            <div className="print-page mx-auto w-[210mm] min-h-[297mm] max-w-full bg-white p-6 text-[15px] leading-7 text-black shadow-2xl print:min-h-0 print:shadow-none md:p-8">
+              <div className="print-header mb-3 flex items-center justify-between">
+                <div className="print-emblem flex h-20 w-20 flex-shrink-0 items-center justify-center">
+                  <img src="/images/bird.jpg" alt="ตราครุฑ" className="h-20 w-20 object-contain" />
+                </div>
+                <div className="flex-1 text-center">
+                  <h3 className="print-header-title text-[24px] font-bold">ใบสั่งซื้อสั่งจ้าง</h3>
+                </div>
+                <div className="print-emblem-spacer h-20 w-20 flex-shrink-0"></div>
+              </div>
+
+              <div className="print-compact mb-2 pb-1">
+                <span className="font-bold">ส่วนราชการ</span>{' '}
+                งานแผนยุทธศาสตร์ โรงพยาบาลวังทอง อำเภอวังทอง จังหวัดพิษณุโลก
+              </div>
+
+              <div className="print-compact mb-2 grid grid-cols-2 items-baseline gap-0">
+                <div className="min-w-0">
+                  <span className="font-bold">ที่</span>{' '}
+                  {normalizeThaiDigitsToArabic(purchaseOrderPreview.doc_no || DEFAULT_DOC_NO)}
+                </div>
+                <div className="min-w-0 text-left">
+                  <span className="font-bold">วันที่</span>{' '}
+                  {formatThaiBuddhistLongDate(purchaseOrderPreview.doc_date || purchaseOrderPreview.created_at)}
+                </div>
+              </div>
+
+              <div className="print-compact mb-1"><span className="font-bold">เรื่อง</span> ใบสั่งซื้อสั่งจ้าง วัสดุใช้ไป</div>
+              <div className="print-compact mb-2"><span className="font-bold">เรียน</span> ผู้ขาย/ผู้รับจ้าง</div>
+
+              <p className="print-compact mb-2 text-justify indent-12">
+                ตามเอกสารอนุมัติจัดซื้อ/จัดจ้างรหัส {purchaseOrderPreview.approve_code || '-'} โรงพยาบาลวังทอง มีความประสงค์จะสั่งซื้อ/สั่งจ้าง วัสดุใช้ไป
+                จำนวน {purchaseOrderPreview.item_count || 0} รายการ เป็นจำนวนเงินทั้งสิ้น {formatMoney(purchaseOrderPreview.total_amount)} บาท
+                {' '}({convertNumberToThaiText(purchaseOrderPreview.total_amount)}) ดังรายการต่อไปนี้
+              </p>
+
+              <div className="print-table-wrapper mb-2 overflow-x-auto border border-gray-500">
+                <table className="print-table min-w-full border-collapse text-[14px] leading-7">
+                  <thead>
+                    <tr>
+                      <td className="border border-gray-500 px-2 py-2 text-center">ลำดับ</td>
+                      <td className="border border-gray-500 px-2 py-2 text-center">ชื่อรายการ</td>
+                      <td className="border border-gray-500 px-2 py-2 text-center">จำนวน<br />(หน่วย)</td>
+                      <td className="border border-gray-500 px-2 py-2 text-center">ขนาดบรรจุ<br />(หน่วยนับ)</td>
+                      <td className="border border-gray-500 px-2 py-2 text-center">ราคา/หน่วย<br />(บาท)</td>
+                      <td className="border border-gray-500 px-2 py-2 text-center">จำนวนเงิน<br />(บาท)</td>
+                      <td className="border border-gray-500 px-2 py-2 text-center">หมายเหตุ<br />เงื่อนไขแผน</td>
+                      <td className="border border-gray-500 px-2 py-2 text-center">ลำดับแผน</td>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(purchaseOrderPreview.sub_items || []).map((item, index) => (
+                      <tr key={item.id}>
+                        <td className="border border-gray-500 px-2 py-2 text-center align-top">{index + 1}</td>
+                        <td className="border border-gray-500 px-2 py-2 align-top">
+                          {(item.product_code ? `${item.product_code} : ` : '') + (item.product_name || '-')}
+                        </td>
+                        <td className="border border-gray-500 px-2 py-2 text-right align-top">
+                          {Number(item.requested_quantity || 0).toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </td>
+                        <td className="border border-gray-500 px-2 py-2 text-center align-top">{item.unit || '-'}</td>
+                        <td className="border border-gray-500 px-2 py-2 text-right align-top">{formatMoney(item.price_per_unit)}</td>
+                        <td className="border border-gray-500 px-2 py-2 text-right align-top">{formatMoney(item.total_value)}</td>
+                        <td className="border border-gray-500 px-2 py-2 align-top">จำนวน วงเงิน ราคา</td>
+                        <td className="border border-gray-500 px-2 py-2 text-center align-top">{item.line_number || '-'}</td>
+                      </tr>
+                    ))}
+                    {(purchaseOrderPreview.sub_items || []).length === 0 ? (
+                      <tr>
+                        <td colSpan={8} className="border border-gray-500 px-3 py-4 text-center text-gray-500">ไม่พบรายการสินค้า</td>
+                      </tr>
+                    ) : null}
+                  </tbody>
+                  <tfoot>
+                    <tr>
+                      <td className="border border-gray-500 px-2 py-2"></td>
+                      <td className="border border-gray-500 px-2 py-2 text-center font-bold">รวม</td>
+                      <td className="border border-gray-500 px-2 py-2"></td>
+                      <td className="border border-gray-500 px-2 py-2"></td>
+                      <td className="border border-gray-500 px-2 py-2"></td>
+                      <td className="border border-gray-500 px-2 py-2 text-right font-bold">{formatMoney(purchaseOrderPreview.total_amount)}</td>
+                      <td className="border border-gray-500 px-2 py-2"></td>
+                      <td className="border border-gray-500 px-2 py-2"></td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+
+              <div className="print-compact mb-2"><span className="font-bold">หมายเหตุ :</span></div>
+
+              <p className="print-compact mb-3 indent-12">
+                โปรดดำเนินการตามรายละเอียดข้างต้น
+              </p>
+
+              <div className="flex justify-end">
+                <div className="print-signature-block w-[42%] text-left">
+                  <p className="print-signature-line">ลงชื่อ ..........................................................</p>
+                  <p className="print-signature-name mt-3 text-center">(นายจักริน สมบูรณ์จันทร์)</p>
+                  <p className="print-signature-title mt-3 text-center">ผู้อำนวยการโรงพยาบาลวังทอง</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
+      {inspectionPreview ? (
+        <div className="fixed inset-0 z-50 overflow-y-auto bg-black/60 p-4 md:p-8 print:bg-white print:p-0">
+          <style jsx global>{`
+            @media print {
+              @page {
+                size: A4 portrait;
+                margin: 0;
+              }
+
+              html,
+              body {
+                width: 210mm;
+                height: 297mm;
+                margin: 0 !important;
+                padding: 0 !important;
+                overflow: visible !important;
+                background: #fff !important;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+              }
+
+              body * {
+                visibility: hidden;
+              }
+
+              .print-document-only,
+              .print-document-only * {
+                visibility: visible;
+              }
+
+              .print-document-only {
+                position: absolute;
+                left: 0;
+                top: 0;
+                width: 210mm !important;
+                max-width: 210mm !important;
+                margin: 0;
+                padding: 0;
+                box-shadow: none !important;
+              }
+
+              .print-hide {
+                display: none !important;
+              }
+
+              .print-page {
+                width: 210mm !important;
+                min-height: auto !important;
+                padding: 24px !important;
+                margin: 0 !important;
+                box-shadow: none !important;
+                font-size: 15px !important;
+                line-height: 1.4rem !important;
+                background: #fff !important;
+              }
+
+              .print-page p,
+              .print-page div,
+              .print-page td,
+              .print-page span {
+                line-height: inherit !important;
+              }
+
+              .print-header {
+                margin-bottom: 10px !important;
+              }
+
+              .print-header-title {
+                font-size: 24px !important;
+              }
+
+              .print-emblem,
+              .print-emblem-spacer {
+                width: 80px !important;
+                height: 80px !important;
+              }
+
+              .print-table-wrapper {
+                margin-bottom: 6px !important;
+                border-width: 1px !important;
+              }
+
+              .print-table {
+                font-size: 14px !important;
+                line-height: 1.5rem !important;
+              }
+
+              .print-table td {
+                padding: 6px !important;
+                vertical-align: top !important;
+              }
+
+              .print-compact {
+                margin-bottom: 4px !important;
+                padding-bottom: 0 !important;
+              }
+
+              .print-signature-block {
+                width: 42% !important;
+                font-size: inherit !important;
+              }
+            }
+          `}</style>
+          <div className="mx-auto w-full max-w-[230mm] print-document-only">
+            <div className="print-hide sticky top-0 z-20 mb-3 flex items-center justify-between rounded-lg border border-gray-200 bg-white px-4 py-2 shadow">
+              <div>
+                <button
+                  type="button"
+                  onClick={handleMarkInspectionComplete}
+                  disabled={inspectionPreview?.is_inspection}
+                  className={`rounded-md border px-3 py-1.5 text-sm flex items-center gap-2 ${
+                    inspectionPreview?.is_inspection
+                      ? 'border-gray-300 text-gray-400 cursor-not-allowed bg-gray-50'
+                      : 'border-emerald-300 text-emerald-700 hover:bg-emerald-50 cursor-pointer'
+                  }`}
+                >
+                  <CheckCircle className="h-4 w-4" />
+                  ตรวจรับแล้ว
+                </button>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={handleDownloadInspectionDocx}
+                  className="rounded-md border border-emerald-300 px-3 py-1.5 text-sm text-emerald-700 hover:bg-emerald-50 flex items-center gap-2 cursor-pointer"
+                >
+                  <FileDown className="h-4 w-4" />
+                  DOCX
+                </button>
+                <button
+                  type="button"
+                  onClick={handlePrintDocument}
+                  className="rounded-md border border-blue-300 px-3 py-1.5 text-sm text-blue-700 hover:bg-blue-50 flex items-center gap-2 cursor-pointer"
+                >
+                  <Printer className="h-4 w-4" />
+                  พิมพ์
+                </button>
+                <button
+                  type="button"
+                  onClick={handleCloseInspectionModal}
+                  className="rounded-md border border-gray-300 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2 cursor-pointer"
+                >
+                  <X className="h-4 w-4" />
+                  ปิด
+                </button>
+              </div>
+            </div>
+
+            <div className="print-page mx-auto w-[210mm] min-h-[297mm] max-w-full bg-white p-6 text-[15px] leading-7 text-black shadow-2xl print:min-h-0 print:shadow-none md:p-8">
+              <div className="print-header mb-3 flex items-center justify-between">
+                <div className="print-emblem flex h-20 w-20 flex-shrink-0 items-center justify-center">
+                  <img src="/images/bird.jpg" alt="ตราครุฑ" className="h-20 w-20 object-contain" />
+                </div>
+                <div className="flex-1 text-center">
+                  <h3 className="print-header-title text-[24px] font-bold">เอกสารตรวจรับ</h3>
+                </div>
+                <div className="print-emblem-spacer h-20 w-20 flex-shrink-0"></div>
+              </div>
+
+              <div className="print-compact mb-2 pb-1">
+                <span className="font-bold">ส่วนราชการ</span>{' '}
+                งานแผนยุทธศาสตร์ โรงพยาบาลวังทอง อำเภอวังทอง จังหวัดพิษณุโลก
+              </div>
+
+              <div className="print-compact mb-2 grid grid-cols-2 items-baseline gap-0">
+                <div className="min-w-0">
+                  <span className="font-bold">ที่</span>{' '}
+                  {normalizeThaiDigitsToArabic(inspectionPreview.doc_no || DEFAULT_DOC_NO)}
+                </div>
+                <div className="min-w-0 text-left">
+                  <span className="font-bold">วันที่</span>{' '}
+                  {formatThaiBuddhistLongDate(inspectionPreview.doc_date || inspectionPreview.created_at)}
+                </div>
+              </div>
+
+              <div className="print-compact mb-1"><span className="font-bold">เรื่อง</span> เอกสารตรวจรับพัสดุ/งานจ้าง</div>
+              <div className="print-compact mb-2"><span className="font-bold">เรียน</span> คณะกรรมการตรวจรับ</div>
+
+              <p className="print-compact mb-2 text-justify indent-12">
+                ตามใบสั่งซื้อสั่งจ้างอ้างอิงรหัส {inspectionPreview.approve_code || '-'} ขอรายงานผลการตรวจรับรายการพัสดุ/งานจ้าง
+                จำนวน {inspectionPreview.item_count || 0} รายการ เป็นจำนวนเงินทั้งสิ้น {formatMoney(inspectionPreview.total_amount)} บาท
+                {' '}({convertNumberToThaiText(inspectionPreview.total_amount)}) โดยมีรายละเอียดดังต่อไปนี้
+              </p>
+
+              <div className="print-table-wrapper mb-2 overflow-x-auto border border-gray-500">
+                <table className="print-table min-w-full border-collapse text-[14px] leading-7">
+                  <thead>
+                    <tr>
+                      <td className="border border-gray-500 px-2 py-2 text-center">ลำดับ</td>
+                      <td className="border border-gray-500 px-2 py-2 text-center">ชื่อรายการ</td>
+                      <td className="border border-gray-500 px-2 py-2 text-center">จำนวน<br />(หน่วย)</td>
+                      <td className="border border-gray-500 px-2 py-2 text-center">ขนาดบรรจุ<br />(หน่วยนับ)</td>
+                      <td className="border border-gray-500 px-2 py-2 text-center">ราคา/หน่วย<br />(บาท)</td>
+                      <td className="border border-gray-500 px-2 py-2 text-center">จำนวนเงิน<br />(บาท)</td>
+                      <td className="border border-gray-500 px-2 py-2 text-center">ผลตรวจรับ</td>
+                      <td className="border border-gray-500 px-2 py-2 text-center">ลำดับแผน</td>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(inspectionPreview.sub_items || []).map((item, index) => (
+                      <tr key={item.id}>
+                        <td className="border border-gray-500 px-2 py-2 text-center align-top">{index + 1}</td>
+                        <td className="border border-gray-500 px-2 py-2 align-top">
+                          {(item.product_code ? `${item.product_code} : ` : '') + (item.product_name || '-')}
+                        </td>
+                        <td className="border border-gray-500 px-2 py-2 text-right align-top">
+                          {Number(item.requested_quantity || 0).toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </td>
+                        <td className="border border-gray-500 px-2 py-2 text-center align-top">{item.unit || '-'}</td>
+                        <td className="border border-gray-500 px-2 py-2 text-right align-top">{formatMoney(item.price_per_unit)}</td>
+                        <td className="border border-gray-500 px-2 py-2 text-right align-top">{formatMoney(item.total_value)}</td>
+                        <td className="border border-gray-500 px-2 py-2 text-center align-top">ครบถ้วน</td>
+                        <td className="border border-gray-500 px-2 py-2 text-center align-top">{item.line_number || '-'}</td>
+                      </tr>
+                    ))}
+                    {(inspectionPreview.sub_items || []).length === 0 ? (
+                      <tr>
+                        <td colSpan={8} className="border border-gray-500 px-3 py-4 text-center text-gray-500">ไม่พบรายการสินค้า</td>
+                      </tr>
+                    ) : null}
+                  </tbody>
+                  <tfoot>
+                    <tr>
+                      <td className="border border-gray-500 px-2 py-2"></td>
+                      <td className="border border-gray-500 px-2 py-2 text-center font-bold">รวม</td>
+                      <td className="border border-gray-500 px-2 py-2"></td>
+                      <td className="border border-gray-500 px-2 py-2"></td>
+                      <td className="border border-gray-500 px-2 py-2"></td>
+                      <td className="border border-gray-500 px-2 py-2 text-right font-bold">{formatMoney(inspectionPreview.total_amount)}</td>
+                      <td className="border border-gray-500 px-2 py-2"></td>
+                      <td className="border border-gray-500 px-2 py-2"></td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+
+              <div className="print-compact mb-2"><span className="font-bold">สรุปผลการตรวจรับ :</span></div>
+
+              <p className="print-compact mb-3 indent-12">
+                ตรวจรับครบถ้วนถูกต้องตามรายละเอียดที่กำหนด
+              </p>
+
+              <div className="flex justify-end">
+                <div className="print-signature-block w-[42%] text-left">
+                  <p>ลงชื่อ ..........................................................</p>
+                  <p className="mt-3 text-center">(ผู้ตรวจรับ)</p>
+                  <p className="mt-3 text-center">กรรมการ/ประธานกรรมการตรวจรับ</p>
                 </div>
               </div>
             </div>
