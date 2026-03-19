@@ -2,8 +2,8 @@ import { z } from 'zod';
 import { get_approval_doc_status_code } from '@/lib/approval-doc-status';
 
 // Common validation patterns
-const positiveNumber = z.string().transform((val: string) => parseFloat(val)).pipe(z.number().min(0));
-const positiveInteger = z.string().transform((val: string) => parseInt(val)).pipe(z.number().int().min(0));
+const positiveNumber = z.union([z.string(), z.number()]).transform((val) => Number(val)).pipe(z.number().min(0));
+const positiveInteger = z.union([z.string(), z.number()]).transform((val) => parseInt(String(val), 10)).pipe(z.number().int().min(0));
 const numberInput = z.union([z.string(), z.number()]).transform((val) => val === '' ? 0 : Number(val)).pipe(z.number().min(0));
 const nullableIntInput = z.union([z.string(), z.number(), z.null(), z.undefined()]).transform((val) => val === null || val === undefined || val === '' ? null : parseInt(String(val), 10)).pipe(z.number().int().min(0).nullable());
 const nonEmptyString = z.string().min(1, 'This field is required');
@@ -21,6 +21,7 @@ export const createProductSchema = z.object({
   type: z.string().optional(),
   subtype: z.string().optional(),
   unit: z.string().optional(),
+  purchase_department_id: nullableIntInput.optional(),
   cost_price: positiveNumber.optional(),
   sell_price: positiveNumber.optional(),
   stock_balance: positiveInteger.optional(),

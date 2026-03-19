@@ -8,7 +8,7 @@ export async function GET() {
     const cached = await cacheGet<any>(cacheKey);
     if (cached) return NextResponse.json(cached);
 
-    const [categoryRowsResult, unitRowsResult, sellerRowsResult] = await Promise.all([
+    const [categoryRowsResult, unitRowsResult, sellerRowsResult, departmentRowsResult] = await Promise.all([
       pgQuery(
         `SELECT category, type, subtype
          FROM public.category
@@ -28,11 +28,18 @@ export async function GET() {
          WHERE is_active = true
          ORDER BY code ASC`
       ),
+      pgQuery(
+        `SELECT id, name, department_code
+         FROM public.department
+         WHERE is_active = true
+         ORDER BY id ASC`
+      ),
     ]);
 
     const categoryRows = categoryRowsResult.rows;
     const unitRows = unitRowsResult.rows;
     const sellerRows = sellerRowsResult.rows;
+    const departmentRows = departmentRowsResult.rows;
 
     const categories = Array.from(new Set(categoryRows.map((item: any) => item.category).filter(Boolean)));
     const types = Array.from(new Set(categoryRows.map((item: any) => item.type).filter(Boolean)));
@@ -48,6 +55,7 @@ export async function GET() {
       seller_codes: sellerCodes,
       category_options: categoryRows,
       seller_options: sellerRows,
+      department_options: departmentRows,
     };
 
     await cacheSet(cacheKey, result, 3600);

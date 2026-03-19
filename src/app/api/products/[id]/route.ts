@@ -5,7 +5,7 @@ import { cacheDelByPattern } from '@/lib/redis';
 import { validateRequest } from '@/lib/validation/validate';
 import { idParamSchema, updateProductSchema } from '@/lib/validation/schemas';
 
-const productSelect = `SELECT id, code, category, name, type, subtype, unit, cost_price::float8 AS cost_price, sell_price::float8 AS sell_price, stock_balance, stock_value::float8 AS stock_value, seller_code, image, flag_activate, admin_note, is_active FROM public.product`;
+const productSelect = `SELECT id, code, category, name, type, subtype, unit, purchase_department_id, cost_price::float8 AS cost_price, sell_price::float8 AS sell_price, stock_balance, stock_value::float8 AS stock_value, seller_code, image, flag_activate, admin_note, is_active FROM public.product`;
 
 export async function GET(
   request: NextRequest,
@@ -72,6 +72,7 @@ export async function PUT(
       type: 'type',
       subtype: 'subtype',
       unit: 'unit',
+      purchase_department_id: 'purchase_department_id',
       cost_price: 'cost_price',
       sell_price: 'sell_price',
       stock_balance: 'stock_balance',
@@ -99,7 +100,7 @@ export async function PUT(
 
     values.push(id);
     const result = await pgQuery(
-      `UPDATE public.product SET ${assignments.join(', ')} WHERE id = $${values.length} RETURNING id, code, category, name, type, subtype, unit, cost_price::float8 AS cost_price, sell_price::float8 AS sell_price, stock_balance, stock_value::float8 AS stock_value, seller_code, image, flag_activate, admin_note, is_active`,
+      `UPDATE public.product SET ${assignments.join(', ')} WHERE id = $${values.length} RETURNING id, code, category, name, type, subtype, unit, purchase_department_id, cost_price::float8 AS cost_price, sell_price::float8 AS sell_price, stock_balance, stock_value::float8 AS stock_value, seller_code, image, flag_activate, admin_note, is_active`,
       values
     );
 

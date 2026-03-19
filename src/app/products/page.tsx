@@ -3,7 +3,7 @@
 import { Suspense, useState, useEffect, useMemo } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import Swal from 'sweetalert2';
-import { Check, X, Pencil, Trash2, ChevronUp, ChevronDown, ArrowUpDown } from 'lucide-react';
+import { Check, X, Pencil, Trash2, ChevronUp, ChevronDown, FilePenLine, ArrowUpDown } from 'lucide-react';
 
 type Product = {
   id: number;
@@ -13,6 +13,7 @@ type Product = {
   type: string;
   subtype: string;
   unit: string;
+  purchase_department_id?: number | null;
   cost_price?: number | null;
   sell_price?: number | null;
   stock_balance?: number | null;
@@ -35,6 +36,12 @@ interface SellerOption {
   name: string;
 }
 
+interface DepartmentOption {
+  id: number;
+  name: string;
+  department_code?: string | null;
+}
+
 interface ProductFormData {
   code: string;
   category: string;
@@ -42,6 +49,7 @@ interface ProductFormData {
   type: string;
   subtype: string;
   unit: string;
+  purchase_department_id?: number;
   cost_price?: number;
   sell_price?: number;
   stock_balance?: number;
@@ -79,6 +87,7 @@ function ProductsPageContent() {
     type: '',
     subtype: '',
     unit: '',
+    purchase_department_id: undefined,
     cost_price: undefined,
     sell_price: undefined,
     stock_balance: undefined,
@@ -125,6 +134,7 @@ function ProductsPageContent() {
     type: '',
     subtype: '',
     unit: '',
+    purchase_department_id: undefined,
     cost_price: undefined,
     sell_price: undefined,
     stock_balance: undefined,
@@ -146,6 +156,7 @@ function ProductsPageContent() {
   const [units, setUnits] = useState<string[]>([]);
   const [sellerCodes, setSellerCodes] = useState<string[]>([]);
   const [sellerOptions, setSellerOptions] = useState<SellerOption[]>([]);
+  const [departmentOptions, setDepartmentOptions] = useState<DepartmentOption[]>([]);
   const [categoryOptions, setCategoryOptions] = useState<CategoryOption[]>([]);
 
   useEffect(() => {
@@ -209,7 +220,8 @@ function ProductsPageContent() {
     setFormData(prev => ({
       ...prev,
       [name]: name.includes('price') || name.includes('value') ? (value ? parseFloat(value) : undefined) :
-               name === 'stock_balance' ? (value ? parseInt(value) : undefined) : value
+               name === 'stock_balance' ? (value ? parseInt(value) : undefined) :
+               name === 'purchase_department_id' ? (value ? parseInt(value, 10) : undefined) : value
     }));
 
     // Clear error when user starts typing
@@ -233,6 +245,7 @@ function ProductsPageContent() {
         setUnits(data.units || []);
         setSellerCodes(data.seller_codes || []);
         setSellerOptions(data.seller_options || []);
+        setDepartmentOptions(data.department_options || []);
         setCategoryOptions(data.category_options || []);
       }
     } catch (error) {
@@ -307,6 +320,19 @@ function ProductsPageContent() {
         )
       ) as string[]
     : subtypes;
+
+  const getDepartmentLabel = (purchase_department_id?: number | null) => {
+    if (!purchase_department_id) {
+      return '-';
+    }
+
+    const department = departmentOptions.find((item) => item.id === purchase_department_id);
+    if (!department) {
+      return '-';
+    }
+
+    return department.department_code ? `${department.department_code} - ${department.name}` : department.name;
+  };
 
   const handleLookupChange = (name: 'category' | 'type' | 'subtype', value: string) => {
     setFormData((prev) => {
@@ -502,6 +528,7 @@ function ProductsPageContent() {
       type: product.type || '',
       subtype: product.subtype || '',
       unit: product.unit || '',
+      purchase_department_id: product.purchase_department_id ?? undefined,
       cost_price: product.cost_price ? Number(product.cost_price) : undefined,
       sell_price: product.sell_price ? Number(product.sell_price) : undefined,
       stock_balance: product.stock_balance || undefined,
@@ -569,6 +596,7 @@ function ProductsPageContent() {
       type: '',
       subtype: '',
       unit: '',
+      purchase_department_id: undefined,
       cost_price: undefined,
       sell_price: undefined,
       stock_balance: undefined,
@@ -596,6 +624,7 @@ function ProductsPageContent() {
       type: product.type || '',
       subtype: product.subtype || '',
       unit: product.unit || '',
+      purchase_department_id: product.purchase_department_id ?? undefined,
       cost_price: product.cost_price ? Number(product.cost_price) : undefined,
       sell_price: product.sell_price ? Number(product.sell_price) : undefined,
       stock_balance: product.stock_balance || undefined,
@@ -618,7 +647,7 @@ function ProductsPageContent() {
       if (response.ok) {
         setEditingId(null);
         setEditData({
-          code: '', category: '', name: '', type: '', subtype: '', unit: '',
+          code: '', category: '', name: '', type: '', subtype: '', unit: '', purchase_department_id: undefined,
           cost_price: undefined, sell_price: undefined, stock_balance: undefined,
           stock_value: undefined, seller_code: '', image: '', admin_note: '', is_active: true
         });
@@ -662,7 +691,7 @@ function ProductsPageContent() {
   const cancelInlineEdit = () => {
     setEditingId(null);
     setEditData({
-      code: '', category: '', name: '', type: '', subtype: '', unit: '',
+      code: '', category: '', name: '', type: '', subtype: '', unit: '', purchase_department_id: undefined,
       cost_price: undefined, sell_price: undefined, stock_balance: undefined,
       stock_value: undefined, seller_code: '', image: '', admin_note: '', is_active: true
     });
@@ -840,7 +869,7 @@ function ProductsPageContent() {
                   <div className={modalCardClassName}>
                     <div className="mb-4">
                       <h4 className="text-sm font-semibold text-gray-900">ข้อมูลหลัก</h4>
-                      <p className="text-xs text-gray-500">กำหนดรหัส ชื่อ หมวด ประเภท และหน่วยของสินค้า</p>
+                      <p className="text-xs text-gray-500">กำหนดรหัส ชื่อ หมวด ประเภท หน่วย และหน่วยงานจัดซื้อของสินค้า</p>
                     </div>
                     <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                       <div>
@@ -934,6 +963,22 @@ function ProductsPageContent() {
                           ))}
                         </datalist>
                         {errors.unit && <p className="mt-1 text-sm text-red-600">{errors.unit}</p>}
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700">หน่วยงานจัดซื้อ</label>
+                        <select
+                          name="purchase_department_id"
+                          value={formData.purchase_department_id ?? ''}
+                          onChange={handleInputChange}
+                          className={modalInputClassName}
+                        >
+                          <option value="">เลือกหน่วยงานที่มีหน้าที่จัดซื้อ</option>
+                          {departmentOptions.map((department) => (
+                            <option key={department.id} value={department.id}>
+                              {department.department_code ? `${department.department_code} - ` : ''}{department.name}
+                            </option>
+                          ))}
+                        </select>
                       </div>
                     </div>
                   </div>
@@ -1459,7 +1504,10 @@ function ProductsPageContent() {
               <th className="px-3 py-3 text-left text-[10px] font-medium text-gray-500 uppercase tracking-wider w-24">
                 สถานะ
               </th>
-              <th className="px-3 py-3 text-left text-[10px] font-medium text-gray-500 uppercase tracking-wider w-28">
+              <th className="px-3 py-3 text-left text-[10px] font-medium text-gray-500 uppercase tracking-wider w-52">
+                หน่วยงานจัดซื้อ
+              </th>
+              <th className="px-3 py-3 text-left text-[10px] font-medium text-gray-500 uppercase tracking-wider w-40">
                 Action
               </th>
             </tr>
@@ -1468,51 +1516,196 @@ function ProductsPageContent() {
             {(products || []).map((product) => (
               <tr key={product.id}>
                 <td className="px-3 py-4 whitespace-nowrap text-sm font-medium text-gray-900 w-28">
-                  {product.code}
+                  {editingId === product.id ? (
+                    <input
+                      type="text"
+                      value={editData.code}
+                      onChange={(e) => setEditData((prev) => ({ ...prev, code: e.target.value }))}
+                      className="w-full rounded border border-gray-300 px-2 py-1 text-sm"
+                    />
+                  ) : (
+                    product.code
+                  )}
                 </td>
                 <td className="px-3 py-4 text-sm text-gray-900 break-words min-w-[280px]">
-                  <div className="font-medium text-gray-900 break-words">{product.name}</div>
-                  <div className="mt-1 text-[11px] text-emerald-600/80">
-                    {[product.category || '-', product.type || '-', product.subtype || '-']
-                      .filter((value, index, arr) => !(value === '-' && arr.every(v => v === '-')))
-                      .join(' · ')}
-                  </div>
+                  {editingId === product.id ? (
+                    <div className="space-y-2">
+                      <input
+                        type="text"
+                        value={editData.name}
+                        onChange={(e) => setEditData((prev) => ({ ...prev, name: e.target.value }))}
+                        className="w-full rounded border border-gray-300 px-2 py-1 text-sm"
+                      />
+                      <div className="grid grid-cols-1 gap-2 md:grid-cols-3">
+                        <select
+                          value={editData.category}
+                          onChange={(e) => setEditData((prev) => ({ ...prev, category: e.target.value, type: '', subtype: '' }))}
+                          className="w-full rounded border border-gray-300 px-2 py-1 text-[11px]"
+                        >
+                          <option value="">เลือกหมวดหมู่</option>
+                          {categories.map((category) => (
+                            <option key={category} value={category}>{category}</option>
+                          ))}
+                        </select>
+                        <select
+                          value={editData.type}
+                          onChange={(e) => setEditData((prev) => ({ ...prev, type: e.target.value, subtype: '' }))}
+                          className="w-full rounded border border-gray-300 px-2 py-1 text-[11px]"
+                        >
+                          <option value="">เลือกประเภท</option>
+                          {Array.from(new Set(categoryOptions.filter((option) => option.category === editData.category).map((option) => option.type).filter(Boolean))).map((type) => (
+                            <option key={type} value={type}>{type}</option>
+                          ))}
+                        </select>
+                        <select
+                          value={editData.subtype}
+                          onChange={(e) => setEditData((prev) => ({ ...prev, subtype: e.target.value }))}
+                          className="w-full rounded border border-gray-300 px-2 py-1 text-[11px]"
+                        >
+                          <option value="">เลือกชนิดย่อย</option>
+                          {Array.from(new Set(categoryOptions.filter((option) => {
+                            const categoryMatched = editData.category ? option.category === editData.category : true;
+                            return categoryMatched && option.type === editData.type;
+                          }).map((option) => option.subtype).filter(Boolean))).map((subtype) => (
+                            <option key={subtype} value={subtype || ''}>{subtype}</option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="font-medium text-gray-900 break-words">{product.name}</div>
+                      <div className="mt-1 text-[11px] text-emerald-600/80">
+                        {[product.category || '-', product.type || '-', product.subtype || '-']
+                          .filter((value, index, arr) => !(value === '-' && arr.every(v => v === '-')))
+                          .join(' · ')}
+                      </div>
+                    </>
+                  )}
                 </td>
                 <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-600 w-24">
-                  {product.unit || '-'}
+                  {editingId === product.id ? (
+                    <input
+                      list="product-units"
+                      type="text"
+                      value={editData.unit}
+                      onChange={(e) => setEditData((prev) => ({ ...prev, unit: e.target.value }))}
+                      className="w-full rounded border border-gray-300 px-2 py-1 text-sm"
+                    />
+                  ) : (
+                    product.unit || '-'
+                  )}
                 </td>
                 <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-600 w-28">
-                  {product.cost_price ? `฿${Number(product.cost_price).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '-'}
+                  {editingId === product.id ? (
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={editData.cost_price ?? ''}
+                      onChange={(e) => setEditData((prev) => ({ ...prev, cost_price: e.target.value ? parseFloat(e.target.value) : undefined }))}
+                      className="w-full rounded border border-gray-300 px-2 py-1 text-sm"
+                    />
+                  ) : (
+                    product.cost_price ? `฿${Number(product.cost_price).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '-'
+                  )}
                 </td>
                 <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-600 w-28">
-                  {product.sell_price ? `฿${Number(product.sell_price).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '-'}
+                  {editingId === product.id ? (
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={editData.sell_price ?? ''}
+                      onChange={(e) => setEditData((prev) => ({ ...prev, sell_price: e.target.value ? parseFloat(e.target.value) : undefined }))}
+                      className="w-full rounded border border-gray-300 px-2 py-1 text-sm"
+                    />
+                  ) : (
+                    product.sell_price ? `฿${Number(product.sell_price).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '-'
+                  )}
                 </td>
                 <td className="px-3 py-4 whitespace-nowrap w-24">
-                  <span className={`px-2 inline-flex text-[10px] leading-4 font-semibold rounded-full ${
-                    product.is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                  }`}>
-                    {product.is_active ? (
-                      <Check className="h-4 w-4" />
-                    ) : (
-                      <X className="h-4 w-4" />
-                    )}
-                  </span>
+                  {editingId === product.id ? (
+                    <label className="inline-flex items-center gap-2 text-xs text-gray-700">
+                      <input
+                        type="checkbox"
+                        checked={editData.is_active}
+                        onChange={(e) => setEditData((prev) => ({ ...prev, is_active: e.target.checked }))}
+                        className="h-4 w-4 rounded border-gray-300"
+                      />
+                      {editData.is_active ? 'เปิดใช้งาน' : 'ปิดใช้งาน'}
+                    </label>
+                  ) : (
+                    <span className={`px-2 inline-flex text-[10px] leading-4 font-semibold rounded-full ${
+                      product.is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                    }`}>
+                      {product.is_active ? (
+                        <Check className="h-4 w-4" />
+                      ) : (
+                        <X className="h-4 w-4" />
+                      )}
+                    </span>
+                  )}
                 </td>
-                <td className="px-3 py-4 whitespace-nowrap text-xs font-medium w-28">
-                  <button
-                    onClick={() => handleEdit(product)}
-                    className="text-indigo-600 hover:text-indigo-900 mr-2 cursor-pointer"
-                    title="แก้ไข"
-                  >
-                    <Pencil className="h-5 w-5" />
-                  </button>
-                  <button
-                    onClick={() => handleDelete(product.id)}
-                    className="text-red-600 hover:text-red-900 cursor-pointer"
-                    title="ลบ"
-                  >
-                    <Trash2 className="h-5 w-5" />
-                  </button>
+                <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-600 w-52">
+                  {editingId === product.id ? (
+                    <select
+                      value={editData.purchase_department_id ?? ''}
+                      onChange={(e) => setEditData((prev) => ({ ...prev, purchase_department_id: e.target.value ? parseInt(e.target.value, 10) : undefined }))}
+                      className="w-full rounded border border-gray-300 px-2 py-1 text-sm"
+                    >
+                      <option value="">เลือกหน่วยงานจัดซื้อ</option>
+                      {departmentOptions.map((department) => (
+                        <option key={department.id} value={department.id}>
+                          {department.department_code ? `${department.department_code} - ` : ''}{department.name}
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    getDepartmentLabel(product.purchase_department_id)
+                  )}
+                </td>
+                <td className="px-3 py-4 whitespace-nowrap text-xs font-medium w-40">
+                  {editingId === product.id ? (
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => saveInlineEdit(product.id)}
+                        className="text-green-600 hover:text-green-800 cursor-pointer"
+                        title="บันทึก"
+                      >
+                        <Check className="h-5 w-5" />
+                      </button>
+                      <button
+                        onClick={cancelInlineEdit}
+                        className="text-gray-600 hover:text-gray-800 cursor-pointer"
+                        title="ยกเลิก"
+                      >
+                        <X className="h-5 w-5" />
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => startInlineEdit(product)}
+                        className="text-indigo-600 hover:text-indigo-900 mr-2 cursor-pointer"
+                        title="แก้ไขในตาราง"
+                      >
+                        <Pencil className="h-5 w-5" />
+                      </button>
+                      <button
+                        onClick={() => handleEdit(product)}
+                        className="text-sky-600 hover:text-sky-900 cursor-pointer"
+                        title="แก้ไขแบบฟอร์ม"
+                      >
+                        <FilePenLine className="h-5 w-5" />
+                      </button>
+                      <button
+                        onClick={() => handleDelete(product.id)}
+                        className="text-red-600 hover:text-red-900 cursor-pointer"
+                        title="ลบ"
+                      >
+                        <Trash2 className="h-5 w-5" />
+                      </button>
+                    </div>
+                  )}
                 </td>
               </tr>
             ))}
