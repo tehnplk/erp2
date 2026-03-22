@@ -4,7 +4,7 @@ import { cacheGet, cacheSet } from '@/lib/redis';
 
 export async function GET(request: NextRequest) {
   try {
-    const usage_plan_filters_cache_key = 'erp:usage_plans:filters:v1';
+    const usage_plan_filters_cache_key = 'erp:usage_plans:filters:v2';
     const cached_usage_plan_filters = await cacheGet<any>(usage_plan_filters_cache_key);
     if (cached_usage_plan_filters) {
       return NextResponse.json(cached_usage_plan_filters);
@@ -17,7 +17,7 @@ export async function GET(request: NextRequest) {
          WHERE is_active = true
          ORDER BY category ASC, type ASC, subtype ASC`
       ),
-      pgQuery('SELECT name FROM public.department WHERE is_active = true AND name IS NOT NULL ORDER BY name ASC'),
+      pgQuery('SELECT department_code FROM public.department WHERE is_active = true AND department_code IS NOT NULL ORDER BY department_code ASC'),
       pgQuery('SELECT DISTINCT budget_year FROM public.usage_plan WHERE budget_year IS NOT NULL ORDER BY budget_year DESC')
     ]);
 
@@ -32,7 +32,7 @@ export async function GET(request: NextRequest) {
       types,
       subtypes,
       category_options: category_rows,
-      departments: departmentRowsResult.rows.map((department: any) => department.name).filter(Boolean).sort((a: string, b: string) => a.localeCompare(b)),
+      departments: departmentRowsResult.rows.map((department: any) => department.department_code).filter(Boolean).sort((a: string, b: string) => a.localeCompare(b)),
       budget_years: budgetYearRowsResult.rows.map((budget_year: any) => budget_year.budget_year).filter((value: number | null) => value !== null)
     };
 

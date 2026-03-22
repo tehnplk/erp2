@@ -12,22 +12,42 @@ async function getPurchasePlanJoinedById(id: number) {
        pp.usage_plan_id,
        up.sequence_no,
        up.product_code,
-       up.product_name,
-       up.category,
-       up.type AS product_type,
-       up.subtype AS product_subtype,
-       up.unit,
-       up.price_per_unit::float8 AS price_per_unit,
+       p.name AS product_name,
+       p.category,
+       c.type AS product_type,
+       c.subtype AS product_subtype,
+       p.unit,
+       COALESCE(p.cost_price, 0)::float8 AS price_per_unit,
        up.requested_amount,
-       up.approved_quota,
+       COALESCE(quota_summary.total_quota, 0)::int AS approved_quota,
        up.budget_year,
        up.requesting_dept,
+       p.purchase_department_id,
+       pd.department_code AS purchase_department_code,
+       pd.name AS purchase_department_name,
+       EXISTS (SELECT 1 FROM public.purchase_approval_detail has_pad WHERE has_pad.purchase_plan_id = pp.id) AS has_purchase_approval,
        COALESCE(inv.inventory_qty, pp.inventory_qty, 0)::int AS inventory_qty,
        COALESCE(inv.inventory_value, pp.inventory_value, 0)::float8 AS inventory_value,
-       COALESCE(pp.purchase_qty, 0)::int AS purchase_qty,
-       COALESCE(pp.purchase_value, ROUND(COALESCE(pp.purchase_qty, 0) * COALESCE(up.price_per_unit, 0), 2))::float8 AS purchase_value
+       COALESCE(purchased_summary.purchased_qty, 0)::int AS purchased_qty,
+       CASE
+         WHEN EXISTS (SELECT 1 FROM public.purchase_approval_detail has_pad WHERE has_pad.purchase_plan_id = pp.id) THEN 0
+         ELSE COALESCE(pp.purchase_qty, 0)::int
+       END AS purchase_qty,
+       COALESCE(pp.unit_price, p.cost_price, 0)::float8 AS unit_price,
+       CASE
+         WHEN EXISTS (SELECT 1 FROM public.purchase_approval_detail has_pad WHERE has_pad.purchase_plan_id = pp.id) THEN 0::float8
+         ELSE COALESCE(pp.purchase_value, ROUND(COALESCE(pp.purchase_qty, 0) * COALESCE(pp.unit_price, p.cost_price, 0), 2))::float8
+       END AS purchase_value
      FROM public.purchase_plan pp
      INNER JOIN public.usage_plan up ON up.id = pp.usage_plan_id
+     LEFT JOIN public.product p ON p.code = up.product_code
+     LEFT JOIN public.category c ON c.category = p.category
+     LEFT JOIN public.department pd ON pd.id = p.purchase_department_id
+     LEFT JOIN (
+       SELECT product_code, SUM(COALESCE(approved_quota, 0))::int AS total_quota
+       FROM public.usage_plan
+       GROUP BY product_code
+     ) quota_summary ON quota_summary.product_code = up.product_code
      LEFT JOIN (
        SELECT
          ii.product_code,
@@ -37,6 +57,13 @@ async function getPurchasePlanJoinedById(id: number) {
        INNER JOIN public.inventory_balance ib ON ib.inventory_item_id = ii.id
        GROUP BY ii.product_code
      ) inv ON inv.product_code = up.product_code
+     LEFT JOIN (
+       SELECT
+         pad.purchase_plan_id,
+         COALESCE(SUM(pad.approved_quantity), 0)::int AS purchased_qty
+       FROM public.purchase_approval_detail pad
+       GROUP BY pad.purchase_plan_id
+     ) purchased_summary ON purchased_summary.purchase_plan_id = pp.id
      WHERE pp.id = $1
      LIMIT 1`,
     [id],
@@ -61,7 +88,34 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     }
 
     const current = await pgQuery(
-      'SELECT pp.id, pp.usage_plan_id, up.price_per_unit::float8 AS price_per_unit FROM public.purchase_plan pp INNER JOIN public.usage_plan up ON up.id = pp.usage_plan_id WHERE pp.id = $1 LIMIT 1',
+      `SELECT
+         pp.id,
+         pp.usage_plan_id,
+         pp.unit_price::float8 AS unit_price,
+         COALESCE(p.cost_price, 0)::float8 AS price_per_unit,
+         COALESCE(up.approved_quota, 0)::int AS approved_quota,
+         COALESCE(inv.inventory_qty, pp.inventory_qty, 0)::int AS inventory_qty,
+         COALESCE(purchased_summary.purchased_qty, 0)::int AS purchased_qty
+       FROM public.purchase_plan pp
+       INNER JOIN public.usage_plan up ON up.id = pp.usage_plan_id
+       LEFT JOIN public.product p ON p.code = up.product_code
+       LEFT JOIN (
+         SELECT
+           ii.product_code,
+           COALESCE(SUM(ib.on_hand_qty), 0)::int AS inventory_qty
+         FROM public.inventory_item ii
+         INNER JOIN public.inventory_balance ib ON ib.inventory_item_id = ii.id
+         GROUP BY ii.product_code
+       ) inv ON inv.product_code = up.product_code
+       LEFT JOIN (
+         SELECT
+           pad.purchase_plan_id,
+           COALESCE(SUM(pad.approved_quantity), 0)::int AS purchased_qty
+         FROM public.purchase_approval_detail pad
+         GROUP BY pad.purchase_plan_id
+       ) purchased_summary ON purchased_summary.purchase_plan_id = pp.id
+       WHERE pp.id = $1
+       LIMIT 1`,
       [numericId],
     );
 
@@ -76,6 +130,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
       inventory_value?: number | null;
       purchase_qty?: number | null;
       purchase_value?: number | null;
+      unit_price?: number | null;
     };
 
     const nextUsagePlanId = payload.usage_plan_id ?? currentItem.usage_plan_id;
@@ -85,7 +140,14 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
 
     let pricePerUnit = Number(currentItem.price_per_unit || 0);
     if (nextUsagePlanId !== currentItem.usage_plan_id) {
-      const usagePlanResult = await pgQuery('SELECT id, price_per_unit::float8 AS price_per_unit FROM public.usage_plan WHERE id = $1 LIMIT 1', [nextUsagePlanId]);
+      const usagePlanResult = await pgQuery(
+        `SELECT up.id, COALESCE(p.cost_price, 0)::float8 AS price_per_unit
+         FROM public.usage_plan up
+         LEFT JOIN public.product p ON p.code = up.product_code
+         WHERE up.id = $1
+         LIMIT 1`,
+        [nextUsagePlanId]
+      );
       const usagePlan = usagePlanResult.rows[0];
       if (!usagePlan) {
         return apiError('ไม่พบข้อมูลแผนการใช้ที่เลือก', 400);
@@ -99,12 +161,27 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
       pricePerUnit = Number(usagePlan.price_per_unit || 0);
     }
 
+    const nextUnitPrice = Number.isFinite(Number(payload.unit_price))
+      ? Number(payload.unit_price)
+      : Number(currentItem.unit_price ?? pricePerUnit);
+
     const nextInventoryQty = Number(payload.inventory_qty ?? 0);
     const nextInventoryValue = Number(payload.inventory_value ?? 0);
     const nextPurchaseQty = Number(payload.purchase_qty ?? 0);
+
+    const approvedQuota = Number(currentItem.approved_quota ?? 0);
+    const inventoryQty = Number(currentItem.inventory_qty ?? 0);
+    const purchasedQty = Number(currentItem.purchased_qty ?? 0);
+    if (inventoryQty + purchasedQty + nextPurchaseQty > approvedQuota) {
+      return apiError(
+        `คงคลัง + ซื้อแล้ว + ซื้อครั้งนี้ ต้องไม่เกินโควต้า (${inventoryQty} + ${purchasedQty} + ${nextPurchaseQty} > ${approvedQuota})`,
+        400,
+      );
+    }
+
     const nextPurchaseValue = Number.isFinite(Number(payload.purchase_value))
       ? Number(payload.purchase_value)
-      : Number((nextPurchaseQty * pricePerUnit).toFixed(2));
+      : Number((nextPurchaseQty * nextUnitPrice).toFixed(2));
 
     const updated = await pgQuery(
       `UPDATE public.purchase_plan
@@ -112,14 +189,16 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
            inventory_qty = $2,
            inventory_value = $3,
            purchase_qty = $4,
-           purchase_value = $5
-       WHERE id = $6
-       RETURNING id, usage_plan_id, inventory_qty, inventory_value::float8 AS inventory_value, purchase_qty, purchase_value::float8 AS purchase_value`,
+           unit_price = $5,
+           purchase_value = $6
+       WHERE id = $7
+       RETURNING id, usage_plan_id, inventory_qty, inventory_value::float8 AS inventory_value, purchase_qty, unit_price::float8 AS unit_price, purchase_value::float8 AS purchase_value`,
       [
         nextUsagePlanId,
         Number.isFinite(nextInventoryQty) ? nextInventoryQty : 0,
         Number.isFinite(nextInventoryValue) ? nextInventoryValue : 0,
         Number.isFinite(nextPurchaseQty) ? nextPurchaseQty : 0,
+        Number.isFinite(nextUnitPrice) ? nextUnitPrice : 0,
         Number.isFinite(nextPurchaseValue) ? nextPurchaseValue : 0,
         numericId,
       ],

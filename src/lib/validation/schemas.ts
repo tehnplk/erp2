@@ -216,7 +216,8 @@ export const createPurchasePlanSchema = z.object({
   inventory_qty: nullableIntInput.optional(),
   inventory_value: numberInput.optional(),
   purchase_qty: nullableIntInput.optional(),
-  purchase_value: numberInput.optional()
+  purchase_value: numberInput.optional(),
+  unit_price: numberInput.optional()
 });
 
 export const updatePurchasePlanSchema = createPurchasePlanSchema.partial();
@@ -231,22 +232,16 @@ export const purchasePlanQuerySchema = z.object({
   has_purchase_approval: z.enum(['true', 'false']).optional(),
   order_by: z.enum([
     'id',
-    'sequence_no',
     'product_code',
     'product_name',
-    'category',
-    'product_type',
-    'product_subtype',
-    'unit',
-    'price_per_unit',
-    'requested_amount',
+    'purchase_department',
     'approved_quota',
     'inventory_qty',
-    'inventory_value',
+    'purchased_qty',
     'purchase_qty',
+    'unit_price',
     'purchase_value',
-    'budget_year',
-    'requesting_dept'
+    'budget_year'
   ]).optional(),
   sort_order: z.enum(['asc', 'desc']).optional(),
   ...paginationFields
@@ -308,14 +303,8 @@ export const purchaseApprovalQuerySchema = z.object({
 // Usage Plan schemas
 export const create_usage_plan_schema = z.object({
   product_code: z.string().nullable().optional(),
-  category: z.string().nullable().optional(),
-  type: z.string().nullable().optional(),
-  subtype: z.string().nullable().optional(),
-  product_name: z.string().nullable().optional(),
   requested_amount: nullableIntInput.optional(),
-  unit: z.string().nullable().optional(),
-  price_per_unit: numberInput.optional(),
-  requesting_dept: z.string().nullable().optional(),
+  requesting_dept_code: z.string().trim().max(4).nullable().optional(),
   approved_quota: nullableIntInput.optional(),
   budget_year: z.union([z.string(), z.number(), z.null(), z.undefined()])
     .transform((val) => val === null || val === undefined || val === '' ? null : parseInt(String(val), 10))
@@ -330,21 +319,18 @@ export const create_usage_plan_schema = z.object({
 export const update_usage_plan_schema = create_usage_plan_schema.partial();
 
 export const usage_plan_query_schema = z.object({
-  product_name: z.string().optional(),
+  product_code: z.string().optional(),
+  requesting_dept_code: z.string().optional(),
+  budget_year: z.string().optional(),
   category: z.string().optional(),
   type: z.string().optional(),
-  subtype: z.string().optional(),
-  requesting_dept: z.string().optional(),
-  budget_year: z.string().optional(),
   has_purchase_plan: z.enum(['true', 'false']).optional(),
   order_by: z.enum([
     'id',
     'product_code',
-    'product_name',
-    'category',
-    'type',
-    'subtype',
-    'requesting_dept',
+    'requesting_dept_code',
+    'requested_amount',
+    'approved_quota',
     'budget_year',
     'sequence_no',
     'created_at',

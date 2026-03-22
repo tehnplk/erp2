@@ -55,6 +55,8 @@ const purchaseApprovalFrom = `
   LEFT JOIN public.purchase_approval_detail pad ON pad.purchase_approval_id = pa.id
   LEFT JOIN public.purchase_plan pp ON pp.id = pad.purchase_plan_id
   LEFT JOIN public.usage_plan up ON up.id = pp.usage_plan_id
+  LEFT JOIN public.product p ON p.code = up.product_code
+  LEFT JOIN public.category c ON c.category = p.category
 `;
 
 export async function GET(request: NextRequest) {
@@ -85,19 +87,19 @@ export async function GET(request: NextRequest) {
 
     if (product_name) {
       params.push(`%${product_name}%`);
-      whereClauses.push(`up.product_name ILIKE $${params.length}`);
+      whereClauses.push(`p.name ILIKE $${params.length}`);
     }
     if (category) {
       params.push(category);
-      whereClauses.push(`up.category = $${params.length}`);
+      whereClauses.push(`p.category = $${params.length}`);
     }
     if (product_type) {
       params.push(product_type);
-      whereClauses.push(`up.type = $${params.length}`);
+      whereClauses.push(`c.type = $${params.length}`);
     }
     if (product_subtype) {
       params.push(product_subtype);
-      whereClauses.push(`up.subtype = $${params.length}`);
+      whereClauses.push(`c.subtype = $${params.length}`);
     }
     if (department) {
       params.push(department);
@@ -128,11 +130,11 @@ export async function GET(request: NextRequest) {
       updated_at: 'pa.updated_at',
       department: 'up.requesting_dept',
       budget_year: 'pa.budget_year',
-      product_name: 'up.product_name',
+      product_name: 'p.name',
       product_code: 'up.product_code',
-      category: 'up.category',
-      product_type: 'up.type',
-      product_subtype: 'up.subtype',
+      category: 'p.category',
+      product_type: 'c.type',
+      product_subtype: 'c.subtype',
     };
     const safeOrderField = allowedOrderFields[order_by || 'created_at'] || 'pa.created_at';
     const safeSortOrder = sort_order === 'asc' ? 'ASC' : 'DESC';

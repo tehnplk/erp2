@@ -3,7 +3,6 @@ import { pgQuery } from '@/lib/pg';
 import { cacheDelByPattern } from '@/lib/redis';
 import { validateQuery, validateRequest } from '@/lib/validation/validate';
 import { usage_plan_query_schema, create_usage_plan_schema } from '@/lib/validation/schemas';
-import { findDepartmentCodeByName } from '@/lib/department-code';
 
 const buildUsagePlanConstraintError = () =>
   NextResponse.json(
@@ -21,12 +20,11 @@ export async function GET(request: NextRequest) {
     }
 
     const {
-      product_name,
+      product_code,
+      requesting_dept_code,
+      budget_year,
       category,
       type,
-      subtype,
-      requesting_dept,
-      budget_year,
       has_purchase_plan,
       order_by,
       sort_order,
@@ -37,62 +35,44 @@ export async function GET(request: NextRequest) {
     const orderField = order_by || 'id';
     const orderDirection = sort_order || 'desc';
     const allowedOrderFields: Record<string, string> = {
-      id: 'id',
-      product_code: 'product_code',
-      product_name: 'product_name',
-      category: 'category',
-      type: 'type',
-      subtype: 'subtype',
-      requesting_dept: 'requesting_dept',
-      budget_year: 'budget_year',
-      sequence_no: 'sequence_no',
-      created_at: 'created_at',
-      updated_at: 'updated_at',
+      id: 'up.id',
+      product_code: 'up.product_code',
+      requesting_dept_code: 'up.requesting_dept_code',
+      requested_amount: 'up.requested_amount',
+      approved_quota: 'up.approved_quota',
+      budget_year: 'up.budget_year',
+      sequence_no: 'up.sequence_no',
+      created_at: 'up.created_at',
+      updated_at: 'up.updated_at',
     };
-    const safeOrderField = allowedOrderFields[orderField] || 'id';
-
-    const matches_exact_filter = (row: Record<string, any>) => {
-      if (category && row.category !== category) return false;
-      if (type && row.type !== type) return false;
-      if (subtype && row.subtype !== subtype) return false;
-      if (requesting_dept && row.requesting_dept !== requesting_dept) return false;
-      if (budget_year && Number(row.budget_year) !== parseInt(budget_year, 10)) return false;
-      if (has_purchase_plan === 'true' && !row.has_purchase_plan) return false;
-      if (has_purchase_plan === 'false' && row.has_purchase_plan) return false;
-      return true;
-    };
+    const safeOrderField = allowedOrderFields[orderField] || 'up.id';
 
     const whereClauses: string[] = [];
     const params: unknown[] = [];
 
-    if (product_name) {
-      params.push(`%${product_name}%`);
-      whereClauses.push(`(product_name ILIKE $${params.length} OR product_code ILIKE $${params.length})`);
+    if (product_code) {
+      params.push(`%${product_code}%`);
+      whereClauses.push(`(p.name ILIKE $${params.length} OR up.product_code ILIKE $${params.length})`);
     }
 
-    if (category) {
-      params.push(category);
-      whereClauses.push(`category = $${params.length}`);
-    }
-
-    if (type) {
-      params.push(type);
-      whereClauses.push(`type = $${params.length}`);
-    }
-
-    if (subtype) {
-      params.push(subtype);
-      whereClauses.push(`subtype = $${params.length}`);
-    }
-
-    if (requesting_dept) {
-      params.push(requesting_dept);
-      whereClauses.push(`requesting_dept = $${params.length}`);
+    if (requesting_dept_code) {
+      params.push(requesting_dept_code);
+      whereClauses.push(`up.requesting_dept_code = $${params.length}`);
     }
 
     if (budget_year) {
       params.push(parseInt(budget_year, 10));
-      whereClauses.push(`budget_year = $${params.length}`);
+      whereClauses.push(`up.budget_year = $${params.length}`);
+    }
+
+    if (category) {
+      params.push(`%${category}%`);
+      whereClauses.push(`p.category ILIKE $${params.length}`);
+    }
+
+    if (type) {
+      params.push(`%${type}%`);
+      whereClauses.push(`p.type ILIKE $${params.length}`);
     }
 
     if (has_purchase_plan === 'true') {
@@ -107,29 +87,58 @@ export async function GET(request: NextRequest) {
 
     const hasPagination = validatedPage !== undefined || validatedPageSize !== undefined;
 
+    const usagePlanFromSql = `
+      FROM public.usage_plan up
+      LEFT JOIN public.product p ON p.code = up.product_code
+      LEFT JOIN public.department d ON d.department_code = up.requesting_dept_code
+      ${whereSql}
+    `;
+
+    const usagePlanSelect = `
+      SELECT
+        up.id,
+        up.product_code,
+        p.name AS product_name,
+        p.category,
+        p.type,
+        p.subtype,
+        up.requested_amount,
+        p.unit,
+        COALESCE(p.cost_price, 0)::float8 AS price_per_unit,
+        up.requesting_dept_code,
+        COALESCE(d.name, up.requesting_dept_code) AS requesting_dept,
+        up.approved_quota,
+        up.budget_year,
+        up.sequence_no,
+        up.created_at,
+        up.updated_at,
+        EXISTS (SELECT 1 FROM public.purchase_plan pp WHERE pp.usage_plan_id = up.id) AS has_purchase_plan,
+        EXISTS (
+          SELECT 1
+          FROM public.purchase_plan pp
+          INNER JOIN public.purchase_approval_detail pad ON pad.purchase_plan_id = pp.id
+          WHERE pp.usage_plan_id = up.id
+        ) AS has_purchase_approval
+      ${usagePlanFromSql}
+    `;
+
+    const summarySql = `
+      SELECT
+        COUNT(*)::int AS count,
+        COALESCE(SUM(COALESCE(up.requested_amount, 0) * COALESCE(p.cost_price, 0)), 0)::float8 AS total_requested_value,
+        COALESCE(SUM(COALESCE(up.approved_quota, 0) * COALESCE(p.cost_price, 0)), 0)::float8 AS total_approved_value
+      ${usagePlanFromSql}
+    `;
+
     if (!hasPagination) {
       const [usagePlansResult, totalCountResult] = await Promise.all([
-        pgQuery(
-          `SELECT 
-            up.id, up.product_code, up.category, up.type, up.subtype, up.product_name, 
-            up.requested_amount, up.unit, up.price_per_unit::float8 AS price_per_unit, 
-            up.requesting_dept, up.requesting_dept_code, up.approved_quota, 
-            up.budget_year, up.sequence_no, up.created_at, up.updated_at,
-            CASE WHEN pp.id IS NOT NULL THEN true ELSE false END as has_purchase_plan,
-            CASE WHEN EXISTS (SELECT 1 FROM public.purchase_approval_detail pad WHERE pad.purchase_plan_id = pp.id) THEN true ELSE false END as has_purchase_approval
-           FROM public.usage_plan up
-           LEFT JOIN public.purchase_plan pp ON up.id = pp.usage_plan_id
-           ${whereSql} ORDER BY ${safeOrderField} ${orderDirection}`,
-          params
-        ),
-        pgQuery(`SELECT COUNT(*)::int AS count FROM public.usage_plan up ${whereSql}`, params)
+        pgQuery(`${usagePlanSelect} ORDER BY ${safeOrderField} ${orderDirection}`, params),
+        pgQuery(`SELECT COUNT(*)::int AS count ${usagePlanFromSql}`, params),
       ]);
 
-      const filteredUsagePlans = usagePlansResult.rows.filter(matches_exact_filter);
-
       const result = {
-        usage_plans: filteredUsagePlans,
-        totalCount: subtype ? filteredUsagePlans.length : totalCountResult.rows[0]?.count || 0,
+        usage_plans: usagePlansResult.rows,
+        totalCount: totalCountResult.rows[0]?.count || 0,
       };
 
       return NextResponse.json(result);
@@ -141,39 +150,21 @@ export async function GET(request: NextRequest) {
 
     const paginatedParams = [...params, pageSize, offset];
 
-    const [usagePlansResult, totalCountResult, summaryResult, filteredSummaryResult] = await Promise.all([
+    const [usagePlansResult, totalCountResult, summaryResult] = await Promise.all([
       pgQuery(
-        `SELECT 
-          up.id, up.product_code, up.category, up.type, up.subtype, up.product_name, 
-          up.requested_amount, up.unit, up.price_per_unit::float8 AS price_per_unit, 
-          up.requesting_dept, up.requesting_dept_code, up.approved_quota, 
-          up.budget_year, up.sequence_no, up.created_at, up.updated_at,
-          CASE WHEN pp.id IS NOT NULL THEN true ELSE false END as has_purchase_plan,
-          CASE WHEN EXISTS (SELECT 1 FROM public.purchase_approval_detail pad WHERE pad.purchase_plan_id = pp.id) THEN true ELSE false END as has_purchase_approval
-         FROM public.usage_plan up
-         LEFT JOIN public.purchase_plan pp ON up.id = pp.usage_plan_id
-         ${whereSql} ORDER BY ${safeOrderField} ${orderDirection} LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,
+        `${usagePlanSelect} ORDER BY ${safeOrderField} ${orderDirection} LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,
         paginatedParams
       ),
-      pgQuery(`SELECT COUNT(*)::int AS count FROM public.usage_plan up ${whereSql}`, params),
-      pgQuery(
-        `SELECT COALESCE(SUM(COALESCE(up.requested_amount,0) * COALESCE(up.price_per_unit,0)),0)::float8 AS total_requested_value, COALESCE(SUM(COALESCE(up.approved_quota,0) * COALESCE(up.price_per_unit,0)),0)::float8 AS total_approved_value FROM public.usage_plan up ${whereSql}`,
-        params
-      ),
-      pgQuery(
-        `SELECT COUNT(*)::int AS count, COALESCE(SUM(COALESCE(up.requested_amount,0) * COALESCE(up.price_per_unit,0)),0)::float8 AS total_requested_value, COALESCE(SUM(COALESCE(up.approved_quota,0) * COALESCE(up.price_per_unit,0)),0)::float8 AS total_approved_value FROM public.usage_plan up ${whereSql}`,
-        params
-      ),
+      pgQuery(`SELECT COUNT(*)::int AS count ${usagePlanFromSql}`, params),
+      pgQuery(summarySql, params),
     ]);
-
-    const filteredUsagePlans = usagePlansResult.rows.filter(matches_exact_filter);
-    const filteredSummaryRow = filteredSummaryResult.rows[0];
+    const summaryRow = summaryResult.rows[0];
 
     const paginatedResult = {
-      usage_plans: filteredUsagePlans,
-      totalCount: filteredSummaryRow?.count || totalCountResult.rows[0]?.count || 0,
-      total_requested_value: filteredSummaryRow?.total_requested_value ?? summaryResult.rows[0]?.total_requested_value ?? 0,
-      total_approved_value: filteredSummaryRow?.total_approved_value ?? summaryResult.rows[0]?.total_approved_value ?? 0,
+      usage_plans: usagePlansResult.rows,
+      totalCount: totalCountResult.rows[0]?.count || 0,
+      total_requested_value: summaryRow?.total_requested_value ?? 0,
+      total_approved_value: summaryRow?.total_approved_value ?? 0,
       page,
       page_size: pageSize,
     };
@@ -197,7 +188,14 @@ export async function POST(request: NextRequest) {
       return validation.error;
     }
 
-    const usagePlanData = validation.data as any;
+    const usagePlanData = validation.data as {
+      product_code?: string | null;
+      requested_amount?: number | null;
+      requesting_dept_code?: string | null;
+      approved_quota?: number | null;
+      budget_year?: number | null;
+      sequence_no?: number | null;
+    };
 
     if (usagePlanData.budget_year === null || usagePlanData.budget_year === undefined) {
       usagePlanData.budget_year = 2569;
@@ -205,8 +203,8 @@ export async function POST(request: NextRequest) {
 
     if (usagePlanData.budget_year !== null && usagePlanData.budget_year !== undefined && usagePlanData.sequence_no !== null && usagePlanData.sequence_no !== undefined) {
       const existing = await pgQuery(
-        `SELECT id FROM public.usage_plan WHERE budget_year = $1 AND requesting_dept IS NOT DISTINCT FROM $2 AND product_code IS NOT DISTINCT FROM $3 AND sequence_no = $4 LIMIT 1`,
-        [usagePlanData.budget_year, usagePlanData.requesting_dept || null, usagePlanData.product_code || null, usagePlanData.sequence_no]
+        `SELECT id FROM public.usage_plan WHERE budget_year = $1 AND requesting_dept_code IS NOT DISTINCT FROM $2 AND product_code IS NOT DISTINCT FROM $3 AND sequence_no = $4 LIMIT 1`,
+        [usagePlanData.budget_year, usagePlanData.requesting_dept_code || null, usagePlanData.product_code || null, usagePlanData.sequence_no]
       );
 
       if (existing.rows.length > 0) {
@@ -216,8 +214,8 @@ export async function POST(request: NextRequest) {
 
     if (usagePlanData.budget_year !== null && usagePlanData.budget_year !== undefined) {
       const existingCountResult = await pgQuery(
-        `SELECT COUNT(*)::int AS count FROM public.usage_plan WHERE budget_year = $1 AND requesting_dept IS NOT DISTINCT FROM $2 AND product_code IS NOT DISTINCT FROM $3`,
-        [usagePlanData.budget_year, usagePlanData.requesting_dept || null, usagePlanData.product_code || null]
+        `SELECT COUNT(*)::int AS count FROM public.usage_plan WHERE budget_year = $1 AND requesting_dept_code IS NOT DISTINCT FROM $2 AND product_code IS NOT DISTINCT FROM $3`,
+        [usagePlanData.budget_year, usagePlanData.requesting_dept_code || null, usagePlanData.product_code || null]
       );
       const existingCount = existingCountResult.rows[0]?.count || 0;
 
@@ -234,33 +232,59 @@ export async function POST(request: NextRequest) {
       usagePlanData.sequence_no = 1;
     }
 
-    const requestingDept = usagePlanData.requesting_dept || null;
-    const requestingDeptCode = await findDepartmentCodeByName(requestingDept);
-
     const usagePlan = await pgQuery(
-      `INSERT INTO public.usage_plan (product_code, category, type, subtype, product_name, requested_amount, unit, price_per_unit, requesting_dept, requesting_dept_code, approved_quota, budget_year, sequence_no)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
-       RETURNING id, product_code, category, type, subtype, product_name, requested_amount, unit, price_per_unit::float8 AS price_per_unit, requesting_dept, requesting_dept_code, approved_quota, budget_year, sequence_no, created_at, updated_at`,
+      `INSERT INTO public.usage_plan (product_code, requested_amount, requesting_dept_code, approved_quota, budget_year, sequence_no)
+       VALUES ($1, $2, $3, $4, $5, $6)
+       RETURNING id, product_code, requested_amount, requesting_dept_code, approved_quota, budget_year, sequence_no, created_at, updated_at`,
       [
         usagePlanData.product_code || null,
-        usagePlanData.category || null,
-        usagePlanData.type || null,
-        usagePlanData.subtype || null,
-        usagePlanData.product_name || null,
         usagePlanData.requested_amount ?? null,
-        usagePlanData.unit || null,
-        usagePlanData.price_per_unit ?? 0,
-        requestingDept,
-        requestingDeptCode,
+        usagePlanData.requesting_dept_code || null,
         usagePlanData.approved_quota ?? null,
         usagePlanData.budget_year ?? null,
         usagePlanData.sequence_no ?? null,
       ]
     );
+
+    const createdUsagePlanResult = await pgQuery(
+      `SELECT
+        up.id,
+        up.product_code,
+        p.name AS product_name,
+        p.category,
+        c.type,
+        c.subtype,
+        up.requested_amount,
+        p.unit,
+        COALESCE(p.cost_price, 0)::float8 AS price_per_unit,
+        up.requesting_dept_code,
+        COALESCE(d.name, up.requesting_dept_code) AS requesting_dept,
+        up.approved_quota,
+        up.budget_year,
+        up.sequence_no,
+        up.created_at,
+        up.updated_at,
+        false AS has_purchase_plan,
+        false AS has_purchase_approval
+      FROM public.usage_plan up
+      LEFT JOIN public.product p ON p.code = up.product_code
+      LEFT JOIN public.department d ON d.department_code = up.requesting_dept_code
+      LEFT JOIN LATERAL (
+        SELECT c.type, c.subtype
+        FROM public.category c
+        WHERE c.category = p.category
+          AND c.is_active = true
+        ORDER BY c.category_code ASC
+        LIMIT 1
+      ) c ON true
+      WHERE up.id = $1
+      LIMIT 1`,
+      [usagePlan.rows[0].id]
+    );
     
     await cacheDelByPattern('erp:usage_plans:list:*');
     
-    return NextResponse.json(usagePlan.rows[0], { status: 201 });
+    return NextResponse.json(createdUsagePlanResult.rows[0] || usagePlan.rows[0], { status: 201 });
   } catch (error) {
     console.error('Error creating usage plan:', error);
     return NextResponse.json(

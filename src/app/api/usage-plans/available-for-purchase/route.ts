@@ -18,16 +18,16 @@ export async function GET(request: NextRequest) {
     if (search) {
       params.push(`%${search}%`);
       const searchParamIndex = params.length;
-      whereClauses.push(`(up.product_code ILIKE $${searchParamIndex} OR up.product_name ILIKE $${searchParamIndex})`);
+      whereClauses.push(`(up.product_code ILIKE $${searchParamIndex} OR p.name ILIKE $${searchParamIndex})`);
     }
 
     const allowedOrderFields: Record<string, string> = {
       id: 'up.id',
       product_code: 'up.product_code',
-      product_name: 'up.product_name',
-      category: 'up.category',
-      product_type: 'up.type',
-      product_subtype: 'up.subtype',
+      product_name: 'p.name',
+      category: 'p.category',
+      product_type: 'c.type',
+      product_subtype: 'c.subtype',
       budget_year: 'up.budget_year',
       sequence_no: 'up.sequence_no',
       requesting_dept: 'up.requesting_dept',
@@ -89,12 +89,12 @@ const usagePlanSelect = `
   SELECT 
     up.id,
     up.product_code,
-    up.product_name,
-    up.category,
-    up.type as product_type,
-    up.subtype as product_subtype,
-    up.unit,
-    up.price_per_unit::float8 AS cost_price,
+    p.name AS product_name,
+    p.category,
+    c.type as product_type,
+    c.subtype as product_subtype,
+    p.unit,
+    COALESCE(p.cost_price, 0)::float8 AS cost_price,
     up.requesting_dept,
     up.requested_amount,
     up.approved_quota,
@@ -103,6 +103,8 @@ const usagePlanSelect = `
     COALESCE(SUM(ib.on_hand_qty), 0) as inventory_qty,
     COALESCE(SUM(ib.available_qty), 0) as available_qty
   FROM public.usage_plan up
+  LEFT JOIN public.product p ON p.code = up.product_code
+  LEFT JOIN public.category c ON c.category = p.category
   LEFT JOIN public.purchase_plan pp ON up.id = pp.usage_plan_id
   LEFT JOIN public.inventory_item ii ON ii.product_code = up.product_code
   LEFT JOIN public.inventory_balance ib ON ib.inventory_item_id = ii.id
@@ -110,7 +112,7 @@ const usagePlanSelect = `
 
 const usagePlanGroupBy = `
   GROUP BY 
-    up.id, up.product_code, up.product_name, up.category, up.type, up.subtype, 
-    up.unit, up.price_per_unit::float8, up.requesting_dept, up.requested_amount, 
+    up.id, up.product_code, p.name, p.category, c.type, c.subtype,
+    p.unit, COALESCE(p.cost_price, 0)::float8, up.requesting_dept, up.requested_amount,
     up.approved_quota, up.budget_year, up.sequence_no
 `;

@@ -24,10 +24,11 @@ export async function POST(request: NextRequest) {
     const usagePlansResult = await pgQuery(
       `SELECT 
         up.id, 
-        up.price_per_unit::float8 AS price_per_unit,
+        COALESCE(p.cost_price, 0)::float8 AS price_per_unit,
         up.approved_quota,
         pp.id AS purchase_plan_id
       FROM public.usage_plan up
+      LEFT JOIN public.product p ON p.code = up.product_code
       LEFT JOIN public.purchase_plan pp ON up.id = pp.usage_plan_id
       WHERE up.id = ANY($1) AND up.approved_quota > 0`,
       [usage_plan_ids]

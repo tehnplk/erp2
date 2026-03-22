@@ -1,2834 +1,1458 @@
 'use client';
 
-import { Suspense, useState, useEffect, useRef, useMemo } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import Swal from 'sweetalert2';
-import { Upload, Plus, CheckCircle2, AlertCircle, X as XIcon, ChevronUp, ChevronDown, ArrowUpDown, Pencil, Trash2, Search, X, FileText, ClipboardList } from 'lucide-react';
 
-const PRODUCT_SUGGESTION_LIMIT = 12;
-
-const getCurrentBudgetYear = () => {
+const get_current_budget_year = () => {
   const now = new Date();
   const year = now.getFullYear();
   const month = now.getMonth();
   return month >= 9 ? year + 544 : year + 543;
 };
 
-const formatDateTime = (value?: string | null) => {
-  if (!value) return '-';
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return '-';
-  return date.toLocaleString('th-TH', {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
-};
-
-interface ProductOption {
-  id: number;
-  code: string;
-  name: string;
-  category: string;
-  type: string;
-  subtype: string | null;
-  unit: string;
-  cost_price?: number | null;
-}
-
-interface BulkUsagePlanRecord {
-  id: number;
-  productSearch: string;
-  product_code: string;
-  category: string;
-  type: string;
-  subtype: string;
-  product_name: string;
-  requested_amount: string;
-  unit: string;
-  price_per_unit: string;
-  requesting_dept: string;
-  approved_quota: string;
-  budget_year: string;
-  sequence_no: string;
-}
-
-interface UsagePlan {
+type UsagePlanRow = {
   id: number;
   product_code: string | null;
-  category: string | null;
-  type: string | null;
-  subtype: string | null;
   product_name: string | null;
+  category?: string | null;
+  type?: string | null;
+  subtype?: string | null;
   requested_amount: number | null;
-  unit: string | null;
-  price_per_unit: number;
+  price_per_unit?: number | null;
+  requesting_dept_code: string | null;
   requesting_dept: string | null;
   approved_quota: number | null;
   budget_year: number | null;
   sequence_no: number | null;
-  created_at: string;
-  updated_at: string;
   has_purchase_plan: boolean;
-  has_purchase_approval?: boolean;
-}
+};
 
-interface UsagePlanFormData {
+type FormState = {
   product_code: string;
-  category: string;
-  type: string;
-  subtype: string;
-  product_name: string;
+  requesting_dept_code: string;
   requested_amount: string;
-  unit: string;
-  price_per_unit: string;
-  requesting_dept: string;
   approved_quota: string;
   budget_year: string;
   sequence_no: string;
-}
+};
 
-interface CategoryOption {
-  category: string;
-  type: string;
-  subtype: string | null;
-}
-
-interface DepartmentComboboxProps {
-  id: string;
+type ProductOption = {
+  code: string;
   name: string;
-  aria_label: string;
-  value: string;
-  departments: string[];
-  placeholder?: string;
-  required?: boolean;
-  on_change: (value: string) => void;
-  on_clear_error?: () => void;
-  class_name?: string;
-  list_class_name?: string;
-  on_key_down?: (event: React.KeyboardEvent<HTMLInputElement>) => void;
-}
+  category?: string | null;
+  type?: string | null;
+  subtype?: string | null;
+  unit?: string | null;
+};
 
-function DepartmentCombobox({
-  id,
-  name,
-  aria_label,
-  value,
-  departments,
-  placeholder,
-  on_change,
-  on_clear_error,
-  required = false,
-  class_name = '',
-  list_class_name = '',
-  on_key_down,
-}: DepartmentComboboxProps) {
-  const [input_value, setInputValue] = useState(value || '');
-  const [is_open, setIsOpen] = useState(false);
-  const [highlighted_index, setHighlightedIndex] = useState(-1);
-  const list_ref = useRef<HTMLDivElement | null>(null);
+type DepartmentOption = {
+  department_code: string;
+  name: string;
+};
 
-  useEffect(() => {
-    setInputValue(value || '');
-  }, [value]);
+type BulkUsagePlanItem = {
+  temp_id: string;
+  product_code: string;
+  product_name: string;
+  category?: string | null;
+  type?: string | null;
+  subtype?: string | null;
+  unit?: string | null;
+  requested_amount: string;
+};
 
-  const filtered_departments = useMemo(() => {
-    const normalized_value = input_value.trim().toLowerCase();
-    if (!normalized_value) {
-      return departments;
-    }
+type EditableField = 'requested_amount' | 'approved_quota';
 
-    return departments.filter((department) => department.toLowerCase().includes(normalized_value));
-  }, [departments, input_value]);
+const default_form_state = (): FormState => ({
+  product_code: '',
+  requesting_dept_code: '',
+  requested_amount: '',
+  approved_quota: '',
+  budget_year: String(get_current_budget_year()),
+  sequence_no: '1',
+});
 
-  useEffect(() => {
-    if (!is_open || highlighted_index < 0) {
-      return;
-    }
-
-    const list_element = list_ref.current;
-    if (!list_element) {
-      return;
-    }
-
-    const active_option = list_element.querySelector<HTMLElement>(`[data-department-option-index="${highlighted_index}"]`);
-    active_option?.scrollIntoView({ block: 'nearest' });
-  }, [highlighted_index, is_open]);
-
-  const select_department = (department: string) => {
-    setInputValue(department);
-    setIsOpen(false);
-    setHighlightedIndex(-1);
-    on_change(department);
-    on_clear_error?.();
-  };
-
-  const active_descendant = is_open && highlighted_index >= 0 ? `${id}-option-${highlighted_index}` : undefined;
-
-  return (
-    <div className="relative">
-      <input
-        id={id}
-        name={name}
-        type="text"
-        role="combobox"
-        required={required}
-        value={input_value}
-        placeholder={placeholder}
-        autoComplete="off"
-        aria-label={aria_label}
-        aria-autocomplete="list"
-        aria-controls={`${id}-listbox`}
-        aria-expanded={is_open}
-        aria-activedescendant={active_descendant}
-        onFocus={() => {
-          setIsOpen(true);
-          setHighlightedIndex(filtered_departments.length > 0 ? 0 : -1);
-        }}
-        onChange={(event) => {
-          const next_value = event.target.value;
-          setInputValue(next_value);
-          setIsOpen(true);
-          setHighlightedIndex(0);
-          on_change(next_value);
-          on_clear_error?.();
-        }}
-        onKeyDown={(event) => {
-          // If dropdown is open, handle suggestion navigation first
-          if (is_open && filtered_departments.length > 0) {
-            if (event.key === 'ArrowDown') {
-              event.preventDefault();
-              setHighlightedIndex((prev) => {
-                if (prev < 0) {
-                  return 0; // Start from first option if no option is highlighted
-                }
-                return (prev + 1) % filtered_departments.length;
-              });
-              return;
-            }
-
-            if (event.key === 'ArrowUp') {
-              event.preventDefault();
-              setHighlightedIndex((prev) => {
-                if (prev < 0) {
-                  return filtered_departments.length - 1; // Start from last option if no option is highlighted
-                }
-                return prev <= 0 ? filtered_departments.length - 1 : prev - 1;
-              });
-              return;
-            }
-
-            if (event.key === 'Enter') {
-              event.preventDefault();
-              const selected_department = filtered_departments[highlighted_index >= 0 ? highlighted_index : 0];
-              if (selected_department) {
-                select_department(selected_department);
-              }
-              return;
-            }
-
-            if (event.key === 'Escape') {
-              event.preventDefault();
-              setIsOpen(false);
-              setHighlightedIndex(-1);
-              return;
-            }
-          }
-
-          // Call external keyboard handler only when dropdown is closed or for non-navigation keys
-          if (on_key_down) {
-            on_key_down(event);
-            // If the external handler prevented default, don't continue
-            if (event.defaultPrevented) {
-              return;
-            }
-          }
-
-          // If dropdown is closed, handle opening it or navigation
-          if (!is_open) {
-            if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
-              event.preventDefault();
-              setIsOpen(true);
-              setHighlightedIndex(filtered_departments.length > 0 ? 0 : -1);
-              return;
-            }
-          }
-
-          if (event.key === 'Escape') {
-            setIsOpen(false);
-            setHighlightedIndex(-1);
-          }
-        }}
-        onBlur={() => {
-          window.setTimeout(() => {
-            setIsOpen(false);
-            setHighlightedIndex(-1);
-          }, 120);
-        }}
-        className={class_name}
-      />
-      {is_open && (
-        <div
-          id={`${id}-listbox`}
-          ref={list_ref}
-          role="listbox"
-          className={list_class_name}
-        >
-          {filtered_departments.length === 0 ? (
-            <div className="px-3 py-2 text-sm text-gray-500">ไม่พบหน่วยงาน</div>
-          ) : (
-            filtered_departments.map((department, index) => (
-              <button
-                key={`${id}-${department}`}
-                id={`${id}-option-${index}`}
-                data-department-option-index={index}
-                type="button"
-                role="option"
-                aria-selected={value === department}
-                onMouseDown={(event) => event.preventDefault()}
-                onClick={() => select_department(department)}
-                className={`block w-full px-3 py-2 text-left text-sm ${index === highlighted_index ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-50'}`}
-              >
-                {department}
-              </button>
-            ))
-          )}
-        </div>
-      )}
-    </div>
-  );
-}
-
-function UsagePlansPageContent() {
+export default function UsagePlansMinimalPage() {
   const router = useRouter();
   const pathname = usePathname();
-  const searchParams = useSearchParams();
-  const initialProductNameFilter = searchParams.get('product_name') || '';
-  const initialCategoryFilter = searchParams.get('category') || '';
-  const initialTypeFilter = searchParams.get('type') || '';
-  const initialSubtypeFilter = searchParams.get('subtype') || '';
-  const initialRequestingDeptFilter = searchParams.get('requesting_dept') || '';
-  const initialBudgetYearFilter = searchParams.get('budget_year') || getCurrentBudgetYear().toString();
-  const initialHasPurchasePlanFilter = searchParams.get('has_purchase_plan') || '';
-  const initialSortField = searchParams.get('order_by') || 'id';
-  const initialSortOrder = (searchParams.get('sort_order') === 'asc' ? 'asc' : 'desc') as 'asc' | 'desc';
-  const initialPage = Math.max(1, parseInt(searchParams.get('page') || '1', 10) || 1);
-  const initialPageSize = Math.max(1, parseInt(searchParams.get('page_size') || '20', 10) || 20);
-  const [usage_plans, setUsagePlans] = useState<UsagePlan[]>([]);
-  const [statusCountUsagePlans, setStatusCountUsagePlans] = useState<UsagePlan[]>([]);
-  const [totalRequestedValue, setTotalRequestedValue] = useState(0);
-  const [totalApprovedValue, setTotalApprovedValue] = useState(0);
-  const [totalCount, setTotalCount] = useState(0);
-  const [loading, setLoading] = useState(true);
-  const [showForm, setShowForm] = useState(false);
-  const [editingUsagePlan, setEditingUsagePlan] = useState<UsagePlan | null>(null);
-  const [importing, setImporting] = useState(false);
-  const [formData, setFormData] = useState<UsagePlanFormData>({
-    product_code: '',
-    category: '',
-    type: '',
-    subtype: '',
-    product_name: '',
-    requested_amount: '',
-    unit: '',
-    price_per_unit: '',
-    requesting_dept: '',
-    approved_quota: '',
-    budget_year: getCurrentBudgetYear().toString(),
-    sequence_no: '1'
-  });
-  const [editingId, setEditingId] = useState<number | null>(null);
-  const [editingField, setEditingField] = useState<'requestedAmount' | 'requestingDept' | 'approvedQuota' | null>(null);
-  const [isInlineSaving, setIsInlineSaving] = useState(false);
-  const [editData, setEditData] = useState({
-    product_code: '',
-    category: '',
-    type: '',
-    subtype: '',
-    product_name: '',
-    requested_amount: '',
-    unit: '',
-    price_per_unit: '',
-    requesting_dept: '',
-    approved_quota: '',
-    budget_year: getCurrentBudgetYear().toString(),
-    sequence_no: '1'
-  });
-  const [showBulkForm, setShowBulkForm] = useState(false);
-  const [bulkRecords, setBulkRecords] = useState<BulkUsagePlanRecord[]>([]);
-  const [toast, setToast] = useState<{
-    message: string;
-    type: 'success' | 'error';
-    visible: boolean;
-  }>({
-    message: '',
-    type: 'success',
-    visible: false
-  });
-  const [bulkRecordErrors, setBulkRecordErrors] = useState<Record<number, string>>({});
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const bulkProductSearchInputRef = useRef<HTMLInputElement>(null);
-  const bulkProductSuggestionsRef = useRef<HTMLDivElement>(null);
-  const inlineEditContainerRef = useRef<HTMLTableCellElement | null>(null);
-  const hasSyncedSearchParamsRef = useRef(false);
-  
-  // Validation state
-  const [errors, setErrors] = useState<Record<string, string>>({});
-  const [productNameFilter, setProductNameFilter] = useState(initialProductNameFilter);
-  const [categoryFilter, setCategoryFilter] = useState(initialCategoryFilter);
-  const [typeFilter, setTypeFilter] = useState(initialTypeFilter);
-  const [subtypeFilter, setSubtypeFilter] = useState(initialSubtypeFilter);
-  const [requestingDeptFilter, setRequestingDeptFilter] = useState(initialRequestingDeptFilter);
-  const [budgetYearFilter, setBudgetYearFilter] = useState(initialBudgetYearFilter);
-  const [hasPurchasePlanFilter, setHasPurchasePlanFilter] = useState(initialHasPurchasePlanFilter);
-  
-  // Sort states
-  const [sortField, setSortField] = useState(initialSortField);
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>(initialSortOrder);
-  const [page, setPage] = useState(initialPage);
-  const [pageSize, setPageSize] = useState(initialPageSize);
-  
-  // Filter options
-  const [categories, setCategories] = useState<string[]>([]);
-  const [types, setTypes] = useState<string[]>([]);
-  const [subtypes, setSubtypes] = useState<string[]>([]);
-  const [categoryOptions, setCategoryOptions] = useState<CategoryOption[]>([]);
-  const [departments, setDepartments] = useState<string[]>([]);
-  const [budgetYears, setBudgetYears] = useState<number[]>([]);
-  const [filters_loaded, setFiltersLoaded] = useState(false);
-  const [productOptions, setProductOptions] = useState<ProductOption[]>([]);
-  const [productSearch, setProductSearch] = useState('');
-  const [showProductSuggestions, setShowProductSuggestions] = useState(false);
-  const [highlightedProductIndex, setHighlightedProductIndex] = useState(-1);
-  const [selectedProductLabel, setSelectedProductLabel] = useState('');
-  const [bulkProductSearch, setBulkProductSearch] = useState('');
-  const [bulkProductOptions, setBulkProductOptions] = useState<ProductOption[]>([]);
-  const [showBulkProductSuggestions, setShowBulkProductSuggestions] = useState(false);
-  const [highlightedBulkProductIndex, setHighlightedBulkProductIndex] = useState(-1);
-  const [selectedBulkProductLabel, setSelectedBulkProductLabel] = useState('');
-  const [bulkValidationErrors, setBulkValidationErrors] = useState<Record<number, { requestedAmount?: string; requestingDept?: string }>>({});
-  const [selectedRows, setSelectedRows] = useState<Set<number>>(new Set());
-  const bulkProductSearchAbortRef = useRef<AbortController | null>(null);
-  const dataRequestIdRef = useRef(0);
-  const lastPushedUrlRef = useRef('');
-  const prevFilterKeyRef = useRef('');
+  const search_params = useSearchParams();
 
-  const availableBudgetYears = useMemo(() => {
-    return Array.from(new Set([
-      ...budgetYears,
-      getCurrentBudgetYear()
-    ])).sort((a, b) => b - a);
-  }, [budgetYears]);
+  const initial_page = Math.max(1, Number(search_params.get('page') || '1') || 1);
+  const requested_page_size = Number(search_params.get('page_size') || '20');
+  const initial_page_size = [20, 50, 100].includes(requested_page_size) ? requested_page_size : 20;
 
-  const availableTypes = useMemo(() => {
-    if (!categoryFilter) {
-      return types;
+  const [usage_plans, set_usage_plans] = useState<UsagePlanRow[]>([]);
+  const [loading, set_loading] = useState(true);
+  const [saving, set_saving] = useState(false);
+
+  const [page, set_page] = useState(initial_page);
+  const [page_size, set_page_size] = useState(initial_page_size);
+  const [total_count, set_total_count] = useState(0);
+  const [total_value_amount, set_total_value_amount] = useState(0);
+
+  const [product_code_filter, set_product_code_filter] = useState('');
+  const [requesting_dept_code_filter, set_requesting_dept_code_filter] = useState('');
+  const [budget_year_filter, set_budget_year_filter] = useState(String(get_current_budget_year()));
+  const [category_filter, set_category_filter] = useState('');
+  const [type_filter, set_type_filter] = useState('');
+
+  const [departments, set_departments] = useState<DepartmentOption[]>([]);
+  const [budget_years, set_budget_years] = useState<number[]>([]);
+  const [categories, set_categories] = useState<any[]>([]);
+  const [unique_categories, set_unique_categories] = useState<string[]>([]);
+  const [unique_types, set_unique_types] = useState<string[]>([]);
+  const [available_types_for_category, set_available_types_for_category] = useState<string[]>([]);
+  const [category_type_map, set_category_type_map] = useState<Map<string, Set<string>>>(new Map());
+
+  const [show_form, set_show_form] = useState(false);
+  const [editing_usage_plan, set_editing_usage_plan] = useState<UsagePlanRow | null>(null);
+  const [form_state, set_form_state] = useState<FormState>(default_form_state());
+  const [form_errors, set_form_errors] = useState<Record<string, string>>({});
+  const [editing_cell, set_editing_cell] = useState<{ row_id: number; field: EditableField } | null>(null);
+  const [editing_cell_value, set_editing_cell_value] = useState('');
+  const skip_blur_save_ref = useRef(false);
+
+  const [product_search, set_product_search] = useState('');
+  const [product_options, set_product_options] = useState<ProductOption[]>([]);
+  const [category_options, set_category_options] = useState<string[]>([]);
+  const [selected_bulk_category, set_selected_bulk_category] = useState('');
+  const [bulk_items, set_bulk_items] = useState<BulkUsagePlanItem[]>([]);
+  const [is_bulk_product_search_focused, set_is_bulk_product_search_focused] = useState(false);
+  const [active_bulk_product_suggestion_index, set_active_bulk_product_suggestion_index] = useState(-1);
+  const bulk_product_input_ref = useRef<HTMLInputElement | null>(null);
+  const bulk_product_suggestion_item_refs = useRef<Array<HTMLButtonElement | null>>([]);
+  const has_synced_search_params_ref = useRef(false);
+  const last_pushed_url_ref = useRef('');
+  const editable_fields = useMemo<EditableField[]>(() => ['requested_amount', 'approved_quota'], []);
+
+  const product_option_by_code = useMemo(() => {
+    const map = new Map<string, ProductOption>();
+    for (const option of product_options) {
+      map.set(option.code, option);
     }
+    return map;
+  }, [product_options]);
 
-    return Array.from(
-      new Set(
-        categoryOptions
-          .filter((option) => option.category === categoryFilter)
-          .map((option) => option.type)
-          .filter(Boolean)
-      )
-    );
-  }, [categoryFilter, categoryOptions, types]);
+  const total_pages = Math.max(1, Math.ceil(total_count / page_size));
 
-  const availableSubtypes = useMemo(() => {
-    return Array.from(
-      new Set(
-        categoryOptions
-          .filter((option) => {
-            const categoryMatched = categoryFilter ? option.category === categoryFilter : true;
-            const typeMatched = typeFilter ? option.type === typeFilter : true;
-            return categoryMatched && typeMatched;
-          })
-          .map((option) => option.subtype)
-          .filter(Boolean)
-      )
-    ) as string[];
-  }, [categoryFilter, typeFilter, categoryOptions]);
+  const filtered_product_options = useMemo(() => {
+    const search_value = product_search.trim().toLowerCase();
+    if (search_value.length < 2) return [];
+
+    return product_options
+      .filter((item) => `${item.code} ${item.name}`.toLowerCase().includes(search_value))
+      .slice(0, 12);
+  }, [product_options, product_search]);
+
+  const show_bulk_product_suggestions = useMemo(() => {
+    if (editing_usage_plan) return false;
+    if (!is_bulk_product_search_focused) return false;
+    if (!form_state.requesting_dept_code.trim() || !selected_bulk_category.trim()) return false;
+    return filtered_product_options.length > 0;
+  }, [
+    editing_usage_plan,
+    is_bulk_product_search_focused,
+    form_state.requesting_dept_code,
+    selected_bulk_category,
+    filtered_product_options,
+  ]);
+
+  const form_department_options = useMemo(() => {
+    const current = form_state.requesting_dept_code.trim();
+    if (!current) return departments;
+    if (departments.some((department) => department.department_code === current)) return departments;
+    return [{ department_code: current, name: current }, ...departments];
+  }, [departments, form_state.requesting_dept_code]);
 
   useEffect(() => {
-    if (!filters_loaded) {
-      return;
-    }
-    if (typeFilter && !availableTypes.includes(typeFilter)) {
-      setTypeFilter('');
-      setSubtypeFilter('');
-    }
-  }, [availableTypes, typeFilter, filters_loaded]);
-
-  useEffect(() => {
-    if (!filters_loaded) {
-      return;
-    }
-    if (subtypeFilter && !availableSubtypes.includes(subtypeFilter)) {
-      setSubtypeFilter('');
-    }
-  }, [availableSubtypes, subtypeFilter, filters_loaded]);
-
-  useEffect(() => {
-    const nextProductName = searchParams.get('product_name') || '';
-    const nextCategory = searchParams.get('category') || '';
-    const nextType = searchParams.get('type') || '';
-    const nextSubtype = searchParams.get('subtype') || '';
-    const nextRequestingDept = searchParams.get('requesting_dept') || '';
-    const nextBudgetYear = searchParams.get('budget_year') || getCurrentBudgetYear().toString();
-    const nextHasPurchasePlan = searchParams.get('has_purchase_plan') || '';
-    const nextSortField = searchParams.get('order_by') || 'id';
-    const nextSortOrder = (searchParams.get('sort_order') === 'asc' ? 'asc' : 'desc') as 'asc' | 'desc';
-    const nextPage = Math.max(1, parseInt(searchParams.get('page') || '1', 10) || 1);
-    const nextPageSize = Math.max(1, parseInt(searchParams.get('page_size') || '20', 10) || 20);
-
-    setProductNameFilter((prev) => prev === nextProductName ? prev : nextProductName);
-    setCategoryFilter((prev) => prev === nextCategory ? prev : nextCategory);
-    setTypeFilter((prev) => prev === nextType ? prev : nextType);
-    setSubtypeFilter((prev) => prev === nextSubtype ? prev : nextSubtype);
-    setRequestingDeptFilter((prev) => prev === nextRequestingDept ? prev : nextRequestingDept);
-    setBudgetYearFilter((prev) => prev === nextBudgetYear ? prev : nextBudgetYear);
-    setHasPurchasePlanFilter((prev) => prev === nextHasPurchasePlan ? prev : nextHasPurchasePlan);
-    setSortField((prev) => prev === nextSortField ? prev : nextSortField);
-    setSortOrder((prev) => prev === nextSortOrder ? prev : nextSortOrder);
-    setPage((prev) => prev === nextPage ? prev : nextPage);
-    setPageSize((prev) => prev === nextPageSize ? prev : nextPageSize);
-
-    hasSyncedSearchParamsRef.current = true;
-  }, [searchParams]);
-
-  useEffect(() => {
-    if (!hasSyncedSearchParamsRef.current) {
-      return;
-    }
-    const params = new URLSearchParams();
-
-    if (productNameFilter) params.set('product_name', productNameFilter);
-    if (categoryFilter) params.set('category', categoryFilter);
-    if (typeFilter) params.set('type', typeFilter);
-    if (subtypeFilter) params.set('subtype', subtypeFilter);
-    if (requestingDeptFilter) params.set('requesting_dept', requestingDeptFilter);
-    if (budgetYearFilter) params.set('budget_year', budgetYearFilter);
-    if (hasPurchasePlanFilter) params.set('has_purchase_plan', hasPurchasePlanFilter);
-    if (sortField && sortField !== 'id') params.set('order_by', sortField);
-    if (sortOrder !== 'desc') params.set('sort_order', sortOrder);
-    if (page > 1) params.set('page', page.toString());
-    if (pageSize !== 20) params.set('page_size', pageSize.toString());
-
-    const nextUrl = params.toString() ? `${pathname}?${params.toString()}` : pathname;
-    if (lastPushedUrlRef.current !== nextUrl) {
-      lastPushedUrlRef.current = nextUrl;
-      router.replace(nextUrl, { scroll: false });
-    }
-  }, [pathname, router, productNameFilter, categoryFilter, typeFilter, subtypeFilter, requestingDeptFilter, budgetYearFilter, hasPurchasePlanFilter, sortField, sortOrder, page, pageSize]);
-
-  useEffect(() => {
-    fetchUsagePlanFilterOptions();
+    void Promise.all([fetch_filter_options(), fetch_departments(), fetch_categories()]);
   }, []);
 
   useEffect(() => {
-    const searchValue = bulkProductSearch.trim();
-    if (searchValue.length === 0) {
-      setBulkProductOptions([]);
-      setShowBulkProductSuggestions(false);
-      setHighlightedBulkProductIndex(-1);
-      bulkProductSearchAbortRef.current?.abort();
-      bulkProductSearchAbortRef.current = null;
+    void fetch_usage_plans();
+  }, [page, page_size, product_code_filter, requesting_dept_code_filter, budget_year_filter, category_filter, type_filter]);
+
+  useEffect(() => {
+    if (!category_filter) {
+      set_available_types_for_category([]);
+      set_type_filter('');
       return;
     }
 
-    const timeoutId = window.setTimeout(async () => {
+    if (category_type_map.size === 0) {
+      return;
+    }
+
+    const types = Array.from(category_type_map.get(category_filter) || []).sort();
+    set_available_types_for_category(types);
+
+    if (type_filter && !types.includes(type_filter)) {
+      set_type_filter('');
+    }
+  }, [category_filter, type_filter, category_type_map]);
+
+  useEffect(() => {
+    const trimmed_search = product_search.trim();
+    if (!editing_usage_plan && trimmed_search.length < 2) {
+      set_product_options([]);
+      return;
+    }
+
+    const timeout_id = window.setTimeout(() => {
+      void fetch_product_options(product_search, editing_usage_plan ? '' : selected_bulk_category);
+    }, 200);
+
+    return () => window.clearTimeout(timeout_id);
+  }, [product_search, selected_bulk_category, editing_usage_plan]);
+
+  useEffect(() => {
+    set_active_bulk_product_suggestion_index(-1);
+  }, [product_search, selected_bulk_category, form_state.requesting_dept_code]);
+
+  useEffect(() => {
+    if (!show_bulk_product_suggestions) return;
+    if (active_bulk_product_suggestion_index < 0) return;
+
+    const target = bulk_product_suggestion_item_refs.current[active_bulk_product_suggestion_index];
+    target?.scrollIntoView({ block: 'nearest' });
+  }, [active_bulk_product_suggestion_index, show_bulk_product_suggestions]);
+
+  useEffect(() => {
+    const current_budget_year = get_current_budget_year();
+    const next_page = Math.max(1, Number(search_params.get('page') || '1') || 1);
+    const next_page_size_raw = Number(search_params.get('page_size') || '20');
+    const next_page_size = [20, 50, 100].includes(next_page_size_raw) ? next_page_size_raw : 20;
+    const next_product_code_filter = search_params.get('product_code') || '';
+    const next_requesting_dept_code_filter = search_params.get('requesting_dept_code') || '';
+    const next_budget_year_filter = search_params.get('budget_year') || String(current_budget_year);
+    const next_category_filter = search_params.get('category') || '';
+    const next_type_filter = search_params.get('type') || '';
+
+    set_page((prev) => (prev === next_page ? prev : next_page));
+    set_page_size((prev) => (prev === next_page_size ? prev : next_page_size));
+    set_product_code_filter((prev) => (prev === next_product_code_filter ? prev : next_product_code_filter));
+    set_requesting_dept_code_filter((prev) => (prev === next_requesting_dept_code_filter ? prev : next_requesting_dept_code_filter));
+    set_budget_year_filter((prev) => (prev === next_budget_year_filter ? prev : next_budget_year_filter));
+    set_category_filter((prev) => (prev === next_category_filter ? prev : next_category_filter));
+    set_type_filter((prev) => (prev === next_type_filter ? prev : next_type_filter));
+
+    has_synced_search_params_ref.current = true;
+  }, [search_params]);
+
+  useEffect(() => {
+    if (!has_synced_search_params_ref.current) {
+      return;
+    }
+
+    const current_budget_year = get_current_budget_year();
+    const params = new URLSearchParams(search_params.toString());
+    params.set('page', String(page));
+    params.set('page_size', String(page_size));
+    
+    // Update filter params
+    if (product_code_filter) {
+      params.set('product_code', product_code_filter);
+    } else {
+      params.delete('product_code');
+    }
+    
+    if (requesting_dept_code_filter) {
+      params.set('requesting_dept_code', requesting_dept_code_filter);
+    } else {
+      params.delete('requesting_dept_code');
+    }
+    
+    if (budget_year_filter && budget_year_filter !== String(current_budget_year)) {
+      params.set('budget_year', budget_year_filter);
+    } else {
+      params.delete('budget_year');
+    }
+    
+    if (category_filter) {
+      params.set('category', category_filter);
+    } else {
+      params.delete('category');
+    }
+    
+    if (type_filter) {
+      params.set('type', type_filter);
+    } else {
+      params.delete('type');
+    }
+
+    const next_url = `${pathname}?${params.toString()}`;
+    if (last_pushed_url_ref.current !== next_url) {
+      last_pushed_url_ref.current = next_url;
+      router.replace(next_url, { scroll: false });
+    }
+  }, [pathname, router, search_params, page, page_size, product_code_filter, requesting_dept_code_filter, budget_year_filter, category_filter, type_filter]);
+
+  const fetch_filter_options = async () => {
+    try {
+      const response = await fetch('/api/usage-plans/filters');
+      if (!response.ok) return;
+
+      const data = await response.json();
+      set_budget_years((data.budget_years || []).slice().sort((a: number, b: number) => b - a));
+    } catch (error) {
+      console.error('failed to fetch usage plan filters', error);
+    }
+  };
+
+  const fetch_categories = async () => {
+    try {
+      const response = await fetch('/api/categories');
+      const payload = await response.json().catch(() => null);
+      if (!response.ok || !payload?.success) return;
+
+      const category_list: string[] = (payload.data || [])
+        .map((item: { category?: string | null }) => item?.category?.trim() || '')
+        .filter((value: string) => value.length > 0);
+
+      const categories = Array.from(new Set<string>(category_list)).sort((a, b) => a.localeCompare(b));
+      set_category_options(categories);
+      
+      // Create unique categories and types from the data
+      const unique_cats = Array.from(new Set((payload.data || []).map((cat: any) => cat.category).filter(Boolean))) as string[];
+      const unique_typs = Array.from(new Set((payload.data || []).map((cat: any) => cat.type).filter(Boolean))) as string[];
+      
+      // Create category-type mapping
+      const categoryTypeMap = new Map<string, Set<string>>();
+      (payload.data || []).forEach((cat: any) => {
+        if (cat.category && cat.type) {
+          if (!categoryTypeMap.has(cat.category)) {
+            categoryTypeMap.set(cat.category, new Set());
+          }
+          categoryTypeMap.get(cat.category)?.add(cat.type);
+        }
+      });
+      
+      set_unique_categories(unique_cats.sort());
+      set_unique_types(unique_typs.sort());
+      
+      set_category_type_map(categoryTypeMap);
+    } catch (error) {
+      console.error('failed to fetch categories', error);
+    }
+  };
+
+  const fetch_departments = async () => {
+    try {
+      const response = await fetch('/api/departments?page=1&page_size=200');
+      const payload = await response.json().catch(() => null);
+      if (!response.ok || !payload?.success) return;
+
+      const department_names = (payload.data || [])
+        .map((department: { department_code?: string | null; name?: string | null }) => {
+          const department_code = department?.department_code?.trim();
+          const name = department?.name?.trim();
+          if (!department_code || !name) return null;
+          return { department_code, name };
+        })
+        .filter(Boolean) as DepartmentOption[];
+
+      const unique_departments = Array.from(new Map(department_names.map((department) => [department.department_code, department])).values())
+        .sort((a, b) => a.name.localeCompare(b.name));
+
+      set_departments(unique_departments);
+    } catch (error) {
+      console.error('failed to fetch departments', error);
+    }
+  };
+
+  const fetch_usage_plans = async () => {
+    try {
+      set_loading(true);
+      const params = new URLSearchParams({
+        page: String(page),
+        page_size: String(page_size),
+        order_by: 'id',
+        sort_order: 'desc',
+      });
+
+      if (product_code_filter.trim()) params.set('product_code', product_code_filter.trim());
+      if (requesting_dept_code_filter.trim()) params.set('requesting_dept_code', requesting_dept_code_filter.trim());
+      if (budget_year_filter.trim()) params.set('budget_year', budget_year_filter.trim());
+      if (category_filter.trim()) params.set('category', category_filter.trim());
+      if (type_filter.trim()) params.set('type', type_filter.trim());
+
+      const response = await fetch(`/api/usage-plans?${params.toString()}`);
+      if (!response.ok) throw new Error('fetch usage plans failed');
+
+      const data = await response.json();
+      set_usage_plans(Array.isArray(data.usage_plans) ? data.usage_plans : []);
+      set_total_count(typeof data.totalCount === 'number' ? data.totalCount : 0);
+      set_total_value_amount(typeof data.total_approved_value === 'number' ? data.total_approved_value : 0);
+    } catch (error) {
+      console.error(error);
+      set_usage_plans([]);
+      set_total_count(0);
+      set_total_value_amount(0);
+    } finally {
+      set_loading(false);
+    }
+  };
+
+  const fetch_product_options = async (search: string, category: string) => {
+    try {
+      const params = new URLSearchParams({
+        page: '1',
+        page_size: '30',
+        order_by: 'code',
+        sort_order: 'asc',
+      });
+
+      if (search.trim()) params.set('search', search.trim());
+      if (category.trim()) params.set('category', category.trim());
+
+      const response = await fetch(`/api/products?${params.toString()}`);
+      if (!response.ok) return;
+
+      const data = await response.json();
+      const items = Array.isArray(data.data) ? data.data : [];
+      set_product_options(items.map((item: any) => ({
+        code: item.code,
+        name: item.name,
+        category: item.category,
+        type: item.type,
+        subtype: item.subtype,
+        unit: item.unit,
+      })));
+    } catch (error) {
+      console.error('failed to fetch products', error);
+    }
+  };
+
+  const open_create_form = () => {
+    set_editing_usage_plan(null);
+    set_form_state(default_form_state());
+    set_form_errors({});
+    set_product_search('');
+    set_selected_bulk_category('');
+    set_active_bulk_product_suggestion_index(-1);
+    set_bulk_items([]);
+    set_show_form(true);
+  };
+
+  const select_bulk_product_suggestion = (option: ProductOption) => {
+    set_product_search(option.code);
+    set_active_bulk_product_suggestion_index(-1);
+    set_is_bulk_product_search_focused(false);
+
+    window.setTimeout(() => {
+      bulk_product_input_ref.current?.focus();
+    }, 0);
+  };
+
+  const add_bulk_item_from_suggestion = (option: ProductOption) => {
+    add_product_to_bulk_items(option.code, option);
+  };
+
+  const add_product_to_bulk_items = (product_code_override?: string, product_option_override?: ProductOption) => {
+    const product_code = (product_code_override ?? product_search).trim();
+    if (!product_code) return;
+
+    if (!form_state.requesting_dept_code.trim()) {
+      set_form_errors((prev) => ({ ...prev, requesting_dept_code: 'กรุณาเลือกหน่วยงานก่อนเพิ่มสินค้า' }));
+      return;
+    }
+
+    if (!selected_bulk_category.trim()) {
+      set_form_errors((prev) => ({ ...prev, category: 'กรุณาเลือกหมวดก่อนเพิ่มสินค้า' }));
+      return;
+    }
+
+    const has_same_code = bulk_items.some((item) => item.product_code === product_code);
+    if (has_same_code) {
+      void Swal.fire({
+        icon: 'warning',
+        title: 'มีรหัสสินค้านี้แล้ว',
+        text: 'ในรายการที่กำลังเพิ่ม ไม่สามารถเพิ่มรหัสสินค้าซ้ำได้',
+      });
+      return;
+    }
+
+    const selected_product = product_option_override || product_option_by_code.get(product_code);
+
+    set_bulk_items((prev) => [
+      ...prev,
+      {
+        temp_id: `${Date.now()}-${Math.random()}`,
+        product_code,
+        product_name: selected_product?.name || '-',
+        category: selected_product?.category || null,
+        type: selected_product?.type || null,
+        subtype: selected_product?.subtype || null,
+        unit: selected_product?.unit || null,
+        requested_amount: '1',
+      },
+    ]);
+
+    set_product_search('');
+    set_is_bulk_product_search_focused(false);
+    set_active_bulk_product_suggestion_index(-1);
+    set_form_errors((prev) => {
+      const next = { ...prev };
+      delete next.product_code;
+      delete next.category;
+      return next;
+    });
+
+    window.setTimeout(() => {
+      bulk_product_input_ref.current?.focus();
+    }, 0);
+  };
+
+  const update_bulk_item = (temp_id: string, field: 'requested_amount', value: string) => {
+    set_bulk_items((prev) => prev.map((item) => (item.temp_id === temp_id ? { ...item, [field]: value } : item)));
+  };
+
+  const remove_bulk_item = (temp_id: string) => {
+    set_bulk_items((prev) => prev.filter((item) => item.temp_id !== temp_id));
+  };
+
+  const start_cell_edit = (row: UsagePlanRow, field: EditableField) => {
+    if (saving) return;
+
+    const initial_value = field === 'requested_amount' ? String(row.requested_amount ?? 0) : String(row.approved_quota ?? 0);
+
+    set_editing_cell({ row_id: row.id, field });
+    set_editing_cell_value(initial_value);
+  };
+
+  const cancel_cell_edit = () => {
+    set_editing_cell(null);
+    set_editing_cell_value('');
+  };
+
+  const save_cell_edit = async (row: UsagePlanRow, field: EditableField, raw_value: string) => {
+    const payload: Partial<Record<EditableField, string | number>> = {};
+
+    const numeric = Number(raw_value);
+    if (!Number.isFinite(numeric) || numeric < 0) {
+      return false;
+    }
+
+    const current = field === 'requested_amount' ? Number(row.requested_amount ?? 0) : Number(row.approved_quota ?? 0);
+    if (current === numeric) {
+      cancel_cell_edit();
+      return true;
+    }
+
+    payload[field] = numeric;
+
+    try {
+      set_saving(true);
+      const response = await fetch(`/api/usage-plans/${row.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+
+      if (!response.ok) {
+        const error_data = await response.json().catch(() => null);
+        throw new Error(error_data?.error || 'บันทึกข้อมูลไม่สำเร็จ');
+      }
+
+      const updated_row = (await response.json().catch(() => null)) as UsagePlanRow | null;
+
+      if (updated_row?.id === row.id) {
+        set_usage_plans((prev) => prev.map((item) => (item.id === updated_row.id ? { ...item, ...updated_row } : item)));
+
+        if (field === 'approved_quota') {
+          const previous_value = Number(row.approved_quota ?? 0) * Number(row.price_per_unit ?? 0);
+          const next_value = Number(updated_row.approved_quota ?? 0) * Number(updated_row.price_per_unit ?? row.price_per_unit ?? 0);
+          set_total_value_amount((prev) => prev - previous_value + next_value);
+        }
+      }
+
+      cancel_cell_edit();
+      return true;
+    } catch (error) {
+      console.error('inline save failed', error);
+      return false;
+    } finally {
+      set_saving(false);
+    }
+  };
+
+  const move_edit_focus = (row_id: number, field: EditableField, direction: 'ArrowLeft' | 'ArrowRight' | 'ArrowUp' | 'ArrowDown') => {
+    const row_index = usage_plans.findIndex((item) => item.id === row_id);
+    if (row_index < 0) return;
+
+    const field_index = editable_fields.indexOf(field);
+    if (field_index < 0) return;
+
+    let next_row_index = row_index;
+    let next_field_index = field_index;
+
+    if (direction === 'ArrowLeft') {
+      if (field_index > 0) {
+        next_field_index = field_index - 1;
+      } else if (row_index > 0) {
+        next_row_index = row_index - 1;
+        next_field_index = editable_fields.length - 1;
+      } else {
+        return;
+      }
+    }
+
+    if (direction === 'ArrowRight') {
+      if (field_index < editable_fields.length - 1) {
+        next_field_index = field_index + 1;
+      } else if (row_index < usage_plans.length - 1) {
+        next_row_index = row_index + 1;
+        next_field_index = 0;
+      } else {
+        return;
+      }
+    }
+
+    if (direction === 'ArrowUp') {
+      if (row_index === 0) return;
+      next_row_index = row_index - 1;
+    }
+
+    if (direction === 'ArrowDown') {
+      if (row_index >= usage_plans.length - 1) return;
+      next_row_index = row_index + 1;
+    }
+
+    const next_row = usage_plans[next_row_index];
+    const next_field = editable_fields[next_field_index];
+    if (!next_row || !next_field) return;
+
+    start_cell_edit(next_row, next_field);
+  };
+
+  const handle_editable_cell_key_down = (event: React.KeyboardEvent<HTMLInputElement>, row: UsagePlanRow, field: EditableField) => {
+    const current_value = event.currentTarget.value;
+
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      skip_blur_save_ref.current = true;
+      cancel_cell_edit();
+      return;
+    }
+
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      skip_blur_save_ref.current = true;
+      void save_cell_edit(row, field, current_value);
+      return;
+    }
+
+    if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(event.key)) {
+      event.preventDefault();
+      skip_blur_save_ref.current = true;
+
+      void (async () => {
+        const saved = await save_cell_edit(row, field, current_value);
+        if (!saved) return;
+        move_edit_focus(row.id, field, event.key as 'ArrowLeft' | 'ArrowRight' | 'ArrowUp' | 'ArrowDown');
+      })();
+    }
+  };
+
+  const open_edit_form = (row: UsagePlanRow) => {
+    set_editing_usage_plan(row);
+    set_form_state({
+      product_code: row.product_code || '',
+      requesting_dept_code: row.requesting_dept_code || '',
+      requested_amount: row.requested_amount != null ? String(row.requested_amount) : '',
+      approved_quota: row.approved_quota != null ? String(row.approved_quota) : '',
+      budget_year: row.budget_year != null ? String(row.budget_year) : String(get_current_budget_year()),
+      sequence_no: row.sequence_no != null ? String(row.sequence_no) : '1',
+    });
+    set_form_errors({});
+    set_product_search(row.product_code || '');
+    set_show_form(true);
+  };
+
+  const validate_form = () => {
+    const errors: Record<string, string> = {};
+
+    if (!form_state.product_code.trim()) errors.product_code = 'กรุณาระบุรหัสสินค้า';
+    if (!form_state.requesting_dept_code.trim()) errors.requesting_dept_code = 'กรุณาระบุหน่วยงานที่ขอ';
+    if (!form_state.requested_amount.trim()) errors.requested_amount = 'กรุณาระบุจำนวนที่ขอ';
+    if (!form_state.approved_quota.trim()) errors.approved_quota = 'กรุณาระบุโควต้าที่ได้';
+
+    const requested_amount = Number(form_state.requested_amount);
+    const approved_quota = Number(form_state.approved_quota);
+    const sequence_no = Number(form_state.sequence_no);
+    const budget_year = Number(form_state.budget_year);
+
+    if (!Number.isFinite(requested_amount) || requested_amount < 0) {
+      errors.requested_amount = 'จำนวนที่ขอต้องเป็นตัวเลขตั้งแต่ 0 ขึ้นไป';
+    }
+    if (!Number.isFinite(approved_quota) || approved_quota < 0) {
+      errors.approved_quota = 'โควต้าที่ได้ต้องเป็นตัวเลขตั้งแต่ 0 ขึ้นไป';
+    }
+    if (![1, 2].includes(sequence_no)) {
+      errors.sequence_no = 'ครั้งที่ต้องเป็น 1 หรือ 2';
+    }
+    if (!Number.isFinite(budget_year) || budget_year <= 0) {
+      errors.budget_year = 'ปีงบไม่ถูกต้อง';
+    }
+
+    set_form_errors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
+  const handle_submit = async (event: React.FormEvent) => {
+    event.preventDefault();
+
+    if (!editing_usage_plan) {
+      const errors: Record<string, string> = {};
+
+      if (!form_state.requesting_dept_code.trim()) {
+        errors.requesting_dept_code = 'กรุณาเลือกหน่วยงานที่ต้องการใช้';
+      }
+
+      if (!selected_bulk_category.trim()) {
+        errors.category = 'กรุณาเลือกหมวดก่อนเพิ่มรายการสินค้า';
+      }
+
+      const budget_year = Number(form_state.budget_year);
+      if (!Number.isFinite(budget_year) || budget_year <= 0) {
+        errors.budget_year = 'ปีงบไม่ถูกต้อง';
+      }
+
+      if (bulk_items.length === 0) {
+        errors.product_code = 'กรุณาเพิ่มสินค้าอย่างน้อย 1 รายการ';
+      }
+
+      const duplicate_product_codes = bulk_items.filter((item, index, self) => self.findIndex((t) => t.product_code === item.product_code) !== index);
+      if (duplicate_product_codes.length > 0) {
+        errors.product_code = 'ไม่สามารถมีรหัสสินค้าซ้ำกันได้';
+      }
+
+      const invalid_item = bulk_items.find((item) => {
+        const requested_amount = Number(item.requested_amount);
+        return !item.product_code.trim()
+          || !Number.isFinite(requested_amount)
+          || requested_amount < 0;
+      });
+
+      if (invalid_item) {
+        errors.requested_amount = 'กรุณาตรวจสอบจำนวนที่ขอให้เป็นตัวเลขตั้งแต่ 0 ขึ้นไป';
+      }
+
+      set_form_errors(errors);
+      if (Object.keys(errors).length > 0) return;
+
+      const payload = {
+        requesting_dept_code: form_state.requesting_dept_code.trim(),
+        budget_year,
+        items: bulk_items.map((item) => ({
+          product_code: item.product_code.trim(),
+          requested_amount: Number(item.requested_amount),
+          approved_quota: Number(item.requested_amount),
+        })),
+      };
+
       try {
-        bulkProductSearchAbortRef.current?.abort();
-        const controller = new AbortController();
-        bulkProductSearchAbortRef.current = controller;
-
-        const params = new URLSearchParams({
-          page: '1',
-          page_size: PRODUCT_SUGGESTION_LIMIT.toString(),
-          order_by: 'code',
-          sort_order: 'asc',
-          search: searchValue,
-        });
-
-        const response = await fetch(`/api/products?${params.toString()}`, {
-          signal: controller.signal,
+        set_saving(true);
+        const response = await fetch('/api/usage-plans/bulk', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
         });
 
         if (!response.ok) {
-          throw new Error('Failed to search products');
+          const error_data = await response.json().catch(() => null);
+          throw new Error(error_data?.error || 'บันทึกข้อมูลไม่สำเร็จ');
         }
 
-        const data = await response.json();
-        setBulkProductOptions((data.data || []) as ProductOption[]);
-        setShowBulkProductSuggestions(true);
-        setHighlightedBulkProductIndex(-1);
+        const data = await response.json().catch(() => null);
+
+        set_show_form(false);
+        set_bulk_items([]);
+        set_product_search('');
+        await fetch_usage_plans();
+        await Swal.fire({
+          icon: 'success',
+          title: 'บันทึกสำเร็จ',
+          text: `เพิ่มแผนการใช้ ${data?.created_count ?? payload.items.length} รายการ`,
+          timer: 1200,
+          showConfirmButton: false,
+        });
       } catch (error) {
-        if ((error as Error).name === 'AbortError') {
-          return;
-        }
-        console.error('Error searching bulk product options:', error);
-        setBulkProductOptions([]);
+        await Swal.fire({
+          icon: 'error',
+          title: 'บันทึกไม่สำเร็จ',
+          text: error instanceof Error ? error.message : 'เกิดข้อผิดพลาด',
+        });
+      } finally {
+        set_saving(false);
       }
-    }, 150);
 
-    return () => {
-      window.clearTimeout(timeoutId);
-      bulkProductSearchAbortRef.current?.abort();
+      return;
+    }
+
+    if (!validate_form()) return;
+
+    const payload = {
+      product_code: form_state.product_code.trim(),
+      requesting_dept_code: form_state.requesting_dept_code.trim(),
+      requested_amount: Number(form_state.requested_amount),
+      approved_quota: Number(form_state.approved_quota),
+      budget_year: Number(form_state.budget_year),
+      sequence_no: Number(form_state.sequence_no),
     };
-  }, [bulkProductSearch]);
-
-  useEffect(() => {
-    if (!showBulkForm) {
-      return;
-    }
-
-    const focusFrame = window.requestAnimationFrame(() => {
-      bulkProductSearchInputRef.current?.focus();
-    });
-
-    return () => window.cancelAnimationFrame(focusFrame);
-  }, [showBulkForm]);
-
-  useEffect(() => {
-    if (!showBulkProductSuggestions || highlightedBulkProductIndex < 0) {
-      return;
-    }
-
-    const suggestionContainer = bulkProductSuggestionsRef.current;
-    if (!suggestionContainer) {
-      return;
-    }
-
-    const highlightedElement = suggestionContainer.querySelector<HTMLElement>(`[data-bulk-suggestion-index="${highlightedBulkProductIndex}"]`);
-    highlightedElement?.scrollIntoView({ block: 'nearest' });
-  }, [highlightedBulkProductIndex, showBulkProductSuggestions]);
-
-  // Fetch usage_plans when filters, sorting or pagination change (current page only)
-  useEffect(() => {
-    fetchUsagePlans();
-  }, [productNameFilter, categoryFilter, typeFilter, subtypeFilter, requestingDeptFilter, budgetYearFilter, hasPurchasePlanFilter, sortField, sortOrder, page, pageSize]);
-
-  const fetchStatusCountUsagePlans = async () => {
-    try {
-      const params = new URLSearchParams();
-      if (productNameFilter) params.append('product_name', productNameFilter);
-      if (categoryFilter) params.append('category', categoryFilter);
-      if (typeFilter) params.append('type', typeFilter);
-      if (subtypeFilter) params.append('subtype', subtypeFilter);
-      if (requestingDeptFilter) params.append('requesting_dept', requestingDeptFilter);
-      if (budgetYearFilter) params.append('budget_year', budgetYearFilter);
-      if (sortField) params.append('order_by', sortField);
-      if (sortOrder) params.append('sort_order', sortOrder);
-
-      const response = await fetch(`/api/usage-plans?${params.toString()}`);
-      if (!response.ok) {
-        return;
-      }
-
-      const data = await response.json();
-      setStatusCountUsagePlans(Array.isArray(data?.usage_plans) ? data.usage_plans : []);
-    } catch (error) {
-      console.error('Error fetching usage plan status counts:', error);
-    }
-  };
-
-  useEffect(() => {
-    void fetchStatusCountUsagePlans();
-  }, [productNameFilter, categoryFilter, typeFilter, subtypeFilter, requestingDeptFilter, budgetYearFilter, sortField, sortOrder]);
-
-  const fetchUsagePlanFilterOptions = async () => {
-    try {
-      const response = await fetch('/api/usage-plans/filters');
-      if (response.ok) {
-        const data = await response.json();
-        const sortedCategories = (data.categories || []).slice().sort((a: string, b: string) => a.localeCompare(b));
-        const sortedTypes = (data.types || []).slice().sort((a: string, b: string) => a.localeCompare(b));
-        const sortedSubtypes = (data.subtypes || []).slice().sort((a: string, b: string) => a.localeCompare(b));
-        setCategoryOptions(data.category_options || []);
-        setCategories(sortedCategories);
-        setTypes(sortedTypes);
-        setSubtypes(sortedSubtypes);
-        setDepartments((data.departments || []).slice().sort((a: string, b: string) => a.localeCompare(b)));
-        setBudgetYears((data.budget_years || []).sort((a: number, b: number) => b - a));
-        setFiltersLoaded(true);
-      }
-    } catch (error) {
-      console.error('Error fetching filter options:', error);
-    }
-  };
-
-  const handleBulkProductSearchKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
-    // If suggestions are visible, handle suggestion navigation first
-    if (showBulkProductSuggestions && filteredBulkProductOptions.length > 0) {
-      if (event.key === 'ArrowDown') {
-        event.preventDefault();
-        setHighlightedBulkProductIndex((prev) => (prev + 1) % filteredBulkProductOptions.length);
-        return;
-      }
-
-      if (event.key === 'ArrowUp') {
-        event.preventDefault();
-        setHighlightedBulkProductIndex((prev) => (prev <= 0 ? filteredBulkProductOptions.length - 1 : prev - 1));
-        return;
-      }
-
-      if (event.key === 'Enter') {
-        event.preventDefault();
-        const selectedIndex = highlightedBulkProductIndex >= 0 ? highlightedBulkProductIndex : 0;
-        const selectedOption = filteredBulkProductOptions[selectedIndex];
-        if (selectedOption) {
-          handleBulkProductSelect(selectedOption.id, `${selectedOption.code} - ${selectedOption.name}`);
-        }
-        return;
-      }
-
-      if (event.key === 'Escape') {
-        setShowBulkProductSuggestions(false);
-        setHighlightedBulkProductIndex(-1);
-        return;
-      }
-    }
-
-    // Only handle navigation to table fields when suggestions are NOT visible
-    if (event.key === 'ArrowDown' && !showBulkProductSuggestions && bulkRecords.length > 0) {
-      event.preventDefault();
-      // Focus the first requested amount field in the table
-      const firstRecord = bulkRecords[0];
-      const firstRequestedAmountField = document.getElementById(`survey-bulk-requested-amount-${firstRecord.id}`);
-      if (firstRequestedAmountField) {
-        firstRequestedAmountField.focus();
-      }
-      return;
-    }
-
-    if (event.key === 'Escape') {
-      setShowBulkProductSuggestions(false);
-      setHighlightedBulkProductIndex(-1);
-    }
-  };
-
-  // Handle keyboard navigation for bulk form inputs
-  const handleBulkFormKeyDown = (event: React.KeyboardEvent<HTMLInputElement>, recordId: number, field: string) => {
-    // Only handle arrow keys for navigation
-    if (event.key !== 'ArrowUp' && event.key !== 'ArrowDown' && event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') {
-      return;
-    }
-
-    event.preventDefault();
-    
-    const recordIndex = bulkRecords.findIndex(r => r.id === recordId);
-    if (recordIndex === -1) return;
-
-    // Define field order for each record
-    const fieldOrder = ['requested_amount', 'requesting_dept'];
-    const currentFieldIndex = fieldOrder.indexOf(field);
-    
-    let nextElement: HTMLElement | null = null;
-
-    if (event.key === 'ArrowUp') {
-      if (recordIndex === 0 && field === 'requested_amount') {
-        // From first record's requested amount, go back to product search
-        nextElement = document.getElementById('survey-bulk-product-search');
-      } else if (recordIndex === 0 && field === 'requesting_dept') {
-        // From first record's department, go back to product search
-        nextElement = document.getElementById('survey-bulk-product-search');
-      } else if (recordIndex > 0) {
-        // Move to same field in previous record
-        const prevRecordId = bulkRecords[recordIndex - 1].id;
-        const nextFieldId = field === 'requesting_dept' 
-          ? `survey-bulk-requesting-dept-${prevRecordId}`
-          : `survey-bulk-requested-amount-${prevRecordId}`;
-        nextElement = document.getElementById(nextFieldId);
-      }
-    } else if (event.key === 'ArrowDown' && recordIndex < bulkRecords.length - 1) {
-      // Move to same field in next record
-      const nextRecordId = bulkRecords[recordIndex + 1].id;
-      const nextFieldId = field === 'requesting_dept'
-        ? `survey-bulk-requesting-dept-${nextRecordId}`
-        : `survey-bulk-requested-amount-${nextRecordId}`;
-      nextElement = document.getElementById(nextFieldId);
-    } else if (event.key === 'ArrowDown' && recordIndex === bulkRecords.length - 1 && field === 'requesting_dept') {
-      // From last record's department, move to save button
-      nextElement = document.querySelector('button') as HTMLElement;
-      // Find the save button by checking its text content
-      const buttons = document.querySelectorAll('button');
-      for (const button of buttons) {
-        if (button.textContent?.includes('บันทึกทั้งหมด')) {
-          nextElement = button as HTMLElement;
-          break;
-        }
-      }
-    } else if (event.key === 'ArrowRight' && currentFieldIndex < fieldOrder.length - 1) {
-      // Move to next field in same record
-      const nextField = fieldOrder[currentFieldIndex + 1];
-      const nextFieldId = nextField === 'requesting_dept'
-        ? `survey-bulk-requesting-dept-${recordId}`
-        : `survey-bulk-requested-amount-${recordId}`;
-      nextElement = document.getElementById(nextFieldId);
-    } else if (event.key === 'ArrowLeft' && currentFieldIndex > 0) {
-      // Move to previous field in same record
-      const prevField = fieldOrder[currentFieldIndex - 1];
-      const prevFieldId = prevField === 'requesting_dept'
-        ? `survey-bulk-requesting-dept-${recordId}`
-        : `survey-bulk-requested-amount-${recordId}`;
-      nextElement = document.getElementById(prevFieldId);
-    }
-
-    // Focus the next element if found
-    if (nextElement) {
-      nextElement.focus();
-    }
-  };
-
-  const filteredProductOptions = productSearch.trim().length === 0
-    ? productOptions.slice(0, 12)
-    : productOptions.filter((product) => {
-        const searchValue = productSearch.trim().toLowerCase();
-        return [product.code, product.name]
-          .filter(Boolean)
-          .some((value) => String(value).toLowerCase().includes(searchValue));
-      }).slice(0, 12);
-
-  const shouldShowProductNoResults = showProductSuggestions
-    && productSearch.trim().length > 0
-    && productSearch.trim() !== selectedProductLabel.trim()
-    && filteredProductOptions.length === 0;
-
-  const filteredBulkProductOptions = bulkProductOptions.slice(0, PRODUCT_SUGGESTION_LIMIT);
-
-  const shouldShowBulkProductNoResults = showBulkProductSuggestions
-    && bulkProductSearch.trim().length > 0
-    && bulkProductSearch.trim() !== selectedBulkProductLabel.trim()
-    && filteredBulkProductOptions.length === 0;
-
-  const handleProductSearchKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
-    if (!showProductSuggestions || filteredProductOptions.length === 0) {
-      return;
-    }
-
-    if (event.key === 'ArrowDown') {
-      event.preventDefault();
-      setHighlightedProductIndex((prev) => (prev + 1) % filteredProductOptions.length);
-    }
-
-    if (event.key === 'ArrowUp') {
-      event.preventDefault();
-      setHighlightedProductIndex((prev) => (prev <= 0 ? filteredProductOptions.length - 1 : prev - 1));
-    }
-
-    if (event.key === 'Enter' && highlightedProductIndex >= 0) {
-      event.preventDefault();
-      const selectedOption = filteredProductOptions[highlightedProductIndex];
-      if (selectedOption) {
-        handleProductSelect(`${selectedOption.code} - ${selectedOption.name}`);
-      }
-    }
-
-    if (event.key === 'Escape') {
-      setShowProductSuggestions(false);
-      setHighlightedProductIndex(-1);
-    }
-  };
-
-  const purchasePlannedCount = statusCountUsagePlans.filter((survey) => survey.has_purchase_plan).length;
-  const purchaseNotPlannedCount = statusCountUsagePlans.filter((survey) => !survey.has_purchase_plan).length;
-
-  const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
-  const pageStart = totalCount === 0 ? 0 : (page - 1) * pageSize + 1;
-  const pageEnd = totalCount === 0 ? 0 : Math.min(totalCount, pageStart + (usage_plans.length || 0) - 1);
-
-  const goToUsagePlanPage = (newPage: number) => {
-    if (newPage < 1 || newPage > totalPages) return;
-    setPage(newPage);
-  };
-
-  const resetUsagePlanSortToNewestFirst = () => {
-    setSortField('id');
-    setSortOrder('desc');
-    setPage(1);
-  };
-
-  const hideUsagePlanToastLater = () => {
-    setTimeout(() => {
-      setToast((prev) => ({ ...prev, visible: false }));
-    }, 3000);
-  };
-
-  const handleUsagePlanPageSizeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const newSize = parseInt(e.target.value, 10);
-    setPageSize(newSize);
-    setPage(1);
-  };
-
-  const handleSelectAll = (checked: boolean) => {
-    if (checked) {
-      // Only select items that don't have purchase plans AND have quota > 0
-      const selectableIds = new Set(usage_plans.filter(survey => !survey.has_purchase_plan && (survey.approved_quota ?? 0) > 0).map(survey => survey.id));
-      setSelectedRows(selectableIds);
-    } else {
-      setSelectedRows(new Set());
-    }
-  };
-
-  const handleRowSelect = (id: number, checked: boolean) => {
-    // Find the survey to check if it has a purchase plan or zero quota
-    const survey = usage_plans.find(s => s.id === id);
-    if (survey?.has_purchase_plan || ((survey?.approved_quota ?? 0) === 0)) {
-      // Don't allow selection of items that already have purchase plans or have zero quota
-      return;
-    }
-    
-    setSelectedRows(prev => {
-      const newSet = new Set(prev);
-      if (checked) {
-        newSet.add(id);
-      } else {
-        newSet.delete(id);
-      }
-      return newSet;
-    });
-  };
-
-  // Calculate eligible items (selected items with approved_quota > 0)
-  const eligibleItemsCount = usage_plans.filter(survey => 
-    selectedRows.has(survey.id) && (survey.approved_quota ?? 0) > 0
-  ).length;
-
-  const isAllSelected = usage_plans.length > 0 &&
-    usage_plans.filter(survey => !survey.has_purchase_plan && (survey.approved_quota ?? 0) > 0).length > 0 &&
-    selectedRows.size === usage_plans.filter(survey => !survey.has_purchase_plan && (survey.approved_quota ?? 0) > 0).length;
-  const isIndeterminate = selectedRows.size > 0 &&
-    selectedRows.size < usage_plans.filter(survey => !survey.has_purchase_plan && (survey.approved_quota ?? 0) > 0).length;
-
-  const handleSendToPurchasePlan = async () => {
-    // Get selected usage plans that have approved_quota > 0
-    const eligibleItems = usage_plans.filter(survey => 
-      selectedRows.has(survey.id) && (survey.approved_quota ?? 0) > 0
-    );
-
-    if (eligibleItems.length === 0) {
-      await Swal.fire({
-        icon: 'warning',
-        title: 'ไม่สามารถส่งเข้าแผนจัดซื้อได้',
-        text: 'รายการที่เลือกต้องมีโควต้าที่อนุมัติมากกว่า 0',
-        confirmButtonColor: '#3b82f6',
-      });
-      return;
-    }
-
-    const result = await Swal.fire({
-      title: 'ยืนยันการส่งเข้าแผนจัดซื้อ?',
-      html: `
-        <div>คุณต้องการส่ง <strong>${eligibleItems.length}</strong> รายการเข้าสู่แผนจัดซื้อ</div>
-        <div class="mt-2 text-sm text-gray-600">
-          รายการที่มีโควต้าที่อนุมัติจะถูกสร้างเป็นแผนจัดซื้อ
-        </div>
-      `,
-      icon: 'question',
-      showCancelButton: true,
-      confirmButtonText: 'ส่งเข้าแผนจัดซื้อ',
-      cancelButtonText: 'ยกเลิก',
-      confirmButtonColor: '#10b981',
-    });
-
-    if (!result.isConfirmed) {
-      return;
-    }
 
     try {
-      const response = await fetch('/api/purchase-plans/bulk', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          usage_plan_ids: eligibleItems.map(item => item.id)
-        }),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok || !data.success) {
-        throw new Error(data.error || 'ส่งเข้าแผนจัดซื้อไม่สำเร็จ');
-      }
-
-      await Swal.fire({
-        icon: 'success',
-        title: 'ส่งเข้าแผนจัดซื้อสำเร็จ',
-        html: `
-          <div>สร้างแผนจัดซื้อ <strong>${data.created_count || eligibleItems.length}</strong> รายการ</div>
-          <div class="mt-2 text-sm text-gray-600">
-            รายการที่ส่งเข้าแผนจัดซื้อแล้วจะไม่ปรากฏในรายการที่เลือก
-          </div>
-        `,
-        confirmButtonColor: '#10b981',
-      });
-
-      // Clear selection and refresh all related data
-      setSelectedRows(new Set());
-      await Promise.all([
-        fetchUsagePlans(),
-        fetchStatusCountUsagePlans(),
-      ]);
-      router.refresh();
-
-    } catch (error) {
-      console.error('Error sending to purchase plans:', error);
-      await Swal.fire({
-        icon: 'error',
-        title: 'ส่งเข้าแผนจัดซื้อไม่สำเร็จ',
-        text: error instanceof Error ? error.message : 'เกิดข้อผิดพลาดที่ไม่คาดคิด',
-        confirmButtonColor: '#3b82f6',
-      });
-    }
-  };
-
-  const fetchUsagePlans = async () => {
-    const requestId = ++dataRequestIdRef.current;
-    try {
-      setLoading(true);
-      const params = new URLSearchParams();
-      
-      if (productNameFilter) params.append('product_name', productNameFilter);
-      if (categoryFilter) params.append('category', categoryFilter);
-      if (typeFilter) params.append('type', typeFilter);
-      if (subtypeFilter) params.append('subtype', subtypeFilter);
-      if (requestingDeptFilter) params.append('requesting_dept', requestingDeptFilter);
-      if (budgetYearFilter) params.append('budget_year', budgetYearFilter);
-      if (hasPurchasePlanFilter) params.append('has_purchase_plan', hasPurchasePlanFilter);
-      if (sortField) params.append('order_by', sortField);
-      if (sortOrder) params.append('sort_order', sortOrder);
-
-      const filterKey = `${productNameFilter}|${categoryFilter}|${typeFilter}|${subtypeFilter}|${requestingDeptFilter}|${budgetYearFilter}|${hasPurchasePlanFilter}|${sortField}|${sortOrder}`;
-      const isFilterChanged = prevFilterKeyRef.current !== '' && prevFilterKeyRef.current !== filterKey;
-      const effectivePage = isFilterChanged ? 1 : page;
-      if (isFilterChanged) {
-        setPage(1);
-      }
-      prevFilterKeyRef.current = filterKey;
-
-      params.append('page', effectivePage.toString());
-      params.append('page_size', pageSize.toString());
-      
-      const response = await fetch(`/api/usage-plans?${params.toString()}`);
-      if (response.ok) {
-        const data = await response.json();
-        if (requestId !== dataRequestIdRef.current) {
-          return;
-        }
-        const fetchedUsagePlans = Array.isArray(data.usage_plans) ? data.usage_plans : [];
-        const exactFilteredUsagePlans = fetchedUsagePlans.filter((survey: UsagePlan) => {
-          if (categoryFilter && survey.category !== categoryFilter) return false;
-          if (typeFilter && survey.type !== typeFilter) return false;
-          if (subtypeFilter && survey.subtype !== subtypeFilter) return false;
-          if (requestingDeptFilter && survey.requesting_dept !== requestingDeptFilter) return false;
-          if (budgetYearFilter && String(survey.budget_year) !== budgetYearFilter) return false;
-          if (hasPurchasePlanFilter === 'true' && !survey.has_purchase_plan) return false;
-          if (hasPurchasePlanFilter === 'false' && survey.has_purchase_plan) return false;
-          return true;
-        });
-        const shouldUseExactFiltered =
-          Boolean(categoryFilter) ||
-          Boolean(typeFilter) ||
-          Boolean(subtypeFilter) ||
-          Boolean(requestingDeptFilter) ||
-          Boolean(budgetYearFilter) ||
-          Boolean(hasPurchasePlanFilter);
-        const usage_plansToUse = shouldUseExactFiltered ? exactFilteredUsagePlans : fetchedUsagePlans;
-        setUsagePlans(usage_plansToUse);
-        setSelectedRows((prev) => {
-          if (prev.size === 0) {
-            return prev;
-          }
-
-          const selectableIds = new Set(
-            usage_plansToUse
-              .filter((survey: UsagePlan) => !survey.has_purchase_plan && (survey.approved_quota ?? 0) > 0)
-              .map((survey: UsagePlan) => survey.id)
-          );
-          const nextSelected = new Set(Array.from(prev).filter((id) => selectableIds.has(id)));
-
-          if (nextSelected.size === prev.size) {
-            return prev;
-          }
-
-          return nextSelected;
-        });
-        setTotalCount(data.totalCount || 0);
-        setTotalRequestedValue(data.total_requested_value || 0);
-        setTotalApprovedValue(data.total_approved_value || 0);
-        if (data.page && data.page !== page) {
-          setPage(data.page);
-        }
-        if (data.page_size && data.page_size !== pageSize) {
-          setPageSize(data.page_size);
-        }
-      }
-    } catch (error) {
-      console.error('Error fetching usage_plans:', error);
-    } finally {
-      if (requestId === dataRequestIdRef.current) {
-        setLoading(false);
-      }
-    }
-  };
-
-
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    const { name, value } = e.target;
-    setFormData(prev => {
-      if (name === 'requested_amount' && !editingUsagePlan) {
-        const shouldSyncApprovedQuota =
-          prev.approved_quota === '' ||
-          prev.approved_quota === prev.requested_amount;
-
-        return {
-          ...prev,
-          [name]: value,
-          approved_quota: shouldSyncApprovedQuota ? value : prev.approved_quota,
-        };
-      }
-
-      return { ...prev, [name]: value };
-    });
-    
-    // Clear error when user starts typing
-    if (errors[name]) {
-      setErrors(prev => ({ ...prev, [name]: '' }));
-    }
-  };
-
-  const handleProductSelect = (value: string) => {
-    setProductSearch(value);
-
-    const normalizedValue = value.trim().toLowerCase();
-    const selectedProduct = productOptions.find((product) => {
-      const label = `${product.code} - ${product.name}`.toLowerCase();
-      return label === normalizedValue || product.code.toLowerCase() === normalizedValue || product.name.toLowerCase() === normalizedValue;
-    });
-
-    if (!selectedProduct) {
-      setSelectedProductLabel('');
-      setShowProductSuggestions(value.trim().length > 0);
-      setHighlightedProductIndex(-1);
-      setFormData((prev) => ({
-        ...prev,
-        product_code: value,
-        product_name: '',
-        category: '',
-        type: '',
-        subtype: '',
-        unit: '',
-        price_per_unit: '',
-      }));
-      return;
-    }
-
-    const selectedLabel = `${selectedProduct.code} - ${selectedProduct.name}`;
-    setProductSearch(selectedLabel);
-    setSelectedProductLabel(selectedLabel);
-    setShowProductSuggestions(false);
-    setHighlightedProductIndex(-1);
-    setFormData((prev) => ({
-      ...prev,
-      product_code: selectedProduct.code || '',
-      product_name: selectedProduct.name || '',
-      category: selectedProduct.category || '',
-      type: selectedProduct.type || '',
-      subtype: selectedProduct.subtype || '',
-      unit: selectedProduct.unit || '',
-      price_per_unit: selectedProduct.cost_price?.toString() || prev.price_per_unit,
-    }));
-
-    setErrors((prev) => ({
-      ...prev,
-      product_code: '',
-      product_name: '',
-    }));
-  };
-
-  const updateInlineField = (field: 'requestedAmount' | 'approvedQuota', value: string) => {
-    setEditData((prev) => ({
-      ...prev,
-      [field === 'requestedAmount' ? 'requested_amount' : 'approved_quota']: value,
-    }));
-  };
-
-  const validateForm = () => {
-    const newErrors: Record<string, string> = {};
-    
-    if (!formData.product_code.trim()) {
-      newErrors.product_code = 'กรุณาระบุรหัสสินค้า';
-    }
-    
-    if (!formData.product_name.trim()) {
-      newErrors.product_name = 'กรุณาระบุชื่อสินค้า';
-    }
-    
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!validateForm()) {
-      return;
-    }
-    
-    try {
-      const url = editingUsagePlan ? `/api/usage-plans/${editingUsagePlan.id}` : '/api/usage-plans';
-      const method = editingUsagePlan ? 'PUT' : 'POST';
-      
+      set_saving(true);
+      const url = editing_usage_plan ? `/api/usage-plans/${editing_usage_plan.id}` : '/api/usage-plans';
+      const method = editing_usage_plan ? 'PUT' : 'POST';
       const response = await fetch(url, {
         method,
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          ...formData,
-          budget_year: formData.budget_year ? parseInt(formData.budget_year, 10) : null,
-          sequence_no: formData.sequence_no ? parseInt(formData.sequence_no, 10) : null,
-        }),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
       });
-      
-      if (response.ok) {
-        const savedUsagePlan = await response.json();
-        
-        closeForm();
-        resetUsagePlanSortToNewestFirst();
-        await fetchUsagePlans();
-        if (savedUsagePlan?.id) {
-          setEditingUsagePlan(null);
-        }
-      } else {
-        const errorData = await response.json().catch(() => null);
-        const errorMessage = errorData?.error || 'ไม่สามารถบันทึกข้อมูลได้';
-        setToast({ message: errorMessage, type: 'error', visible: true });
-        hideUsagePlanToastLater();
-        return;
+
+      if (!response.ok) {
+        const error_data = await response.json().catch(() => null);
+        throw new Error(error_data?.error || 'บันทึกข้อมูลไม่สำเร็จ');
       }
+
+      set_show_form(false);
+      await fetch_usage_plans();
+      await Swal.fire({ icon: 'success', title: 'บันทึกสำเร็จ', timer: 1000, showConfirmButton: false });
     } catch (error) {
-      console.error('Error saving survey:', error);
-      setToast({
-        message: error instanceof Error ? error.message : 'ไม่สามารถบันทึกข้อมูลได้',
-        type: 'error',
-        visible: true,
+      await Swal.fire({
+        icon: 'error',
+        title: 'บันทึกไม่สำเร็จ',
+        text: error instanceof Error ? error.message : 'เกิดข้อผิดพลาด',
       });
-      hideUsagePlanToastLater();
+    } finally {
+      set_saving(false);
     }
   };
 
-  const handleEdit = (survey: UsagePlan) => {
-    setEditingUsagePlan(survey);
-    const label = survey.product_code && survey.product_name ? `${survey.product_code} - ${survey.product_name}` : survey.product_code || survey.product_name || '';
-    setProductSearch(label);
-    setSelectedProductLabel(label);
-    setShowProductSuggestions(false);
-    setHighlightedProductIndex(-1);
-    setFormData({
-      product_code: survey.product_code || '',
-      category: survey.category || '',
-      type: survey.type || '',
-      subtype: survey.subtype || '',
-      product_name: survey.product_name || '',
-      requested_amount: survey.requested_amount?.toString() || '',
-      unit: survey.unit || '',
-      price_per_unit: survey.price_per_unit?.toString() || '',
-      requesting_dept: survey.requesting_dept || '',
-      approved_quota: survey.approved_quota?.toString() || '',
-      budget_year: survey.budget_year?.toString() || getCurrentBudgetYear().toString(),
-      sequence_no: survey.sequence_no?.toString() || '1'
-    });
-    setShowForm(true);
-  };
-
-  const handleDelete = async (survey: UsagePlan) => {
-    // Prevent deletion if item is already in purchase plans
-    if (survey.has_purchase_plan) {
+  const handle_delete = async (row: UsagePlanRow) => {
+    if (row.has_purchase_plan) {
       await Swal.fire({
-        title: 'ไม่สามารถลบได้',
-        text: 'รายการนี้อยู่ในแผนจัดซื้อแล้ว ไม่สามารถลบได้',
         icon: 'error',
-        confirmButtonText: 'ตกลง'
+        title: 'ไม่สามารถลบได้',
+        text: 'รายการนี้ถูกใช้สร้างแผนจัดซื้อแล้ว',
       });
       return;
     }
 
     const result = await Swal.fire({
-      title: 'คุณแน่ใจหรือไม่?',
-      text: `คุณต้องการลบข้อมูล "${survey.product_name}" หรือไม่?`,
       icon: 'warning',
+      title: 'ยืนยันการลบ',
+      text: `ต้องการลบรายการ ${row.product_code || '-'} ใช่หรือไม่`,
       showCancelButton: true,
-      confirmButtonColor: '#d33',
-      cancelButtonColor: '#3085d6',
       confirmButtonText: 'ลบ',
-      cancelButtonText: 'ยกเลิก'
+      cancelButtonText: 'ยกเลิก',
+      confirmButtonColor: '#dc2626',
     });
 
-    if (result.isConfirmed) {
-      try {
-        const response = await fetch(`/api/usage-plans/${survey.id}`, {
-          method: 'DELETE',
-        });
-
-        if (response.ok) {
-          await Swal.fire({
-            title: 'ลบเรียบร้อย!',
-            text: 'ข้อมูลถูกลบเรียบร้อยแล้ว',
-            icon: 'success',
-            confirmButtonText: 'ตกลง'
-          });
-          resetUsagePlanSortToNewestFirst();
-          fetchUsagePlans();
-        } else {
-          throw new Error('Failed to delete usage plan');
-        }
-      } catch (error) {
-        console.error('Error deleting usage plan:', error);
-        await Swal.fire({
-          title: 'เกิดข้อผิดพลาด!',
-          text: 'ไม่สามารถลบข้อมูลได้',
-          icon: 'error',
-          confirmButtonText: 'ตกลง'
-        });
-      }
-    }
-  };
-
-  const closeForm = () => {
-    setShowForm(false);
-    setEditingUsagePlan(null);
-    setProductSearch('');
-    setSelectedProductLabel('');
-    setShowProductSuggestions(false);
-    setHighlightedProductIndex(-1);
-    setFormData({
-      product_code: '',
-      category: '',
-      type: '',
-      subtype: '',
-      product_name: '',
-      requested_amount: '',
-      unit: '',
-      price_per_unit: '',
-      requesting_dept: '',
-      approved_quota: '',
-      budget_year: getCurrentBudgetYear().toString(),
-      sequence_no: '1'
-    });
-    setErrors({});
-  };
-
-  const handleSort = (field: string) => {
-    if (sortField === field) {
-      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
-    } else {
-      setSortField(field);
-      setSortOrder('asc');
-    }
-  };
-
-  const handleImportClick = () => {
-    fileInputRef.current?.click();
-  };
-
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    // reset input to allow re-selecting the same file later
-    e.currentTarget.value = '';
-
-    const validExt = [
-      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-      'application/vnd.ms-excel',
-    ];
-    if (!validExt.includes(file.type) && !file.name.match(/\.(xlsx|xls)$/i)) {
-      await Swal.fire({
-        title: 'ไฟล์ไม่ถูกต้อง',
-        text: 'กรุณาเลือกไฟล์ Excel (.xlsx หรือ .xls)',
-        icon: 'warning',
-        confirmButtonText: 'ตกลง'
-      });
-      return;
-    }
+    if (!result.isConfirmed) return;
 
     try {
-      setImporting(true);
-      const formData = new FormData();
-      formData.append('file', file);
-
-      const res = await fetch('/api/usage-plans/import', {
-        method: 'POST',
-        body: formData,
-      });
-
-      if (!res.ok) {
-        const text = await res.text();
-        throw new Error(text || 'Import failed');
-      }
-
-      const data = await res.json().catch(() => ({}));
-
-      await Swal.fire({
-        title: 'นำเข้าเรียบร้อย',
-        text: data?.importedCount != null ? `นำเข้าข้อมูล ${data.importedCount} รายการ` : 'นำเข้าข้อมูลสำเร็จ',
-        icon: 'success',
-        confirmButtonText: 'ตกลง'
-      });
-      resetUsagePlanSortToNewestFirst();
-      fetchUsagePlans();
-    } catch (err) {
-      console.error('Error importing excel:', err);
-      await Swal.fire({
-        title: 'เกิดข้อผิดพลาด',
-        text: 'ไม่สามารถนำเข้าไฟล์ได้',
-        icon: 'error',
-        confirmButtonText: 'ตกลง'
-      });
-    } finally {
-      setImporting(false);
-    }
-  };
-
-  // Start inline editing
-  const startInlineEdit = (survey: UsagePlan, field: 'requestedAmount' | 'requestingDept' | 'approvedQuota') => {
-    // Prevent editing if item is already in purchase plans
-    if (survey.has_purchase_plan) {
-      return;
-    }
-    setEditingId(survey.id);
-    setEditingField(field);
-    setEditData({
-      product_code: survey.product_code || '',
-      category: survey.category || '',
-      type: survey.type || '',
-      subtype: survey.subtype || '',
-      product_name: survey.product_name || '',
-      requested_amount: survey.requested_amount?.toString() || '',
-      unit: survey.unit || '',
-      price_per_unit: survey.price_per_unit?.toString() || '',
-      requesting_dept: survey.requesting_dept || '',
-      approved_quota: survey.approved_quota?.toString() || '',
-      budget_year: survey.budget_year?.toString() || getCurrentBudgetYear().toString(),
-      sequence_no: survey.sequence_no?.toString() || '1'
-    });
-  };
-
-  // Save inline edit
-  const resetInlineEdit = () => {
-    setEditingId(null);
-    setEditingField(null);
-    setIsInlineSaving(false);
-    setEditData({
-      product_code: '', category: '', type: '', subtype: '', product_name: '', requested_amount: '', unit: '', price_per_unit: '', requesting_dept: '', approved_quota: '', budget_year: getCurrentBudgetYear().toString(), sequence_no: '1'
-    });
-  };
-
-  const saveInlineEdit = async (id: number) => {
-    if (isInlineSaving) {
-      return;
-    }
-
-    try {
-      setIsInlineSaving(true);
-      const response = await fetch(`/api/usage-plans/${id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          requested_amount: editData.requested_amount,
-          approved_quota: editData.approved_quota,
-          requesting_dept: editData.requesting_dept,
-        })
-      });
-
-      if (response.ok) {
-        setUsagePlans((prev) => prev.map((survey) => (
-          survey.id === id
-            ? {
-                ...survey,
-                requested_amount: editData.requested_amount === '' ? null : Number(editData.requested_amount),
-                approved_quota: editData.approved_quota === '' ? null : Number(editData.approved_quota),
-                requesting_dept: editData.requesting_dept || null,
-              }
-            : survey
-        )));
-        resetInlineEdit();
-      } else {
-        const errorData = await response.json().catch(() => null);
-        setToast({
-          message: errorData?.error || 'เกิดข้อผิดพลาดในการบันทึกข้อมูล',
-          type: 'error',
-          visible: true
-        });
-
-        hideUsagePlanToastLater();
-        setIsInlineSaving(false);
-      }
+      const response = await fetch(`/api/usage-plans/${row.id}`, { method: 'DELETE' });
+      if (!response.ok) throw new Error('ลบข้อมูลไม่สำเร็จ');
+      await fetch_usage_plans();
     } catch (error) {
-      console.error('Error updating survey:', error);
-
-      setToast({
-        message: 'เกิดข้อผิดพลาดในการบันทึกข้อมูล',
-        type: 'error',
-        visible: true
-      });
-
-      hideUsagePlanToastLater();
-      setIsInlineSaving(false);
+      await Swal.fire({ icon: 'error', title: 'ลบไม่สำเร็จ', text: error instanceof Error ? error.message : 'เกิดข้อผิดพลาด' });
     }
-  };
-
-  // Cancel inline edit
-  const cancelInlineEdit = () => {
-    resetInlineEdit();
-  };
-
-  const handleInlineEditorBlur = (event: React.FocusEvent<HTMLElement>, surveyId: number) => {
-    const nextFocusedElement = event.relatedTarget as Node | null;
-    if (nextFocusedElement && inlineEditContainerRef.current?.contains(nextFocusedElement)) {
-      return;
-    }
-
-    if (!nextFocusedElement) {
-      cancelInlineEdit();
-      return;
-    }
-
-    const nextElement = nextFocusedElement as HTMLElement;
-    if (nextElement.closest('button[title="บันทึก"]') || nextElement.closest('button[title="ยกเลิก"]')) {
-      return;
-    }
-
-    cancelInlineEdit();
-  };
-
-  const inlineEditableCellClassName = useMemo(
-    () => 'rounded transition-colors hover:bg-blue-50 focus-within:bg-blue-50',
-    []
-  );
-
-  const createEmptyBulkRecord = (id: number): BulkUsagePlanRecord => ({
-    id,
-    productSearch: '',
-    product_code: '',
-    category: '',
-    type: '',
-    subtype: '',
-    product_name: '',
-    requested_amount: '',
-    unit: '',
-    price_per_unit: '',
-    requesting_dept: '',
-    approved_quota: '',
-    budget_year: getCurrentBudgetYear().toString(),
-    sequence_no: '1'
-  });
-
-  const updateBulkRecord = (id: number, updater: (record: BulkUsagePlanRecord) => BulkUsagePlanRecord) => {
-    setBulkRecords((prev) => prev.map((record) => (record.id === id ? updater(record) : record)));
-  };
-
-  const clearBulkValidationError = (id: number, field: 'requestedAmount' | 'requestingDept') => {
-    setBulkValidationErrors((prev) => {
-      const current = prev[id];
-      if (!current?.[field]) {
-        return prev;
-      }
-
-      const nextRecordErrors = { ...current };
-      delete nextRecordErrors[field];
-
-      if (Object.keys(nextRecordErrors).length === 0) {
-        const nextErrors = { ...prev };
-        delete nextErrors[id];
-        return nextErrors;
-      }
-
-      return {
-        ...prev,
-        [id]: nextRecordErrors,
-      };
-    });
-  };
-
-  const handleBulkProductSelect = (id: number, value: string) => {
-    const normalizedValue = value.trim().toLowerCase();
-    const selectedProduct = bulkProductOptions.find((product) => {
-      const label = `${product.code} - ${product.name}`.toLowerCase();
-      return label === normalizedValue || product.code.toLowerCase() === normalizedValue || product.name.toLowerCase() === normalizedValue;
-    });
-
-    if (!selectedProduct) {
-      setSelectedBulkProductLabel('');
-      setShowBulkProductSuggestions(value.trim().length > 0);
-      setHighlightedBulkProductIndex(-1);
-      return;
-    }
-
-    const selectedLabel = `${selectedProduct.code} - ${selectedProduct.name}`;
-    setSelectedBulkProductLabel('');
-    setBulkProductSearch('');
-    setShowBulkProductSuggestions(false);
-    setHighlightedBulkProductIndex(-1);
-    setBulkValidationErrors((prev) => {
-      const nextErrors = { ...prev };
-      delete nextErrors[id];
-      return nextErrors;
-    });
-    setBulkRecordErrors((prev) => {
-      const nextErrors = { ...prev };
-      delete nextErrors[id];
-      return nextErrors;
-    });
-
-    setBulkRecords((prev) => {
-      const hasExistingRecord = prev.some((record) => record.product_code === selectedProduct.code);
-      if (hasExistingRecord) {
-        return prev;
-      }
-
-      const nextId = prev.length > 0 ? Math.max(...prev.map((record) => record.id)) + 1 : 1;
-      return [
-        ...prev,
-        {
-          id: nextId,
-          productSearch: selectedLabel,
-          product_code: selectedProduct.code || '',
-          category: selectedProduct.category || '',
-          type: selectedProduct.type || '',
-          subtype: selectedProduct.subtype || '',
-          product_name: selectedProduct.name || '',
-          requested_amount: '',
-          unit: selectedProduct.unit || '',
-          price_per_unit: selectedProduct.cost_price?.toString() || '0',
-          requesting_dept: '',
-          approved_quota: '',
-          budget_year: getCurrentBudgetYear().toString(),
-          sequence_no: '1',
-        },
-      ];
-    });
-  };
-
-  // Save bulk usage_plans
-  const saveBulkUsagePlans = async () => {
-    try {
-      const nextValidationErrors: Record<number, { requestedAmount?: string; requestingDept?: string }> = {};
-
-      const validRecords = bulkRecords.filter((record) => {
-        const hasProduct = record.product_code.trim() !== '' && record.product_name.trim() !== '';
-
-        if (!hasProduct) {
-          return false;
-        }
-
-        const requestedAmount = record.requested_amount.trim();
-        const requestingDept = record.requesting_dept.trim();
-        const recordErrors: { requestedAmount?: string; requestingDept?: string } = {};
-
-        if (!requestedAmount || Number.isNaN(Number(requestedAmount)) || Number(requestedAmount) <= 0) {
-          recordErrors.requestedAmount = 'กรุณากรอกจำนวนที่ขอมากกว่า 0';
-        }
-
-        if (!requestingDept) {
-          recordErrors.requestingDept = 'กรุณาเลือกหน่วยงานที่ขอ';
-        }
-
-        if (Object.keys(recordErrors).length > 0) {
-          nextValidationErrors[record.id] = recordErrors;
-          return false;
-        }
-
-        return true;
-      });
-
-      setBulkValidationErrors(nextValidationErrors);
-
-      if (validRecords.length === 0) {
-        setToast({
-          message: bulkRecords.some((record) => record.product_code.trim() !== '' && record.product_name.trim() !== '')
-            ? 'กรุณากรอกจำนวนที่ขอและหน่วยงานที่ขอให้ครบถ้วน'
-            : 'กรุณากรอกข้อมูลให้ครบถ้วนอย่างน้อย 1 รายการ',
-          type: 'error',
-          visible: true
-        });
-        hideUsagePlanToastLater();
-        return;
-      }
-
-      // Pre-check for duplicate usage plan constraints before making API calls
-      const constraintErrors: Record<number, string> = {};
-      const budgetYear = getCurrentBudgetYear();
-      
-      // Check each valid record for potential duplicates
-      for (const record of validRecords) {
-        try {
-          const checkResponse = await fetch('/api/usage-plans/check-constraint', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              product_code: record.product_code.trim(),
-              requesting_dept: record.requesting_dept.trim(),
-              budget_year: budgetYear
-            })
-          });
-          
-          if (!checkResponse.ok) {
-            const errorData = await checkResponse.json();
-            if (errorData?.error) {
-              constraintErrors[record.id] = errorData.error;
-            }
-          }
-        } catch (error) {
-          console.error('Error checking constraint:', error);
-          // If constraint check fails, show a general error but don't proceed
-          setToast({
-            message: 'ไม่สามารถตรวจสอบข้อมูลซ้ำได้ กรุณาลองใหม่',
-            type: 'error',
-            visible: true
-          });
-          hideUsagePlanToastLater();
-          return;
-        }
-      }
-      
-      // If any constraint violations found, stop the save operation
-      if (Object.keys(constraintErrors).length > 0) {
-        setBulkRecordErrors(constraintErrors);
-        setToast({
-          message: 'พบข้อมูลซ้ำที่เกินกำหนด กรุณาแก้ไขก่อนบันทึก',
-          type: 'error',
-          visible: true
-        });
-        hideUsagePlanToastLater();
-        return;
-      }
-
-      const promises = validRecords.map(record =>
-        fetch('/api/usage-plans', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            product_code: record.product_code.trim(),
-            category: record.category || '',
-            type: record.type || '',
-            subtype: record.subtype || '',
-            product_name: record.product_name.trim(),
-            requested_amount: record.requested_amount ? parseFloat(record.requested_amount) : 0,
-            unit: record.unit || '',
-            price_per_unit: record.price_per_unit ? parseFloat(record.price_per_unit) : 0,
-            requesting_dept: record.requesting_dept || '',
-            approved_quota: record.approved_quota ? parseFloat(record.approved_quota) : 0,
-            budget_year: record.budget_year ? parseInt(record.budget_year, 10) : null,
-          })
-        })
-      );
-
-      const results = await Promise.allSettled(promises);
-      const successful = results.filter(result => result.status === 'fulfilled' && result.value.ok).length;
-      const failed = results.length - successful;
-      
-      // Handle field-level errors for duplicates
-      const newBulkRecordErrors: Record<number, string> = {};
-      const duplicateErrorPattern = /ในปีงบประมาณนี้ แผนกนี้ ขอใช้สินค้านี้ ครบ 2 ครั้งแล้ว/;
-      
-      for (let i = 0; i < results.length; i++) {
-        const result = results[i];
-        if (result.status === 'fulfilled' && !result.value.ok) {
-          const record = validRecords[i];
-          try {
-            const errorData = await result.value.json();
-            if (errorData?.error && duplicateErrorPattern.test(errorData.error)) {
-              newBulkRecordErrors[record.id] = errorData.error;
-            }
-          } catch {
-            // Ignore JSON parsing errors
-          }
-        }
-      }
-      
-      setBulkRecordErrors(newBulkRecordErrors);
-      
-      const firstFailedResponse = results.find(
-        (result): result is PromiseFulfilledResult<Response> => result.status === 'fulfilled' && !result.value.ok
-      )?.value;
-      let failedMessage = 'เกิดข้อผิดพลาดในการบันทึกข้อมูลทั้งหมด';
-
-      if (firstFailedResponse) {
-        try {
-          const errorData = await firstFailedResponse.json();
-          failedMessage = errorData?.error || failedMessage;
-        } catch {
-          failedMessage = 'เกิดข้อผิดพลาดในการบันทึกข้อมูลทั้งหมด';
-        }
-      }
-
-      if (successful > 0) {
-        setShowBulkForm(false);
-        setBulkRecords([]);
-        setBulkValidationErrors({});
-        setBulkRecordErrors({});
-        setBulkProductSearch('');
-        setBulkProductOptions([]);
-        resetUsagePlanSortToNewestFirst();
-        await fetchUsagePlans();
-
-        setToast({
-          message: `บันทึกสำเร็จ ${successful} รายการ${failed > 0 ? `, ไม่สำเร็จ ${failed} รายการ` : ''}`,
-          type: 'success',
-          visible: true
-        });
-
-        hideUsagePlanToastLater();
-      }
-
-      if (failed > 0 && successful === 0) {
-        setToast({
-          message: failedMessage,
-          type: 'error',
-          visible: true
-        });
-
-        hideUsagePlanToastLater();
-      }
-    } catch (error) {
-      console.error('Error saving bulk usage_plans:', error);
-
-      setToast({
-        message: 'เกิดข้อผิดพลาดในการบันทึกข้อมูล',
-        type: 'error',
-        visible: true
-      });
-
-      hideUsagePlanToastLater();
-    }
-  };
-  const getSortIcon = (field: string) => {
-    if (sortField !== field) {
-      return <ArrowUpDown className="inline-block ml-1 h-4 w-4 text-gray-400" />;
-    }
-    return sortOrder === 'asc' ? (
-      <ChevronUp className="inline-block ml-1 h-4 w-4" />
-    ) : (
-      <ChevronDown className="inline-block ml-1 h-4 w-4" />
-    );
-  };
-
-  const getHeaderClass = (field: string) => {
-    return `px-6 py-3 text-left text-[10px] font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 ${
-      sortField === field ? 'bg-gray-100' : ''
-    }`;
-  };
-
-  const clearFilters = () => {
-    setProductNameFilter('');
-    setCategoryFilter('');
-    setTypeFilter('');
-    setSubtypeFilter('');
-    setRequestingDeptFilter('');
-    setBudgetYearFilter(getCurrentBudgetYear().toString());
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="container mx-auto px-4 py-8">
-        {/* Toast Notification */}
-        {toast.visible && (
-          <div className={`fixed top-4 right-4 z-50 p-4 rounded-lg shadow-lg transition-all duration-300 ${
-            toast.type === 'success'
-              ? 'bg-green-500 text-white'
-              : 'bg-red-500 text-white'
-          }`}>
-            <div className="flex items-center gap-2">
-              {toast.type === 'success' ? (
-                <CheckCircle2 className="h-5 w-5" />
-              ) : (
-                <AlertCircle className="h-5 w-5" />
-              )}
-              <span>{toast.message}</span>
-              <button
-                onClick={() => setToast({ ...toast, visible: false })}
-                className="ml-2 hover:opacity-75"
-              >
-                <XIcon className="h-4 w-4" />
-              </button>
-            </div>
-          </div>
-        )}
+    <div className="p-6 bg-gray-50 min-h-screen">
+      <div className="mb-3 flex items-center justify-between">
+        <h1 className="text-xl font-semibold text-gray-900">แผนการใช้ (Usage Plan)</h1>
+        <button
+          type="button"
+          onClick={open_create_form}
+          className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
+        >
+          เพิ่มรายการ
+        </button>
+      </div>
 
-        {/* Header */}
-        <div className="flex items-center justify-between gap-4 mb-4">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900">แผนการใช้</h1>
-
-          </div>
-          
-          <div className="flex items-center gap-3">
-            <input
-              id="usage_plans-import-file"
-              name="usage_plansImportFile"
-              ref={fileInputRef}
-              type="file"
-              accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
-              onChange={handleFileChange}
-              className="hidden"
-            />
-            <button
-              type="button"
-              onClick={handleImportClick}
-              disabled={importing}
-              className={`flex items-center gap-2 rounded-lg bg-green-600 px-5 py-2.5 text-sm font-medium text-white shadow-sm transition-colors hover:bg-green-700 ${importing ? 'opacity-70 cursor-not-allowed' : ''}`}
-            >
-              <Upload className="h-5 w-5" />
-              <span>{importing ? 'กำลังนำเข้า...' : 'นำเข้า Excel'}</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setShowBulkForm(true);
-                setBulkRecords([]);
-                setBulkRecordErrors({});
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-5">
+            <select
+              value={budget_year_filter}
+              onChange={(event) => {
+                set_budget_year_filter(event.target.value);
+                set_page(1);
               }}
-              className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-blue-700"
-              title="เพิ่มความต้องการใหม่"
+              className="rounded-lg border border-gray-300 px-3 py-2 text-sm"
             >
-              <Plus className="h-5 w-5" />
-              <span>เพิ่มรายการขอใช้</span>
-            </button>
-            <button
-              type="button"
-              onClick={handleSendToPurchasePlan}
-              className="inline-flex items-center gap-2 rounded-lg bg-orange-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-orange-700"
+              <option value="">ทุกปีงบ</option>
+              {Array.from(new Set([get_current_budget_year(), ...budget_years]))
+                .sort((a, b) => b - a)
+                .map((year) => (
+                  <option key={year} value={String(year)}>
+                    {year}
+                  </option>
+                ))}
+            </select>
+            <select
+              value={requesting_dept_code_filter}
+              onChange={(event) => {
+                set_requesting_dept_code_filter(event.target.value);
+                set_page(1);
+              }}
+              className="rounded-lg border border-gray-300 px-3 py-2 text-sm"
             >
-              <CheckCircle2 className="h-5 w-5" />
-              <span>ส่งเข้าแผนจัดซื้อ {eligibleItemsCount} รายการ</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => setSelectedRows(new Set())}
-              className="inline-flex items-center gap-2 rounded-lg bg-gray-500 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-gray-600"
+              <option value="">ทุกหน่วยงาน</option>
+              {departments.map((department) => (
+                <option key={department.department_code} value={department.department_code}>
+                  {department.name}
+                </option>
+              ))}
+            </select>
+            <select
+              value={category_filter}
+              onChange={(event) => {
+                set_category_filter(event.target.value);
+                set_page(1);
+              }}
+              className="rounded-lg border border-gray-300 px-3 py-2 text-sm"
             >
-              <X className="h-5 w-5" />
-              <span>ยกเลิกเลือก</span>
-            </button>
+              <option value="">ทุกหมวด</option>
+              {unique_categories.map((category) => (
+                <option key={category} value={category}>
+                  {category}
+                </option>
+              ))}
+            </select>
+            <select
+              value={type_filter}
+              onChange={(event) => {
+                set_type_filter(event.target.value);
+                set_page(1);
+              }}
+              className="rounded-lg border border-gray-300 px-3 py-2 text-sm"
+              disabled={!category_filter}
+            >
+              <option value="">ทุกประเภท</option>
+              {available_types_for_category.map((type) => (
+                <option key={type} value={type}>
+                  {type}
+                </option>
+              ))}
+            </select>
+            <input
+              type="text"
+              value={product_code_filter}
+              onChange={(event) => {
+                set_product_code_filter(event.target.value);
+                set_page(1);
+              }}
+              placeholder="ค้นหารหัส/ชื่อสินค้า"
+              className="rounded-lg border border-gray-300 px-3 py-2 text-sm"
+            />
           </div>
-        </div>
-        {/* Filter Section */}
-        <div className="bg-white shadow-md rounded-lg overflow-hidden mb-4">
-          <div className="px-4 py-3 bg-gray-50 border-b border-gray-200">
-            <div className="grid grid-cols-1 md:grid-cols-7 gap-4 mb-4">
-            <div>
-              <select
-                id="usage_plans-filter-budget-year"
-                name="budgetYearFilter"
-                value={budgetYearFilter}
-                onChange={(e) => setBudgetYearFilter(e.target.value)}
-                className="w-full rounded-md border-gray-300 shadow-sm text-sm px-3 py-2"
-              >
-                <option value="">ปีงบ</option>
-                {availableBudgetYears.map((year) => (
-                  <option key={year} value={year.toString()}>{year}</option>
-                ))}
-              </select>
-            </div>
 
-            <div>
-              <select
-                id="usage_plans-filter-requesting-dept"
-                name="requestingDeptFilter"
-                value={requestingDeptFilter}
-                onChange={(e) => setRequestingDeptFilter(e.target.value)}
-                className="w-full rounded-md border-gray-300 shadow-sm text-sm px-3 py-2"
-              >
-                <option value="">หน่วยงาน</option>
-                {departments.map((dept) => (
-                  <option key={dept} value={dept}>{dept}</option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <select
-                id="usage_plans-filter-has-purchase-plan"
-                name="hasPurchasePlanFilter"
-                value={hasPurchasePlanFilter}
-                onChange={(e) => setHasPurchasePlanFilter(e.target.value)}
-                className="w-full rounded-md border-gray-300 shadow-sm text-sm px-3 py-2"
-              >
-                <option value="">สถานะแผนจัดซื้อ</option>
-                <option value="true">ทำแผนจัดซื้อแล้ว ({purchasePlannedCount})</option>
-                <option value="false">ยังไม่ทำแผนจัดซื้อ ({purchaseNotPlannedCount})</option>
-              </select>
-            </div>
-
-            <div className="relative">
-              <input
-                id="usage_plans-filter-product-name"
-                name="productNameFilter"
-                type="text"
-                value={productNameFilter}
-                onChange={(e) => setProductNameFilter(e.target.value)}
-                className="w-full rounded-md border-gray-300 shadow-sm text-sm px-3 py-2 pr-10"
-                placeholder="รหัสสินค้า / ชื่อสินค้า"
-                autoComplete="off"
-              />
-              {productNameFilter && (
-                <button
-                  type="button"
-                  onClick={() => setProductNameFilter('')}
-                  className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                  title="ล้างค่า"
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              )}
-            </div>
-            
-            <div>
-              <select
-                id="usage_plans-filter-category"
-                name="categoryFilter"
-                value={categoryFilter}
-                onChange={(e) => {
-                  setCategoryFilter(e.target.value);
-                  setTypeFilter('');
-                  setSubtypeFilter('');
-                }}
-                className="w-full rounded-md border-gray-300 shadow-sm text-sm px-3 py-2"
-              >
-                <option value="">หมวด</option>
-                {categories.map((cat) => (
-                  <option key={cat} value={cat}>{cat}</option>
-                ))}
-              </select>
-            </div>
-            
-            <div>
-              <select
-                id="usage_plans-filter-type"
-                name="typeFilter"
-                value={typeFilter}
-                onChange={(e) => {
-                  setTypeFilter(e.target.value);
-                  setSubtypeFilter('');
-                }}
-                className="w-full rounded-md border-gray-300 shadow-sm text-sm px-3 py-2"
-              >
-                <option value="">ประเภท</option>
-                {availableTypes.map((type) => (
-                  <option key={type} value={type}>{type}</option>
-                ))}
-              </select>
-            </div>
-            
-            <div>
-              <select
-                id="usage_plans-filter-subtype"
-                name="subtypeFilter"
-                value={subtypeFilter}
-                onChange={(e) => setSubtypeFilter(e.target.value)}
-                className="w-full rounded-md border-gray-300 shadow-sm text-sm px-3 py-2"
-              >
-                <option value="">ประเภทย่อย</option>
-                {availableSubtypes.map((subtype) => (
-                  <option key={subtype} value={subtype}>{subtype}</option>
-                ))}
-              </select>
-            </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Summary Section (based on filtered dataset, not pagination) */}
-        <div className="bg-white shadow-md rounded-lg overflow-hidden mb-4">
-          <div className="px-4 py-3 bg-gray-50 border-b border-gray-200">
-            <div className="flex justify-between items-center">
-              <h3 className="text-lg font-medium text-gray-900">สรุปข้อมูล</h3>
-              <div className="flex flex-wrap items-center gap-6">
-                <div className="text-sm">
-                <span className="text-gray-500">มูลค่ารวมที่ขอ: </span>
-                <span className="font-semibold text-gray-900">
-                    ฿{totalRequestedValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                </span>
-              </div>
-              <div className="text-sm">
-                <span className="text-gray-500">มูลค่ารวมที่อนุมัติ: </span>
-                <span className="font-semibold text-gray-900">
-                    ฿{totalApprovedValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                </span>
-              </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div className="mt-4 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-          <div className="text-sm text-gray-600">
-            แสดง {pageStart}-{pageEnd} จาก {totalCount} รายการ
-          </div>
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+        <div className="overflow-hidden rounded-xl bg-white shadow-sm">
+          <div className="flex items-center justify-between border-b border-gray-100 px-3 py-3 text-sm text-gray-600">
+            <div className="font-medium text-gray-700">หน้า {page} / {total_pages}</div>
             <div className="flex items-center gap-2">
-              <label htmlFor="usage_plans-page-size" className="text-sm text-gray-600">แสดงต่อหน้า</label>
+              <div className="rounded-lg border border-gray-200 bg-gray-50 px-2 py-1 text-xs text-gray-600">
+                รวม {total_count.toLocaleString()} รายการ
+              </div>
+              <div className="rounded-lg border border-gray-200 bg-gray-50 px-2 py-1 text-xs text-gray-600">
+                รวมมูลค่า {total_value_amount.toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} บาท
+              </div>
               <select
-                id="usage_plans-page-size"
-                name="page_size"
-                value={pageSize}
-                onChange={handleUsagePlanPageSizeChange}
+                aria-label="เลือกจำนวนรายการต่อหน้า"
+                value={String(page_size)}
+                onChange={(event) => {
+                  const next_size = Number(event.target.value);
+                  if (![20, 50, 100].includes(next_size)) return;
+                  set_page_size(next_size);
+                  set_page(1);
+                }}
                 className="rounded border border-gray-300 px-2 py-1 text-sm"
               >
-                {[10, 20, 50].map((size) => (
-                  <option key={size} value={size}>{size}</option>
-                ))}
+                <option value="20">20</option>
+                <option value="50">50</option>
+                <option value="100">100</option>
               </select>
-            </div>
-            <div className="flex items-center gap-2">
               <button
                 type="button"
-                onClick={() => goToUsagePlanPage(page - 1)}
-                disabled={page === 1}
-                className={`px-3 py-1 rounded border text-sm ${page === 1 ? 'text-gray-400 border-gray-200 cursor-not-allowed' : 'text-gray-700 border-gray-300 hover:bg-gray-100'}`}
+                disabled={page <= 1}
+                onClick={() => set_page((prev) => Math.max(1, prev - 1))}
+                className="rounded border border-gray-300 px-2 py-1 disabled:opacity-50"
               >
                 ก่อนหน้า
               </button>
-              <span className="text-sm text-gray-700">
-                หน้า {page} / {totalPages}
-              </span>
               <button
                 type="button"
-                onClick={() => goToUsagePlanPage(page + 1)}
-                disabled={page >= totalPages}
-                className={`px-3 py-1 rounded border text-sm ${page >= totalPages ? 'text-gray-400 border-gray-200 cursor-not-allowed' : 'text-gray-700 border-gray-300 hover:bg-gray-100'}`}
+                disabled={page >= total_pages}
+                onClick={() => set_page((prev) => Math.min(total_pages, prev + 1))}
+                className="rounded border border-gray-300 px-2 py-1 disabled:opacity-50"
               >
                 ถัดไป
               </button>
             </div>
           </div>
-        </div>
 
-        {/* Table */}
-        <div className="bg-white rounded-lg shadow-md overflow-hidden">
-          {loading ? (
-            <div className="flex justify-center items-center py-12">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-            </div>
-          ) : usage_plans.length === 0 ? (
-            <div className="text-center py-12">
-              <p className="text-gray-500">ไม่พบข้อมูล</p>
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
+          <div className="overflow-x-auto">
+            <table className="w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="whitespace-nowrap px-3 py-2 text-left text-xs font-semibold uppercase text-gray-500">#</th>
+                  <th className="px-3 py-2 text-left text-xs font-semibold uppercase text-gray-500">ปีงบ</th>
+                  <th className="px-3 py-2 text-left text-xs font-semibold uppercase text-gray-500">ครั้งที่</th>
+                  <th className="whitespace-nowrap px-3 py-2 text-left text-xs font-semibold uppercase text-gray-500">รหัสสินค้า</th>
+                  <th className="w-[300px] px-3 py-2 text-left text-xs font-semibold uppercase text-gray-500">ชื่อสินค้า</th>
+                  <th className="pl-2 py-2 text-left text-xs font-semibold uppercase text-gray-500">หน่วยงาน</th>
+                  <th className="px-3 py-2 text-right text-xs font-semibold uppercase text-gray-500">จำนวนขอ</th>
+                  <th className="px-3 py-2 text-right text-xs font-semibold uppercase text-gray-500">โควต้า</th>
+                  <th className="px-3 py-2 text-right text-xs font-semibold uppercase text-gray-500">ราคา/หน่วย</th>
+                  <th className="px-3 py-2 text-right text-xs font-semibold uppercase text-gray-500">รวมมูลค่า</th>
+                  <th className="px-3 py-2 text-center text-xs font-semibold uppercase text-gray-500">จัดการ</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100 bg-white">
+                {loading ? (
                   <tr>
-                    <th className="px-6 py-3 text-left">
-                      <input
-                        type="checkbox"
-                        checked={isAllSelected}
-                        ref={(el) => {
-                          if (el) {
-                            el.indeterminate = isIndeterminate;
-                          }
-                        }}
-                        onChange={(e) => handleSelectAll(e.target.checked)}
-                        className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                      />
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-20">
-                      สถานะ
-                    </th>
-                    <th onClick={() => handleSort('budget_year')} className={getHeaderClass('budget_year')}>
-                      ปีงบ {getSortIcon('budget_year')}
-                    </th>
-                    <th onClick={() => handleSort('sequence_no')} className={getHeaderClass('sequence_no')}>
-                      ครั้งที่ {getSortIcon('sequence_no')}
-                    </th>
-                    <th onClick={() => handleSort('product_code')} className={`${getHeaderClass('product_code')} w-24`}>
-                      รหัสสินค้า {getSortIcon('product_code')}
-                    </th>
-                    <th onClick={() => handleSort('product_name')} className={`${getHeaderClass('product_name')} min-w-[160px] w-[32%]`}>
-                      ชื่อสินค้า {getSortIcon('product_name')}
-                    </th>
-                    <th onClick={() => handleSort('price_per_unit')} className={`${getHeaderClass('price_per_unit')} w-24`}>
-                      ราคา/หน่วย {getSortIcon('price_per_unit')}
-                    </th>
-                    <th onClick={() => handleSort('requesting_dept')} className={`${getHeaderClass('requesting_dept')} w-36`}>
-                      หน่วยงาน {getSortIcon('requesting_dept')}
-                    </th>
-                    <th onClick={() => handleSort('requested_amount')} className={`${getHeaderClass('requested_amount')} w-28`}>
-                      ขอใช้ {getSortIcon('requested_amount')}
-                    </th>
-                    <th onClick={() => handleSort('approved_quota')} className={`${getHeaderClass('approved_quota')} w-28`}>
-                      โควต้า {getSortIcon('approved_quota')}
-                    </th>
-                    <th className="px-3 py-3 text-left text-[10px] font-medium text-gray-500 uppercase tracking-wider w-20">
-                      Action
-                    </th>
+                    <td colSpan={12} className="px-3 py-6 text-center text-sm text-gray-500">กำลังโหลดข้อมูล...</td>
                   </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {usage_plans.map((survey) => (
-                    <tr key={survey.id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <input
-                          type="checkbox"
-                          checked={selectedRows.has(survey.id)}
-                          onChange={(e) => handleRowSelect(survey.id, e.target.checked)}
-                          disabled={survey.has_purchase_plan || (survey.approved_quota ?? 0) === 0}
-                          className={`h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 ${
-                            survey.has_purchase_plan || (survey.approved_quota ?? 0) === 0
-                              ? 'opacity-50 cursor-not-allowed bg-gray-100'
-                              : ''
-                          }`}
-                        />
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-xs text-gray-900">
-                        {survey.has_purchase_plan ? (
-                          survey.has_purchase_approval ? (
-                            <span title="ทำเอกสารขออนุมัติจัดซื้อแล้ว" className="inline-flex items-center text-green-600">
-                              <CheckCircle2 className="h-4 w-4" />
-                            </span>
-                          ) : (
-                            <span title="ทำแผนจัดซื้อแล้ว" className="inline-flex items-center text-orange-600">
-                              <ClipboardList className="h-4 w-4" />
-                            </span>
-                          )
-                        ) : '-'}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-xs text-gray-900">
-                        {survey.budget_year || '-'}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-xs text-gray-900">
-                        {survey.sequence_no || '-'}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 w-28">
-                        {survey.product_code}
-                      </td>
-                      <td className="px-6 py-4 text-sm text-gray-900 break-words min-w-[280px]">
-                        <div className="font-medium text-gray-900 break-words">{survey.product_name}</div>
-                        <div className="mt-1 text-[11px] text-emerald-600/80">
-                          {[survey.category || '-', survey.type || '-', survey.subtype || '-']
-                            .filter((value, index, arr) => !(value === '-' && arr.every(v => v === '-')))
-                            .join(' · ')}
+                ) : usage_plans.length === 0 ? (
+                  <tr>
+                    <td colSpan={12} className="px-3 py-6 text-center text-sm text-gray-500">ไม่พบข้อมูล</td>
+                  </tr>
+                ) : (
+                  usage_plans.map((row, index) => (
+                    <tr key={`${row.id}-${row.product_code}-${row.requesting_dept_code}-${row.budget_year}-${row.sequence_no}`} className={`hover:bg-gray-50 ${editing_cell?.row_id === row.id ? 'bg-green-100' : ''}`}>
+                      <td className="whitespace-nowrap px-3 py-2 text-xs text-gray-700">{(page - 1) * page_size + index + 1}</td>
+                      <td className="whitespace-nowrap px-3 py-2 text-xs text-gray-700">{row.budget_year ?? '-'}</td>
+                      <td className="whitespace-nowrap px-3 py-2 text-xs text-gray-700">{row.sequence_no ?? '-'}</td>
+                      <td className="whitespace-nowrap px-3 py-2 text-xs text-gray-700">{row.product_code || '-'}</td>
+                      <td className="w-[300px] pr-2 py-2 text-xs text-gray-700">
+                        <div className="font-medium text-gray-800 text-xs break-words">{row.product_name || '-'}</div>
+                        <div className="mt-0.5 text-[10px] text-yellow-600">
+                          {[row.category, row.type, row.subtype].filter(Boolean).join(' - ') || '-'}
                         </div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 w-28">
-                        {Number(survey.price_per_unit ?? 0).toLocaleString('en-US', {
+                      <td className="pl-2 py-2 text-xs text-gray-700 align-top">{row.requesting_dept || '-'}</td>
+                      <td
+                        className="px-3 py-2 text-right text-xs text-gray-700 align-top"
+                        onClick={() => start_cell_edit(row, 'requested_amount')}
+                      >
+                        {editing_cell?.row_id === row.id && editing_cell.field === 'requested_amount' ? (
+                          <input
+                            autoFocus
+                            type="number"
+                            min={0}
+                            value={editing_cell_value}
+                            onChange={(event) => set_editing_cell_value(event.target.value)}
+                            onFocus={(event) => event.target.select()}
+                            onBlur={() => {
+                              if (skip_blur_save_ref.current) {
+                                skip_blur_save_ref.current = false;
+                                return;
+                              }
+                              void save_cell_edit(row, 'requested_amount', editing_cell_value);
+                            }}
+                            onKeyDown={(event) => handle_editable_cell_key_down(event, row, 'requested_amount')}
+                            className="w-24 rounded border border-gray-300 px-2 py-1 text-right text-xs"
+                          />
+                        ) : (
+                          <span className="cursor-pointer text-xs">{row.requested_amount ?? 0}</span>
+                        )}
+                      </td>
+                      <td
+                        className="px-3 py-2 text-right text-xs text-gray-700 align-top"
+                        onClick={() => start_cell_edit(row, 'approved_quota')}
+                      >
+                        {editing_cell?.row_id === row.id && editing_cell.field === 'approved_quota' ? (
+                          <input
+                            autoFocus
+                            type="number"
+                            min={0}
+                            value={editing_cell_value}
+                            onChange={(event) => set_editing_cell_value(event.target.value)}
+                            onFocus={(event) => event.target.select()}
+                            onBlur={() => {
+                              if (skip_blur_save_ref.current) {
+                                skip_blur_save_ref.current = false;
+                                return;
+                              }
+                              void save_cell_edit(row, 'approved_quota', editing_cell_value);
+                            }}
+                            onKeyDown={(event) => handle_editable_cell_key_down(event, row, 'approved_quota')}
+                            className="w-24 rounded border border-gray-300 px-2 py-1 text-right text-xs"
+                          />
+                        ) : (
+                          <span className="cursor-pointer text-xs">{row.approved_quota ?? 0}</span>
+                        )}
+                      </td>
+                      <td className="px-3 py-2 text-right text-xs text-gray-700 align-top">
+                        {Number(row.price_per_unit ?? 0).toLocaleString('th-TH', {
                           minimumFractionDigits: 2,
                           maximumFractionDigits: 2,
                         })}
                       </td>
-                      <td
-                        ref={editingId === survey.id && editingField === 'requestingDept' ? inlineEditContainerRef : null}
-                        className={`px-6 py-4 whitespace-nowrap text-sm text-gray-900 ${editingId !== survey.id || editingField === 'requestingDept' ? inlineEditableCellClassName : ''}`}
-                      >
-                        {editingId === survey.id && editingField === 'requestingDept' ? (
-                          <select
-                            id={`survey-inline-requesting-dept-${survey.id}`}
-                            name={`inlineRequestingDept-${survey.id}`}
-                            aria-label={`หน่วยงานที่ขอ รายการ ${survey.id}`}
-                            value={editData.requesting_dept}
-                            onChange={(e) => setEditData((prev) => ({ ...prev, requesting_dept: e.target.value }))}
-                            onBlur={(e) => handleInlineEditorBlur(e, survey.id)}
-                            autoFocus
-                            className="w-40 rounded border border-gray-300 px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          >
-                            <option value="">เลือกหน่วยงาน</option>
-                            {departments.map((dept) => (
-                              <option key={dept} value={dept}>{dept}</option>
-                            ))}
-                          </select>
-                        ) : (
+                      <td className="px-3 py-2 text-right text-xs text-gray-700 align-top">
+                        {(Number(row.approved_quota ?? 0) * Number(row.price_per_unit ?? 0)).toLocaleString('th-TH', {
+                          minimumFractionDigits: 2,
+                          maximumFractionDigits: 2,
+                        })}
+                      </td>
+                      <td className="px-3 py-2 text-center text-xs">
+                        <div className="inline-flex items-center gap-2">
                           <button
                             type="button"
-                            onClick={() => startInlineEdit(survey, 'requestingDept')}
-                            className={`w-full text-left ${survey.has_purchase_plan ? 'cursor-not-allowed text-gray-400' : 'cursor-text'}`}
-                            disabled={survey.has_purchase_plan}
+                            disabled={saving}
+                            onClick={() => void handle_delete(row)}
+                            className="inline-flex h-8 w-8 items-center justify-center rounded border border-red-300 text-red-700 hover:bg-red-50 disabled:opacity-50"
+                            aria-label={`ลบ ${row.product_code || 'รายการ'}`}
+                            title="ลบ"
                           >
-                            {survey.requesting_dept || '-'}
+                            <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+                              <path d="M3 6h18" />
+                              <path d="M8 6V4h8v2" />
+                              <path d="M19 6l-1 14H6L5 6" />
+                              <path d="M10 11v6" />
+                              <path d="M14 11v6" />
+                            </svg>
                           </button>
-                        )}
-                      </td>
-                      <td className={`px-6 py-4 whitespace-nowrap text-sm text-gray-900 ${editingId !== survey.id || editingField === 'requestedAmount' ? inlineEditableCellClassName : ''}`}>
-                        {editingId === survey.id && editingField === 'requestedAmount' ? (
-                          <div className="flex items-center gap-2">
-                            <input
-                              id={`survey-inline-requested-amount-${survey.id}`}
-                              name={`inlineRequestedAmount-${survey.id}`}
-                              aria-label={`จำนวนที่ขอ รายการ ${survey.id}`}
-                              type="number"
-                              min="0"
-                              value={editData.requested_amount}
-                              onChange={(e) => updateInlineField('requestedAmount', e.target.value)}
-                              onBlur={(e) => handleInlineEditorBlur(e, survey.id)}
-                              autoFocus
-                              className="w-24 rounded border border-gray-300 px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
-                            />
-                            <span className="text-[10px] text-gray-500">{survey.unit || ''}</span>
-                          </div>
-                        ) : (
-                          <button
-                            type="button"
-                            onClick={() => startInlineEdit(survey, 'requestedAmount')}
-                            className={`w-full text-left ${survey.has_purchase_plan ? 'cursor-not-allowed text-gray-400' : 'cursor-text'}`}
-                            disabled={survey.has_purchase_plan}
-                          >
-                            {survey.requested_amount?.toLocaleString() || ''} {survey.unit}
-                          </button>
-                        )}
-                      </td>
-                      <td className={`px-6 py-4 whitespace-nowrap text-sm text-gray-900 ${editingId !== survey.id || editingField === 'approvedQuota' ? inlineEditableCellClassName : ''}`}>
-                        {editingId === survey.id && editingField === 'approvedQuota' ? (
-                          <input
-                            id={`survey-inline-approved-quota-${survey.id}`}
-                            name={`inlineApprovedQuota-${survey.id}`}
-                            aria-label={`โควต้าที่ได้รับ รายการ ${survey.id}`}
-                            type="number"
-                            min="0"
-                            value={editData.approved_quota}
-                            onChange={(e) => updateInlineField('approvedQuota', e.target.value)}
-                            onBlur={(e) => handleInlineEditorBlur(e, survey.id)}
-                            autoFocus
-                            className="w-24 rounded border border-gray-300 px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          />
-                        ) : (
-                          <button
-                            type="button"
-                            onClick={() => startInlineEdit(survey, 'approvedQuota')}
-                            className={`w-full text-left ${survey.has_purchase_plan ? 'cursor-not-allowed text-gray-400' : 'cursor-text'}`}
-                            disabled={survey.has_purchase_plan}
-                          >
-                            {survey.approved_quota?.toLocaleString() || '-'}
-                          </button>
-                        )}
-                      </td>
-                      <td className="px-3 py-4 whitespace-nowrap text-xs font-medium w-24">
-                        <div className="flex items-center gap-2">
-                          {editingId === survey.id ? (
-                            <>
-                              <button
-                                type="button"
-                                onClick={() => void saveInlineEdit(survey.id)}
-                                className="text-green-600 hover:text-green-800 cursor-pointer"
-                                title="บันทึก"
-                              >
-                                <CheckCircle2 className="h-5 w-5" />
-                              </button>
-                              <button
-                                type="button"
-                                onClick={cancelInlineEdit}
-                                className="text-gray-500 hover:text-gray-700 cursor-pointer"
-                                title="ยกเลิก"
-                              >
-                                <XIcon className="h-5 w-5" />
-                              </button>
-                            </>
-                          ) : (
-                            <>
-                              <button
-                                type="button"
-                                onClick={() => startInlineEdit(survey, 'requestedAmount')}
-                                className={`text-indigo-600 hover:text-indigo-900 ${survey.has_purchase_plan ? 'cursor-not-allowed text-gray-400 opacity-50' : 'cursor-pointer'}`}
-                                title={survey.has_purchase_plan ? "ไม่สามารถแก้ไขได้ - รายการนี้อยู่ในแผนจัดซื้อแล้ว" : "แก้ไข"}
-                                disabled={survey.has_purchase_plan}
-                              >
-                                <Pencil className="h-5 w-5" />
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => handleDelete(survey)}
-                                className={`text-red-600 hover:text-red-900 ${survey.has_purchase_plan ? 'cursor-not-allowed text-gray-400 opacity-50' : 'cursor-pointer'}`}
-                                title={survey.has_purchase_plan ? "ไม่สามารถลบได้ - รายการนี้อยู่ในแผนจัดซื้อแล้ว" : "ลบ"}
-                                disabled={survey.has_purchase_plan}
-                              >
-                                <Trash2 className="h-5 w-5" />
-                              </button>
-                            </>
-                          )}
                         </div>
                       </td>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
 
-        {/* Form Modal */}
-        {showForm && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-100/80 p-4 backdrop-blur-sm">
-            <div className="w-full max-w-4xl max-h-[90vh] overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_24px_80px_rgba(15,23,42,0.18)] ring-1 ring-slate-200">
-              <div className="border-b border-slate-200 bg-gradient-to-r from-blue-50 via-white to-slate-50 px-6 py-5">
-                <h2 className="text-xl font-semibold text-gray-800">
-                  {editingUsagePlan ? 'แก้ไขข้อมูลความต้องการ' : 'เพิ่มข้อมูลความต้องการ'}
+      {show_form && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-5xl rounded-xl bg-white shadow-lg">
+            <form onSubmit={handle_submit}>
+              <div className="border-b border-gray-100 px-5 py-4">
+                <h2 className="text-lg font-semibold text-gray-900">
+                  {editing_usage_plan ? 'แก้ไขแผนการใช้' : 'เพิ่มแผนการใช้'}
                 </h2>
-                <p className="mt-1 text-sm text-slate-500">เลือกสินค้าและกรอกรายละเอียดที่จำเป็นให้ครบถ้วนก่อนบันทึก</p>
               </div>
-              
-              <form onSubmit={handleSubmit} className="overflow-y-auto px-6 py-6 space-y-6">
-                <div className="rounded-2xl border border-blue-100 bg-blue-50 p-4">
-                  <label htmlFor="survey-product-search" className="mb-2 block text-sm font-medium text-gray-700">
-                    ค้นหารหัสหรือชื่อสินค้า
-                  </label>
-                  <div className="relative">
-                    <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-                    <input
-                      id="survey-product-search"
-                      name="productSearch"
-                      type="text"
-                      value={productSearch}
-                      onChange={(e) => handleProductSelect(e.target.value)}
-                      onFocus={() => {
-                        if (!editingUsagePlan && productSearch.trim() && productSearch.trim() !== selectedProductLabel.trim()) {
-                          setShowProductSuggestions(true);
-                        }
-                      }}
-                      onKeyDown={handleProductSearchKeyDown}
-                      readOnly={Boolean(editingUsagePlan)}
-                      autoComplete="off"
-                      aria-label="ค้นหารหัสหรือชื่อสินค้า"
-                      placeholder="พิมพ์รหัสสินค้า หรือชื่อสินค้า"
-                      className={`w-full rounded-md border px-3 py-2 pl-9 pr-9 focus:outline-none focus:ring-2 focus:ring-blue-500 ${errors.product_code ? 'border-red-500' : 'border-gray-300'} ${editingUsagePlan ? 'bg-gray-50' : 'bg-white'}`}
-                    />
-                    {productSearch && !editingUsagePlan && (
-                      <button
-                        type="button"
-                        onClick={() => handleProductSelect('')}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                        aria-label="ล้างคำค้น"
-                      >
-                        <X className="h-4 w-4" />
-                      </button>
-                    )}
-                    {showProductSuggestions && !editingUsagePlan && (
-                      <div className="absolute z-10 mt-2 max-h-72 w-full overflow-auto rounded-md border border-gray-200 bg-white shadow-lg">
-                        {shouldShowProductNoResults ? (
-                          <div className="px-4 py-3 text-sm text-gray-500">ไม่พบรายการที่ค้นหา</div>
-                        ) : (
-                          filteredProductOptions.map((product, index) => {
-                            const label = `${product.code} - ${product.name}`;
-                            return (
-                              <button
-                                key={product.id}
-                                type="button"
-                                onMouseDown={(event) => event.preventDefault()}
-                                onClick={() => handleProductSelect(label)}
-                                className={`block w-full border-b border-gray-100 px-4 py-3 text-left text-sm ${index === highlightedProductIndex ? 'bg-blue-50' : 'hover:bg-gray-50'}`}
-                              >
-                                <div className="font-medium text-gray-900">{label}</div>
-                                <div className="text-xs text-gray-500">{product.category || '-'} | {product.type || '-'} | {product.unit || '-'}</div>
-                              </button>
-                            );
-                          })
-                        )}
-                      </div>
-                    )}
-                  </div>
-                  {errors.product_code && <p className="mt-2 text-sm text-red-600">{errors.product_code}</p>}
+
+              <div className="grid grid-cols-1 gap-4 px-5 py-4 md:grid-cols-2">
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-gray-700">หน่วยงานที่ต้องการใช้</label>
+                  <select
+                    value={form_state.requesting_dept_code}
+                    onChange={(event) => {
+                      set_form_state((prev) => ({ ...prev, requesting_dept_code: event.target.value }));
+                      set_form_errors((prev) => {
+                        const next = { ...prev };
+                        delete next.requesting_dept_code;
+                        return next;
+                      });
+                    }}
+                    className={`w-full rounded-lg border px-3 py-2 text-sm ${form_errors.requesting_dept_code ? 'border-red-500' : 'border-gray-300'}`}
+                  >
+                    <option value="">เลือกหน่วยงาน</option>
+                    {form_department_options.map((department) => (
+                      <option key={department.department_code} value={department.department_code}>
+                        {department.name}
+                      </option>
+                    ))}
+                  </select>
+                  {form_errors.requesting_dept_code && <p className="mt-1 text-xs text-red-600">{form_errors.requesting_dept_code}</p>}
                 </div>
 
-                {(editingUsagePlan || formData.product_name) && (
-                  <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
-                    <div className="border-b border-slate-200 px-4 py-3">
-                      <h3 className="text-sm font-semibold text-slate-700">รายการที่เลือก</h3>
-                      <p className="mt-1 text-xs text-slate-500">เลือกสินค้าแล้วค่อยกรอกจำนวน หน่วยงาน และข้อมูลประกอบในแถวรายการนี้</p>
-                    </div>
-                    <div className="overflow-x-auto">
-                      <table className="min-w-full">
-                        <thead className="bg-slate-50">
-                          <tr className="text-left text-xs font-medium uppercase tracking-wide text-slate-500">
-                            <th scope="col" className="px-4 py-3">รหัสสินค้า</th>
-                            <th scope="col" className="px-4 py-3">ชื่อสินค้า</th>
-                            <th scope="col" className="px-4 py-3">จำนวนที่ขอ</th>
-                            <th scope="col" className="px-4 py-3">หน่วย</th>
-                            <th scope="col" className="px-4 py-3">ราคาต่อหน่วย</th>
-                            <th scope="col" className="px-4 py-3">หน่วยงานที่ขอ</th>
-                            <th scope="col" className="px-4 py-3">จำนวนอนุมัติ</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          <tr className="border-t border-slate-200 align-top">
-                            <td className="px-4 py-3">
-                              <input id="survey-product-code" type="text" name="product_code" aria-label="รหัสสินค้า" value={formData.product_code} readOnly className="w-full rounded-md border border-gray-300 bg-gray-50 px-3 py-2 text-sm focus:outline-none" />
-                            </td>
-                            <td className="px-4 py-3 min-w-[240px]">
-                              <input id="survey-product-name" type="text" name="product_name" aria-label="ชื่อสินค้า" value={formData.product_name} readOnly className={`w-full rounded-md border px-3 py-2 text-sm focus:outline-none ${errors.product_name ? 'border-red-500' : 'border-gray-300 bg-gray-50'}`} />
-                              {errors.product_name && <p className="mt-1 text-sm text-red-600">{errors.product_name}</p>}
-                            </td>
-                            <td className="px-4 py-3 min-w-[140px]">
-                              <input id="survey-requested-amount" type="number" name="requested_amount" aria-label="จำนวนที่ขอ" value={formData.requested_amount} onChange={handleInputChange} min="0" className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="จำนวน" />
-                            </td>
-                            <td className="px-4 py-3 min-w-[120px]">
-                              <input id="survey-unit" type="text" name="unit" aria-label="หน่วย" value={formData.unit} readOnly className="w-full rounded-md border border-gray-300 bg-gray-50 px-3 py-2 text-sm focus:outline-none" />
-                            </td>
-                            <td className="px-4 py-3 min-w-[150px]">
-                              <input id="survey-price-per-unit" type="number" name="price_per_unit" aria-label="ราคาต่อหน่วย" value={formData.price_per_unit} onChange={handleInputChange} min="0" step="0.01" className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="ราคาต่อหน่วย" />
-                            </td>
-                            <td className="px-4 py-3 min-w-[220px]">
-                              <DepartmentCombobox
-                                id="survey-requesting-dept"
-                                name="requesting_dept"
-                                aria_label="หน่วยงานที่ขอ"
-                                value={formData.requesting_dept}
-                                departments={departments}
-                                placeholder="เลือกหน่วยงานที่ขอ"
-                                on_change={(value) => {
-                                  setFormData((prev) => ({ ...prev, requesting_dept: value }));
-                                  if (errors.requesting_dept) {
-                                    setErrors((prev) => ({ ...prev, requesting_dept: '' }));
-                                  }
-                                }}
-                                class_name="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                list_class_name="absolute z-30 mt-1 max-h-60 w-full overflow-auto rounded-md border border-gray-200 bg-white shadow-lg"
-                              />
-                            </td>
-                            <td className="px-4 py-3 min-w-[140px]">
-                              <input id="survey-approved-quota" type="number" name="approved_quota" aria-label="โควต้าที่ได้รับ" value={formData.approved_quota} onChange={handleInputChange} min="0" className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="โควต้าที่ได้รับ" />
-                            </td>
-                          </tr>
-                        </tbody>
-                      </table>
+                <div>
+                  <div className={`grid grid-cols-1 gap-4 ${!editing_usage_plan ? 'md:grid-cols-2' : ''}`}>
+                    <div>
+                      <label className="mb-1 block text-sm font-medium text-gray-700">ปีงบ</label>
+                      <input
+                        type="number"
+                        value={form_state.budget_year}
+                        onChange={(event) => set_form_state((prev) => ({ ...prev, budget_year: event.target.value }))}
+                        className={`w-full rounded-lg border px-3 py-2 text-sm ${form_errors.budget_year ? 'border-red-500' : 'border-gray-300'}`}
+                      />
+                      {form_errors.budget_year && <p className="mt-1 text-xs text-red-600">{form_errors.budget_year}</p>}
                     </div>
 
-                    <div className="grid grid-cols-1 gap-4 border-t border-slate-200 px-4 py-4 md:grid-cols-3">
+                    {!editing_usage_plan ? (
                       <div>
-                        <label htmlFor="survey-category" className="mb-2 block text-sm font-medium text-gray-700">หมวดสินค้า</label>
-                        <input id="survey-category" type="text" name="category" value={formData.category} readOnly className="w-full rounded-md border border-gray-300 bg-gray-50 px-3 py-2 text-sm focus:outline-none" />
-                      </div>
-                      <div>
-                        <label htmlFor="survey-type" className="mb-2 block text-sm font-medium text-gray-700">ประเภท</label>
-                        <input id="survey-type" type="text" name="type" value={formData.type} readOnly className="w-full rounded-md border border-gray-300 bg-gray-50 px-3 py-2 text-sm focus:outline-none" />
-                      </div>
-                      <div>
-                        <label htmlFor="survey-subtype" className="mb-2 block text-sm font-medium text-gray-700">ประเภทย่อย</label>
-                        <input id="survey-subtype" type="text" name="subtype" value={formData.subtype} readOnly className="w-full rounded-md border border-gray-300 bg-gray-50 px-3 py-2 text-sm focus:outline-none" />
-                      </div>
-                      <div>
-                        <label htmlFor="survey-budget-year" className="mb-2 block text-sm font-medium text-gray-700">ปีงบ</label>
-                        <select id="survey-budget-year" name="budget_year" value={formData.budget_year} onChange={handleInputChange} className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-                          {availableBudgetYears.map((year) => (
-                            <option key={year} value={year.toString()}>{year}</option>
+                        <label className="mb-1 block text-sm font-medium text-gray-700">หมวด</label>
+                        <select
+                          value={selected_bulk_category}
+                          onChange={(event) => {
+                            set_selected_bulk_category(event.target.value);
+                            set_product_search('');
+                            set_form_errors((prev) => {
+                              const next = { ...prev };
+                              delete next.category;
+                              delete next.product_code;
+                              return next;
+                            });
+                          }}
+                          className={`w-full rounded-lg border px-3 py-2 text-sm ${form_errors.category ? 'border-red-500' : 'border-gray-300'}`}
+                        >
+                          <option value="">เลือกหมวด</option>
+                          {category_options.map((category) => (
+                            <option key={category} value={category}>
+                              {category}
+                            </option>
                           ))}
                         </select>
+                        {form_errors.category && <p className="mt-1 text-xs text-red-600">{form_errors.category}</p>}
                       </div>
-                      <div>
-                        <label htmlFor="survey-sequence-no" className="mb-2 block text-sm font-medium text-gray-700">ครั้งที่</label>
-                        <select id="survey-sequence-no" name="sequence_no" value={formData.sequence_no} onChange={handleInputChange} className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-                          <option value="1">ครั้งที่ 1</option>
-                          <option value="2">ครั้งที่ 2</option>
-                        </select>
+                    ) : null}
+                  </div>
+                </div>
+
+                {!editing_usage_plan ? (
+                  <>
+                    <div className="md:col-span-2 rounded-lg border border-gray-200 bg-gray-50 p-3">
+                      <p className="text-xs text-gray-500">เลือกหน่วยงานและหมวดก่อน แล้วค้นหาด้วยรหัสหรือชื่อสินค้าเพื่อเพิ่มรายการแบบเร็ว</p>
+                      <div className="mt-2 flex flex-col gap-2 md:flex-row md:items-start">
+                        <div className="relative flex-1">
+                          <input
+                            ref={bulk_product_input_ref}
+                            type="text"
+                            autoComplete="off"
+                            value={product_search}
+                            onFocus={() => {
+                              set_is_bulk_product_search_focused(true);
+                              set_active_bulk_product_suggestion_index(-1);
+                            }}
+                            onBlur={() => {
+                              window.setTimeout(() => {
+                                set_is_bulk_product_search_focused(false);
+                                set_active_bulk_product_suggestion_index(-1);
+                              }, 120);
+                            }}
+                            onChange={(event) => {
+                              set_product_search(event.target.value);
+                              set_form_errors((prev) => {
+                                const next = { ...prev };
+                                delete next.product_code;
+                                return next;
+                              });
+                            }}
+                            onKeyDown={(event) => {
+                              if (event.key === 'ArrowDown' && filtered_product_options.length > 0) {
+                                event.preventDefault();
+                                set_active_bulk_product_suggestion_index((prev) => {
+                                  if (prev < filtered_product_options.length - 1) return prev + 1;
+                                  return 0;
+                                });
+                                return;
+                              }
+
+                              if (event.key === 'ArrowUp' && filtered_product_options.length > 0) {
+                                event.preventDefault();
+                                set_active_bulk_product_suggestion_index((prev) => {
+                                  if (prev > 0) return prev - 1;
+                                  return filtered_product_options.length - 1;
+                                });
+                                return;
+                              }
+
+                              if (event.key === 'Enter') {
+                                event.preventDefault();
+                                if (show_bulk_product_suggestions && active_bulk_product_suggestion_index >= 0) {
+                                  const selected_option = filtered_product_options[active_bulk_product_suggestion_index];
+                                  if (selected_option) {
+                                    add_bulk_item_from_suggestion(selected_option);
+                                  }
+                                  return;
+                                }
+                                add_product_to_bulk_items();
+                              }
+
+                              if (event.key === 'Escape') {
+                                set_active_bulk_product_suggestion_index(-1);
+                                set_is_bulk_product_search_focused(false);
+                              }
+                            }}
+                            disabled={!form_state.requesting_dept_code.trim() || !selected_bulk_category.trim()}
+                            className={`w-full rounded-lg border px-3 py-2 text-sm ${form_errors.product_code ? 'border-red-500' : 'border-gray-300'} disabled:bg-gray-100`}
+                            placeholder="ค้นหาชื่อ/รหัสสินค้า แล้วกด Enter"
+                          />
+                          {show_bulk_product_suggestions ? (
+                            <div className="absolute left-0 right-0 z-20 mt-1 max-h-64 overflow-auto rounded-lg border border-gray-200 bg-white shadow-lg">
+                              {filtered_product_options.map((option, index) => (
+                                <button
+                                  key={option.code}
+                                  ref={(element) => {
+                                    bulk_product_suggestion_item_refs.current[index] = element;
+                                  }}
+                                  type="button"
+                                  aria-selected={active_bulk_product_suggestion_index === index}
+                                  onMouseDown={(event) => {
+                                    event.preventDefault();
+                                    select_bulk_product_suggestion(option);
+                                  }}
+                                  className={`block w-full border-b border-gray-100 px-3 py-2 text-left text-sm text-gray-700 last:border-b-0 ${active_bulk_product_suggestion_index === index ? 'bg-blue-50' : 'hover:bg-blue-50'}`}
+                                >
+                                  <span className="font-medium text-gray-900">{option.code}</span>
+                                  <span className="ml-2 text-gray-600">{option.name}</span>
+                                </button>
+                              ))}
+                            </div>
+                          ) : null}
+                        </div>
+                        <button
+                          type="button"
+                          disabled={!form_state.requesting_dept_code.trim() || !selected_bulk_category.trim()}
+                          onClick={() => add_product_to_bulk_items()}
+                          className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                          เพิ่มเข้ารายการ
+                        </button>
                       </div>
+                      {form_errors.product_code && <p className="mt-1 text-xs text-red-600">{form_errors.product_code}</p>}
                     </div>
-                  </div>
-                )}
-                
-                <div className="mt-8 flex justify-end gap-3 border-t border-slate-200 pt-5">
-                  <button
-                    type="button"
-                    onClick={closeForm}
-                    className="rounded-lg border border-slate-300 px-4 py-2 text-slate-700 transition-colors hover:bg-slate-50"
-                  >
-                    ยกเลิก
-                  </button>
-                  <button
-                    type="submit"
-                    className="rounded-lg bg-blue-600 px-4 py-2 text-white shadow-sm transition-colors hover:bg-blue-700"
-                  >
-                    {editingUsagePlan ? 'บันทึกการแก้ไข' : 'บันทึกข้อมูล'}
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>
-        )}
 
-        {/* Bulk Add UsagePlans Modal */}
-        {showBulkForm && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-100/80 p-2 backdrop-blur-sm md:p-4">
-            <div className="flex h-[96vh] w-[98vw] flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_24px_80px_rgba(15,23,42,0.18)] ring-1 ring-slate-200">
-              <div className="flex items-center justify-between border-b border-slate-200 bg-gradient-to-r from-blue-50 via-white to-slate-50 px-5 py-3">
-                <div>
-                  <h2 className="text-lg font-bold text-slate-900">เพิ่มรายการสินค้าเข้าแผนการใช้</h2>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowBulkForm(false);
-                    setBulkRecords([]);
-                    setBulkProductSearch('');
-                    setBulkProductOptions([]);
-                    setBulkRecordErrors({});
-                  }}
-                  className="rounded-full p-1.5 text-slate-500 transition-colors hover:bg-white hover:text-slate-700"
-                >
-                  <XIcon className="h-5 w-5" />
-                </button>
-              </div>
-
-              <div className="flex min-h-0 flex-1 flex-col px-6 py-6">
-                <div className="relative z-20 mb-4 rounded-2xl border border-blue-100 bg-blue-50 p-4">
-                  <label htmlFor="survey-bulk-product-search" className="mb-2 block text-sm font-medium text-gray-700">
-                    ค้นหารหัสหรือชื่อสินค้า
-                  </label>
-                  <div className="relative">
-                    <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-                    <input
-                      ref={bulkProductSearchInputRef}
-                      id="survey-bulk-product-search"
-                      name="surveyBulkProductSearch"
-                      type="text"
-                      value={bulkProductSearch}
-                      onChange={(e) => {
-                        setBulkProductSearch(e.target.value);
-                        setSelectedBulkProductLabel('');
-                        setShowBulkProductSuggestions(true);
-                        setHighlightedBulkProductIndex(-1);
-                      }}
-                      onFocus={() => {
-                        if (bulkProductSearch.trim() && bulkProductSearch.trim() !== selectedBulkProductLabel.trim()) {
-                          setShowBulkProductSuggestions(true);
-                        }
-                      }}
-                      onKeyDown={handleBulkProductSearchKeyDown}
-                      placeholder="พิมพ์รหัสสินค้า หรือชื่อสินค้า"
-                      autoComplete="off"
-                      aria-label="ค้นหารหัสหรือชื่อสินค้า"
-                      className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 pl-9 pr-9 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                    {bulkProductSearch && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setBulkProductSearch('');
-                          setSelectedBulkProductLabel('');
-                          setShowBulkProductSuggestions(false);
-                          setHighlightedBulkProductIndex(-1);
-                        }}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                        aria-label="ล้างคำค้น"
-                      >
-                        <X className="h-4 w-4" />
-                      </button>
-                    )}
-                    {showBulkProductSuggestions && (
-                      <div
-                        ref={bulkProductSuggestionsRef}
-                        className="absolute z-50 mt-2 max-h-72 w-full overflow-auto rounded-md border border-gray-200 bg-white shadow-2xl"
-                      >
-                        {shouldShowBulkProductNoResults ? (
-                          <div className="px-4 py-3 text-sm text-gray-500">ไม่พบรายการที่ค้นหา</div>
-                        ) : (
-                          filteredBulkProductOptions.map((product, index) => {
-                            const label = `${product.code} - ${product.name}`;
-                            return (
-                              <button
-                                key={product.id}
-                                data-bulk-suggestion-index={index}
-                                type="button"
-                                onMouseDown={(event) => event.preventDefault()}
-                                onClick={() => handleBulkProductSelect(product.id, label)}
-                                className={`block w-full border-b border-gray-100 px-4 py-3 text-left text-sm ${index === highlightedBulkProductIndex ? 'bg-blue-50' : 'hover:bg-gray-50'}`}
-                              >
-                                <div className="font-medium text-gray-900">{label}</div>
-                                <div className="text-xs text-gray-500">{product.category || '-'} | {product.type || '-'} | {product.unit || '-'}</div>
-                              </button>
-                            );
-                          })
-                        )}
+                    <div className="md:col-span-2 overflow-hidden rounded-lg border border-gray-200">
+                      <div className="max-h-72 overflow-auto">
+                        <table className="min-w-full divide-y divide-gray-200">
+                          <thead className="bg-gray-50">
+                            <tr>
+                              <th className="px-3 py-2 text-left text-xs font-semibold uppercase text-gray-500">รหัสสินค้า</th>
+                              <th className="px-3 py-2 text-left text-xs font-semibold uppercase text-gray-500">ชื่อสินค้า</th>
+                              <th className="px-3 py-2 text-right text-xs font-semibold uppercase text-gray-500">จำนวนที่ขอ</th>
+                              <th className="px-3 py-2 text-left text-xs font-semibold uppercase text-gray-500">หน่วย</th>
+                              <th className="px-3 py-2 text-center text-xs font-semibold uppercase text-gray-500">ลบ</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-gray-100 bg-white">
+                            {bulk_items.length === 0 ? (
+                              <tr>
+                                <td colSpan={5} className="px-3 py-6 text-center text-sm text-gray-500">ยังไม่มีรายการสินค้า</td>
+                              </tr>
+                            ) : (
+                              bulk_items.map((item) => (
+                                <tr key={item.temp_id}>
+                                  <td className="whitespace-nowrap px-3 py-2 text-sm text-gray-700">{item.product_code}</td>
+                                  <td className="px-3 py-2 text-sm text-gray-700">
+                                    <div className="font-medium text-gray-800">{item.product_name}</div>
+                                    <div className="mt-0.5 text-xs text-gray-400">{[item.category, item.type, item.subtype].filter(Boolean).join(' - ') || '-'}</div>
+                                  </td>
+                                  <td className="px-3 py-2">
+                                    <input
+                                      type="number"
+                                      min={0}
+                                      value={item.requested_amount}
+                                      onChange={(event) => update_bulk_item(item.temp_id, 'requested_amount', event.target.value)}
+                                      className="w-24 rounded border border-gray-300 px-2 py-1 text-right text-sm"
+                                    />
+                                  </td>
+                                  <td className="whitespace-nowrap px-3 py-2 text-sm text-gray-700">{item.unit || '-'}</td>
+                                  <td className="px-3 py-2 text-center">
+                                    <button
+                                      type="button"
+                                      onClick={() => remove_bulk_item(item.temp_id)}
+                                      className="inline-flex h-7 w-7 items-center justify-center rounded border border-red-300 text-red-700 hover:bg-red-50"
+                                      aria-label={`ลบ ${item.product_code}`}
+                                    >
+                                      ×
+                                    </button>
+                                  </td>
+                                </tr>
+                              ))
+                            )}
+                          </tbody>
+                        </table>
                       </div>
-                    )}
-                  </div>
-                </div>
-                <div className="min-h-0 flex-1 overflow-hidden rounded-xl border border-slate-200 bg-slate-50">
-                  <div className="h-full overflow-auto">
-                    <table className="w-full">
-                      <thead className="bg-slate-100">
-                        <tr>
-                          <th scope="col" className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase">ลำดับ</th>
-                          <th scope="col" className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase">รหัสสินค้า</th>
-                          <th scope="col" className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase">ชื่อสินค้า</th>
-                          <th scope="col" className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase">จำนวนที่ขอ</th>
-                          <th scope="col" className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase">หน่วย</th>
-                          <th scope="col" className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase">หน่วยงานที่ขอ</th>
-                          <th scope="col" className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase">จัดการ</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {bulkRecords.map((record, index) => (
-                          <tr key={record.id} className="border-b border-slate-200 bg-white">
-                            <td className="w-12 px-2 py-3 text-sm text-gray-900">{index + 1}</td>
-                            <td className="w-36 px-2 py-3">
-                              <input
-                                id={`survey-bulk-product-code-${record.id}`}
-                                name={`bulkProductCode-${record.id}`}
-                                aria-label={`รหัสสินค้า แถว ${index + 1}`}
-                                type="text"
-                                value={record.product_code}
-                                readOnly
-                                placeholder="รหัสสินค้า"
-                                className="w-full px-2 py-1 border border-gray-300 rounded bg-gray-100 text-sm"
-                              />
-                            </td>
-                            <td className="min-w-[24rem] px-2 py-3">
-                              <input
-                                id={`survey-bulk-product-name-${record.id}`}
-                                name={`bulkProductName-${record.id}`}
-                                aria-label={`ชื่อสินค้า แถว ${index + 1}`}
-                                type="text"
-                                value={record.product_name}
-                                readOnly
-                                placeholder="ชื่อสินค้า"
-                                title={record.product_name || ''}
-                                className={`w-full px-2 py-1 border rounded bg-gray-100 text-sm ${
-                                  bulkRecordErrors[record.id] ? 'border-red-500' : 'border-gray-300'
-                                }`}
-                              />
-                              {bulkRecordErrors[record.id] && (
-                                <div className="mt-1 text-xs text-red-600 font-medium">
-                                  {bulkRecordErrors[record.id]}
-                                </div>
-                              )}
-                            </td>
-                            <td className="w-32 px-2 py-3">
-                              <input
-                                id={`survey-bulk-requested-amount-${record.id}`}
-                                name={`bulkRequestedAmount-${record.id}`}
-                                aria-label={`จำนวนที่ขอ แถว ${index + 1}`}
-                                type="number"
-                                required
-                                min="1"
-                                value={record.requested_amount || ''}
-                                onChange={(e) => {
-                                  updateBulkRecord(record.id, (current) => {
-                                    const shouldSyncApprovedQuota =
-                                      current.approved_quota === '' ||
-                                      current.approved_quota === current.requested_amount;
+                      {form_errors.requested_amount && <p className="px-3 py-2 text-xs text-red-600">{form_errors.requested_amount}</p>}
+                    </div>
+                  </>
+                ) : null}
 
-                                    return {
-                                      ...current,
-                                      requested_amount: e.target.value,
-                                      approved_quota: shouldSyncApprovedQuota ? e.target.value : current.approved_quota,
-                                    };
-                                  });
-                                  clearBulkValidationError(record.id, 'requestedAmount');
-                                }}
-                                onKeyDown={(e) => handleBulkFormKeyDown(e, record.id, 'requested_amount')}
-                                placeholder="จำนวนที่ขอ"
-                                className={`w-full px-2 py-1 border rounded focus:outline-none focus:ring-2 text-sm ${bulkValidationErrors[record.id]?.requestedAmount ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 focus:ring-blue-500'}`}
-                              />
-                              {bulkValidationErrors[record.id]?.requestedAmount && (
-                                <p className="mt-1 text-xs text-red-600">{bulkValidationErrors[record.id]?.requestedAmount}</p>
-                              )}
-                            </td>
-                            <td className="w-24 px-2 py-3">
-                              <input
-                                id={`survey-bulk-unit-${record.id}`}
-                                name={`bulkUnit-${record.id}`}
-                                aria-label={`หน่วย แถว ${index + 1}`}
-                                type="text"
-                                value={record.unit || ''}
-                                readOnly
-                                placeholder="หน่วย"
-                                className="w-full px-2 py-1 border border-gray-300 rounded bg-gray-100 text-sm"
-                              />
-                            </td>
-                            <td className="min-w-[14rem] px-2 py-3">
-                              <input
-                                id={`survey-bulk-approved-quota-${record.id}`}
-                                name={`bulkApprovedQuota-${record.id}`}
-                                aria-label={`โควต้าที่ได้รับ แถว ${index + 1}`}
-                                type="hidden"
-                                value={record.approved_quota || ''}
-                                readOnly
-                              />
-                              <DepartmentCombobox
-                                id={`survey-bulk-requesting-dept-${record.id}`}
-                                name={`bulkRequestingDept-${record.id}`}
-                                aria_label={`หน่วยงานที่ขอ แถว ${index + 1}`}
-                                required
-                                value={record.requesting_dept || ''}
-                                departments={departments}
-                                placeholder="เลือกหน่วยงาน"
-                                on_change={(value) => {
-                                  updateBulkRecord(record.id, (current) => ({ ...current, requesting_dept: value }));
-                                }}
-                                on_clear_error={() => clearBulkValidationError(record.id, 'requestingDept')}
-                                on_key_down={(e) => handleBulkFormKeyDown(e, record.id, 'requesting_dept')}
-                                class_name={`w-full px-2 py-1 border rounded focus:outline-none focus:ring-2 text-sm ${bulkValidationErrors[record.id]?.requestingDept ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 focus:ring-blue-500'}`}
-                                list_class_name="absolute z-40 mt-1 max-h-60 w-full overflow-auto rounded-md border border-gray-200 bg-white shadow-xl"
-                              />
-                              {bulkValidationErrors[record.id]?.requestingDept && (
-                                <p className="mt-1 text-xs text-red-600">{bulkValidationErrors[record.id]?.requestingDept}</p>
-                              )}
-                            </td>
-                            <td className="w-16 px-2 py-3">
-                              <div className="flex gap-1">
-                                {bulkRecords.length > 0 && (
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      setBulkRecords(bulkRecords.filter((r) => r.id !== record.id));
-                                      setBulkValidationErrors((prev) => {
-                                        const nextErrors = { ...prev };
-                                        delete nextErrors[record.id];
-                                        return nextErrors;
-                                      });
-                                    }}
-                                    className="text-red-600 hover:text-red-900 p-1"
-                                    title="ลบแถวนี้"
-                                  >
-                                    <XIcon className="h-4 w-4" />
-                                  </button>
-                                )}
-                              </div>
-                            </td>
-                          </tr>
+                {editing_usage_plan ? (
+                  <>
+                    <div>
+                      <label className="mb-1 block text-sm font-medium text-gray-700">รหัสสินค้า</label>
+                      <input
+                        type="text"
+                        value={form_state.product_code}
+                        onChange={(event) => {
+                          const next = event.target.value;
+                          set_form_state((prev) => ({ ...prev, product_code: next }));
+                          set_product_search(next);
+                        }}
+                        list="usage-plan-product-options"
+                        className={`w-full rounded-lg border px-3 py-2 text-sm ${form_errors.product_code ? 'border-red-500' : 'border-gray-300'}`}
+                        placeholder="เช่น P230-000001"
+                      />
+                      <datalist id="usage-plan-product-options">
+                        {filtered_product_options.map((option) => (
+                          <option key={option.code} value={option.code} label={`${option.code} - ${option.name}`} />
                         ))}
-                      </tbody>
-                    </table>
-                  </div>
+                      </datalist>
+                      {form_errors.product_code && <p className="mt-1 text-xs text-red-600">{form_errors.product_code}</p>}
+                    </div>
+
+                    <div>
+                      <label className="mb-1 block text-sm font-medium text-gray-700">ครั้งที่</label>
+                      <select
+                        value={form_state.sequence_no}
+                        onChange={(event) => set_form_state((prev) => ({ ...prev, sequence_no: event.target.value }))}
+                        className={`w-full rounded-lg border px-3 py-2 text-sm ${form_errors.sequence_no ? 'border-red-500' : 'border-gray-300'}`}
+                      >
+                        <option value="1">1</option>
+                        <option value="2">2</option>
+                      </select>
+                      {form_errors.sequence_no && <p className="mt-1 text-xs text-red-600">{form_errors.sequence_no}</p>}
+                    </div>
+
+                    <div>
+                      <label className="mb-1 block text-sm font-medium text-gray-700">จำนวนที่ขอ</label>
+                      <input
+                        type="number"
+                        min={0}
+                        value={form_state.requested_amount}
+                        onChange={(event) => set_form_state((prev) => ({ ...prev, requested_amount: event.target.value }))}
+                        className={`w-full rounded-lg border px-3 py-2 text-sm ${form_errors.requested_amount ? 'border-red-500' : 'border-gray-300'}`}
+                      />
+                      {form_errors.requested_amount && <p className="mt-1 text-xs text-red-600">{form_errors.requested_amount}</p>}
+                    </div>
+
+                    <div>
+                      <label className="mb-1 block text-sm font-medium text-gray-700">โควต้าที่ได้</label>
+                      <input
+                        type="number"
+                        min={0}
+                        value={form_state.approved_quota}
+                        onChange={(event) => set_form_state((prev) => ({ ...prev, approved_quota: event.target.value }))}
+                        className={`w-full rounded-lg border px-3 py-2 text-sm ${form_errors.approved_quota ? 'border-red-500' : 'border-gray-300'}`}
+                      />
+                      {form_errors.approved_quota && <p className="mt-1 text-xs text-red-600">{form_errors.approved_quota}</p>}
+                    </div>
+                  </>
+                ) : null}
+
+                <div className="md:col-span-2 rounded-lg bg-blue-50 px-3 py-2 text-xs text-blue-800">
+                  เงื่อนไข: หน่วยงานเดียวกัน ในปีงบเดียวกัน ขอสินค้ารหัสเดียวกันได้ไม่เกิน 2 ครั้ง
                 </div>
               </div>
 
-              <div className="flex items-center justify-end gap-3 border-t border-slate-200 bg-slate-50 px-6 py-5">
+              <div className="flex items-center justify-end gap-3 border-t border-gray-100 px-5 py-4">
                 <button
                   type="button"
-                  onClick={() => {
-                    setShowBulkForm(false);
-                    setBulkRecords([]);
-                    setBulkValidationErrors({});
-                    setBulkProductSearch('');
-                    setBulkProductOptions([]);
-                    setBulkRecordErrors({});
-                  }}
-                  className="rounded-lg bg-slate-500 px-6 py-2.5 text-white transition-colors hover:bg-slate-600"
+                  onClick={() => set_show_form(false)}
+                  className="rounded-lg border border-gray-300 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
                 >
                   ยกเลิก
                 </button>
                 <button
-                  type="button"
-                  onClick={saveBulkUsagePlans}
-                  className="rounded-lg bg-blue-600 px-6 py-2.5 text-white shadow-sm transition-colors hover:bg-blue-700"
+                  type="submit"
+                  disabled={saving}
+                  className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-60"
                 >
-                  บันทึกทั้งหมด ({bulkRecords.length} รายการ)
+                  {saving ? 'กำลังบันทึก...' : 'บันทึก'}
                 </button>
               </div>
-            </div>
+            </form>
           </div>
-        )}
-
-      </div>
+        </div>
+      )}
     </div>
-  );
-}
-
-export default function UsagePlansPage() {
-  return (
-    <Suspense fallback={<div className="min-h-screen bg-gray-50" />}>
-      <UsagePlansPageContent />
-    </Suspense>
   );
 }

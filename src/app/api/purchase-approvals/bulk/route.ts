@@ -48,17 +48,18 @@ export async function POST(request: NextRequest) {
     }>(
       `SELECT
          pp.id,
-         up.category,
+         p.category,
          up.budget_year,
          category_map.category_code
        FROM public.purchase_plan pp
        INNER JOIN public.usage_plan up ON up.id = pp.usage_plan_id
+       LEFT JOIN public.product p ON p.code = up.product_code
        LEFT JOIN (
          SELECT category, MIN(category_code) AS category_code
          FROM public.category
          WHERE is_active = true
          GROUP BY category
-       ) category_map ON category_map.category = up.category
+       ) category_map ON category_map.category = p.category
        WHERE pp.id = ANY($1::int[])`,
       [purchasePlanIds]
     );

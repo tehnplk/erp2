@@ -11,12 +11,20 @@ type PurchasePlanPayload = {
   inventory_value?: number | null;
   purchase_qty?: number | null;
   purchase_value?: number | null;
+  unit_price?: number | null;
 };
 
 const purchasePlanBaseSelect = `
   FROM public.purchase_plan pp
   INNER JOIN public.usage_plan up ON up.id = pp.usage_plan_id
-  LEFT JOIN public.purchase_approval_detail pad ON pad.purchase_plan_id = pp.id
+  LEFT JOIN public.product p ON p.code = up.product_code
+  LEFT JOIN public.category c ON c.category = p.category
+  LEFT JOIN public.department pd ON pd.id = p.purchase_department_id
+  LEFT JOIN (
+    SELECT product_code, SUM(approved_quota)::int AS total_quota
+    FROM public.usage_plan
+    GROUP BY product_code
+  ) quota_summary ON quota_summary.product_code = up.product_code
   LEFT JOIN (
     SELECT
       ii.product_code,
@@ -26,6 +34,13 @@ const purchasePlanBaseSelect = `
     INNER JOIN public.inventory_balance ib ON ib.inventory_item_id = ii.id
     GROUP BY ii.product_code
   ) inventory_snapshot ON inventory_snapshot.product_code = up.product_code
+  LEFT JOIN (
+    SELECT
+      pad.purchase_plan_id,
+      COALESCE(SUM(pad.approved_quantity), 0)::int AS purchased_qty
+    FROM public.purchase_approval_detail pad
+    GROUP BY pad.purchase_plan_id
+  ) purchased_summary ON purchased_summary.purchase_plan_id = pp.id
 `;
 
 const purchasePlanSelect = `
@@ -34,21 +49,59 @@ const purchasePlanSelect = `
     pp.usage_plan_id,
     up.sequence_no,
     up.product_code,
-    up.product_name,
-    up.category,
-    up.type AS product_type,
-    up.subtype AS product_subtype,
-    up.unit,
-    up.price_per_unit::float8 AS price_per_unit,
+    p.name AS product_name,
+    p.category,
+    c.type AS product_type,
+    c.subtype AS product_subtype,
+    p.unit,
+    COALESCE(p.cost_price, 0)::float8 AS price_per_unit,
     up.requested_amount,
-    up.approved_quota,
+    COALESCE(quota_summary.total_quota, 0)::int AS approved_quota,
     up.budget_year,
     up.requesting_dept,
-    CASE WHEN pad.id IS NOT NULL THEN true ELSE false END AS has_purchase_approval,
+    p.purchase_department_id,
+    pd.department_code AS purchase_department_code,
+    pd.name AS purchase_department_name,
+    EXISTS (SELECT 1 FROM public.purchase_approval_detail has_pad WHERE has_pad.purchase_plan_id = pp.id) AS has_purchase_approval,
     COALESCE(inventory_snapshot.inventory_qty, pp.inventory_qty, 0)::int AS inventory_qty,
     COALESCE(inventory_snapshot.inventory_value, pp.inventory_value, 0)::float8 AS inventory_value,
-    COALESCE(pp.purchase_qty, GREATEST(COALESCE(up.approved_quota, 0) - COALESCE(inventory_snapshot.inventory_qty, 0), 0))::int AS purchase_qty,
-    COALESCE(pp.purchase_value, ROUND(COALESCE(pp.purchase_qty, GREATEST(COALESCE(up.approved_quota, 0) - COALESCE(inventory_snapshot.inventory_qty, 0), 0)) * COALESCE(up.price_per_unit, 0), 2))::float8 AS purchase_value
+    COALESCE(purchased_summary.purchased_qty, 0)::int AS purchased_qty,
+    CASE
+      WHEN EXISTS (SELECT 1 FROM public.purchase_approval_detail has_pad WHERE has_pad.purchase_plan_id = pp.id) THEN 0
+      ELSE LEAST(
+        COALESCE(
+          pp.purchase_qty,
+          GREATEST(
+            COALESCE(quota_summary.total_quota, 0) - COALESCE(inventory_snapshot.inventory_qty, 0) - COALESCE(purchased_summary.purchased_qty, 0),
+            0
+          )
+        ),
+        GREATEST(
+          COALESCE(quota_summary.total_quota, 0) - COALESCE(inventory_snapshot.inventory_qty, 0) - COALESCE(purchased_summary.purchased_qty, 0),
+          0
+        )
+      )::int
+    END AS purchase_qty,
+    COALESCE(pp.unit_price, p.cost_price, 0)::float8 AS unit_price,
+    CASE
+      WHEN EXISTS (SELECT 1 FROM public.purchase_approval_detail has_pad WHERE has_pad.purchase_plan_id = pp.id) THEN 0::float8
+      ELSE ROUND(
+        LEAST(
+          COALESCE(
+            pp.purchase_qty,
+            GREATEST(
+              COALESCE(quota_summary.total_quota, 0) - COALESCE(inventory_snapshot.inventory_qty, 0) - COALESCE(purchased_summary.purchased_qty, 0),
+              0
+            )
+          ),
+          GREATEST(
+            COALESCE(quota_summary.total_quota, 0) - COALESCE(inventory_snapshot.inventory_qty, 0) - COALESCE(purchased_summary.purchased_qty, 0),
+            0
+          )
+        ) * COALESCE(pp.unit_price, p.cost_price, 0),
+        2
+      )::float8
+    END AS purchase_value
   ${purchasePlanBaseSelect}
 `;
 
@@ -67,22 +120,22 @@ function buildWhereClause(filters: {
   if (filters.product_name) {
     params.push(`%${filters.product_name}%`);
     const searchParamIndex = params.length;
-    whereClauses.push(`(up.product_name ILIKE $${searchParamIndex} OR up.product_code ILIKE $${searchParamIndex})`);
+    whereClauses.push(`(p.name ILIKE $${searchParamIndex} OR up.product_code ILIKE $${searchParamIndex})`);
   }
 
   if (filters.category) {
     params.push(filters.category);
-    whereClauses.push(`up.category = $${params.length}`);
+    whereClauses.push(`p.category = $${params.length}`);
   }
 
   if (filters.product_type) {
     params.push(filters.product_type);
-    whereClauses.push(`up.type = $${params.length}`);
+    whereClauses.push(`c.type = $${params.length}`);
   }
 
   if (filters.product_subtype) {
     params.push(filters.product_subtype);
-    whereClauses.push(`up.subtype = $${params.length}`);
+    whereClauses.push(`c.subtype = $${params.length}`);
   }
 
   if (filters.budget_year) {
@@ -114,6 +167,7 @@ function normalizePurchasePlanPayload(payload: PurchasePlanPayload) {
   const purchase_value = Number(payload.purchase_value ?? 0);
   const inventory_qty = Number(payload.inventory_qty ?? 0);
   const inventory_value = Number(payload.inventory_value ?? 0);
+  const unit_price = Number(payload.unit_price ?? 0);
 
   return {
     usage_plan_id: payload.usage_plan_id ?? null,
@@ -121,6 +175,7 @@ function normalizePurchasePlanPayload(payload: PurchasePlanPayload) {
     inventory_value: Number.isFinite(inventory_value) ? inventory_value : 0,
     purchase_qty: Number.isFinite(purchase_qty) ? purchase_qty : 0,
     purchase_value: Number.isFinite(purchase_value) ? purchase_value : 0,
+    unit_price: Number.isFinite(unit_price) ? unit_price : 0,
   };
 }
 
@@ -160,22 +215,16 @@ export async function GET(request: NextRequest) {
 
     const allowedOrderFields: Record<string, string> = {
       id: 'pp.id',
-      sequence_no: 'up.sequence_no',
       product_code: 'up.product_code',
-      product_name: 'up.product_name',
-      category: 'up.category',
-      product_type: 'up.type',
-      product_subtype: 'up.subtype',
-      unit: 'up.unit',
-      price_per_unit: 'up.price_per_unit',
-      requested_amount: 'up.requested_amount',
-      approved_quota: 'up.approved_quota',
+      product_name: 'p.name',
+      purchase_department: 'p.purchase_department_id',
+      approved_quota: 'COALESCE(quota_summary.total_quota, 0)',
       inventory_qty: 'COALESCE(inventory_snapshot.inventory_qty, pp.inventory_qty, 0)',
-      inventory_value: 'COALESCE(inventory_snapshot.inventory_value, pp.inventory_value, 0)',
-      purchase_qty: 'COALESCE(pp.purchase_qty, GREATEST(COALESCE(up.approved_quota, 0) - COALESCE(inventory_snapshot.inventory_qty, 0), 0))',
-      purchase_value: 'COALESCE(pp.purchase_value, ROUND(COALESCE(pp.purchase_qty, GREATEST(COALESCE(up.approved_quota, 0) - COALESCE(inventory_snapshot.inventory_qty, 0), 0)) * COALESCE(up.price_per_unit, 0), 2))',
+      purchased_qty: 'COALESCE(purchased_summary.purchased_qty, 0)',
+      purchase_qty: 'LEAST(COALESCE(pp.purchase_qty, GREATEST(COALESCE(quota_summary.total_quota, 0) - COALESCE(inventory_snapshot.inventory_qty, 0) - COALESCE(purchased_summary.purchased_qty, 0), 0)), GREATEST(COALESCE(quota_summary.total_quota, 0) - COALESCE(inventory_snapshot.inventory_qty, 0) - COALESCE(purchased_summary.purchased_qty, 0), 0))',
+      unit_price: 'COALESCE(pp.unit_price, p.cost_price, 0)',
+      purchase_value: 'ROUND(LEAST(COALESCE(pp.purchase_qty, GREATEST(COALESCE(quota_summary.total_quota, 0) - COALESCE(inventory_snapshot.inventory_qty, 0) - COALESCE(purchased_summary.purchased_qty, 0), 0)), GREATEST(COALESCE(quota_summary.total_quota, 0) - COALESCE(inventory_snapshot.inventory_qty, 0) - COALESCE(purchased_summary.purchased_qty, 0), 0)) * COALESCE(pp.unit_price, p.cost_price, 0), 2)',
       budget_year: 'up.budget_year',
-      requesting_dept: 'up.requesting_dept',
     };
 
     const safeOrderField = allowedOrderFields[order_by || 'id'] || 'pp.id';
@@ -279,7 +328,14 @@ export async function POST(request: NextRequest) {
       return apiError('กรุณาเลือก usage_plan_id', 400);
     }
 
-    const usagePlanResult = await pgQuery('SELECT id, price_per_unit::float8 AS price_per_unit FROM public.usage_plan WHERE id = $1 LIMIT 1', [payload.usage_plan_id]);
+    const usagePlanResult = await pgQuery(
+      `SELECT up.id, COALESCE(p.cost_price, 0)::float8 AS price_per_unit
+       FROM public.usage_plan up
+       LEFT JOIN public.product p ON p.code = up.product_code
+       WHERE up.id = $1
+       LIMIT 1`,
+      [payload.usage_plan_id]
+    );
     const usagePlan = usagePlanResult.rows[0];
 
     if (!usagePlan) {
@@ -291,14 +347,14 @@ export async function POST(request: NextRequest) {
       return apiError('แผนการใช้นี้ถูกสร้างแผนจัดซื้อแล้ว', 400);
     }
 
-    const pricePerUnit = Number(usagePlan.price_per_unit || 0);
-    const purchase_value = Number((payload.purchase_qty * pricePerUnit).toFixed(2));
+    const unit_price = Number.isFinite(payload.unit_price) ? Number(payload.unit_price) : Number(usagePlan.price_per_unit || 0);
+    const purchase_value = Number((payload.purchase_qty * unit_price).toFixed(2));
 
     const insertResult = await pgQuery(
-      `INSERT INTO public.purchase_plan (usage_plan_id, inventory_qty, inventory_value, purchase_qty, purchase_value)
-       VALUES ($1, $2, $3, $4, $5)
-       RETURNING id, usage_plan_id, inventory_qty, inventory_value::float8 AS inventory_value, purchase_qty, purchase_value::float8 AS purchase_value`,
-      [payload.usage_plan_id, payload.inventory_qty, payload.inventory_value, payload.purchase_qty, purchase_value],
+      `INSERT INTO public.purchase_plan (usage_plan_id, inventory_qty, inventory_value, purchase_qty, unit_price, purchase_value)
+       VALUES ($1, $2, $3, $4, $5, $6)
+       RETURNING id, usage_plan_id, inventory_qty, inventory_value::float8 AS inventory_value, purchase_qty, unit_price::float8 AS unit_price, purchase_value::float8 AS purchase_value`,
+      [payload.usage_plan_id, payload.inventory_qty, payload.inventory_value, payload.purchase_qty, unit_price, purchase_value],
     );
 
     await cacheDelByPattern('erp:purchase:plans:list:*');

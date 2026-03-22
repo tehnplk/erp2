@@ -24,19 +24,19 @@ export async function GET(request: NextRequest) {
     // Filter on main approval records - join through purchase_plan to usage_plan
     if (product_name) {
       params.push(`%${product_name}%`);
-      whereClauses.push(`up.product_name ILIKE $${params.length}`);
+      whereClauses.push(`p.name ILIKE $${params.length}`);
     }
     if (category) {
       params.push(category);
-      whereClauses.push(`up.category = $${params.length}`);
+      whereClauses.push(`p.category = $${params.length}`);
     }
     if (product_type) {
       params.push(product_type);
-      whereClauses.push(`up.type = $${params.length}`);
+      whereClauses.push(`c.type = $${params.length}`);
     }
     if (product_subtype) {
       params.push(product_subtype);
-      whereClauses.push(`up.subtype = $${params.length}`);
+      whereClauses.push(`c.subtype = $${params.length}`);
     }
     if (department) {
       params.push(department);
@@ -81,6 +81,8 @@ export async function GET(request: NextRequest) {
       LEFT JOIN public.purchase_approval_detail pad ON pad.purchase_approval_id = pa.id
       LEFT JOIN public.purchase_plan pp ON pad.purchase_plan_id = pp.id
       LEFT JOIN public.usage_plan up ON pp.usage_plan_id = up.id
+      LEFT JOIN public.product p ON p.code = up.product_code
+      LEFT JOIN public.category c ON c.category = p.category
       ${whereSql}
       GROUP BY pa.id, pa.approve_code, pa.doc_no, pa.doc_date, pa.budget_year, pa.seller_id, pa.is_inspection, ads.status, pa.status, pa.total_amount, pa.total_items,
                pa.prepared_by, pa.approved_by, pa.approved_at, pa.notes, pa.created_at, pa.updated_at, pa.version
@@ -101,15 +103,15 @@ export async function GET(request: NextRequest) {
         pad.created_at as detail_created_at,
         pad.updated_at as detail_updated_at,
         pad.version as detail_version,
-        up.product_name,
+        p.name AS product_name,
         up.product_code,
-        up.category,
-        up.type as product_type,
-        up.subtype as product_subtype,
+        p.category,
+        c.type as product_type,
+        c.subtype as product_subtype,
         up.requested_amount as requested_quantity,
-        up.unit,
-        up.price_per_unit,
-        (up.requested_amount * up.price_per_unit) as total_value,
+        p.unit,
+        COALESCE(p.cost_price, 0)::float8 AS price_per_unit,
+        (up.requested_amount * COALESCE(p.cost_price, 0)) as total_value,
         up.budget_year as plan_budget_year,
         up.requesting_dept as usage_plan_dept,
         pp.purchase_qty,
@@ -118,6 +120,8 @@ export async function GET(request: NextRequest) {
       LEFT JOIN public.purchase_approval_detail pad ON pad.purchase_approval_id = pa.id
       LEFT JOIN public.purchase_plan pp ON pad.purchase_plan_id = pp.id
       LEFT JOIN public.usage_plan up ON pp.usage_plan_id = up.id
+      LEFT JOIN public.product p ON p.code = up.product_code
+      LEFT JOIN public.category c ON c.category = p.category
       ORDER BY pa.approve_code, pad.line_number
     `;
     

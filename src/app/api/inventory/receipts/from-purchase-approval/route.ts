@@ -49,17 +49,17 @@ export async function POST(request: NextRequest) {
         ads.status,
         pa.status AS status_code,
         up.requesting_dept AS department,
-        up.requesting_dept_code AS department_code,
+        d.department_code AS department_code,
         up.budget_year,
         pa.doc_date AS request_date,
         up.product_code,
-        up.product_name,
-        up.category,
-        up.type AS product_type,
-        up.subtype AS product_subtype,
+        p.name AS product_name,
+        p.category,
+        c.type AS product_type,
+        c.subtype AS product_subtype,
         up.requested_amount AS requested_quantity,
-        up.unit,
-        up.price_per_unit::float8 AS price_per_unit,
+        p.unit,
+        COALESCE(p.cost_price, 0)::float8 AS price_per_unit,
         pp.purchase_qty,
         pp.purchase_value,
         pad.approved_quantity,
@@ -71,6 +71,9 @@ export async function POST(request: NextRequest) {
       LEFT JOIN public.approval_doc_status ads ON ads.code = pa.status AND ads.is_active = true
       INNER JOIN public.purchase_plan pp ON pp.id = pad.purchase_plan_id
       INNER JOIN public.usage_plan up ON up.id = pp.usage_plan_id
+      LEFT JOIN public.product p ON p.code = up.product_code
+      LEFT JOIN public.category c ON c.category = p.category
+      LEFT JOIN public.department d ON d.name = up.requesting_dept
       INNER JOIN public.purchase_approval_inventory_link link ON link.purchase_approval_detail_id = pad.id
       WHERE pad.id = $1
       FOR UPDATE`,

@@ -3,7 +3,7 @@
 import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import Swal from 'sweetalert2';
-import { CheckCircle, Pencil, Trash2, XCircle, X, Download, RefreshCw, Plus, FileText } from 'lucide-react';
+import { X } from 'lucide-react';
 
 const getCurrentBudgetYear = () => {
   const now = new Date();
@@ -27,10 +27,15 @@ type PurchasePlanRow = {
   approved_quota: number | null;
   budget_year: number | null;
   requesting_dept: string | null;
+  purchase_department_id?: number | null;
+  purchase_department_code?: string | null;
+  purchase_department_name?: string | null;
   has_purchase_approval?: boolean;
   inventory_qty: number | null;
   inventory_value: number | null;
+  purchased_qty: number | null;
   purchase_qty: number | null;
+  unit_price: number | null;
   purchase_value: number | null;
 };
 
@@ -243,33 +248,6 @@ function DepartmentCombobox({
   );
 }
 
-function getSortIcon(column: string, currentSortBy: string, currentSortOrder: 'asc' | 'desc') {
-  const pathname = usePathname();
-  const searchParams = useSearchParams();
-
-  const initialProductNameFilter = searchParams.get('product_name') || '';
-  const initialCategoryFilter = searchParams.get('category') || '';
-  const initialTypeFilter = searchParams.get('product_type') || '';
-  const initialSubtypeFilter = searchParams.get('product_subtype') || '';
-  const initialRequestingDeptFilter = searchParams.get('requesting_dept') || '';
-  const initialBudgetYearFilter = searchParams.get('budget_year') || '';
-  const initialHasPurchaseApprovalFilter = searchParams.get('has_purchase_approval') || '';
-  const initialSortBy = searchParams.get('order_by') || 'id';
-  const initialSortOrder = (searchParams.get('sort_order') === 'asc' ? 'asc' : 'desc') as 'asc' | 'desc';
-  const initialPage = Math.max(1, parseInt(searchParams.get('page') || '1', 10) || 1);
-  const initialPageSize = Math.max(1, parseInt(searchParams.get('page_size') || '20', 10) || 20);
-
-  if (column === currentSortBy) {
-    if (currentSortOrder === 'asc') {
-      return <XCircle />;
-    } else {
-      return <CheckCircle />;
-    }
-  } else {
-    return <Pencil />;
-  }
-}
-
 function PurchasePlansPageContent() {
   const router = useRouter();
   const pathname = usePathname();
@@ -297,7 +275,9 @@ function PurchasePlansPageContent() {
   const [savingRowId, setSavingRowId] = useState<number | null>(null);
   const [editingRowId, setEditingRowId] = useState<number | null>(null);
   const [editingPurchaseQty, setEditingPurchaseQty] = useState<string>('');
+  const [editingUnitPrice, setEditingUnitPrice] = useState<string>('');
   const purchaseQtyInputRefs = useRef<Record<number, HTMLInputElement | null>>({});
+  const unitPriceInputRefs = useRef<Record<number, HTMLInputElement | null>>({});
   const dataRequestIdRef = useRef(0);
   const lastPushedUrlRef = useRef('');
   const prevFilterKeyRef = useRef('');
@@ -659,26 +639,76 @@ function PurchasePlansPageContent() {
 
   const getHeaderClass = (column: string) => `px-2 py-2.5 text-left text-[10px] font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 ${column === sortBy ? 'bg-gray-100' : ''}`;
 
+  const handleRowFocus = async (row: PurchasePlanRow, focus: 'qty' | 'price') => {
+    if (row.has_purchase_approval) {
+      return;
+    }
+
+    if (editingRowId !== null && editingRowId !== row.id) {
+      const previousRow = items.find((item) => item.id === editingRowId);
+      if (previousRow) {
+        const saved = await savePurchasePlan(previousRow, editingPurchaseQty, editingUnitPrice);
+        if (!saved) {
+          return;
+        }
+      }
+    }
+
+    startInlineEdit(row);
+    if (focus === 'price') {
+      setTimeout(() => {
+        unitPriceInputRefs.current[row.id]?.focus();
+        unitPriceInputRefs.current[row.id]?.select();
+      }, 0);
+    }
+  };
+
   const startInlineEdit = (row: PurchasePlanRow) => {
     setEditingRowId(row.id);
     setEditingPurchaseQty(String(row.purchase_qty ?? 0));
+    setEditingUnitPrice(String(row.unit_price ?? row.price_per_unit ?? 0));
   };
 
   const stopInlineEdit = () => {
     setEditingRowId(null);
     setEditingPurchaseQty('');
+    setEditingUnitPrice('');
   };
 
-  const savePurchaseQty = async (row: PurchasePlanRow, purchaseQtyText: string) => {
+  const savePurchasePlan = async (row: PurchasePlanRow, purchaseQtyText: string, unitPriceText: string) => {
     const nextPurchaseQty = Number(purchaseQtyText);
+    const nextUnitPrice = Number(unitPriceText);
+
+    if (purchaseQtyText.trim() === '') {
+      await Swal.fire({ icon: 'error', title: 'ข้อมูลไม่ถูกต้อง', text: 'กรุณากรอกจำนวนซื้อครั้งนี้' });
+      return false;
+    }
+
+    if (unitPriceText.trim() === '') {
+      await Swal.fire({ icon: 'error', title: 'ข้อมูลไม่ถูกต้อง', text: 'กรุณากรอกราคาต่อหน่วย' });
+      return false;
+    }
+
     if (!Number.isFinite(nextPurchaseQty) || nextPurchaseQty < 0) {
       await Swal.fire({ icon: 'error', title: 'ข้อมูลไม่ถูกต้อง', text: 'purchase_qty ต้องเป็นตัวเลขตั้งแต่ 0 ขึ้นไป' });
       return false;
     }
 
+    if (!Number.isFinite(nextUnitPrice) || nextUnitPrice < 0) {
+      await Swal.fire({ icon: 'error', title: 'ข้อมูลไม่ถูกต้อง', text: 'unit_price ต้องเป็นตัวเลขตั้งแต่ 0 ขึ้นไป' });
+      return false;
+    }
+
+    const approvedQuota = Number(row.approved_quota ?? 0);
+    const inventoryQty = Number(row.inventory_qty ?? 0);
+    const purchasedQty = Number(row.purchased_qty ?? 0);
+    if (inventoryQty + purchasedQty + nextPurchaseQty > approvedQuota) {
+      return false;
+    }
+
     try {
       setSavingRowId(row.id);
-      const purchaseValue = Number((nextPurchaseQty * Number(row.price_per_unit || 0)).toFixed(2));
+      const purchaseValue = Number((nextPurchaseQty * nextUnitPrice).toFixed(2));
       const response = await fetch(`/api/purchase-plans/${row.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
@@ -687,6 +717,7 @@ function PurchasePlansPageContent() {
           inventory_qty: row.inventory_qty ?? 0,
           inventory_value: row.inventory_value ?? 0,
           purchase_qty: nextPurchaseQty,
+          unit_price: nextUnitPrice,
           purchase_value: purchaseValue,
         }),
       });
@@ -724,6 +755,7 @@ function PurchasePlansPageContent() {
     const nextRow = items[nextIndex];
     setEditingRowId(nextRow.id);
     setEditingPurchaseQty(String(nextRow.purchase_qty ?? 0));
+    setEditingUnitPrice(String(nextRow.unit_price ?? nextRow.price_per_unit ?? 0));
   };
 
   const handleSelectAll = (checked: boolean) => {
@@ -800,37 +832,11 @@ function PurchasePlansPageContent() {
   const isAllSelected = selectableRowIds.length > 0 && selectableRowIds.every((id) => selectedRows.has(id));
   const isIndeterminate = selectedRows.size > 0 && !isAllSelected;
 
-  const handlePurchaseQtyBlur = async (row: PurchasePlanRow) => {
-    if (savingRowId === row.id) {
-      return;
-    }
-
-    const saved = await savePurchaseQty(row, editingPurchaseQty);
-    if (saved) {
-      stopInlineEdit();
-    }
-  };
-
-  const handleSaveAction = async (row: PurchasePlanRow) => {
-    if (savingRowId === row.id) {
-      return;
-    }
-
-    const saved = await savePurchaseQty(row, editingPurchaseQty);
-    if (saved) {
-      stopInlineEdit();
-    }
-  };
-
-  const handleCancelAction = () => {
-    stopInlineEdit();
-  };
-
   const handlePurchaseQtyKeyDown = async (event: React.KeyboardEvent<HTMLInputElement>, row: PurchasePlanRow) => {
     if (event.key === 'ArrowUp' || event.key === 'ArrowDown') {
       event.preventDefault();
       const direction = event.key === 'ArrowUp' ? 'up' : 'down';
-      const saved = await savePurchaseQty(row, event.currentTarget.value);
+      const saved = await savePurchasePlan(row, event.currentTarget.value, editingUnitPrice);
       if (saved) {
         moveToAdjacentRow(row.id, direction);
       }
@@ -839,7 +845,7 @@ function PurchasePlansPageContent() {
 
     if (event.key === 'Enter') {
       event.preventDefault();
-      const saved = await savePurchaseQty(row, event.currentTarget.value);
+      const saved = await savePurchasePlan(row, event.currentTarget.value, editingUnitPrice);
       if (saved) {
         stopInlineEdit();
       }
@@ -852,37 +858,19 @@ function PurchasePlansPageContent() {
     }
   };
 
-  const handleDelete = async (id: number) => {
-    const result = await Swal.fire({
-      title: 'ยืนยันการลบ?',
-      text: 'รายการแผนจัดซื้อนี้จะถูกลบออก',
-      icon: 'warning',
-      showCancelButton: true,
-      confirmButtonText: 'ลบ',
-      cancelButtonText: 'ยกเลิก',
-      confirmButtonColor: '#dc2626',
-    });
-
-    if (!result.isConfirmed) {
+  const handleUnitPriceKeyDown = async (event: React.KeyboardEvent<HTMLInputElement>, row: PurchasePlanRow) => {
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      const saved = await savePurchasePlan(row, editingPurchaseQty, event.currentTarget.value);
+      if (saved) {
+        stopInlineEdit();
+      }
       return;
     }
 
-    try {
-      const response = await fetch(`/api/purchase-plans/${id}`, { method: 'DELETE' });
-      const payload = await response.json().catch(() => null);
-      if (!response.ok || !payload?.success) {
-        throw new Error(payload?.error || 'ลบไม่สำเร็จ');
-      }
-
-      await Promise.all([fetchData(), fetchSummaryData()]);
-      setSelectedRows(prev => {
-        const newSet = new Set(prev);
-        newSet.delete(id);
-        return newSet;
-      });
-    } catch (error) {
-      console.error(error);
-      await Swal.fire({ icon: 'error', title: 'ลบไม่สำเร็จ', text: error instanceof Error ? error.message : 'ไม่สามารถลบข้อมูลได้' });
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      stopInlineEdit();
     }
   };
 
@@ -929,7 +917,7 @@ function PurchasePlansPageContent() {
       const details = selectedItems.map((item, index) => ({
         purchase_plan_id: item.id, // Link to the purchase plan
         approved_quantity: item.purchase_qty || 0,
-        approved_amount: (item.purchase_qty || 0) * (item.price_per_unit || 0),
+        approved_amount: (item.purchase_qty || 0) * (item.unit_price || item.price_per_unit || 0),
         line_number: index + 1, // Start from 1
         status: 'PENDING'
       }));
@@ -1053,29 +1041,31 @@ function PurchasePlansPageContent() {
 
       // Create CSV content
       const headers = [
-        'ID', 'ปีงบ', 'ครั้งที่', 'รหัสสินค้า', 'ชื่อสินค้า', 'หมวด', 'ประเภท', 'ประเภทย่อย', 'หน่วยงานที่ขอ', 
-        'ขอใช้', 'โควต้า', 'คงคลัง', 'มูลค่าคงคลัง', 'ซื้อ', 'มูลค่าซื้อ', 'ราคาต่อหน่วย'
+        'ปีงบ',
+        'รหัสสินค้า',
+        'ชื่อสินค้า',
+        'หน่วยงานจัดซื้อ',
+        'โควต้า',
+        'คงคลัง',
+        'ซื้อแล้ว',
+        'ซื้อครั้งนี้',
+        'ราคาต่อหน่วย',
+        'รวมมูลค่าซื้อ'
       ];
       
       const csvContent = [
         headers.join(','),
         ...exportData.map((row: any) => [
-          row.id,
           row.budget_year || '',
-          row.sequence_no || '',
           `"${row.product_code || ''}"`,
           `"${row.product_name || ''}"`,
-          `"${row.category || ''}"`,
-          `"${row.product_type || ''}"`,
-          `"${row.product_subtype || ''}"`,
-          `"${row.requesting_dept || ''}"`,
-          row.requested_amount || '',
+          `"${[row.purchase_department_code || '', row.purchase_department_name || ''].filter(Boolean).join(' - ') || '-'}"`,
           row.approved_quota || '',
           row.inventory_qty || '',
-          row.inventory_value || '',
+          row.purchased_qty || '',
           row.purchase_qty || '',
+          row.unit_price || '',
           row.purchase_value || '',
-          row.price_per_unit || ''
         ].join(','))
       ].join('\n');
 
@@ -1280,25 +1270,23 @@ function PurchasePlansPageContent() {
                     className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                   />
                 </th>
-                <th className="px-2 py-2.5 text-left text-[10px] font-medium text-gray-500 uppercase tracking-wider w-16">สถานะ</th>
                 <th onClick={() => handleSort('budget_year')} className={`${getHeaderClass('budget_year')} w-20`}>ปีงบ</th>
-                <th onClick={() => handleSort('sequence_no')} className={`${getHeaderClass('sequence_no')} w-16`}>ครั้งที่</th>
                 <th onClick={() => handleSort('product_code')} className={`${getHeaderClass('product_code')} w-28`}>รหัสสินค้า</th>
-                <th onClick={() => handleSort('product_name')} className={`${getHeaderClass('product_name')} w-[20rem]`}>ชื่อสินค้า</th>
-                <th onClick={() => handleSort('requesting_dept')} className={`${getHeaderClass('requesting_dept')} w-36`}>หน่วยงานที่ขอ</th>
-                <th className="px-2 py-2.5 text-left text-[10px] font-medium text-gray-500 uppercase tracking-wider w-32">ขอใช้ / โควต้า</th>
+                <th onClick={() => handleSort('product_name')} className={`${getHeaderClass('product_name')} w-[22rem]`}>ชื่อสินค้า</th>
+                <th onClick={() => handleSort('purchase_department')} className={`${getHeaderClass('purchase_department')} w-44`}>หน่วยงานจัดซื้อ</th>
+                <th onClick={() => handleSort('approved_quota')} className={`${getHeaderClass('approved_quota')} w-24`}>รวมโควต้า</th>
                 <th onClick={() => handleSort('inventory_qty')} className={`${getHeaderClass('inventory_qty')} w-20`}>คงคลัง</th>
-                <th onClick={() => handleSort('inventory_value')} className={`${getHeaderClass('inventory_value')} w-28`}>มูลค่าคงคลัง</th>
-                <th onClick={() => handleSort('purchase_qty')} className={`${getHeaderClass('purchase_qty')} w-20`}>ซื้อ</th>
-                <th onClick={() => handleSort('purchase_value')} className={`${getHeaderClass('purchase_value')} w-28`}>มูลค่าซื้อ</th>
-                <th className="px-2 py-2.5 text-left text-[10px] font-medium text-gray-500 uppercase tracking-wider w-20">Action</th>
+                <th onClick={() => handleSort('purchased_qty')} className={`${getHeaderClass('purchased_qty')} w-20`}>ซื้อแล้ว</th>
+                <th onClick={() => handleSort('purchase_qty')} className={`${getHeaderClass('purchase_qty')} w-28`}>ซื้อครั้งนี้</th>
+                <th onClick={() => handleSort('unit_price')} className={`${getHeaderClass('unit_price')} w-28`}>ราคาต่อหน่วย</th>
+                <th onClick={() => handleSort('purchase_value')} className={`${getHeaderClass('purchase_value')} w-32`}>รวมมูลค่าซื้อ</th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
               {items.map((row) => {
                 const isEditingRow = editingRowId === row.id;
-                const isSavingRow = savingRowId === row.id;
                 const isApprovedRow = Boolean(row.has_purchase_approval);
+                const editingTotal = Number((Number(editingPurchaseQty || 0) * Number(editingUnitPrice || 0)).toFixed(2));
 
                 return (
                   <tr key={row.id} className={`${isEditingRow ? 'bg-yellow-50' : 'hover:bg-gray-50 transition-colors duration-150'}`}>
@@ -1316,36 +1304,21 @@ function PurchasePlansPageContent() {
                         title={row.has_purchase_approval ? 'รายการนี้ถูกเพิ่มไปยังรายการอนุมัติแล้ว' : ''}
                       />
                     </td>
-                    <td className="px-2 py-2 text-[11px] align-top">
-                      {row.has_purchase_approval ? (
-                        <span title="ทำเอกสารอนุมัติจัดซื้อแล้ว" className="inline-flex items-center text-blue-600">
-                          <FileText className="h-4 w-4" />
-                        </span>
-                      ) : '-'}
-                    </td>
                     <td className="px-2 py-2 text-[11px] align-top">{row.budget_year ?? '-'}</td>
-                    <td className="px-2 py-2 text-[11px] align-top">{row.sequence_no ?? '-'}</td>
                     <td className="px-2 py-2 text-[11px] align-top break-all">{row.product_code || '-'}</td>
                     <td className="px-2 py-2 text-[11px] align-top">
                       <div className="font-medium text-gray-900 whitespace-normal break-words leading-4" title={row.product_name || ''}>{row.product_name || '-'}</div>
-                      <div className="mt-1 text-[10px] leading-4 text-gray-600">{row.price_per_unit ? `${Number(row.price_per_unit).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} บาท/${row.unit || 'หน่วย'}` : '-'}</div>
-                      <div className="mt-1 text-[10px] leading-4 text-emerald-600/80">{[row.category || '-', row.product_type || '-', row.product_subtype || '-'].filter((value, index, arr) => !(value === '-' && arr.every((item) => item === '-'))).join(' · ')}</div>
+                      <div className="mt-1 text-[10px] leading-4 text-amber-600/70">{`${row.category || '-'}-${row.product_type || '-'}-${row.product_subtype || '-'}`}</div>
                     </td>
-                    <td className="px-2 py-2 text-[11px] align-top break-words">{row.requesting_dept || '-'}</td>
-                    <td className="px-2 py-2 text-[11px] align-top">
-                      {row.requested_amount && row.approved_quota ? (
-                        <span>
-                          <span className="text-gray-500">{row.requested_amount} / </span><strong>{row.approved_quota}</strong>
-                        </span>
-                      ) : row.requested_amount ?? row.approved_quota ?? '-'}
-                    </td>
+                    <td className="px-2 py-2 text-[11px] align-top break-words">{row.purchase_department_name || '-'}</td>
+                    <td className="px-2 py-2 text-[11px] align-top">{row.approved_quota ?? '-'}</td>
                     <td className="px-2 py-2 text-[11px] align-top">{row.inventory_qty ?? '-'}</td>
-                    <td className="px-2 py-2 text-[11px] align-top">{row.inventory_value ? Number(row.inventory_value).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : row.inventory_value === 0 ? '0.00' : '-'}</td>
+                    <td className="px-2 py-2 text-[11px] align-top">{row.purchased_qty ?? '-'}</td>
                     <td
                       className={`px-2 py-2 text-[11px] align-top ${!isEditingRow && !isApprovedRow ? 'cursor-text hover:bg-yellow-50' : ''} ${isApprovedRow ? 'text-gray-500' : ''}`}
                       onClick={() => {
                         if (!isEditingRow && !isApprovedRow) {
-                          startInlineEdit(row);
+                          void handleRowFocus(row, 'qty');
                         }
                       }}
                       title={isApprovedRow ? 'รายการนี้ถูกสร้างเอกสารอนุมัติจัดซื้อแล้ว จึงไม่สามารถแก้ไขได้' : undefined}
@@ -1356,7 +1329,6 @@ function PurchasePlansPageContent() {
                           min="0"
                           value={editingPurchaseQty}
                           onChange={(event) => setEditingPurchaseQty(event.target.value)}
-                          onBlur={() => void handlePurchaseQtyBlur(row)}
                           onKeyDown={(event) => void handlePurchaseQtyKeyDown(event, row)}
                           ref={(element) => {
                             purchaseQtyInputRefs.current[row.id] = element;
@@ -1367,50 +1339,40 @@ function PurchasePlansPageContent() {
                         row.purchase_qty ?? '-'
                       )}
                     </td>
-                    <td className="px-2 py-2 text-[11px] align-top">{row.purchase_value ? Number(row.purchase_value).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : row.purchase_value === 0 ? '0.00' : '-'}</td>
-                    <td className="px-2 py-2 text-[11px] align-top font-medium w-20">
+                    <td
+                      className={`px-2 py-2 text-[11px] align-top ${!isEditingRow && !isApprovedRow ? 'cursor-text hover:bg-yellow-50' : ''} ${isApprovedRow ? 'text-gray-500' : ''}`}
+                      onClick={() => {
+                        if (!isEditingRow && !isApprovedRow) {
+                          void handleRowFocus(row, 'price');
+                        }
+                      }}
+                      title={isApprovedRow ? 'รายการนี้ถูกสร้างเอกสารอนุมัติจัดซื้อแล้ว จึงไม่สามารถแก้ไขได้' : undefined}
+                    >
                       {isEditingRow ? (
-                        <div className="flex items-center gap-3">
-                          <button onClick={() => void handleSaveAction(row)} className="text-emerald-600 hover:text-emerald-800 cursor-pointer" title="บันทึก" aria-label="บันทึก">
-                            <CheckCircle className="h-5 w-5" />
-                          </button>
-                          <button onClick={handleCancelAction} className="text-gray-500 hover:text-gray-700 cursor-pointer" title="ยกเลิก" aria-label="ยกเลิก">
-                            <XCircle className="h-5 w-5" />
-                          </button>
-                        </div>
+                        <input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          value={editingUnitPrice}
+                          onChange={(event) => setEditingUnitPrice(event.target.value)}
+                          onKeyDown={(event) => void handleUnitPriceKeyDown(event, row)}
+                          ref={(element) => {
+                            unitPriceInputRefs.current[row.id] = element;
+                          }}
+                          className="w-24 rounded border border-amber-300 bg-white px-2 py-1 text-[11px] shadow-sm outline-none ring-2 ring-amber-100"
+                        />
                       ) : (
-                        <div className="flex items-center gap-3">
-                          <button
-                            onClick={(event) => {
-                              event.stopPropagation();
-                              if (isApprovedRow) {
-                                return;
-                              }
-                              startInlineEdit(row);
-                            }}
-                            className={`${isApprovedRow ? 'text-gray-300 cursor-not-allowed' : 'text-indigo-600 hover:text-indigo-900 cursor-pointer'}`}
-                            title={isApprovedRow ? 'รายการนี้ถูกสร้างเอกสารอนุมัติจัดซื้อแล้ว จึงไม่สามารถแก้ไขได้' : 'แก้ไข'}
-                            aria-label="แก้ไข"
-                            disabled={isApprovedRow}
-                          >
-                            <Pencil className="h-5 w-5" />
-                          </button>
-                          <button
-                            onClick={() => {
-                              if (isApprovedRow) {
-                                return;
-                              }
-                              void handleDelete(row.id);
-                            }}
-                            className={`${isApprovedRow ? 'text-gray-300 cursor-not-allowed' : 'text-red-600 hover:text-red-900 cursor-pointer'}`}
-                            title={isApprovedRow ? 'รายการนี้ถูกสร้างเอกสารอนุมัติจัดซื้อแล้ว จึงไม่สามารถลบได้' : 'ลบ'}
-                            aria-label="ลบ"
-                            disabled={isApprovedRow}
-                          >
-                            <Trash2 className="h-5 w-5" />
-                          </button>
-                        </div>
+                        row.unit_price !== null && row.unit_price !== undefined
+                          ? Number(row.unit_price).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+                          : '-'
                       )}
+                    </td>
+                    <td className="px-2 py-2 text-[11px] align-top">
+                      {isEditingRow
+                        ? editingTotal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+                        : (row.purchase_value !== null && row.purchase_value !== undefined
+                          ? Number(row.purchase_value).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+                          : '-')}
                     </td>
                   </tr>
                 );
