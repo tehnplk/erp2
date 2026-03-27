@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import Swal from 'sweetalert2';
 
@@ -75,7 +75,7 @@ const default_form_state = (): FormState => ({
   sequence_no: '1',
 });
 
-export default function UsagePlansMinimalPage() {
+function UsagePlansPageContent() {
   const router = useRouter();
   const pathname = usePathname();
   const search_params = useSearchParams();
@@ -1492,5 +1492,13 @@ export default function UsagePlansMinimalPage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function UsagePlansMinimalPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-gray-50" />}>
+      <UsagePlansPageContent />
+    </Suspense>
   );
 }
