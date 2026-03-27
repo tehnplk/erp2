@@ -5,7 +5,7 @@ import { AlignmentType, BorderStyle, Document, ImageRun, Packer, PageOrientation
 import React, { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import Swal from 'sweetalert2';
-import { ChevronDown, ChevronRight, Save, X, Trash2, Edit, FileText, CheckCircle, XCircle, Download, Printer, FileDown, Clock, RotateCcw, ShoppingCart, PackageCheck } from 'lucide-react';
+import { ChevronDown, ChevronRight, Save, X, Trash2, Edit, FileText, CheckCircle, XCircle, Download, Printer, FileDown, Clock, RotateCcw } from 'lucide-react';
 
 const DEFAULT_DOC_NO = 'พล. 0733.301/พิเศษ';
 const DOCX_FONT_FAMILY = 'TH Sarabun';
@@ -1988,8 +1988,6 @@ function PurchaseApprovalsPageContent() {
                 <th onClick={()=>handleSort()} className={getHeaderClass('status')}>สถานะ</th>
                 <th className="px-3 py-3 text-left text-[10px] font-medium text-gray-500 uppercase tracking-wider w-20">รายการ</th>
                 <th className="px-3 py-3 text-center text-[10px] font-medium text-gray-500 uppercase tracking-wider w-24">อนุมัติ</th>
-                <th className="px-3 py-3 text-center text-[10px] font-medium text-gray-500 uppercase tracking-wider w-20">ซื้อ/จ้าง</th>
-                <th className="px-3 py-3 text-center text-[10px] font-medium text-gray-500 uppercase tracking-wider w-20">ตรวจรับ</th>
                 <th className="px-3 py-3 text-left text-[10px] font-medium text-gray-500 uppercase tracking-wider w-20">Action</th>
               </tr>
             </thead>
@@ -2100,34 +2098,6 @@ function PurchaseApprovalsPageContent() {
                       title="แสดงตัวอย่างเอกสาร"
                     >
                       <FileText className="h-4 w-4" />
-                    </button>
-                  </td>
-                  <td className="px-3 py-2 text-center text-xs">
-                    <button
-                      type="button"
-                      onClick={() => handleOpenPurchaseOrderModal(group)}
-                      className="inline-flex items-center justify-center rounded-md p-1 text-green-600 hover:bg-green-50 hover:text-green-800 cursor-pointer"
-                      title="ซื้อ/จ้าง"
-                    >
-                      <ShoppingCart className="h-4 w-4" />
-                    </button>
-                  </td>
-                  <td className="px-3 py-2 text-center text-xs">
-                    <button
-                      type="button"
-                      onClick={() => handleOpenInspectionModal(group)}
-                      className={`inline-flex items-center justify-center rounded-md p-1 cursor-pointer ${
-                        group.is_inspection
-                          ? 'text-emerald-600 hover:bg-emerald-50 hover:text-emerald-800'
-                          : 'text-amber-600 hover:bg-amber-50 hover:text-amber-800'
-                      }`}
-                      title={group.is_inspection ? 'ตรวจรับแล้ว' : 'ตรวจรับ'}
-                    >
-                      {group.is_inspection ? (
-                        <CheckCircle className="h-4 w-4" />
-                      ) : (
-                        <PackageCheck className="h-4 w-4" />
-                      )}
                     </button>
                   </td>
                   <td className="px-3 py-2 text-xs font-medium w-32">

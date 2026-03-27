@@ -1061,7 +1061,17 @@ export default function UsagePlansMinimalPage() {
                         </div>
                       </td>
                       <td className="pl-2 py-2 text-xs text-gray-700 align-top">{row.requesting_dept || '-'}</td>
-                      <td className="px-3 py-2 text-xs text-gray-700 align-top">{row.plan_flag || 'ในแผน'}</td>
+                      <td className="px-3 py-2 text-xs align-top">
+                        <span
+                          className={`inline-flex rounded-full px-2 py-0.5 text-[11px] font-medium ${
+                            row.plan_flag === 'นอกแผน'
+                              ? 'bg-red-100 text-red-700'
+                              : 'bg-emerald-100 text-emerald-700'
+                          }`}
+                        >
+                          {row.plan_flag === 'นอกแผน' ? 'นอกแผน' : 'ในแผน'}
+                        </span>
+                      </td>
                       <td className="px-3 py-2 text-xs text-gray-700 align-top">{row.unit || '-'}</td>
                       <td
                         className="px-3 py-2 text-right text-xs text-gray-700 align-top"

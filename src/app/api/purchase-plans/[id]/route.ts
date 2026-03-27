@@ -29,15 +29,9 @@ async function getPurchasePlanJoinedById(id: number) {
        COALESCE(inv.inventory_qty, pp.inventory_qty, 0)::int AS inventory_qty,
        COALESCE(inv.inventory_value, pp.inventory_value, 0)::float8 AS inventory_value,
        COALESCE(purchased_summary.purchased_qty, 0)::int AS purchased_qty,
-       CASE
-         WHEN EXISTS (SELECT 1 FROM public.purchase_approval_detail has_pad WHERE has_pad.purchase_plan_id = pp.id) THEN 0
-         ELSE COALESCE(pp.purchase_qty, 0)::int
-       END AS purchase_qty,
+       COALESCE(pp.purchase_qty, 0)::int AS purchase_qty,
        COALESCE(pp.unit_price, p.cost_price, 0)::float8 AS unit_price,
-       CASE
-         WHEN EXISTS (SELECT 1 FROM public.purchase_approval_detail has_pad WHERE has_pad.purchase_plan_id = pp.id) THEN 0::float8
-         ELSE COALESCE(pp.purchase_value, ROUND(COALESCE(pp.purchase_qty, 0) * COALESCE(pp.unit_price, p.cost_price, 0), 2))::float8
-       END AS purchase_value
+       COALESCE(pp.purchase_value, ROUND(COALESCE(pp.purchase_qty, 0) * COALESCE(pp.unit_price, p.cost_price, 0), 2))::float8 AS purchase_value
      FROM public.purchase_plan pp
      INNER JOIN public.usage_plan up ON up.id = pp.usage_plan_id
      LEFT JOIN public.product p ON p.code = up.product_code
@@ -57,13 +51,13 @@ async function getPurchasePlanJoinedById(id: number) {
        INNER JOIN public.inventory_balance ib ON ib.inventory_item_id = ii.id
        GROUP BY ii.product_code
      ) inv ON inv.product_code = up.product_code
-     LEFT JOIN (
-       SELECT
-         pad.purchase_plan_id,
-         COALESCE(SUM(pad.approved_quantity), 0)::int AS purchased_qty
-       FROM public.purchase_approval_detail pad
-       GROUP BY pad.purchase_plan_id
-     ) purchased_summary ON purchased_summary.purchase_plan_id = pp.id
+  LEFT JOIN (
+    SELECT
+      pad.purchase_plan_id,
+      COALESCE(SUM(COALESCE(pad.proposed_quantity, pad.approved_quantity, 0)), 0)::int AS purchased_qty
+    FROM public.purchase_approval_detail pad
+    GROUP BY pad.purchase_plan_id
+  ) purchased_summary ON purchased_summary.purchase_plan_id = pp.id
      WHERE pp.id = $1
      LIMIT 1`,
     [id],
@@ -107,13 +101,13 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
          INNER JOIN public.inventory_balance ib ON ib.inventory_item_id = ii.id
          GROUP BY ii.product_code
        ) inv ON inv.product_code = up.product_code
-       LEFT JOIN (
-         SELECT
-           pad.purchase_plan_id,
-           COALESCE(SUM(pad.approved_quantity), 0)::int AS purchased_qty
-         FROM public.purchase_approval_detail pad
-         GROUP BY pad.purchase_plan_id
-       ) purchased_summary ON purchased_summary.purchase_plan_id = pp.id
+      LEFT JOIN (
+        SELECT
+          pad.purchase_plan_id,
+          COALESCE(SUM(COALESCE(pad.proposed_quantity, pad.approved_quantity, 0)), 0)::int AS purchased_qty
+        FROM public.purchase_approval_detail pad
+        GROUP BY pad.purchase_plan_id
+      ) purchased_summary ON purchased_summary.purchase_plan_id = pp.id
        WHERE pp.id = $1
        LIMIT 1`,
       [numericId],

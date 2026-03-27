@@ -21,26 +21,26 @@ export async function GET(request: NextRequest) {
     const whereClauses: string[] = [];
     const params: unknown[] = [];
 
-    // Filter on main approval records - join through purchase_plan to usage_plan
+    // Filter on main approval records from source tables (usage_plan + product + department)
     if (product_name) {
       params.push(`%${product_name}%`);
-      whereClauses.push(`p.name ILIKE $${params.length}`);
+      whereClauses.push(`plan_summary.product_name ILIKE $${params.length}`);
     }
     if (category) {
       params.push(category);
-      whereClauses.push(`p.category = $${params.length}`);
+      whereClauses.push(`plan_summary.category = $${params.length}`);
     }
     if (product_type) {
       params.push(product_type);
-      whereClauses.push(`c.type = $${params.length}`);
+      whereClauses.push(`plan_summary.product_type = $${params.length}`);
     }
     if (product_subtype) {
       params.push(product_subtype);
-      whereClauses.push(`c.subtype = $${params.length}`);
+      whereClauses.push(`plan_summary.product_subtype = $${params.length}`);
     }
     if (department) {
       params.push(department);
-      whereClauses.push(`up.requesting_dept = $${params.length}`);
+      whereClauses.push(`plan_summary.requesting_dept ILIKE $${params.length}`);
     }
     if (budget_year) {
       params.push(Number(budget_year));
@@ -49,7 +49,7 @@ export async function GET(request: NextRequest) {
     if (status) {
       const statusCode = await get_approval_doc_status_code(status);
       params.push(statusCode || status);
-      whereClauses.push(`pa.status = ${params.length}`);
+      whereClauses.push(`pa.status = $${params.length}`);
     }
 
     const whereSql = whereClauses.length ? `WHERE ${whereClauses.join(' AND ')}` : '';
@@ -74,15 +74,26 @@ export async function GET(request: NextRequest) {
         pa.created_at,
         pa.updated_at,
         pa.version,
-        MAX(up.requesting_dept) as department,
+        MAX(plan_summary.requesting_dept) as department,
         COUNT(pad.id) as item_count
       FROM public.purchase_approval pa
       LEFT JOIN public.approval_doc_status ads ON ads.code = pa.status AND ads.is_active = true
       LEFT JOIN public.purchase_approval_detail pad ON pad.purchase_approval_id = pa.id
-      LEFT JOIN public.purchase_plan pp ON pad.purchase_plan_id = pp.id
-      LEFT JOIN public.usage_plan up ON pp.usage_plan_id = up.id
-      LEFT JOIN public.product p ON p.code = up.product_code
-      LEFT JOIN public.category c ON c.category = p.category
+      LEFT JOIN (
+        SELECT
+          up.purchase_plan_id,
+          MIN(up.product_code) AS product_code,
+          STRING_AGG(DISTINCT COALESCE(d.name, up.requesting_dept_code), ', ') AS requesting_dept,
+          MIN(p.name) AS product_name,
+          MIN(p.category) AS category,
+          MIN(p.type) AS product_type,
+          MIN(p.subtype) AS product_subtype
+        FROM public.usage_plan up
+        LEFT JOIN public.product p ON p.code = up.product_code
+        LEFT JOIN public.department d ON d.department_code = up.requesting_dept_code
+        WHERE up.purchase_plan_id IS NOT NULL
+        GROUP BY up.purchase_plan_id
+      ) plan_summary ON plan_summary.purchase_plan_id = pad.purchase_plan_id
       ${whereSql}
       GROUP BY pa.id, pa.approve_code, pa.doc_no, pa.doc_date, pa.budget_year, pa.seller_id, pa.is_inspection, ads.status, pa.status, pa.total_amount, pa.total_items,
                pa.prepared_by, pa.approved_by, pa.approved_at, pa.notes, pa.created_at, pa.updated_at, pa.version
@@ -105,25 +116,63 @@ export async function GET(request: NextRequest) {
         pad.created_at as detail_created_at,
         pad.updated_at as detail_updated_at,
         pad.version as detail_version,
-        p.name AS product_name,
-        up.product_code,
-        p.category,
-        c.type as product_type,
-        c.subtype as product_subtype,
-        up.requested_amount as requested_quantity,
-        p.unit,
-        COALESCE(p.cost_price, 0)::float8 AS price_per_unit,
-        (up.requested_amount * COALESCE(p.cost_price, 0)) as total_value,
-        up.budget_year as plan_budget_year,
-        up.requesting_dept as usage_plan_dept,
+        plan_summary.product_name AS product_name,
+        plan_summary.product_code AS product_code,
+        plan_summary.category AS category,
+        plan_summary.product_type AS product_type,
+        plan_summary.product_subtype AS product_subtype,
+        COALESCE(pad.approved_quantity, pad.proposed_quantity, pp.purchase_qty, 0)::int AS requested_quantity,
+        p.unit AS unit,
+        COALESCE(
+          pad.cal_unit_price,
+          CASE
+            WHEN COALESCE(pad.approved_quantity, pad.proposed_quantity, 0) > 0
+              THEN ROUND(
+                COALESCE(pad.proposed_amount, pad.approved_amount, 0)::numeric
+                / COALESCE(pad.approved_quantity, pad.proposed_quantity, 0),
+                2
+              )
+            ELSE 0
+          END
+        )::float8 AS price_per_unit,
+        COALESCE(pad.proposed_amount, pad.approved_amount, 0)::float8 as total_value,
+        pa.budget_year as plan_budget_year,
+        plan_summary.requesting_dept as usage_plan_dept,
         pp.purchase_qty,
-        pp.purchase_value
+        ROUND(
+          COALESCE(pp.purchase_qty, 0) * COALESCE(
+            pad.cal_unit_price,
+            CASE
+              WHEN COALESCE(pad.approved_quantity, pad.proposed_quantity, 0) > 0
+                THEN ROUND(
+                  COALESCE(pad.proposed_amount, pad.approved_amount, 0)::numeric
+                  / COALESCE(pad.approved_quantity, pad.proposed_quantity, 0),
+                  2
+                )
+              ELSE 0
+            END
+          ),
+          2
+        )::float8 AS purchase_value
       FROM public.purchase_approval pa
       LEFT JOIN public.purchase_approval_detail pad ON pad.purchase_approval_id = pa.id
       LEFT JOIN public.purchase_plan pp ON pad.purchase_plan_id = pp.id
-      LEFT JOIN public.usage_plan up ON pp.usage_plan_id = up.id
-      LEFT JOIN public.product p ON p.code = up.product_code
-      LEFT JOIN public.category c ON c.category = p.category
+      LEFT JOIN (
+        SELECT
+          up.purchase_plan_id,
+          MIN(up.product_code) AS product_code,
+          STRING_AGG(DISTINCT COALESCE(d.name, up.requesting_dept_code), ', ') AS requesting_dept,
+          MIN(p.name) AS product_name,
+          MIN(p.category) AS category,
+          MIN(p.type) AS product_type,
+          MIN(p.subtype) AS product_subtype
+        FROM public.usage_plan up
+        LEFT JOIN public.product p ON p.code = up.product_code
+        LEFT JOIN public.department d ON d.department_code = up.requesting_dept_code
+        WHERE up.purchase_plan_id IS NOT NULL
+        GROUP BY up.purchase_plan_id
+      ) plan_summary ON plan_summary.purchase_plan_id = pp.id
+      LEFT JOIN public.product p ON p.code = plan_summary.product_code
       ORDER BY pa.approve_code, pad.line_number
     `;
     

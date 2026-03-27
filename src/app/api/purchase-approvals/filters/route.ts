@@ -16,13 +16,20 @@ export async function GET() {
          ORDER BY category ASC, type ASC, subtype ASC`
       ),
       pgQuery(`
-        SELECT DISTINCT up.requesting_dept as department
+        SELECT DISTINCT plan_summary.requesting_dept AS department
         FROM public.purchase_approval pa
         INNER JOIN public.purchase_approval_detail pad ON pad.purchase_approval_id = pa.id
-        INNER JOIN public.purchase_plan pp ON pp.id = pad.purchase_plan_id
-        INNER JOIN public.usage_plan up ON up.id = pp.usage_plan_id
-        WHERE up.requesting_dept IS NOT NULL 
-        ORDER BY up.requesting_dept ASC
+        LEFT JOIN (
+          SELECT
+            up.purchase_plan_id,
+            STRING_AGG(DISTINCT COALESCE(d.name, up.requesting_dept_code), ', ') AS requesting_dept
+          FROM public.usage_plan up
+          LEFT JOIN public.department d ON d.department_code = up.requesting_dept_code
+          WHERE up.purchase_plan_id IS NOT NULL
+          GROUP BY up.purchase_plan_id
+        ) plan_summary ON plan_summary.purchase_plan_id = pad.purchase_plan_id
+        WHERE plan_summary.requesting_dept IS NOT NULL
+        ORDER BY plan_summary.requesting_dept ASC
       `),
       pgQuery(`
         SELECT DISTINCT pa.budget_year

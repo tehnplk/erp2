@@ -1,4 +1,4 @@
-import { NextRequest } from 'next/server';
+﻿import { NextRequest } from 'next/server';
 import { pgPool } from '@/lib/pg';
 import { apiError, apiSuccess } from '@/lib/api-response';
 import { cacheDelByPattern } from '@/lib/redis';
@@ -21,13 +21,12 @@ export async function POST(_request: NextRequest) {
          up.product_code,
          p.purchase_department_id,
          ARRAY_AGG(up.id ORDER BY up.id) AS usage_plan_ids,
-         COALESCE(SUM(COALESCE(up.approved_quota, 0)), 0)::int AS total_quota
+         COALESCE(SUM(GREATEST(COALESCE(up.approved_quota, up.requested_amount, 0), 0)), 0)::int AS total_quota
        FROM public.usage_plan up
        LEFT JOIN public.product p ON p.code = up.product_code
        WHERE up.purchase_plan_id IS NULL
-         AND COALESCE(up.plan_flag, 'ในแผน') = 'ในแผน'
+         AND up.plan_flag = 'ในแผน'
          AND up.product_code IS NOT NULL
-         AND COALESCE(up.approved_quota, 0) > 0
        GROUP BY up.product_code, p.purchase_department_id
        ORDER BY up.product_code`,
     );
@@ -36,7 +35,7 @@ export async function POST(_request: NextRequest) {
       await client.query('ROLLBACK');
       return apiSuccess(
         { created_count: 0, linked_usage_plan_count: 0 },
-        'ไม่พบรายการแผนการใช้ที่พร้อมสร้างแผนจัดซื้ออัตโนมัติ',
+        'ไม่พบรายการแผนการใช้ที่เป็นในแผนและยังไม่มี purchase_plan_id สำหรับสร้างแผนจัดซื้ออัตโนมัติ',
       );
     }
 
@@ -49,7 +48,7 @@ export async function POST(_request: NextRequest) {
         ? group.usage_plan_ids.map((id) => Number(id)).filter((id) => Number.isInteger(id) && id > 0)
         : [];
 
-      if (usagePlanIds.length === 0 || quota <= 0) {
+      if (usagePlanIds.length === 0) {
         continue;
       }
 
@@ -90,7 +89,7 @@ export async function POST(_request: NextRequest) {
         created_count: createdCount,
         linked_usage_plan_count: linkedUsagePlanCount,
       },
-      `สร้างแผนจัดซื้ออัตโนมัติ ${createdCount} รายการสำเร็จ`,
+      `สร้างแผนจัดซื้ออัตโนมัติสำเร็จ ${createdCount} รายการ`,
     );
   } catch (error) {
     await client.query('ROLLBACK');

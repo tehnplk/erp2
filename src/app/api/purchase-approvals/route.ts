@@ -53,10 +53,21 @@ const purchaseApprovalFrom = `
   FROM public.purchase_approval pa
   LEFT JOIN public.approval_doc_status ads ON ads.code = pa.status AND ads.is_active = true
   LEFT JOIN public.purchase_approval_detail pad ON pad.purchase_approval_id = pa.id
-  LEFT JOIN public.purchase_plan pp ON pp.id = pad.purchase_plan_id
-  LEFT JOIN public.usage_plan up ON up.id = pp.usage_plan_id
-  LEFT JOIN public.product p ON p.code = up.product_code
-  LEFT JOIN public.category c ON c.category = p.category
+  LEFT JOIN (
+    SELECT
+      up.purchase_plan_id,
+      MIN(up.product_code) AS product_code,
+      STRING_AGG(DISTINCT COALESCE(d.name, up.requesting_dept_code), ', ') AS requesting_dept,
+      MIN(p.name) AS product_name,
+      MIN(p.category) AS category,
+      MIN(p.type) AS product_type,
+      MIN(p.subtype) AS product_subtype
+    FROM public.usage_plan up
+    LEFT JOIN public.product p ON p.code = up.product_code
+    LEFT JOIN public.department d ON d.department_code = up.requesting_dept_code
+    WHERE up.purchase_plan_id IS NOT NULL
+    GROUP BY up.purchase_plan_id
+  ) plan_summary ON plan_summary.purchase_plan_id = pad.purchase_plan_id
 `;
 
 export async function GET(request: NextRequest) {
@@ -87,23 +98,23 @@ export async function GET(request: NextRequest) {
 
     if (product_name) {
       params.push(`%${product_name}%`);
-      whereClauses.push(`p.name ILIKE $${params.length}`);
+      whereClauses.push(`plan_summary.product_name ILIKE $${params.length}`);
     }
     if (category) {
       params.push(category);
-      whereClauses.push(`p.category = $${params.length}`);
+      whereClauses.push(`plan_summary.category = $${params.length}`);
     }
     if (product_type) {
       params.push(product_type);
-      whereClauses.push(`c.type = $${params.length}`);
+      whereClauses.push(`plan_summary.product_type = $${params.length}`);
     }
     if (product_subtype) {
       params.push(product_subtype);
-      whereClauses.push(`c.subtype = $${params.length}`);
+      whereClauses.push(`plan_summary.product_subtype = $${params.length}`);
     }
     if (department) {
       params.push(department);
-      whereClauses.push(`up.requesting_dept = $${params.length}`);
+      whereClauses.push(`plan_summary.requesting_dept ILIKE $${params.length}`);
     }
     if (budget_year) {
       params.push(Number(budget_year));
@@ -128,13 +139,13 @@ export async function GET(request: NextRequest) {
       total_items: 'pa.total_items',
       created_at: 'pa.created_at',
       updated_at: 'pa.updated_at',
-      department: 'up.requesting_dept',
+      department: 'plan_summary.requesting_dept',
       budget_year: 'pa.budget_year',
-      product_name: 'p.name',
-      product_code: 'up.product_code',
-      category: 'p.category',
-      product_type: 'c.type',
-      product_subtype: 'c.subtype',
+      product_name: 'plan_summary.product_name',
+      product_code: 'plan_summary.product_code',
+      category: 'plan_summary.category',
+      product_type: 'plan_summary.product_type',
+      product_subtype: 'plan_summary.product_subtype',
     };
     const safeOrderField = allowedOrderFields[order_by || 'created_at'] || 'pa.created_at';
     const safeSortOrder = sort_order === 'asc' ? 'ASC' : 'DESC';

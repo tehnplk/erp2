@@ -49,15 +49,23 @@ export async function POST(request: NextRequest) {
       `SELECT
          pp.id,
          p.category,
-         up.budget_year,
+         usage_summary.budget_year,
          category_map.category_code
        FROM public.purchase_plan pp
-       INNER JOIN public.usage_plan up ON up.id = pp.usage_plan_id
-       LEFT JOIN public.product p ON p.code = up.product_code
        LEFT JOIN (
-         SELECT category, MIN(category_code) AS category_code
-         FROM public.category
-         WHERE is_active = true
+         SELECT
+           up.purchase_plan_id,
+           MIN(up.budget_year)::int AS budget_year,
+           MIN(up.product_code) AS product_code
+         FROM public.usage_plan up
+         WHERE up.purchase_plan_id IS NOT NULL
+         GROUP BY up.purchase_plan_id
+        ) usage_summary ON usage_summary.purchase_plan_id = pp.id
+        LEFT JOIN public.product p ON p.code = usage_summary.product_code
+        LEFT JOIN (
+          SELECT category, MIN(category_code) AS category_code
+          FROM public.category
+          WHERE is_active = true
          GROUP BY category
        ) category_map ON category_map.category = p.category
        WHERE pp.id = ANY($1::int[])`,
@@ -84,7 +92,7 @@ export async function POST(request: NextRequest) {
     if (!categoryCode) {
       return apiError('ไม่พบรหัสหมวดสำหรับการสร้างรหัสเอกสาร');
     }
-    
+
     const seqResult = await pgQuery(
       `SELECT NEXTVAL('purchase_approval_id_seq') as seq_id`
     );
@@ -143,23 +151,29 @@ export async function POST(request: NextRequest) {
         purchase_approval_id: purchaseApprovalId,
         line_number: detail.line_number || (i + 1)
       };
+      const normalizedQty = Number(detailWithApprovalId.proposed_quantity ?? detailWithApprovalId.approved_quantity ?? 0);
+      const normalizedAmount = Number(detailWithApprovalId.proposed_amount ?? detailWithApprovalId.approved_amount ?? 0);
+      const normalizedUnitPrice = normalizedQty > 0
+        ? Number((normalizedAmount / normalizedQty).toFixed(2))
+        : 0;
       
       const detailResult = await pgQuery(
         `INSERT INTO public.purchase_approval_detail 
          (purchase_approval_id, purchase_plan_id, line_number, status, proposed_quantity, proposed_amount, approved_quantity, 
-          approved_amount, remarks, created_by, updated_by, version)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, 1)
+          approved_amount, cal_unit_price, remarks, created_by, updated_by, version)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, 1)
          RETURNING id, purchase_approval_id, purchase_plan_id, line_number, status,
-                  proposed_quantity, proposed_amount, approved_quantity, approved_amount, remarks, created_at, updated_at, version`,
+                  proposed_quantity, proposed_amount, approved_quantity, approved_amount, cal_unit_price, remarks, created_at, updated_at, version`,
         [
           detailWithApprovalId.purchase_approval_id,
           detailWithApprovalId.purchase_plan_id,
           detailWithApprovalId.line_number,
           detailWithApprovalId.status || 'PENDING',
-          detailWithApprovalId.proposed_quantity ?? detailWithApprovalId.approved_quantity ?? 0,
-          detailWithApprovalId.proposed_amount ?? detailWithApprovalId.approved_amount ?? 0,
-          detailWithApprovalId.approved_quantity || 0,
-          detailWithApprovalId.approved_amount || 0,
+          normalizedQty,
+          normalizedAmount,
+          Number(detailWithApprovalId.approved_quantity || 0),
+          Number(detailWithApprovalId.approved_amount || 0),
+          normalizedUnitPrice,
           detailWithApprovalId.remarks || null,
           detailWithApprovalId.created_by || header.created_by || 'SYSTEM',
           detailWithApprovalId.updated_by || detailWithApprovalId.created_by || header.created_by || 'SYSTEM'
@@ -173,13 +187,13 @@ export async function POST(request: NextRequest) {
         await pgQuery(
           `INSERT INTO public.purchase_approval_inventory_link
            (purchase_approval_id, purchase_approval_detail_id, inventory_receipt_status, received_qty)
-           SELECT $1, $1, 'PENDING', 0
+           SELECT $1, $2, 'PENDING', 0
            WHERE NOT EXISTS (
              SELECT 1
              FROM public.purchase_approval_inventory_link
-             WHERE purchase_approval_detail_id = $1
+             WHERE purchase_approval_detail_id = $2
            )`,
-          [createdDetail.id]
+          [purchaseApprovalId, createdDetail.id]
         );
       }
     }
@@ -193,9 +207,8 @@ export async function POST(request: NextRequest) {
          WHERE purchase_approval_id = $1
        ),
        total_amount = (
-         SELECT COALESCE(SUM(COALESCE(pad.proposed_amount, pad.approved_amount, pp.purchase_value, 0)), 0)
+         SELECT COALESCE(SUM(COALESCE(pad.proposed_amount, pad.approved_amount, 0)), 0)
          FROM public.purchase_approval_detail pad
-         INNER JOIN public.purchase_plan pp ON pp.id = pad.purchase_plan_id
          WHERE pad.purchase_approval_id = $1
        )
        WHERE id = $1`,

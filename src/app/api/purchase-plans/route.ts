@@ -21,7 +21,11 @@ const purchasePlanBaseSelect = `
       MIN(up.product_code) AS product_code,
       SUM(COALESCE(up.requested_amount, 0))::int AS requested_amount,
       SUM(COALESCE(up.approved_quota, 0))::int AS approved_quota,
-      STRING_AGG(DISTINCT COALESCE(d.name, up.requesting_dept_code), ', ') AS requesting_depts
+      STRING_AGG(DISTINCT COALESCE(d.name, up.requesting_dept_code), ', ') AS requesting_depts,
+      CASE
+        WHEN BOOL_OR(COALESCE(up.plan_flag, '') = 'นอกแผน') THEN 'นอกแผน'
+        ELSE 'ในแผน'
+      END AS usage_plan_flag
     FROM public.usage_plan up
     LEFT JOIN public.department d ON d.department_code = up.requesting_dept_code
     WHERE up.purchase_plan_id IS NOT NULL
@@ -40,7 +44,7 @@ const purchasePlanBaseSelect = `
   LEFT JOIN (
     SELECT
       pad.purchase_plan_id,
-      COALESCE(SUM(pad.approved_quantity), 0)::int AS purchased_qty
+      COALESCE(SUM(COALESCE(pad.proposed_quantity, pad.approved_quantity, 0)), 0)::int AS purchased_qty
     FROM public.purchase_approval_detail pad
     GROUP BY pad.purchase_plan_id
   ) purchased_summary ON purchased_summary.purchase_plan_id = pp.id
@@ -60,6 +64,7 @@ const purchasePlanSelect = `
     usage_summary.requested_amount,
     COALESCE(pp.qouta_qty, usage_summary.approved_quota, 0)::int AS approved_quota,
     usage_summary.requesting_depts AS requesting_dept,
+    usage_summary.usage_plan_flag,
     p.purchase_department_id,
     pd.department_code AS purchase_department_code,
     pd.name AS purchase_department_name,
@@ -71,11 +76,14 @@ const purchasePlanSelect = `
   ${purchasePlanBaseSelect}
 `;
 
+const PURCHASE_PLAN_CACHE_VERSION = 'v2';
+
 function buildWhereClause(filters: {
   product_name?: string;
   category?: string;
   product_type?: string;
   product_subtype?: string;
+  purchase_department?: string;
   budget_year?: string;
   requesting_dept?: string;
   has_purchase_approval?: 'true' | 'false';
@@ -102,6 +110,11 @@ function buildWhereClause(filters: {
   if (filters.product_subtype) {
     params.push(filters.product_subtype);
     whereClauses.push(`p.subtype = $${params.length}`);
+  }
+
+  if (filters.purchase_department) {
+    params.push(filters.purchase_department);
+    whereClauses.push(`COALESCE(pd.name, '') = $${params.length}`);
   }
 
   if (filters.budget_year) {
@@ -157,6 +170,7 @@ export async function GET(request: NextRequest) {
       category,
       product_type,
       product_subtype,
+      purchase_department,
       budget_year,
       requesting_dept,
       has_purchase_approval,
@@ -171,6 +185,7 @@ export async function GET(request: NextRequest) {
       category,
       product_type,
       product_subtype,
+      purchase_department,
       budget_year,
       requesting_dept,
       has_purchase_approval,
@@ -202,6 +217,7 @@ export async function GET(request: NextRequest) {
       category,
       product_type,
       product_subtype,
+      purchase_department,
       budget_year,
       requesting_dept,
       has_purchase_approval,
@@ -219,7 +235,7 @@ export async function GET(request: NextRequest) {
     }
 
     if (!pageParam && !pageSizeParam) {
-      const cacheKeyAll = `erp:purchase:plans:list:all:${JSON.stringify(cacheBasePayload)}`;
+      const cacheKeyAll = `erp:purchase:plans:list:${PURCHASE_PLAN_CACHE_VERSION}:all:${JSON.stringify(cacheBasePayload)}`;
       const cachedAll = await cacheGet<{ items: unknown[]; totalCount: number }>(cacheKeyAll);
       if (cachedAll) {
         return apiSuccess(cachedAll.items, undefined, cachedAll.totalCount, 200);
@@ -253,7 +269,7 @@ export async function GET(request: NextRequest) {
       return apiSuccess(itemsResult.rows, undefined, countResult.rows[0]?.count || 0, 200, { page: currentPage, page_size: currentPageSize });
     }
 
-    const cacheKey = `erp:purchase:plans:list:${JSON.stringify({ ...cacheBasePayload, page: currentPage, page_size: currentPageSize })}`;
+    const cacheKey = `erp:purchase:plans:list:${PURCHASE_PLAN_CACHE_VERSION}:${JSON.stringify({ ...cacheBasePayload, page: currentPage, page_size: currentPageSize })}`;
     const cached = await cacheGet<{ items: unknown[]; totalCount: number }>(cacheKey);
 
     if (cached) {
