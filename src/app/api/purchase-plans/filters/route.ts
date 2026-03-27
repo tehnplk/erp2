@@ -10,7 +10,7 @@ export async function GET() {
       return NextResponse.json(cached);
     }
 
-    const [categoryRowsResult, departments, budgetYears] = await Promise.all([
+    const [categoryRowsResult, departments, budgetYears, purchaseDepartments] = await Promise.all([
       pgQuery(
         `SELECT category, type, subtype
          FROM public.category
@@ -18,10 +18,11 @@ export async function GET() {
          ORDER BY category ASC, type ASC, subtype ASC`,
       ),
       pgQuery(
-        `SELECT DISTINCT requesting_dept
-         FROM public.usage_plan
-         WHERE requesting_dept IS NOT NULL
-           AND requesting_dept <> ''
+        `SELECT DISTINCT COALESCE(d.name, up.requesting_dept_code) AS requesting_dept
+         FROM public.usage_plan up
+         LEFT JOIN public.department d ON d.department_code = up.requesting_dept_code
+         WHERE up.requesting_dept_code IS NOT NULL
+           AND up.requesting_dept_code <> ''
          ORDER BY requesting_dept ASC`,
       ),
       pgQuery(
@@ -29,6 +30,16 @@ export async function GET() {
          FROM public.usage_plan
          WHERE budget_year IS NOT NULL
          ORDER BY budget_year DESC`,
+      ),
+      pgQuery(
+        `SELECT DISTINCT pd.name AS purchase_department
+         FROM public.usage_plan up
+         INNER JOIN public.product p ON p.code = up.product_code
+         LEFT JOIN public.department pd ON pd.id = p.purchase_department_id
+         WHERE up.purchase_plan_id IS NOT NULL
+           AND pd.name IS NOT NULL
+           AND pd.name <> ''
+         ORDER BY pd.name ASC`,
       ),
     ]);
 
@@ -40,6 +51,7 @@ export async function GET() {
       product_subtypes: Array.from(new Set(categoryRows.map((item: { subtype?: string | null }) => item.subtype).filter(Boolean))),
       category_options: categoryRows,
       departments: departments.rows.map((item: { requesting_dept?: string }) => item.requesting_dept).filter(Boolean),
+      purchase_departments: purchaseDepartments.rows.map((item: { purchase_department?: string }) => item.purchase_department).filter(Boolean),
       budget_years: budgetYears.rows.map((item: { budget_year?: number }) => String(item.budget_year)).filter(Boolean),
     };
 

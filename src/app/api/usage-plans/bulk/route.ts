@@ -96,15 +96,17 @@ export async function POST(request: NextRequest) {
           product_code,
           requested_amount,
           requesting_dept_code,
+          plan_flag,
           approved_quota,
           budget_year,
           sequence_no
-        ) VALUES ($1, $2, $3, $4, $5, $6)
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7)
         RETURNING id`,
         [
           item.product_code,
           item.requested_amount,
           requesting_dept_code,
+          'ในแผน',
           item.requested_amount,
           budget_year,
           sequence_no,
@@ -127,6 +129,7 @@ export async function POST(request: NextRequest) {
         COALESCE(p.cost_price, 0)::float8 AS price_per_unit,
         up.requesting_dept_code,
         COALESCE(d.name, up.requesting_dept_code) AS requesting_dept,
+        COALESCE(up.plan_flag, 'ในแผน') AS plan_flag,
         up.approved_quota,
         up.budget_year,
         up.sequence_no,

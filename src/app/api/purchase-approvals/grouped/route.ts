@@ -97,6 +97,8 @@ export async function GET(request: NextRequest) {
         pad.purchase_plan_id,
         pad.line_number,
         pad.status as detail_status,
+        pad.proposed_quantity,
+        pad.proposed_amount,
         pad.approved_quantity,
         pad.approved_amount,
         pad.remarks,

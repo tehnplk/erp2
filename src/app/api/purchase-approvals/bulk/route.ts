@@ -146,16 +146,18 @@ export async function POST(request: NextRequest) {
       
       const detailResult = await pgQuery(
         `INSERT INTO public.purchase_approval_detail 
-         (purchase_approval_id, purchase_plan_id, line_number, status, approved_quantity, 
+         (purchase_approval_id, purchase_plan_id, line_number, status, proposed_quantity, proposed_amount, approved_quantity, 
           approved_amount, remarks, created_by, updated_by, version)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 1)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, 1)
          RETURNING id, purchase_approval_id, purchase_plan_id, line_number, status,
-                  approved_quantity, approved_amount, remarks, created_at, updated_at, version`,
+                  proposed_quantity, proposed_amount, approved_quantity, approved_amount, remarks, created_at, updated_at, version`,
         [
           detailWithApprovalId.purchase_approval_id,
           detailWithApprovalId.purchase_plan_id,
           detailWithApprovalId.line_number,
           detailWithApprovalId.status || 'PENDING',
+          detailWithApprovalId.proposed_quantity ?? detailWithApprovalId.approved_quantity ?? 0,
+          detailWithApprovalId.proposed_amount ?? detailWithApprovalId.approved_amount ?? 0,
           detailWithApprovalId.approved_quantity || 0,
           detailWithApprovalId.approved_amount || 0,
           detailWithApprovalId.remarks || null,
@@ -191,7 +193,7 @@ export async function POST(request: NextRequest) {
          WHERE purchase_approval_id = $1
        ),
        total_amount = (
-         SELECT COALESCE(SUM(pp.purchase_value), 0)
+         SELECT COALESCE(SUM(COALESCE(pad.proposed_amount, pad.approved_amount, pp.purchase_value, 0)), 0)
          FROM public.purchase_approval_detail pad
          INNER JOIN public.purchase_plan pp ON pp.id = pad.purchase_plan_id
          WHERE pad.purchase_approval_id = $1

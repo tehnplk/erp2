@@ -18,10 +18,12 @@ type UsagePlanRow = {
   category?: string | null;
   type?: string | null;
   subtype?: string | null;
+  unit?: string | null;
   requested_amount: number | null;
   price_per_unit?: number | null;
   requesting_dept_code: string | null;
   requesting_dept: string | null;
+  plan_flag?: 'ในแผน' | 'นอกแผน' | null;
   approved_quota: number | null;
   budget_year: number | null;
   sequence_no: number | null;
@@ -93,6 +95,7 @@ export default function UsagePlansMinimalPage() {
 
   const [product_code_filter, set_product_code_filter] = useState('');
   const [requesting_dept_code_filter, set_requesting_dept_code_filter] = useState('');
+  const [plan_flag_filter, set_plan_flag_filter] = useState('');
   const [budget_year_filter, set_budget_year_filter] = useState(String(get_current_budget_year()));
   const [category_filter, set_category_filter] = useState('');
   const [type_filter, set_type_filter] = useState('');
@@ -171,7 +174,7 @@ export default function UsagePlansMinimalPage() {
 
   useEffect(() => {
     void fetch_usage_plans();
-  }, [page, page_size, product_code_filter, requesting_dept_code_filter, budget_year_filter, category_filter, type_filter]);
+  }, [page, page_size, product_code_filter, requesting_dept_code_filter, plan_flag_filter, budget_year_filter, category_filter, type_filter]);
 
   useEffect(() => {
     if (!category_filter) {
@@ -225,6 +228,7 @@ export default function UsagePlansMinimalPage() {
     const next_page_size = [20, 50, 100].includes(next_page_size_raw) ? next_page_size_raw : 20;
     const next_product_code_filter = search_params.get('product_code') || '';
     const next_requesting_dept_code_filter = search_params.get('requesting_dept_code') || '';
+    const next_plan_flag_filter = search_params.get('plan_flag') || '';
     const next_budget_year_filter = search_params.get('budget_year') || String(current_budget_year);
     const next_category_filter = search_params.get('category') || '';
     const next_type_filter = search_params.get('type') || '';
@@ -233,6 +237,7 @@ export default function UsagePlansMinimalPage() {
     set_page_size((prev) => (prev === next_page_size ? prev : next_page_size));
     set_product_code_filter((prev) => (prev === next_product_code_filter ? prev : next_product_code_filter));
     set_requesting_dept_code_filter((prev) => (prev === next_requesting_dept_code_filter ? prev : next_requesting_dept_code_filter));
+    set_plan_flag_filter((prev) => (prev === next_plan_flag_filter ? prev : next_plan_flag_filter));
     set_budget_year_filter((prev) => (prev === next_budget_year_filter ? prev : next_budget_year_filter));
     set_category_filter((prev) => (prev === next_category_filter ? prev : next_category_filter));
     set_type_filter((prev) => (prev === next_type_filter ? prev : next_type_filter));
@@ -262,6 +267,12 @@ export default function UsagePlansMinimalPage() {
     } else {
       params.delete('requesting_dept_code');
     }
+
+    if (plan_flag_filter) {
+      params.set('plan_flag', plan_flag_filter);
+    } else {
+      params.delete('plan_flag');
+    }
     
     if (budget_year_filter && budget_year_filter !== String(current_budget_year)) {
       params.set('budget_year', budget_year_filter);
@@ -286,7 +297,7 @@ export default function UsagePlansMinimalPage() {
       last_pushed_url_ref.current = next_url;
       router.replace(next_url, { scroll: false });
     }
-  }, [pathname, router, search_params, page, page_size, product_code_filter, requesting_dept_code_filter, budget_year_filter, category_filter, type_filter]);
+  }, [pathname, router, search_params, page, page_size, product_code_filter, requesting_dept_code_filter, plan_flag_filter, budget_year_filter, category_filter, type_filter]);
 
   const fetch_filter_options = async () => {
     try {
@@ -373,6 +384,7 @@ export default function UsagePlansMinimalPage() {
 
       if (product_code_filter.trim()) params.set('product_code', product_code_filter.trim());
       if (requesting_dept_code_filter.trim()) params.set('requesting_dept_code', requesting_dept_code_filter.trim());
+      if (plan_flag_filter.trim()) params.set('plan_flag', plan_flag_filter.trim());
       if (budget_year_filter.trim()) params.set('budget_year', budget_year_filter.trim());
       if (category_filter.trim()) params.set('category', category_filter.trim());
       if (type_filter.trim()) params.set('type', type_filter.trim());
@@ -875,7 +887,7 @@ export default function UsagePlansMinimalPage() {
         </button>
       </div>
 
-      <div className="grid grid-cols-1 gap-3 md:grid-cols-5">
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-6">
             <select
               value={budget_year_filter}
               onChange={(event) => {
@@ -907,6 +919,18 @@ export default function UsagePlansMinimalPage() {
                   {department.name}
                 </option>
               ))}
+            </select>
+            <select
+              value={plan_flag_filter}
+              onChange={(event) => {
+                set_plan_flag_filter(event.target.value);
+                set_page(1);
+              }}
+              className="rounded-lg border border-gray-300 px-3 py-2 text-sm"
+            >
+              <option value="">ทุกแผน</option>
+              <option value="ในแผน">ในแผน</option>
+              <option value="นอกแผน">นอกแผน</option>
             </select>
             <select
               value={category_filter}
@@ -1005,6 +1029,8 @@ export default function UsagePlansMinimalPage() {
                   <th className="whitespace-nowrap px-3 py-2 text-left text-xs font-semibold uppercase text-gray-500">รหัสสินค้า</th>
                   <th className="w-[300px] px-3 py-2 text-left text-xs font-semibold uppercase text-gray-500">ชื่อสินค้า</th>
                   <th className="pl-2 py-2 text-left text-xs font-semibold uppercase text-gray-500">หน่วยงาน</th>
+                  <th className="px-3 py-2 text-left text-xs font-semibold uppercase text-gray-500">แผน</th>
+                  <th className="px-3 py-2 text-left text-xs font-semibold uppercase text-gray-500">หน่วยนับ</th>
                   <th className="px-3 py-2 text-right text-xs font-semibold uppercase text-gray-500">จำนวนขอ</th>
                   <th className="px-3 py-2 text-right text-xs font-semibold uppercase text-gray-500">โควต้า</th>
                   <th className="px-3 py-2 text-right text-xs font-semibold uppercase text-gray-500">ราคา/หน่วย</th>
@@ -1015,11 +1041,11 @@ export default function UsagePlansMinimalPage() {
               <tbody className="divide-y divide-gray-100 bg-white">
                 {loading ? (
                   <tr>
-                    <td colSpan={12} className="px-3 py-6 text-center text-sm text-gray-500">กำลังโหลดข้อมูล...</td>
+                    <td colSpan={14} className="px-3 py-6 text-center text-sm text-gray-500">กำลังโหลดข้อมูล...</td>
                   </tr>
                 ) : usage_plans.length === 0 ? (
                   <tr>
-                    <td colSpan={12} className="px-3 py-6 text-center text-sm text-gray-500">ไม่พบข้อมูล</td>
+                    <td colSpan={14} className="px-3 py-6 text-center text-sm text-gray-500">ไม่พบข้อมูล</td>
                   </tr>
                 ) : (
                   usage_plans.map((row, index) => (
@@ -1035,6 +1061,8 @@ export default function UsagePlansMinimalPage() {
                         </div>
                       </td>
                       <td className="pl-2 py-2 text-xs text-gray-700 align-top">{row.requesting_dept || '-'}</td>
+                      <td className="px-3 py-2 text-xs text-gray-700 align-top">{row.plan_flag || 'ในแผน'}</td>
+                      <td className="px-3 py-2 text-xs text-gray-700 align-top">{row.unit || '-'}</td>
                       <td
                         className="px-3 py-2 text-right text-xs text-gray-700 align-top"
                         onClick={() => start_cell_edit(row, 'requested_amount')}

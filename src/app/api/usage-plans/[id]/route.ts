@@ -34,7 +34,7 @@ export async function PUT(
     }
 
     const currentUsagePlanResult = await pgQuery(
-      `SELECT id, product_code, requested_amount, requesting_dept_code, approved_quota, budget_year, sequence_no, created_at, updated_at FROM public.usage_plan WHERE id = $1 LIMIT 1`,
+      `SELECT id, product_code, requested_amount, requesting_dept_code, plan_flag, approved_quota, budget_year, sequence_no, created_at, updated_at FROM public.usage_plan WHERE id = $1 LIMIT 1`,
       [numericId]
     );
     const currentUsagePlan = currentUsagePlanResult.rows[0];
@@ -99,6 +99,7 @@ export async function PUT(
       product_code: 'product_code',
       requested_amount: 'requested_amount',
       requesting_dept_code: 'requesting_dept_code',
+      plan_flag: 'plan_flag',
       approved_quota: 'approved_quota',
       budget_year: 'budget_year',
       sequence_no: 'sequence_no',
@@ -134,18 +135,18 @@ export async function PUT(
         COALESCE(p.cost_price, 0)::float8 AS price_per_unit,
         up.requesting_dept_code,
         COALESCE(d.name, up.requesting_dept_code) AS requesting_dept,
+        COALESCE(up.plan_flag, 'ในแผน') AS plan_flag,
         up.approved_quota,
         up.budget_year,
         up.sequence_no,
         up.created_at,
         up.updated_at,
-        CASE WHEN pp.id IS NOT NULL THEN true ELSE false END AS has_purchase_plan,
-        CASE WHEN EXISTS (SELECT 1 FROM public.purchase_approval_detail pad WHERE pad.purchase_plan_id = pp.id) THEN true ELSE false END AS has_purchase_approval
+        CASE WHEN up.purchase_plan_id IS NOT NULL THEN true ELSE false END AS has_purchase_plan,
+        CASE WHEN EXISTS (SELECT 1 FROM public.purchase_approval_detail pad WHERE pad.purchase_plan_id = up.purchase_plan_id) THEN true ELSE false END AS has_purchase_approval
       FROM public.usage_plan up
       LEFT JOIN public.product p ON p.code = up.product_code
       LEFT JOIN public.department d ON d.department_code = up.requesting_dept_code
       LEFT JOIN public.category c ON c.category = p.category
-      LEFT JOIN public.purchase_plan pp ON pp.usage_plan_id = up.id
       WHERE up.id = $1
       LIMIT 1`,
       [numericId]

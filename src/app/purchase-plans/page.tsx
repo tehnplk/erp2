@@ -3,7 +3,6 @@
 import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import Swal from 'sweetalert2';
-import { X } from 'lucide-react';
 
 const getCurrentBudgetYear = () => {
   const now = new Date();
@@ -81,6 +80,29 @@ type ProductOption = {
   sequence_no?: string;
   inventory_qty?: number;
   available_qty?: number;
+};
+
+type DepartmentOption = {
+  department_code: string;
+  name: string;
+};
+
+type OutOfPlanProduct = {
+  id: number;
+  code: string;
+  name: string;
+  category: string | null;
+  type: string | null;
+  subtype: string | null;
+  unit: string | null;
+  cost_price: number | null;
+  purchase_department_code: string | null;
+  purchase_department_name: string | null;
+};
+
+type ApprovalDraftInput = {
+  quantity: number;
+  totalAmount: number;
 };
 
 interface DepartmentComboboxProps {
@@ -299,7 +321,26 @@ function PurchasePlansPageContent() {
   const [categoryOptions, setCategoryOptions] = useState<CategoryOption[]>([]);
   const [departments, setDepartments] = useState<string[]>([]);
   const [years, setYears] = useState<string[]>([]);
+  const [purchaseDepartmentFilter, setPurchaseDepartmentFilter] = useState('');
+  const [autoCreating, setAutoCreating] = useState(false);
   const [approvedPlanIds, setApprovedPlanIds] = useState<Set<number>>(new Set());
+  const [showOutOfPlanModal, setShowOutOfPlanModal] = useState(false);
+  const [outOfPlanDepartments, setOutOfPlanDepartments] = useState<DepartmentOption[]>([]);
+  const [outOfPlanCategories, setOutOfPlanCategories] = useState<string[]>([]);
+  const [outOfPlanProducts, setOutOfPlanProducts] = useState<OutOfPlanProduct[]>([]);
+  const [outOfPlanDeptCode, setOutOfPlanDeptCode] = useState('');
+  const [outOfPlanCategory, setOutOfPlanCategory] = useState('');
+  const [outOfPlanSearch, setOutOfPlanSearch] = useState('');
+  const [outOfPlanBudgetYear, setOutOfPlanBudgetYear] = useState(String(getCurrentBudgetYear()));
+  const [outOfPlanPurchaseQty, setOutOfPlanPurchaseQty] = useState('1');
+  const [selectedOutOfPlanProductCode, setSelectedOutOfPlanProductCode] = useState('');
+  const [loadingOutOfPlanProducts, setLoadingOutOfPlanProducts] = useState(false);
+  const [savingOutOfPlan, setSavingOutOfPlan] = useState(false);
+  const [approvalDraftByPlanId, setApprovalDraftByPlanId] = useState<Record<number, ApprovalDraftInput>>({});
+  const [showApprovalInputModal, setShowApprovalInputModal] = useState(false);
+  const [approvalInputRow, setApprovalInputRow] = useState<PurchasePlanRow | null>(null);
+  const [approvalInputQty, setApprovalInputQty] = useState('');
+  const [approvalInputTotal, setApprovalInputTotal] = useState('');
 
   const summaryRequestIdRef = useRef(0);
   const hasMountedSummaryRef = useRef(false);
@@ -442,8 +483,9 @@ function PurchasePlansPageContent() {
     setSortOrder((prev) => (prev === nextSortOrder ? prev : nextSortOrder));
     setPage((prev) => (prev === nextPage ? prev : nextPage));
     setPageSize((prev) => (prev === nextPageSize ? prev : nextPageSize));
+    lastPushedUrlRef.current = searchParams.toString() ? `${pathname}?${searchParams.toString()}` : pathname;
     hasSyncedSearchParamsRef.current = true;
-  }, [searchParams]);
+  }, [pathname, searchParams]);
 
   useEffect(() => {
     if (!hasSyncedSearchParamsRef.current) {
@@ -466,7 +508,8 @@ function PurchasePlansPageContent() {
     const nextUrl = params.toString() ? `${pathname}?${params.toString()}` : pathname;
     const currentUrl = searchParams.toString() ? `${pathname}?${searchParams.toString()}` : pathname;
 
-    if (nextUrl !== currentUrl) {
+    if (lastPushedUrlRef.current !== nextUrl && nextUrl !== currentUrl) {
+      lastPushedUrlRef.current = nextUrl;
       router.replace(nextUrl, { scroll: false });
     }
   }, [pathname, router, searchParams, productNameFilter, categoryFilter, typeFilter, subtypeFilter, requestingDeptFilter, budgetYearFilter, hasPurchaseApprovalFilter, sortBy, sortOrder, page, pageSize]);
@@ -758,39 +801,111 @@ function PurchasePlansPageContent() {
     setEditingUnitPrice(String(nextRow.unit_price ?? nextRow.price_per_unit ?? 0));
   };
 
+  const selectedPlanItems = useMemo(
+    () => items.filter((item) => selectedRows.has(item.id)),
+    [items, selectedRows],
+  );
+
+  const openApprovalInputModal = (row: PurchasePlanRow) => {
+    const existing = approvalDraftByPlanId[row.id];
+    const defaultQty = existing?.quantity ?? row.purchase_qty ?? 0;
+    const defaultTotal = existing?.totalAmount ?? row.purchase_value ?? 0;
+    setApprovalInputRow(row);
+    setApprovalInputQty(String(defaultQty));
+    setApprovalInputTotal(String(defaultTotal));
+    setShowApprovalInputModal(true);
+  };
+
+  const closeApprovalInputModal = () => {
+    setShowApprovalInputModal(false);
+    setApprovalInputRow(null);
+    setApprovalInputQty('');
+    setApprovalInputTotal('');
+  };
+
+  const handleConfirmApprovalInput = () => {
+    if (!approvalInputRow) {
+      closeApprovalInputModal();
+      return;
+    }
+
+    const quantity = Number(approvalInputQty);
+    const totalAmount = Number(approvalInputTotal);
+
+    if (!Number.isFinite(quantity) || quantity <= 0 || !Number.isInteger(quantity)) {
+      void Swal.fire({
+        icon: 'warning',
+        title: 'จำนวนซื้อไม่ถูกต้อง',
+        text: 'กรุณากรอกจำนวนซื้อเป็นจำนวนเต็มมากกว่า 0',
+      });
+      return;
+    }
+
+    if (!Number.isFinite(totalAmount) || totalAmount < 0) {
+      void Swal.fire({
+        icon: 'warning',
+        title: 'ราคารวมไม่ถูกต้อง',
+        text: 'กรุณากรอกราคารวมเป็นตัวเลขที่ไม่ติดลบ',
+      });
+      return;
+    }
+
+    setApprovalDraftByPlanId((prev) => ({
+      ...prev,
+      [approvalInputRow.id]: {
+        quantity,
+        totalAmount,
+      },
+    }));
+    setSelectedRows((prev) => {
+      const next = new Set(prev);
+      next.add(approvalInputRow.id);
+      return next;
+    });
+    closeApprovalInputModal();
+  };
+  const selectionAnchor = useMemo(() => {
+    const firstItem = selectedPlanItems[0];
+    if (!firstItem) {
+      return null;
+    }
+
+    const purchaseDepartmentName = (firstItem.purchase_department_name ?? '').trim();
+    const category = (firstItem.category ?? '').trim();
+    if (!purchaseDepartmentName || !category) {
+      return null;
+    }
+
+    return { purchaseDepartmentName, category };
+  }, [selectedPlanItems]);
+
+  const isRowSelectableByRule = (item: PurchasePlanRow) => {
+    if (item.has_purchase_approval) {
+      return false;
+    }
+
+    if (!selectionAnchor) {
+      return true;
+    }
+
+    const purchaseDepartmentName = (item.purchase_department_name ?? '').trim();
+    const category = (item.category ?? '').trim();
+    return (
+      purchaseDepartmentName === selectionAnchor.purchaseDepartmentName
+      && category === selectionAnchor.category
+    );
+  };
+
   const handleSelectAll = (checked: boolean) => {
     if (checked) {
-      const selectableItems = items.filter((item) => !item.has_purchase_approval);
-      const selectedItems = items.filter((item) => selectedRows.has(item.id));
-      const selectedCategory = selectedItems[0]?.category ?? null;
-
-      if (!selectedCategory) {
-        const availableCategories = Array.from(
-          new Set(
-            selectableItems
-              .map((item) => item.category)
-              .filter((category): category is string => Boolean(category))
-          )
-        );
-
-        if (availableCategories.length > 1) {
-          void Swal.fire({
-            icon: 'warning',
-            title: 'เลือกได้เฉพาะหมวดเดียวกัน',
-            text: 'การทำเอกสารอนุมัติจัดซื้อสามารถเลือกรายการสินค้าได้เฉพาะหมวดเดียวกัน กรุณากรองหรือเลือกเฉพาะหมวดเดียวก่อน',
-          });
-          return;
-        }
-      }
-
-      const selectableIds = new Set(
-        selectableItems
-          .filter((item) => !selectedCategory || item.category === selectedCategory)
-          .map((item) => item.id)
-      );
-      setSelectedRows(selectableIds);
+      void Swal.fire({
+        icon: 'info',
+        title: 'เลือกรายการทีละรายการ',
+        text: 'ต้องกรอกจำนวนซื้อและราคารวมของแต่ละรายการในหน้าต่างยืนยันก่อน',
+      });
     } else {
       setSelectedRows(new Set());
+      setApprovalDraftByPlanId({});
     }
   };
 
@@ -801,17 +916,28 @@ function PurchasePlansPageContent() {
     }
 
     if (checked && currentItem) {
-      const selectedItems = items.filter((item) => selectedRows.has(item.id));
-      const selectedCategory = selectedItems[0]?.category ?? null;
-
-      if (selectedCategory && currentItem.category !== selectedCategory) {
+      const purchaseDepartmentName = (currentItem.purchase_department_name ?? '').trim();
+      const category = (currentItem.category ?? '').trim();
+      if (!purchaseDepartmentName || !category) {
         void Swal.fire({
           icon: 'warning',
-          title: 'เลือกได้เฉพาะหมวดเดียวกัน',
-          text: `รายการที่เลือกอยู่คนละหมวดกับรายการที่เลือกไว้แล้ว (${selectedCategory})`,
+          title: 'ข้อมูลรายการไม่ครบ',
+          text: 'รายการที่เลือกต้องมีข้อมูลหน่วยงานจัดซื้อและหมวดสินค้า',
         });
         return;
       }
+
+      if (!isRowSelectableByRule(currentItem)) {
+        void Swal.fire({
+          icon: 'warning',
+          title: 'เลือกรายการข้ามกลุ่มไม่ได้',
+          text: 'เลือกรายการได้เฉพาะหน่วยงานจัดซื้อและหมวดสินค้าเดียวกันเท่านั้น',
+        });
+        return;
+      }
+
+      openApprovalInputModal(currentItem);
+      return;
     }
 
     setSelectedRows(prev => {
@@ -823,14 +949,28 @@ function PurchasePlansPageContent() {
       }
       return newSet;
     });
+
+    if (!checked) {
+      setApprovalDraftByPlanId((prev) => {
+        if (!(id in prev)) {
+          return prev;
+        }
+        const next = { ...prev };
+        delete next[id];
+        return next;
+      });
+    }
   };
 
   const selectableRowIds = useMemo(
-    () => items.filter((item) => !item.has_purchase_approval).map((item) => item.id),
-    [items]
+    () => items
+      .filter((item) => !purchaseDepartmentFilter || item.purchase_department_name === purchaseDepartmentFilter)
+      .filter((item) => isRowSelectableByRule(item))
+      .map((item) => item.id),
+    [items, purchaseDepartmentFilter, selectionAnchor]
   );
   const isAllSelected = selectableRowIds.length > 0 && selectableRowIds.every((id) => selectedRows.has(id));
-  const isIndeterminate = selectedRows.size > 0 && !isAllSelected;
+  const isIndeterminate = selectableRowIds.some((id) => selectedRows.has(id)) && !isAllSelected;
 
   const handlePurchaseQtyKeyDown = async (event: React.KeyboardEvent<HTMLInputElement>, row: PurchasePlanRow) => {
     if (event.key === 'ArrowUp' || event.key === 'ArrowDown') {
@@ -880,7 +1020,25 @@ function PurchasePlansPageContent() {
       return;
     }
 
-    const selectedItems = items.filter(item => selectedRows.has(item.id));
+    const selectedItems = selectedPlanItems;
+    const missingDraftItems = selectedItems.filter((item) => !approvalDraftByPlanId[item.id]);
+    if (missingDraftItems.length > 0) {
+      await Swal.fire({
+        icon: 'warning',
+        title: 'ข้อมูลยังไม่ครบ',
+        text: 'กรุณาเลือกรายการใหม่และกรอกจำนวนซื้อ/ราคารวมให้ครบทุกรายการ',
+      });
+      return;
+    }
+
+    const selectedDepartments = Array.from(
+      new Set(
+        selectedItems
+          .map((item) => item.purchase_department_name)
+          .filter((department): department is string => Boolean(department))
+      )
+    );
+
     const selectedCategories = Array.from(
       new Set(
         selectedItems
@@ -889,23 +1047,81 @@ function PurchasePlansPageContent() {
       )
     );
 
-    if (selectedCategories.length !== 1) {
+    if (selectedDepartments.length !== 1) {
       await Swal.fire({
         icon: 'warning',
-        title: 'เลือกได้เฉพาะหมวดเดียวกัน',
-        text: 'การทำเอกสารอนุมัติจัดซื้อสามารถเลือกรายการสินค้าได้เฉพาะหมวดเดียวกันเท่านั้น',
+        title: 'หน่วยงานจัดซื้อไม่สอดคล้อง',
+        text: 'การทำรายการอนุมัติจัดซื้อรวม ต้องเลือกรายการที่มีหน่วยงานจัดซื้อเดียวกัน',
       });
       return;
     }
 
+    if (selectedCategories.length !== 1) {
+      await Swal.fire({
+        icon: 'warning',
+        title: 'หมวดสินค้าไม่สอดคล้อง',
+        text: 'การทำรายการอนุมัติจัดซื้อรวม ต้องเลือกรายการที่มีหมวดสินค้าเดียวกัน',
+      });
+      return;
+    }
+
+    const escapeHtml = (value: string) =>
+      value
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;')
+        .replaceAll('"', '&quot;')
+        .replaceAll("'", '&#39;');
+
+    const summaryRowsHtml = selectedItems
+      .map((item, index) => {
+        const draft = approvalDraftByPlanId[item.id];
+        const quantityText = draft.quantity.toLocaleString('en-US');
+        const amountText = draft.totalAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        return `
+          <tr>
+            <td style="padding:6px;border:1px solid #e5e7eb;text-align:center;">${index + 1}</td>
+            <td style="padding:6px;border:1px solid #e5e7eb;text-align:left;">${escapeHtml(item.product_code ?? '-')}</td>
+            <td style="padding:6px;border:1px solid #e5e7eb;text-align:left;">${escapeHtml(item.product_name ?? '-')}</td>
+            <td style="padding:6px;border:1px solid #e5e7eb;text-align:right;">${quantityText}</td>
+            <td style="padding:6px;border:1px solid #e5e7eb;text-align:right;">${amountText}</td>
+          </tr>
+        `;
+      })
+      .join('');
+
+    const grandTotal = selectedItems.reduce((sum, item) => sum + approvalDraftByPlanId[item.id].totalAmount, 0);
+
     const result = await Swal.fire({
       title: 'ยืนยันการทำรายการอนุมัติจัดซื้อ?',
-      html: `จะทำรายการอนุมัติจัดซื้อ <strong>${selectedRows.size}</strong> รายการ<br/>รายการเหล่านี้จะถูกส่งไปยังระบบการอนุมัติการจัดซื้อ`,
+      html: `
+        <div style="text-align:left;">
+          <div style="margin-bottom:8px;">จะทำรายการอนุมัติจัดซื้อ <strong>${selectedRows.size}</strong> รายการ</div>
+          <div style="max-height:260px;overflow:auto;border:1px solid #e5e7eb;border-radius:8px;">
+            <table style="width:100%;border-collapse:collapse;font-size:12px;">
+              <thead style="background:#f9fafb;position:sticky;top:0;">
+                <tr>
+                  <th style="padding:6px;border:1px solid #e5e7eb;">ลำดับ</th>
+                  <th style="padding:6px;border:1px solid #e5e7eb;">รหัสสินค้า</th>
+                  <th style="padding:6px;border:1px solid #e5e7eb;">ชื่อสินค้า</th>
+                  <th style="padding:6px;border:1px solid #e5e7eb;">จำนวนซื้อ</th>
+                  <th style="padding:6px;border:1px solid #e5e7eb;">มูลค่า</th>
+                </tr>
+              </thead>
+              <tbody>${summaryRowsHtml}</tbody>
+            </table>
+          </div>
+          <div style="margin-top:10px;text-align:right;">
+            มูลค่ารวมทั้งหมด: <strong>${grandTotal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong>
+          </div>
+        </div>
+      `,
       icon: 'question',
       showCancelButton: true,
       confirmButtonText: 'ยืนยัน',
       cancelButtonText: 'ยกเลิก',
       confirmButtonColor: '#10b981',
+      width: 980,
     });
 
     if (!result.isConfirmed) {
@@ -915,9 +1131,11 @@ function PurchasePlansPageContent() {
     try {
       // Create payload for new purchase_approval table structure
       const details = selectedItems.map((item, index) => ({
+        proposed_quantity: approvalDraftByPlanId[item.id].quantity,
+        proposed_amount: approvalDraftByPlanId[item.id].totalAmount,
         purchase_plan_id: item.id, // Link to the purchase plan
-        approved_quantity: item.purchase_qty || 0,
-        approved_amount: (item.purchase_qty || 0) * (item.unit_price || item.price_per_unit || 0),
+        approved_quantity: approvalDraftByPlanId[item.id].quantity,
+        approved_amount: approvalDraftByPlanId[item.id].totalAmount,
         line_number: index + 1, // Start from 1
         status: 'PENDING'
       }));
@@ -925,9 +1143,9 @@ function PurchasePlansPageContent() {
       // Create header with basic info
       const header = {
         budget_year: selectedItems[0]?.budget_year ?? new Date().getFullYear() + 543,
-        department: 'กลุ่มงานบริหารทั่วไป', // Default department
+        department: selectedDepartments[0],
         doc_date: new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().split('T')[0], // Current date
-        notes: `สร้างจากแผนจัดซื้อ ${selectedItems.length} รายการ`,
+        notes: `สร้างจากแผนจัดซื้อ ${selectedItems.length} รายการ (หน่วยงานจัดซื้อ ${selectedDepartments[0]}, หมวดสินค้า ${selectedCategories[0]})`,
         created_by: 'system'
       };
 
@@ -950,6 +1168,7 @@ function PurchasePlansPageContent() {
 
       // Clear selection and refresh data
       setSelectedRows(new Set());
+      setApprovalDraftByPlanId({});
       await Promise.all([fetchData(), fetchSummaryData()]);
     } catch (error) {
       console.error(error);
@@ -1120,267 +1339,528 @@ function PurchasePlansPageContent() {
     }
   };
 
-  const handleCreateNew = () => {
-    // Navigate to usage plans page to create new purchase plans
-    router.push('/usage-plans');
+  const purchaseDepartmentOptions = useMemo(
+    () => Array.from(new Set(items.map((item) => item.purchase_department_name).filter(Boolean) as string[])).sort(),
+    [items],
+  );
+
+  const visibleItems = useMemo(() => {
+    if (!purchaseDepartmentFilter) {
+      return items;
+    }
+
+    return items.filter((item) => item.purchase_department_name === purchaseDepartmentFilter);
+  }, [items, purchaseDepartmentFilter]);
+
+  useEffect(() => {
+    const validIds = new Set(items.map((item) => item.id));
+
+    setSelectedRows((prev) => {
+      const next = new Set(Array.from(prev).filter((id) => validIds.has(id)));
+      return next.size === prev.size ? prev : next;
+    });
+
+    setApprovalDraftByPlanId((prev) => {
+      const entries = Object.entries(prev).filter(([id]) => validIds.has(Number(id)));
+      if (entries.length === Object.keys(prev).length) {
+        return prev;
+      }
+      return Object.fromEntries(entries) as Record<number, ApprovalDraftInput>;
+    });
+  }, [items]);
+
+  const handleAutoCreate = async () => {
+    try {
+      setAutoCreating(true);
+      const response = await fetch('/api/purchase-plans/auto', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      });
+
+      const payload = await response.json().catch(() => null);
+      if (!response.ok || !payload?.success) {
+        throw new Error(payload?.error || 'ไม่สามารถทำแผนจัดซื้ออัตโนมัติได้');
+      }
+
+      await Swal.fire({
+        icon: 'success',
+        title: 'ทำแผนจัดซื้ออัตโนมัติสำเร็จ',
+        text: payload?.message || 'สร้างแผนจัดซื้ออัตโนมัติเรียบร้อยแล้ว',
+      });
+
+      await Promise.all([fetchData(), fetchSummaryData()]);
+    } catch (error) {
+      console.error(error);
+      await Swal.fire({
+        icon: 'error',
+        title: 'ทำแผนจัดซื้ออัตโนมัติไม่สำเร็จ',
+        text: error instanceof Error ? error.message : 'เกิดข้อผิดพลาดในการสร้างแผนจัดซื้ออัตโนมัติ',
+      });
+    } finally {
+      setAutoCreating(false);
+    }
+  };
+
+  const fetchOutOfPlanOptions = async (args?: { departmentCode?: string; category?: string; searchText?: string }) => {
+    try {
+      setLoadingOutOfPlanProducts(true);
+      const departmentCode = args?.departmentCode ?? outOfPlanDeptCode;
+      const category = args?.category ?? outOfPlanCategory;
+      const searchText = args?.searchText ?? '';
+      const params = new URLSearchParams();
+      if (departmentCode) params.set('department_code', departmentCode);
+      if (category) params.set('category', category);
+      if (searchText.trim()) params.set('search', searchText.trim());
+
+      const response = await fetch(`/api/purchase-plans/out-of-plan?${params.toString()}`);
+      if (!response.ok) {
+        throw new Error('โหลดข้อมูลสินค้าไม่สำเร็จ');
+      }
+
+      const data = await response.json();
+      setOutOfPlanDepartments(Array.isArray(data?.departments) ? data.departments : []);
+      setOutOfPlanCategories(Array.isArray(data?.categories) ? data.categories : []);
+      setOutOfPlanProducts(Array.isArray(data?.products) ? data.products : []);
+    } catch (error) {
+      console.error(error);
+      setOutOfPlanProducts([]);
+    } finally {
+      setLoadingOutOfPlanProducts(false);
+    }
+  };
+
+  const openOutOfPlanModal = async () => {
+    setShowOutOfPlanModal(true);
+    setOutOfPlanDeptCode('');
+    setOutOfPlanCategory('');
+    setOutOfPlanSearch('');
+    setOutOfPlanBudgetYear(String(getCurrentBudgetYear()));
+    setOutOfPlanPurchaseQty('1');
+    setSelectedOutOfPlanProductCode('');
+    setOutOfPlanProducts([]);
+    await fetchOutOfPlanOptions({ departmentCode: '', category: '', searchText: '' });
+  };
+
+  const handleSearchOutOfPlanProducts = async () => {
+    if (!outOfPlanDeptCode || !outOfPlanCategory || !outOfPlanSearch.trim()) {
+      await Swal.fire({
+        icon: 'warning',
+        title: 'ข้อมูลไม่ครบ',
+        text: 'กรุณาเลือกหน่วยงาน เลือกหมวดสินค้า และกรอกรหัส/ชื่อสินค้า',
+      });
+      return;
+    }
+    await fetchOutOfPlanOptions({
+      departmentCode: outOfPlanDeptCode,
+      category: outOfPlanCategory,
+      searchText: outOfPlanSearch,
+    });
+  };
+
+  const handleCreateOutOfPlanPurchase = async () => {
+    if (!selectedOutOfPlanProductCode) {
+      await Swal.fire({ icon: 'warning', title: 'ยังไม่ได้เลือกสินค้า', text: 'กรุณาเลือกสินค้า 1 รหัสก่อนบันทึก' });
+      return;
+    }
+
+    const qty = Number(outOfPlanPurchaseQty);
+    if (!Number.isFinite(qty) || qty <= 0) {
+      await Swal.fire({ icon: 'warning', title: 'จำนวนไม่ถูกต้อง', text: 'จำนวนต้องมากกว่า 0' });
+      return;
+    }
+
+    try {
+      setSavingOutOfPlan(true);
+      const response = await fetch('/api/purchase-plans/out-of-plan', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          product_code: selectedOutOfPlanProductCode,
+          requesting_dept_code: outOfPlanDeptCode,
+          category: outOfPlanCategory,
+          budget_year: Number(outOfPlanBudgetYear),
+          purchase_qty: qty,
+        }),
+      });
+
+      const payload = await response.json().catch(() => null);
+      if (!response.ok || !payload?.success) {
+        throw new Error(payload?.error || 'เพิ่มแผนจัดซื้อนอกแผนไม่สำเร็จ');
+      }
+
+      await Swal.fire({
+        icon: 'success',
+        title: 'เพิ่มแผนจัดซื้อนอกแผนสำเร็จ',
+        text: payload?.message || 'บันทึกลง usage_plan และ purchase_plan เรียบร้อยแล้ว',
+      });
+
+      setShowOutOfPlanModal(false);
+      await Promise.all([fetchData(), fetchSummaryData(), fetchFilters()]);
+    } catch (error) {
+      console.error(error);
+      await Swal.fire({
+        icon: 'error',
+        title: 'เพิ่มแผนจัดซื้อนอกแผนไม่สำเร็จ',
+        text: error instanceof Error ? error.message : 'เกิดข้อผิดพลาด',
+      });
+    } finally {
+      setSavingOutOfPlan(false);
+    }
   };
 
   return (
-    <div className="p-6 bg-gray-50 min-h-screen">
-      <div className="mb-6">
-        <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
-          <h1 className="text-3xl font-bold text-gray-900">แผนจัดซื้อ</h1>
-          <div className="flex flex-wrap items-center gap-3 xl:justify-end">
-            <button
-              onClick={handleBulkPurchaseApproval}
-              className="inline-flex items-center gap-2 rounded-lg bg-green-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-green-700"
-            >
-              ทำรายการอนุมัติจัดซื้อ {selectedRows.size > 0 ? `${selectedRows.size} รายการ` : ''}
-            </button>
-            <button
-              onClick={handleBulkRemoveFromPlan}
-              className="inline-flex items-center gap-2 rounded-lg bg-red-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-red-700"
-            >
-              นำออกจากแผนจัดซื้อ {selectedRows.size > 0 ? `${selectedRows.size} รายการ` : ''}
-            </button>
-            <button
-              onClick={() => setSelectedRows(new Set())}
-              className="inline-flex items-center gap-2 rounded-lg bg-gray-500 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-gray-600"
-            >
-              ยกเลิก {selectedRows.size > 0 ? `${selectedRows.size} รายการ` : ''}
-            </button>
+    <div className="min-h-screen bg-gray-50 p-6">
+      <div className="mx-auto max-w-[1600px] space-y-4">
+        <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4">
+          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+            <div>
+              <h1 className="text-2xl font-semibold text-emerald-900">แผนจัดซื้อ</h1>
+              <p className="text-sm text-emerald-800">เลือกรายการเพื่อจัดทำเอกสารอนุมัติจัดซื้อได้ เมื่อเป็นหน่วยงานจัดซื้อเดียวกันและหมวดสินค้าเดียวกัน</p>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={() => void openOutOfPlanModal()}
+                className="rounded-lg border border-emerald-600 bg-white px-4 py-2 text-sm font-semibold text-emerald-700 hover:bg-emerald-100"
+              >
+                เพิ่มแผนจัดซื้อนอกแผนการใช้
+              </button>
+              <button
+                type="button"
+                onClick={() => void handleBulkPurchaseApproval()}
+                disabled={selectedPlanItems.length === 0}
+                className="rounded-lg border border-blue-600 bg-blue-50 px-4 py-2 text-sm font-semibold text-blue-700 hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                จัดทำเอกสารอนุมัติจัดซื้อ ({selectedPlanItems.length})
+              </button>
+              <button
+                type="button"
+                onClick={() => void handleAutoCreate()}
+                disabled={autoCreating}
+                className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {autoCreating ? 'กำลังทำแผนจัดซื้ออัตโนมัติ...' : 'ทำแผนจัดซื้ออัตโนมัติ'}
+              </button>
+            </div>
           </div>
         </div>
-      </div>
 
-      <div className="bg-white shadow-md rounded-lg overflow-hidden mb-4">
-        <div className="px-4 py-3 bg-gray-50 border-b border-gray-200">
-          <div className="grid grid-cols-1 md:grid-cols-7 gap-4 mb-4">
-            <select value={budgetYearFilter} onChange={(event) => setBudgetYearFilter(event.target.value)} className="w-full rounded-md border-gray-300 shadow-sm text-sm px-3 py-2">
-              <option value="">ปีงบ</option>
-              {availableBudgetYears.map((year) => <option key={year} value={year}>{year}</option>)}
+        <div className="rounded-xl border border-gray-200 bg-white p-4">
+          <div className="mb-4 grid grid-cols-1 gap-3 md:grid-cols-4">
+            <select
+              value={purchaseDepartmentFilter}
+              onChange={(event) => setPurchaseDepartmentFilter(event.target.value)}
+              className="rounded-lg border border-gray-300 px-3 py-2 text-sm"
+            >
+              <option value="">ทุกหน่วยงานจัดซื้อ</option>
+              {purchaseDepartmentOptions.map((department) => (
+                <option key={department} value={department}>{department}</option>
+              ))}
             </select>
-            <select value={requestingDeptFilter} onChange={(event) => setRequestingDeptFilter(event.target.value)} className="w-full rounded-md border-gray-300 shadow-sm text-sm px-3 py-2">
-              <option value="">หน่วยงาน</option>
-              {departments.map((department) => <option key={department} value={department}>{department}</option>)}
+            <select
+              value={categoryFilter}
+              onChange={(event) => {
+                setCategoryFilter(event.target.value);
+                setTypeFilter('');
+              }}
+              className="rounded-lg border border-gray-300 px-3 py-2 text-sm"
+            >
+              <option value="">ทุกหมวด</option>
+              {categories.map((category) => (
+                <option key={category} value={category}>{category}</option>
+              ))}
             </select>
-            <select value={hasPurchaseApprovalFilter} onChange={(event) => setHasPurchaseApprovalFilter(event.target.value)} className="w-full rounded-md border-gray-300 shadow-sm text-sm px-3 py-2">
-              <option value="">สถานะเอกสาร</option>
-              <option value="true">ทำเอกสารแล้ว ({purchaseApprovalCreatedCount})</option>
-              <option value="false">ยังไม่ทำเอกสาร ({purchaseApprovalPendingCount})</option>
+            <select
+              value={typeFilter}
+              onChange={(event) => setTypeFilter(event.target.value)}
+              className="rounded-lg border border-gray-300 px-3 py-2 text-sm"
+            >
+              <option value="">ทุกประเภท</option>
+              {availableTypes.map((type) => (
+                <option key={type} value={type}>{type}</option>
+              ))}
             </select>
-            <div className="relative">
-              <input
-                placeholder="รหัสสินค้า / ชื่อสินค้า"
-                value={productNameFilter}
-                onChange={(event) => setProductNameFilter(event.target.value)}
-                className="w-full rounded-md border-gray-300 shadow-sm text-sm px-3 py-2 pr-10"
-              />
-              {productNameFilter && (
+            <input
+              type="text"
+              value={productNameFilter}
+              onChange={(event) => setProductNameFilter(event.target.value)}
+              placeholder="ค้นหารหัส/ชื่อสินค้า"
+              className="rounded-lg border border-gray-300 px-3 py-2 text-sm"
+            />
+          </div>
+
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[980px] divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-3 py-2 text-center text-xs font-semibold uppercase text-gray-500">
+                    <input
+                      type="checkbox"
+                      aria-label="เลือกทั้งหมด"
+                      checked={isAllSelected}
+                      ref={(element) => {
+                        if (element) {
+                          element.indeterminate = isIndeterminate;
+                        }
+                      }}
+                      onChange={(event) => handleSelectAll(event.target.checked)}
+                      className="h-4 w-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
+                    />
+                  </th>
+                  <th className="px-3 py-2 text-left text-xs font-semibold uppercase text-gray-500">ID</th>
+                  <th className="px-3 py-2 text-left text-xs font-semibold uppercase text-gray-500">ปีงบ</th>
+                  <th className="px-3 py-2 text-left text-xs font-semibold uppercase text-gray-500">รหัสสินค้า</th>
+                  <th className="px-3 py-2 text-left text-xs font-semibold uppercase text-gray-500">ชื่อสินค้า</th>
+                  <th className="px-3 py-2 text-left text-xs font-semibold uppercase text-gray-500">หน่วยงานจัดซื้อ</th>
+                  <th className="px-3 py-2 text-left text-xs font-semibold uppercase text-gray-500">หน่วยนับ</th>
+                  <th className="px-3 py-2 text-right text-xs font-semibold uppercase text-gray-500">โควต้า</th>
+                  <th className="px-3 py-2 text-right text-xs font-semibold uppercase text-gray-500">คงคลัง</th>
+                  <th className="px-3 py-2 text-right text-xs font-semibold uppercase text-gray-500">จำนวนซื้อ</th>
+                  <th className="px-3 py-2 text-right text-xs font-semibold uppercase text-gray-500">ราคาต่อหน่วย</th>
+                  <th className="px-3 py-2 text-right text-xs font-semibold uppercase text-gray-500">มูลค่าซื้อ</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100 bg-white">
+                {loading ? (
+                  <tr>
+                    <td colSpan={12} className="px-3 py-8 text-center text-sm text-gray-500">กำลังโหลดข้อมูล...</td>
+                  </tr>
+                ) : visibleItems.length === 0 ? (
+                  <tr>
+                    <td colSpan={12} className="px-3 py-8 text-center text-sm text-gray-500">ไม่พบข้อมูลแผนจัดซื้อ</td>
+                  </tr>
+                ) : (
+                  visibleItems.map((row) => (
+                    <tr key={row.id} className="hover:bg-gray-50">
+                      <td className="px-3 py-2 text-center text-xs text-gray-700">
+                        <input
+                          type="checkbox"
+                          aria-label={`เลือกรายการ ${row.product_code ?? row.id}`}
+                          checked={selectedRows.has(row.id)}
+                          onChange={(event) => handleRowSelect(row.id, event.target.checked)}
+                          disabled={!isRowSelectableByRule(row)}
+                          className="h-4 w-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500 disabled:cursor-not-allowed disabled:opacity-50"
+                        />
+                      </td>
+                      <td className="px-3 py-2 text-xs text-gray-700">{row.id}</td>
+                      <td className="px-3 py-2 text-xs text-gray-700">{row.budget_year ?? '-'}</td>
+                      <td className="px-3 py-2 text-xs text-gray-700">{row.product_code ?? '-'}</td>
+                      <td className="px-3 py-2 text-xs text-gray-700">
+                        <div className="font-medium text-gray-900">{row.product_name ?? '-'}</div>
+                        <div className="text-[10px] text-amber-600">{[row.category, row.product_type, row.product_subtype].filter(Boolean).join(' - ') || '-'}</div>
+                      </td>
+                      <td className="px-3 py-2 text-xs text-gray-700">{row.purchase_department_name ?? '-'}</td>
+                      <td className="px-3 py-2 text-xs text-gray-700">{row.unit ?? '-'}</td>
+                      <td className="px-3 py-2 text-right text-xs text-gray-700">{row.approved_quota ?? 0}</td>
+                      <td className="px-3 py-2 text-right text-xs text-gray-700">{row.inventory_qty ?? 0}</td>
+                      <td className="px-3 py-2 text-right text-xs text-gray-700">{row.purchase_qty ?? 0}</td>
+                      <td className="px-3 py-2 text-right text-xs text-gray-700">
+                        {(row.unit_price ?? row.price_per_unit ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </td>
+                      <td className="px-3 py-2 text-right text-xs text-gray-700">{(row.purchase_value ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        {showOutOfPlanModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+            <div className="flex max-h-[90vh] w-full max-w-4xl flex-col rounded-xl bg-white p-4 shadow-xl">
+              <div className="mb-3 flex items-center justify-between">
+                <h2 className="text-lg font-semibold text-gray-900">เพิ่มแผนจัดซื้อนอกแผนการใช้</h2>
                 <button
                   type="button"
-                  onClick={() => setProductNameFilter('')}
-                  className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                  title="ล้างค่า"
+                  onClick={() => setShowOutOfPlanModal(false)}
+                  className="rounded-md border border-gray-300 px-3 py-1 text-sm text-gray-700 hover:bg-gray-100"
                 >
-                  <X className="h-4 w-4" />
+                  ปิด
                 </button>
-              )}
-            </div>
-            <select value={categoryFilter} onChange={(event) => { setCategoryFilter(event.target.value); setTypeFilter(''); setSubtypeFilter(''); }} className="w-full rounded-md border-gray-300 shadow-sm text-sm px-3 py-2">
-              <option value="">หมวด</option>
-              {categories.map((category) => <option key={category} value={category}>{category}</option>)}
-            </select>
-            <select value={typeFilter} onChange={(event) => { setTypeFilter(event.target.value); setSubtypeFilter(''); }} className="w-full rounded-md border-gray-300 shadow-sm text-sm px-3 py-2">
-              <option value="">ประเภท</option>
-              {availableTypes.map((type) => <option key={type} value={type}>{type}</option>)}
-            </select>
-            <select value={subtypeFilter} onChange={(event) => setSubtypeFilter(event.target.value)} className="w-full rounded-md border-gray-300 shadow-sm text-sm px-3 py-2">
-              <option value="">ประเภทย่อย</option>
-              {availableSubtypes.map((subtype) => <option key={subtype} value={subtype}>{subtype}</option>)}
-            </select>
-          </div>
-          {filtersLoading && <p className="text-xs text-gray-500">กำลังโหลดตัวเลือกตัวกรอง...</p>}
-        </div>
-      </div>
-
-      <div className="bg-white shadow-md rounded-lg overflow-hidden mb-4">
-        <div className="px-4 py-3 bg-gray-50 border-b border-gray-200">
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-            <h3 className="text-lg font-medium text-gray-900">สรุปข้อมูลแผนการจัดซื้อ</h3>
-            <div className="flex flex-wrap items-center gap-6 text-sm">
-              <div>
-                <span className="text-gray-500">มูลค่าสินค้าคงคลัง (inventory_value): </span>
-                <span className="font-semibold text-gray-900">฿{totalInventoryValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
               </div>
-              <div>
-                <span className="text-gray-500">มูลค่าจัดซื้อ (purchase_value): </span>
-                <span className="font-semibold text-gray-900">฿{totalPurchaseValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+
+              <div className="overflow-y-auto pr-1">
+                <div className="grid grid-cols-1 gap-3 md:grid-cols-5">
+                <select
+                  value={outOfPlanDeptCode}
+                  onChange={(event) => setOutOfPlanDeptCode(event.target.value)}
+                  className="rounded-lg border border-gray-300 px-3 py-2 text-sm"
+                >
+                  <option value="">เลือกหน่วยงาน</option>
+                  {outOfPlanDepartments.map((department) => (
+                    <option key={department.department_code} value={department.department_code}>
+                      {department.department_code} - {department.name}
+                    </option>
+                  ))}
+                </select>
+                <select
+                  value={outOfPlanCategory}
+                  onChange={(event) => setOutOfPlanCategory(event.target.value)}
+                  className="rounded-lg border border-gray-300 px-3 py-2 text-sm"
+                >
+                  <option value="">เลือกหมวดสินค้า</option>
+                  {outOfPlanCategories.map((category) => (
+                    <option key={category} value={category}>
+                      {category}
+                    </option>
+                  ))}
+                </select>
+                <input
+                  type="text"
+                  value={outOfPlanSearch}
+                  onChange={(event) => setOutOfPlanSearch(event.target.value)}
+                  placeholder="ค้นหารหัส/ชื่อสินค้า"
+                  className="rounded-lg border border-gray-300 px-3 py-2 text-sm"
+                />
+                <input
+                  type="number"
+                  min={1}
+                  value={outOfPlanPurchaseQty}
+                  onChange={(event) => setOutOfPlanPurchaseQty(event.target.value)}
+                  placeholder="จำนวน"
+                  className="rounded-lg border border-gray-300 px-3 py-2 text-sm"
+                />
+                <select
+                  value={outOfPlanBudgetYear}
+                  onChange={(event) => setOutOfPlanBudgetYear(event.target.value)}
+                  className="rounded-lg border border-gray-300 px-3 py-2 text-sm"
+                >
+                  {availableBudgetYears.map((year) => (
+                    <option key={year} value={year}>
+                      {year}
+                    </option>
+                  ))}
+                </select>
+                </div>
+
+                <div className="mt-3 flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => void handleSearchOutOfPlanProducts()}
+                    disabled={loadingOutOfPlanProducts}
+                    className="rounded-lg bg-blue-600 px-3 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-60"
+                  >
+                    {loadingOutOfPlanProducts ? 'กำลังค้นหา...' : 'ค้นหาสินค้า'}
+                  </button>
+                  <p className="text-xs text-gray-500">เพิ่มได้ครั้งละ 1 รหัสสินค้า</p>
+                </div>
+
+                <div className="mt-3 max-h-72 overflow-y-auto rounded-lg border border-gray-200">
+                  <table className="w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-3 py-2 text-left text-xs font-semibold text-gray-500">เลือก</th>
+                        <th className="px-3 py-2 text-left text-xs font-semibold text-gray-500">รหัสสินค้า</th>
+                        <th className="px-3 py-2 text-left text-xs font-semibold text-gray-500">ชื่อสินค้า</th>
+                        <th className="px-3 py-2 text-left text-xs font-semibold text-gray-500">หน่วย</th>
+                        <th className="px-3 py-2 text-right text-xs font-semibold text-gray-500">ราคา</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100 bg-white">
+                      {outOfPlanProducts.length === 0 ? (
+                        <tr>
+                          <td colSpan={5} className="px-3 py-4 text-center text-sm text-gray-500">
+                            ยังไม่พบสินค้า
+                          </td>
+                        </tr>
+                      ) : (
+                        outOfPlanProducts.map((product) => (
+                          <tr key={product.code} className="hover:bg-gray-50">
+                            <td className="px-3 py-2 text-xs">
+                              <input
+                                type="radio"
+                                name="selected_out_of_plan_product"
+                                value={product.code}
+                                checked={selectedOutOfPlanProductCode === product.code}
+                                onChange={() => setSelectedOutOfPlanProductCode(product.code)}
+                              />
+                            </td>
+                            <td className="px-3 py-2 text-xs text-gray-700">{product.code}</td>
+                            <td className="px-3 py-2 text-xs text-gray-700">{product.name}</td>
+                            <td className="px-3 py-2 text-xs text-gray-700">{product.unit || '-'}</td>
+                            <td className="px-3 py-2 text-right text-xs text-gray-700">
+                              {(product.cost_price ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              <div className="mt-4 flex items-center justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowOutOfPlanModal(false)}
+                  className="rounded-lg border border-gray-300 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                >
+                  ยกเลิก
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void handleCreateOutOfPlanPurchase()}
+                  disabled={savingOutOfPlan}
+                  className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-60"
+                >
+                  {savingOutOfPlan ? 'กำลังบันทึก...' : 'บันทึกนอกแผน'}
+                </button>
               </div>
             </div>
           </div>
-        </div>
-      </div>
-
-      <div className="mt-4 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-        <div className="text-sm text-gray-600">แสดง {pageStart}-{pageEnd} จาก {totalCount} รายการ</div>
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-          <div className="flex items-center gap-2">
-            <span className="text-sm text-gray-600">แสดงต่อหน้า</span>
-            <select value={pageSize} onChange={handlePageSizeChange} className="rounded border border-gray-300 px-2 py-1 text-sm">
-              {[10, 20, 50].map((size) => <option key={size} value={size}>{size}</option>)}
-            </select>
-          </div>
-          <div className="flex items-center gap-2">
-            <button onClick={() => goToPage(page - 1)} disabled={page === 1} className={`px-3 py-1 rounded border text-sm ${page === 1 ? 'text-gray-400 border-gray-200 cursor-not-allowed' : 'text-gray-700 border-gray-300 hover:bg-gray-100'}`}>
-              ก่อนหน้า
-            </button>
-            <span className="text-sm text-gray-700">หน้า {page} / {totalPages}</span>
-            <button onClick={() => goToPage(page + 1)} disabled={page >= totalPages} className={`px-3 py-1 rounded border text-sm ${page >= totalPages ? 'text-gray-400 border-gray-200 cursor-not-allowed' : 'text-gray-700 border-gray-300 hover:bg-gray-100'}`}>
-              ถัดไป
-            </button>
-          </div>
-        </div>
-      </div>
-
-      <div className="bg-white shadow-md rounded-lg overflow-hidden mt-4">
-        <div className="overflow-x-auto">
-        {loading ? (
-          <div className="flex justify-center items-center py-12">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-          </div>
-        ) : items.length === 0 ? (
-          <div className="text-center py-12">
-            <p className="text-gray-500">ไม่พบข้อมูล</p>
-          </div>
-        ) : (
-          <table className="min-w-[1400px] w-full divide-y divide-gray-200 table-fixed">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-2 py-2.5 text-left">
-                  <input
-                    type="checkbox"
-                    checked={isAllSelected}
-                    ref={(el) => {
-                      if (el) {
-                        el.indeterminate = isIndeterminate;
-                      }
-                    }}
-                    onChange={(e) => handleSelectAll(e.target.checked)}
-                    className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                  />
-                </th>
-                <th onClick={() => handleSort('budget_year')} className={`${getHeaderClass('budget_year')} w-20`}>ปีงบ</th>
-                <th onClick={() => handleSort('product_code')} className={`${getHeaderClass('product_code')} w-28`}>รหัสสินค้า</th>
-                <th onClick={() => handleSort('product_name')} className={`${getHeaderClass('product_name')} w-[22rem]`}>ชื่อสินค้า</th>
-                <th onClick={() => handleSort('purchase_department')} className={`${getHeaderClass('purchase_department')} w-44`}>หน่วยงานจัดซื้อ</th>
-                <th onClick={() => handleSort('approved_quota')} className={`${getHeaderClass('approved_quota')} w-24`}>รวมโควต้า</th>
-                <th onClick={() => handleSort('inventory_qty')} className={`${getHeaderClass('inventory_qty')} w-20`}>คงคลัง</th>
-                <th onClick={() => handleSort('purchased_qty')} className={`${getHeaderClass('purchased_qty')} w-20`}>ซื้อแล้ว</th>
-                <th onClick={() => handleSort('purchase_qty')} className={`${getHeaderClass('purchase_qty')} w-28`}>ซื้อครั้งนี้</th>
-                <th onClick={() => handleSort('unit_price')} className={`${getHeaderClass('unit_price')} w-28`}>ราคาต่อหน่วย</th>
-                <th onClick={() => handleSort('purchase_value')} className={`${getHeaderClass('purchase_value')} w-32`}>รวมมูลค่าซื้อ</th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {items.map((row) => {
-                const isEditingRow = editingRowId === row.id;
-                const isApprovedRow = Boolean(row.has_purchase_approval);
-                const editingTotal = Number((Number(editingPurchaseQty || 0) * Number(editingUnitPrice || 0)).toFixed(2));
-
-                return (
-                  <tr key={row.id} className={`${isEditingRow ? 'bg-yellow-50' : 'hover:bg-gray-50 transition-colors duration-150'}`}>
-                    <td className="px-2 py-2 text-[11px] align-top">
-                      <input
-                        type="checkbox"
-                        checked={selectedRows.has(row.id)}
-                        onChange={(e) => handleRowSelect(row.id, e.target.checked)}
-                        disabled={Boolean(row.has_purchase_approval)}
-                        className={`h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 ${
-                          row.has_purchase_approval
-                            ? 'opacity-50 cursor-not-allowed' 
-                            : ''
-                        }`}
-                        title={row.has_purchase_approval ? 'รายการนี้ถูกเพิ่มไปยังรายการอนุมัติแล้ว' : ''}
-                      />
-                    </td>
-                    <td className="px-2 py-2 text-[11px] align-top">{row.budget_year ?? '-'}</td>
-                    <td className="px-2 py-2 text-[11px] align-top break-all">{row.product_code || '-'}</td>
-                    <td className="px-2 py-2 text-[11px] align-top">
-                      <div className="font-medium text-gray-900 whitespace-normal break-words leading-4" title={row.product_name || ''}>{row.product_name || '-'}</div>
-                      <div className="mt-1 text-[10px] leading-4 text-amber-600/70">{`${row.category || '-'}-${row.product_type || '-'}-${row.product_subtype || '-'}`}</div>
-                    </td>
-                    <td className="px-2 py-2 text-[11px] align-top break-words">{row.purchase_department_name || '-'}</td>
-                    <td className="px-2 py-2 text-[11px] align-top">{row.approved_quota ?? '-'}</td>
-                    <td className="px-2 py-2 text-[11px] align-top">{row.inventory_qty ?? '-'}</td>
-                    <td className="px-2 py-2 text-[11px] align-top">{row.purchased_qty ?? '-'}</td>
-                    <td
-                      className={`px-2 py-2 text-[11px] align-top ${!isEditingRow && !isApprovedRow ? 'cursor-text hover:bg-yellow-50' : ''} ${isApprovedRow ? 'text-gray-500' : ''}`}
-                      onClick={() => {
-                        if (!isEditingRow && !isApprovedRow) {
-                          void handleRowFocus(row, 'qty');
-                        }
-                      }}
-                      title={isApprovedRow ? 'รายการนี้ถูกสร้างเอกสารอนุมัติจัดซื้อแล้ว จึงไม่สามารถแก้ไขได้' : undefined}
-                    >
-                      {isEditingRow ? (
-                        <input
-                          type="number"
-                          min="0"
-                          value={editingPurchaseQty}
-                          onChange={(event) => setEditingPurchaseQty(event.target.value)}
-                          onKeyDown={(event) => void handlePurchaseQtyKeyDown(event, row)}
-                          ref={(element) => {
-                            purchaseQtyInputRefs.current[row.id] = element;
-                          }}
-                          className="w-20 rounded border border-amber-300 bg-white px-2 py-1 text-[11px] shadow-sm outline-none ring-2 ring-amber-100"
-                        />
-                      ) : (
-                        row.purchase_qty ?? '-'
-                      )}
-                    </td>
-                    <td
-                      className={`px-2 py-2 text-[11px] align-top ${!isEditingRow && !isApprovedRow ? 'cursor-text hover:bg-yellow-50' : ''} ${isApprovedRow ? 'text-gray-500' : ''}`}
-                      onClick={() => {
-                        if (!isEditingRow && !isApprovedRow) {
-                          void handleRowFocus(row, 'price');
-                        }
-                      }}
-                      title={isApprovedRow ? 'รายการนี้ถูกสร้างเอกสารอนุมัติจัดซื้อแล้ว จึงไม่สามารถแก้ไขได้' : undefined}
-                    >
-                      {isEditingRow ? (
-                        <input
-                          type="number"
-                          min="0"
-                          step="0.01"
-                          value={editingUnitPrice}
-                          onChange={(event) => setEditingUnitPrice(event.target.value)}
-                          onKeyDown={(event) => void handleUnitPriceKeyDown(event, row)}
-                          ref={(element) => {
-                            unitPriceInputRefs.current[row.id] = element;
-                          }}
-                          className="w-24 rounded border border-amber-300 bg-white px-2 py-1 text-[11px] shadow-sm outline-none ring-2 ring-amber-100"
-                        />
-                      ) : (
-                        row.unit_price !== null && row.unit_price !== undefined
-                          ? Number(row.unit_price).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-                          : '-'
-                      )}
-                    </td>
-                    <td className="px-2 py-2 text-[11px] align-top">
-                      {isEditingRow
-                        ? editingTotal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-                        : (row.purchase_value !== null && row.purchase_value !== undefined
-                          ? Number(row.purchase_value).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-                          : '-')}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
         )}
-        </div>
+
+        {showApprovalInputModal && approvalInputRow && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+            <div className="w-full max-w-md rounded-xl bg-white p-4 shadow-xl">
+              <h2 className="text-lg font-semibold text-gray-900">กรอกข้อมูลเพื่อจัดทำเอกสารอนุมัติจัดซื้อ</h2>
+              <p className="mt-1 text-sm text-gray-600">
+                {approvalInputRow.product_code || '-'} - {approvalInputRow.product_name || '-'}
+              </p>
+              <div className="mt-3 space-y-3">
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-gray-700">จำนวนซื้อ</label>
+                  <input
+                    type="number"
+                    min={1}
+                    step={1}
+                    value={approvalInputQty}
+                    onChange={(event) => setApprovalInputQty(event.target.value)}
+                    className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-gray-700">ราคารวม</label>
+                  <input
+                    type="number"
+                    min={0}
+                    step="0.01"
+                    value={approvalInputTotal}
+                    onChange={(event) => setApprovalInputTotal(event.target.value)}
+                    className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+                  />
+                </div>
+              </div>
+              <div className="mt-4 flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={closeApprovalInputModal}
+                  className="rounded-lg border border-gray-300 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                >
+                  ยกเลิก
+                </button>
+                <button
+                  type="button"
+                  onClick={handleConfirmApprovalInput}
+                  className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700"
+                >
+                  ยืนยัน
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -1393,3 +1873,5 @@ export default function PurchasePlansPage() {
     </Suspense>
   );
 }
+
+

@@ -1,39 +1,42 @@
 import { NextRequest } from 'next/server';
-import { pgQuery } from '@/lib/pg';
+import { pgPool, pgQuery } from '@/lib/pg';
 import { apiError, apiSuccess } from '@/lib/api-response';
 import { cacheDelByPattern, cacheGet, cacheSet } from '@/lib/redis';
 import { createPurchasePlanSchema, purchasePlanQuerySchema } from '@/lib/validation/schemas';
 import { validateQuery, validateRequest } from '@/lib/validation/validate';
 
 type PurchasePlanPayload = {
-  usage_plan_id?: number | null;
+  usage_plan_ids?: number[];
   inventory_qty?: number | null;
-  inventory_value?: number | null;
+  qouta_qty?: number | null;
   purchase_qty?: number | null;
-  purchase_value?: number | null;
-  unit_price?: number | null;
 };
 
 const purchasePlanBaseSelect = `
   FROM public.purchase_plan pp
-  INNER JOIN public.usage_plan up ON up.id = pp.usage_plan_id
-  LEFT JOIN public.product p ON p.code = up.product_code
-  LEFT JOIN public.category c ON c.category = p.category
-  LEFT JOIN public.department pd ON pd.id = p.purchase_department_id
   LEFT JOIN (
-    SELECT product_code, SUM(approved_quota)::int AS total_quota
-    FROM public.usage_plan
-    GROUP BY product_code
-  ) quota_summary ON quota_summary.product_code = up.product_code
+    SELECT
+      up.purchase_plan_id,
+      MIN(up.budget_year)::int AS budget_year,
+      MIN(up.product_code) AS product_code,
+      SUM(COALESCE(up.requested_amount, 0))::int AS requested_amount,
+      SUM(COALESCE(up.approved_quota, 0))::int AS approved_quota,
+      STRING_AGG(DISTINCT COALESCE(d.name, up.requesting_dept_code), ', ') AS requesting_depts
+    FROM public.usage_plan up
+    LEFT JOIN public.department d ON d.department_code = up.requesting_dept_code
+    WHERE up.purchase_plan_id IS NOT NULL
+    GROUP BY up.purchase_plan_id
+  ) usage_summary ON usage_summary.purchase_plan_id = pp.id
+  LEFT JOIN public.product p ON p.code = usage_summary.product_code
+  LEFT JOIN public.department pd ON pd.id = p.purchase_department_id
   LEFT JOIN (
     SELECT
       ii.product_code,
-      COALESCE(SUM(ib.on_hand_qty), 0)::int AS inventory_qty,
-      COALESCE(SUM(ib.on_hand_qty * ib.avg_cost), 0)::float8 AS inventory_value
+      COALESCE(SUM(ib.on_hand_qty), 0)::int AS inventory_qty
     FROM public.inventory_item ii
     INNER JOIN public.inventory_balance ib ON ib.inventory_item_id = ii.id
     GROUP BY ii.product_code
-  ) inventory_snapshot ON inventory_snapshot.product_code = up.product_code
+  ) inventory_snapshot ON inventory_snapshot.product_code = usage_summary.product_code
   LEFT JOIN (
     SELECT
       pad.purchase_plan_id,
@@ -46,62 +49,25 @@ const purchasePlanBaseSelect = `
 const purchasePlanSelect = `
   SELECT
     pp.id,
-    pp.usage_plan_id,
-    up.sequence_no,
-    up.product_code,
+    usage_summary.budget_year,
+    usage_summary.product_code,
     p.name AS product_name,
     p.category,
-    c.type AS product_type,
-    c.subtype AS product_subtype,
+    p.type AS product_type,
+    p.subtype AS product_subtype,
     p.unit,
-    COALESCE(p.cost_price, 0)::float8 AS price_per_unit,
-    up.requested_amount,
-    COALESCE(quota_summary.total_quota, 0)::int AS approved_quota,
-    up.budget_year,
-    up.requesting_dept,
+    COALESCE(p.cost_price, 0)::float8 AS unit_price,
+    usage_summary.requested_amount,
+    COALESCE(pp.qouta_qty, usage_summary.approved_quota, 0)::int AS approved_quota,
+    usage_summary.requesting_depts AS requesting_dept,
     p.purchase_department_id,
     pd.department_code AS purchase_department_code,
     pd.name AS purchase_department_name,
     EXISTS (SELECT 1 FROM public.purchase_approval_detail has_pad WHERE has_pad.purchase_plan_id = pp.id) AS has_purchase_approval,
     COALESCE(inventory_snapshot.inventory_qty, pp.inventory_qty, 0)::int AS inventory_qty,
-    COALESCE(inventory_snapshot.inventory_value, pp.inventory_value, 0)::float8 AS inventory_value,
     COALESCE(purchased_summary.purchased_qty, 0)::int AS purchased_qty,
-    CASE
-      WHEN EXISTS (SELECT 1 FROM public.purchase_approval_detail has_pad WHERE has_pad.purchase_plan_id = pp.id) THEN 0
-      ELSE LEAST(
-        COALESCE(
-          pp.purchase_qty,
-          GREATEST(
-            COALESCE(quota_summary.total_quota, 0) - COALESCE(inventory_snapshot.inventory_qty, 0) - COALESCE(purchased_summary.purchased_qty, 0),
-            0
-          )
-        ),
-        GREATEST(
-          COALESCE(quota_summary.total_quota, 0) - COALESCE(inventory_snapshot.inventory_qty, 0) - COALESCE(purchased_summary.purchased_qty, 0),
-          0
-        )
-      )::int
-    END AS purchase_qty,
-    COALESCE(pp.unit_price, p.cost_price, 0)::float8 AS unit_price,
-    CASE
-      WHEN EXISTS (SELECT 1 FROM public.purchase_approval_detail has_pad WHERE has_pad.purchase_plan_id = pp.id) THEN 0::float8
-      ELSE ROUND(
-        LEAST(
-          COALESCE(
-            pp.purchase_qty,
-            GREATEST(
-              COALESCE(quota_summary.total_quota, 0) - COALESCE(inventory_snapshot.inventory_qty, 0) - COALESCE(purchased_summary.purchased_qty, 0),
-              0
-            )
-          ),
-          GREATEST(
-            COALESCE(quota_summary.total_quota, 0) - COALESCE(inventory_snapshot.inventory_qty, 0) - COALESCE(purchased_summary.purchased_qty, 0),
-            0
-          )
-        ) * COALESCE(pp.unit_price, p.cost_price, 0),
-        2
-      )::float8
-    END AS purchase_value
+    COALESCE(pp.purchase_qty, 0)::int AS purchase_qty,
+    ROUND(COALESCE(pp.purchase_qty, 0) * COALESCE(p.cost_price, 0), 2)::float8 AS purchase_value
   ${purchasePlanBaseSelect}
 `;
 
@@ -120,7 +86,7 @@ function buildWhereClause(filters: {
   if (filters.product_name) {
     params.push(`%${filters.product_name}%`);
     const searchParamIndex = params.length;
-    whereClauses.push(`(p.name ILIKE $${searchParamIndex} OR up.product_code ILIKE $${searchParamIndex})`);
+    whereClauses.push(`(p.name ILIKE $${searchParamIndex} OR usage_summary.product_code ILIKE $${searchParamIndex})`);
   }
 
   if (filters.category) {
@@ -130,22 +96,22 @@ function buildWhereClause(filters: {
 
   if (filters.product_type) {
     params.push(filters.product_type);
-    whereClauses.push(`c.type = $${params.length}`);
+    whereClauses.push(`p.type = $${params.length}`);
   }
 
   if (filters.product_subtype) {
     params.push(filters.product_subtype);
-    whereClauses.push(`c.subtype = $${params.length}`);
+    whereClauses.push(`p.subtype = $${params.length}`);
   }
 
   if (filters.budget_year) {
     params.push(Number(filters.budget_year));
-    whereClauses.push(`up.budget_year = $${params.length}`);
+    whereClauses.push(`usage_summary.budget_year = $${params.length}`);
   }
 
   if (filters.requesting_dept) {
     params.push(filters.requesting_dept);
-    whereClauses.push(`up.requesting_dept = $${params.length}`);
+    whereClauses.push(`usage_summary.requesting_depts ILIKE $${params.length}`);
   }
 
   if (filters.has_purchase_approval === 'true') {
@@ -163,19 +129,18 @@ function buildWhereClause(filters: {
 }
 
 function normalizePurchasePlanPayload(payload: PurchasePlanPayload) {
-  const purchase_qty = Number(payload.purchase_qty ?? 0);
-  const purchase_value = Number(payload.purchase_value ?? 0);
+  const usage_plan_ids = Array.isArray(payload.usage_plan_ids)
+    ? payload.usage_plan_ids.map((id) => Number(id)).filter((id) => Number.isInteger(id) && id > 0)
+    : [];
   const inventory_qty = Number(payload.inventory_qty ?? 0);
-  const inventory_value = Number(payload.inventory_value ?? 0);
-  const unit_price = Number(payload.unit_price ?? 0);
+  const qouta_qty = Number(payload.qouta_qty ?? 0);
+  const purchase_qty = Number(payload.purchase_qty ?? 0);
 
   return {
-    usage_plan_id: payload.usage_plan_id ?? null,
+    usage_plan_ids,
     inventory_qty: Number.isFinite(inventory_qty) ? inventory_qty : 0,
-    inventory_value: Number.isFinite(inventory_value) ? inventory_value : 0,
+    qouta_qty: Number.isFinite(qouta_qty) ? qouta_qty : 0,
     purchase_qty: Number.isFinite(purchase_qty) ? purchase_qty : 0,
-    purchase_value: Number.isFinite(purchase_value) ? purchase_value : 0,
-    unit_price: Number.isFinite(unit_price) ? unit_price : 0,
   };
 }
 
@@ -215,16 +180,16 @@ export async function GET(request: NextRequest) {
 
     const allowedOrderFields: Record<string, string> = {
       id: 'pp.id',
-      product_code: 'up.product_code',
+      product_code: 'usage_summary.product_code',
       product_name: 'p.name',
       purchase_department: 'p.purchase_department_id',
-      approved_quota: 'COALESCE(quota_summary.total_quota, 0)',
+      approved_quota: 'COALESCE(pp.qouta_qty, usage_summary.approved_quota, 0)',
       inventory_qty: 'COALESCE(inventory_snapshot.inventory_qty, pp.inventory_qty, 0)',
       purchased_qty: 'COALESCE(purchased_summary.purchased_qty, 0)',
-      purchase_qty: 'LEAST(COALESCE(pp.purchase_qty, GREATEST(COALESCE(quota_summary.total_quota, 0) - COALESCE(inventory_snapshot.inventory_qty, 0) - COALESCE(purchased_summary.purchased_qty, 0), 0)), GREATEST(COALESCE(quota_summary.total_quota, 0) - COALESCE(inventory_snapshot.inventory_qty, 0) - COALESCE(purchased_summary.purchased_qty, 0), 0))',
-      unit_price: 'COALESCE(pp.unit_price, p.cost_price, 0)',
-      purchase_value: 'ROUND(LEAST(COALESCE(pp.purchase_qty, GREATEST(COALESCE(quota_summary.total_quota, 0) - COALESCE(inventory_snapshot.inventory_qty, 0) - COALESCE(purchased_summary.purchased_qty, 0), 0)), GREATEST(COALESCE(quota_summary.total_quota, 0) - COALESCE(inventory_snapshot.inventory_qty, 0) - COALESCE(purchased_summary.purchased_qty, 0), 0)) * COALESCE(pp.unit_price, p.cost_price, 0), 2)',
-      budget_year: 'up.budget_year',
+      purchase_qty: 'COALESCE(pp.purchase_qty, 0)',
+      unit_price: 'COALESCE(p.cost_price, 0)',
+      purchase_value: 'ROUND(COALESCE(pp.purchase_qty, 0) * COALESCE(p.cost_price, 0), 2)',
+      budget_year: 'usage_summary.budget_year',
     };
 
     const safeOrderField = allowedOrderFields[order_by || 'id'] || 'pp.id';
@@ -324,45 +289,80 @@ export async function POST(request: NextRequest) {
 
     const payload = normalizePurchasePlanPayload(validation.data as PurchasePlanPayload);
 
-    if (payload.usage_plan_id === null) {
-      return apiError('กรุณาเลือก usage_plan_id', 400);
+    const usagePlanIds = payload.usage_plan_ids ?? [];
+    if (usagePlanIds.length === 0) {
+      return apiError('กรุณาระบุ usage_plan_ids อย่างน้อย 1 รายการ', 400);
     }
 
-    const usagePlanResult = await pgQuery(
-      `SELECT up.id, COALESCE(p.cost_price, 0)::float8 AS price_per_unit
-       FROM public.usage_plan up
-       LEFT JOIN public.product p ON p.code = up.product_code
-       WHERE up.id = $1
-       LIMIT 1`,
-      [payload.usage_plan_id]
-    );
-    const usagePlan = usagePlanResult.rows[0];
+    const client = await pgPool.connect();
+    try {
+      await client.query('BEGIN');
 
-    if (!usagePlan) {
-      return apiError('ไม่พบข้อมูลแผนการใช้ที่เลือก', 400);
+      const usagePlansResult = await client.query<{
+        id: number;
+        product_code: string | null;
+        approved_quota: number | null;
+        purchase_plan_id: number | null;
+      }>(
+        `SELECT id, product_code, approved_quota, purchase_plan_id
+         FROM public.usage_plan
+         WHERE id = ANY($1::int[])`,
+        [usagePlanIds],
+      );
+
+      if (usagePlansResult.rows.length !== usagePlanIds.length) {
+        await client.query('ROLLBACK');
+        return apiError('พบ usage_plan_ids บางรายการไม่มีอยู่จริง', 400);
+      }
+
+      if (usagePlansResult.rows.some((row) => row.purchase_plan_id !== null)) {
+        await client.query('ROLLBACK');
+        return apiError('มีบางรายการถูกผูกกับแผนจัดซื้อแล้ว', 400);
+      }
+
+      const productCodes = Array.from(
+        new Set(usagePlansResult.rows.map((row) => row.product_code).filter((code): code is string => Boolean(code))),
+      );
+      if (productCodes.length !== 1) {
+        await client.query('ROLLBACK');
+        return apiError('usage_plan ที่เลือกต้องมีรหัสสินค้าเดียวกันทั้งหมด', 400);
+      }
+
+      const totalQuota = usagePlansResult.rows.reduce((sum, row) => sum + Number(row.approved_quota ?? 0), 0);
+      const qoutaQty = payload.qouta_qty > 0 ? payload.qouta_qty : totalQuota;
+      const purchaseQty = payload.purchase_qty > 0 ? payload.purchase_qty : qoutaQty;
+
+      const insertResult = await client.query<{ id: number; inventory_qty: number; qouta_qty: number; purchase_qty: number }>(
+        `INSERT INTO public.purchase_plan (inventory_qty, qouta_qty, purchase_qty)
+         VALUES ($1, $2, $3)
+         RETURNING id, inventory_qty, qouta_qty, purchase_qty`,
+        [payload.inventory_qty, qoutaQty, purchaseQty],
+      );
+
+      const purchasePlanId = insertResult.rows[0].id;
+      await client.query(
+        `UPDATE public.usage_plan
+         SET purchase_plan_id = $1,
+             plan_flag = 'ในแผน',
+             updated_at = NOW()
+         WHERE id = ANY($2::int[])`,
+        [purchasePlanId, usagePlanIds],
+      );
+
+      await client.query('COMMIT');
+
+      await cacheDelByPattern('erp:purchase:plans:list:*');
+      await cacheDelByPattern('erp:purchase:plans:filters*');
+
+      return apiSuccess(insertResult.rows[0], 'Purchase plan created successfully', undefined, 201);
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
     }
-
-    const duplicateResult = await pgQuery('SELECT id FROM public.purchase_plan WHERE usage_plan_id = $1 LIMIT 1', [payload.usage_plan_id]);
-    if (duplicateResult.rows.length > 0) {
-      return apiError('แผนการใช้นี้ถูกสร้างแผนจัดซื้อแล้ว', 400);
-    }
-
-    const unit_price = Number.isFinite(payload.unit_price) ? Number(payload.unit_price) : Number(usagePlan.price_per_unit || 0);
-    const purchase_value = Number((payload.purchase_qty * unit_price).toFixed(2));
-
-    const insertResult = await pgQuery(
-      `INSERT INTO public.purchase_plan (usage_plan_id, inventory_qty, inventory_value, purchase_qty, unit_price, purchase_value)
-       VALUES ($1, $2, $3, $4, $5, $6)
-       RETURNING id, usage_plan_id, inventory_qty, inventory_value::float8 AS inventory_value, purchase_qty, unit_price::float8 AS unit_price, purchase_value::float8 AS purchase_value`,
-      [payload.usage_plan_id, payload.inventory_qty, payload.inventory_value, payload.purchase_qty, unit_price, purchase_value],
-    );
-
-    await cacheDelByPattern('erp:purchase:plans:list:*');
-    await cacheDelByPattern('erp:purchase:plans:filters*');
-
-    return apiSuccess(insertResult.rows[0], 'Purchase plan created successfully', undefined, 201);
   } catch (error) {
-    console.error('Error creating purchase plan:', error);
-    return apiError('Failed to create purchase plan');
+    console.error('Error creating purchase plans:', error);
+    return apiError('Failed to create purchase plans');
   }
 }

@@ -22,6 +22,7 @@ export async function GET(request: NextRequest) {
     const {
       product_code,
       requesting_dept_code,
+      plan_flag,
       budget_year,
       category,
       type,
@@ -40,6 +41,7 @@ export async function GET(request: NextRequest) {
       requesting_dept_code: 'up.requesting_dept_code',
       requested_amount: 'up.requested_amount',
       approved_quota: 'up.approved_quota',
+      plan_flag: 'up.plan_flag',
       budget_year: 'up.budget_year',
       sequence_no: 'up.sequence_no',
       created_at: 'up.created_at',
@@ -65,6 +67,11 @@ export async function GET(request: NextRequest) {
       whereClauses.push(`up.budget_year = $${params.length}`);
     }
 
+    if (plan_flag) {
+      params.push(plan_flag);
+      whereClauses.push(`COALESCE(up.plan_flag, 'ในแผน') = $${params.length}`);
+    }
+
     if (category) {
       params.push(`%${category}%`);
       whereClauses.push(`p.category ILIKE $${params.length}`);
@@ -76,11 +83,11 @@ export async function GET(request: NextRequest) {
     }
 
     if (has_purchase_plan === 'true') {
-      whereClauses.push('EXISTS (SELECT 1 FROM public.purchase_plan pp WHERE pp.usage_plan_id = up.id)');
+      whereClauses.push('up.purchase_plan_id IS NOT NULL');
     }
 
     if (has_purchase_plan === 'false') {
-      whereClauses.push('NOT EXISTS (SELECT 1 FROM public.purchase_plan pp WHERE pp.usage_plan_id = up.id)');
+      whereClauses.push('up.purchase_plan_id IS NULL');
     }
 
     const whereSql = whereClauses.length > 0 ? `WHERE ${whereClauses.join(' AND ')}` : '';
@@ -107,17 +114,17 @@ export async function GET(request: NextRequest) {
         COALESCE(p.cost_price, 0)::float8 AS price_per_unit,
         up.requesting_dept_code,
         COALESCE(d.name, up.requesting_dept_code) AS requesting_dept,
+        COALESCE(up.plan_flag, 'ในแผน') AS plan_flag,
         up.approved_quota,
         up.budget_year,
         up.sequence_no,
         up.created_at,
         up.updated_at,
-        EXISTS (SELECT 1 FROM public.purchase_plan pp WHERE pp.usage_plan_id = up.id) AS has_purchase_plan,
+        (up.purchase_plan_id IS NOT NULL) AS has_purchase_plan,
         EXISTS (
           SELECT 1
-          FROM public.purchase_plan pp
-          INNER JOIN public.purchase_approval_detail pad ON pad.purchase_plan_id = pp.id
-          WHERE pp.usage_plan_id = up.id
+          FROM public.purchase_approval_detail pad
+          WHERE pad.purchase_plan_id = up.purchase_plan_id
         ) AS has_purchase_approval
       ${usagePlanFromSql}
     `;
@@ -192,6 +199,7 @@ export async function POST(request: NextRequest) {
       product_code?: string | null;
       requested_amount?: number | null;
       requesting_dept_code?: string | null;
+      plan_flag?: 'ในแผน' | 'นอกแผน';
       approved_quota?: number | null;
       budget_year?: number | null;
       sequence_no?: number | null;
@@ -233,13 +241,14 @@ export async function POST(request: NextRequest) {
     }
 
     const usagePlan = await pgQuery(
-      `INSERT INTO public.usage_plan (product_code, requested_amount, requesting_dept_code, approved_quota, budget_year, sequence_no)
-       VALUES ($1, $2, $3, $4, $5, $6)
-       RETURNING id, product_code, requested_amount, requesting_dept_code, approved_quota, budget_year, sequence_no, created_at, updated_at`,
+      `INSERT INTO public.usage_plan (product_code, requested_amount, requesting_dept_code, plan_flag, approved_quota, budget_year, sequence_no)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)
+       RETURNING id, product_code, requested_amount, requesting_dept_code, plan_flag, approved_quota, budget_year, sequence_no, created_at, updated_at`,
       [
         usagePlanData.product_code || null,
         usagePlanData.requested_amount ?? null,
         usagePlanData.requesting_dept_code || null,
+        usagePlanData.plan_flag || 'ในแผน',
         usagePlanData.approved_quota ?? null,
         usagePlanData.budget_year ?? null,
         usagePlanData.sequence_no ?? null,
@@ -259,6 +268,7 @@ export async function POST(request: NextRequest) {
         COALESCE(p.cost_price, 0)::float8 AS price_per_unit,
         up.requesting_dept_code,
         COALESCE(d.name, up.requesting_dept_code) AS requesting_dept,
+        COALESCE(up.plan_flag, 'ในแผน') AS plan_flag,
         up.approved_quota,
         up.budget_year,
         up.sequence_no,

@@ -212,12 +212,10 @@ export const categoryQuerySchema = z.object({
 
 // Purchase Plan schemas
 export const createPurchasePlanSchema = z.object({
-  usage_plan_id: nullableIntInput.optional(),
+  usage_plan_ids: z.array(z.coerce.number().int().positive()).optional(),
   inventory_qty: nullableIntInput.optional(),
-  inventory_value: numberInput.optional(),
+  qouta_qty: nullableIntInput.optional(),
   purchase_qty: nullableIntInput.optional(),
-  purchase_value: numberInput.optional(),
-  unit_price: numberInput.optional()
 });
 
 export const updatePurchasePlanSchema = createPurchasePlanSchema.partial();
@@ -270,6 +268,8 @@ export const createPurchaseApprovalDetailSchema = z.object({
   purchase_plan_id: z.coerce.number().int().positive(),
   line_number: z.coerce.number().int().positive().optional(),
   status: z.enum(['PENDING', 'APPROVED', 'REJECTED', 'MODIFIED']).optional(),
+  proposed_quantity: z.coerce.number().int().min(0).optional(),
+  proposed_amount: z.number().min(0).optional(),
   approved_quantity: z.coerce.number().int().min(0).optional(),
   approved_amount: z.number().min(0).optional(),
   remarks: z.string().optional(),
@@ -305,6 +305,7 @@ export const create_usage_plan_schema = z.object({
   product_code: z.string().nullable().optional(),
   requested_amount: nullableIntInput.optional(),
   requesting_dept_code: z.string().trim().max(4).nullable().optional(),
+  plan_flag: z.enum(['ในแผน', 'นอกแผน']).optional(),
   approved_quota: nullableIntInput.optional(),
   budget_year: z.union([z.string(), z.number(), z.null(), z.undefined()])
     .transform((val) => val === null || val === undefined || val === '' ? null : parseInt(String(val), 10))
@@ -321,6 +322,7 @@ export const update_usage_plan_schema = create_usage_plan_schema.partial();
 export const usage_plan_query_schema = z.object({
   product_code: z.string().optional(),
   requesting_dept_code: z.string().optional(),
+  plan_flag: z.enum(['ในแผน', 'นอกแผน']).optional(),
   budget_year: z.string().optional(),
   category: z.string().optional(),
   type: z.string().optional(),
@@ -331,6 +333,7 @@ export const usage_plan_query_schema = z.object({
     'requesting_dept_code',
     'requested_amount',
     'approved_quota',
+    'plan_flag',
     'budget_year',
     'sequence_no',
     'created_at',
