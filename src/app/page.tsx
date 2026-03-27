@@ -45,7 +45,7 @@ const normalizeChartRows = (rows: ChartRow[]) => rows.map((row) => ({
     pgQuery<CountRow>('SELECT COUNT(*)::int AS count FROM public.purchase_approval'),
     pgQuery<CountRow>('SELECT COUNT(*)::int AS count FROM public.department WHERE is_active = true'),
     pgQuery<SumRow>('SELECT COALESCE(SUM(COALESCE(up.requested_amount, 0) * COALESCE(p.cost_price, 0)), 0)::float8 AS total FROM public.usage_plan up LEFT JOIN public.product p ON p.code = up.product_code'),
-    pgQuery<SumRow>('SELECT COALESCE(SUM(COALESCE(purchase_value, 0)), 0)::float8 AS total FROM public.purchase_plan'),
+    pgQuery<SumRow>(`SELECT COALESCE(SUM(COALESCE(pp.purchase_qty, 0) * COALESCE(p.cost_price, 0)), 0)::float8 AS total FROM public.purchase_plan pp LEFT JOIN LATERAL (SELECT MIN(up.product_code) AS product_code FROM public.usage_plan up WHERE up.purchase_plan_id = pp.id) upm ON true LEFT JOIN public.product p ON p.code = upm.product_code`),
     pgQuery<SumRow>('SELECT COALESCE(SUM(COALESCE(pa.total_amount, 0)), 0)::float8 AS total FROM public.purchase_approval pa'),
     pgQuery<ChartRow>(
       'SELECT category AS name, COUNT(*)::int AS value FROM public.product WHERE is_active = true GROUP BY category ORDER BY value DESC, name ASC LIMIT 6'
@@ -66,9 +66,10 @@ const normalizeChartRows = (rows: ChartRow[]) => rows.map((row) => ({
        ),
        plan_stats AS (
          SELECT up.budget_year::text AS year,
-                COALESCE(SUM(COALESCE(pp.purchase_value, 0)), 0)::float8 AS "planValue"
+                COALESCE(SUM(COALESCE(pp.purchase_qty, 0) * COALESCE(p.cost_price, 0)), 0)::float8 AS "planValue"
          FROM public.purchase_plan pp
-         INNER JOIN public.usage_plan up ON up.id = pp.usage_plan_id
+         INNER JOIN public.usage_plan up ON up.purchase_plan_id = pp.id
+         LEFT JOIN public.product p ON p.code = up.product_code
          GROUP BY up.budget_year
        )
        SELECT COALESCE(survey_stats.year, plan_stats.year) AS year,
@@ -87,7 +88,8 @@ const normalizeChartRows = (rows: ChartRow[]) => rows.map((row) => ({
        plan_counts AS (
          SELECT COALESCE(up.requesting_dept_code, 'ไม่ระบุ') AS name, COUNT(*)::int AS "planCount"
          FROM public.purchase_plan pp
-         INNER JOIN public.usage_plan up ON up.id = pp.usage_plan_id
+         INNER JOIN public.usage_plan up ON up.purchase_plan_id = pp.id
+         LEFT JOIN public.product p ON p.code = up.product_code
          GROUP BY COALESCE(up.requesting_dept_code, 'ไม่ระบุ')
        ),
        approval_counts AS (
@@ -95,7 +97,8 @@ const normalizeChartRows = (rows: ChartRow[]) => rows.map((row) => ({
          FROM public.purchase_approval pa
          INNER JOIN public.purchase_approval_detail pad ON pad.purchase_approval_id = pa.id
          INNER JOIN public.purchase_plan pp ON pp.id = pad.purchase_plan_id
-         INNER JOIN public.usage_plan up ON up.id = pp.usage_plan_id
+         INNER JOIN public.usage_plan up ON up.purchase_plan_id = pp.id
+         LEFT JOIN public.product p ON p.code = up.product_code
          GROUP BY COALESCE(up.requesting_dept_code, 'ไม่ระบุ')
        )
        SELECT COALESCE(survey_counts.name, plan_counts.name, approval_counts.name) AS name,
@@ -119,9 +122,10 @@ const normalizeChartRows = (rows: ChartRow[]) => rows.map((row) => ({
        ),
        plan_values AS (
          SELECT COALESCE(up.requesting_dept_code, 'ไม่ระบุ') AS name,
-                COALESCE(SUM(COALESCE(pp.purchase_value, 0)), 0)::float8 AS "planValue"
+                COALESCE(SUM(COALESCE(pp.purchase_qty, 0) * COALESCE(p.cost_price, 0)), 0)::float8 AS "planValue"
          FROM public.purchase_plan pp
-         INNER JOIN public.usage_plan up ON up.id = pp.usage_plan_id
+         INNER JOIN public.usage_plan up ON up.purchase_plan_id = pp.id
+         LEFT JOIN public.product p ON p.code = up.product_code
          GROUP BY COALESCE(up.requesting_dept_code, 'ไม่ระบุ')
        ),
        approval_values AS (
@@ -130,7 +134,8 @@ const normalizeChartRows = (rows: ChartRow[]) => rows.map((row) => ({
          FROM public.purchase_approval pa
          INNER JOIN public.purchase_approval_detail pad ON pad.purchase_approval_id = pa.id
          INNER JOIN public.purchase_plan pp ON pp.id = pad.purchase_plan_id
-         INNER JOIN public.usage_plan up ON up.id = pp.usage_plan_id
+         INNER JOIN public.usage_plan up ON up.purchase_plan_id = pp.id
+         LEFT JOIN public.product p ON p.code = up.product_code
          GROUP BY COALESCE(up.requesting_dept_code, 'ไม่ระบุ')
        )
        SELECT COALESCE(survey_values.name, plan_values.name, approval_values.name) AS name,
@@ -147,11 +152,12 @@ const normalizeChartRows = (rows: ChartRow[]) => rows.map((row) => ({
     pgQuery<PurchasePlanDepartmentSpendRow>(
       `SELECT
          COALESCE(up.requesting_dept_code, 'ไม่ระบุ') AS name,
-         COALESCE(SUM(COALESCE(pp.purchase_value, 0)), 0)::float8 AS total_value,
+         COALESCE(SUM(COALESCE(pp.purchase_qty, 0) * COALESCE(p.cost_price, 0)), 0)::float8 AS total_value,
          COUNT(*)::int AS item_count,
-         COALESCE(AVG(COALESCE(pp.purchase_value, 0)), 0)::float8 AS avg_value
+         COALESCE(AVG(COALESCE(pp.purchase_qty, 0) * COALESCE(p.cost_price, 0)), 0)::float8 AS avg_value
        FROM public.purchase_plan pp
-       INNER JOIN public.usage_plan up ON up.id = pp.usage_plan_id
+       INNER JOIN public.usage_plan up ON up.purchase_plan_id = pp.id
+         LEFT JOIN public.product p ON p.code = up.product_code
        GROUP BY COALESCE(up.requesting_dept_code, 'ไม่ระบุ')
        ORDER BY total_value DESC, name ASC
        LIMIT 10`
@@ -213,3 +219,6 @@ const normalizeChartRows = (rows: ChartRow[]) => rows.map((row) => ({
     </div>
   );
 }
+
+
+
