@@ -280,6 +280,7 @@ function PurchasePlansPageContent() {
   const initialCategoryFilter = searchParams.get('category') || '';
   const initialTypeFilter = searchParams.get('product_type') || '';
   const initialSubtypeFilter = searchParams.get('product_subtype') || '';
+  const initialUsagePlanFlagFilter = searchParams.get('usage_plan_flag') || '';
   const initialRequestingDeptFilter = searchParams.get('requesting_dept') || '';
   const initialBudgetYearFilter = searchParams.get('budget_year') || '';
   const initialHasPurchaseApprovalFilter = searchParams.get('has_purchase_approval') || '';
@@ -310,6 +311,7 @@ function PurchasePlansPageContent() {
   const [categoryFilter, setCategoryFilter] = useState(initialCategoryFilter);
   const [typeFilter, setTypeFilter] = useState(initialTypeFilter);
   const [subtypeFilter, setSubtypeFilter] = useState(initialSubtypeFilter);
+  const [usagePlanFlagFilter, setUsagePlanFlagFilter] = useState(initialUsagePlanFlagFilter);
   const [requestingDeptFilter, setRequestingDeptFilter] = useState(initialRequestingDeptFilter);
   const [budgetYearFilter, setBudgetYearFilter] = useState(initialBudgetYearFilter);
   const [hasPurchaseApprovalFilter, setHasPurchaseApprovalFilter] = useState(initialHasPurchaseApprovalFilter);
@@ -364,11 +366,11 @@ function PurchasePlansPageContent() {
   useEffect(() => {
     void fetchData();
     void fetchApprovedPlanIds();
-  }, [sortBy, sortOrder, page, pageSize, productNameFilter, categoryFilter, typeFilter, subtypeFilter, purchaseDepartmentFilter, requestingDeptFilter, budgetYearFilter, hasPurchaseApprovalFilter]);
+  }, [sortBy, sortOrder, page, pageSize, productNameFilter, categoryFilter, typeFilter, subtypeFilter, usagePlanFlagFilter, purchaseDepartmentFilter, requestingDeptFilter, budgetYearFilter, hasPurchaseApprovalFilter]);
 
   useEffect(() => {
     void fetchSummaryData();
-  }, [productNameFilter, categoryFilter, typeFilter, subtypeFilter, purchaseDepartmentFilter, requestingDeptFilter, budgetYearFilter, hasPurchaseApprovalFilter, sortBy, sortOrder]);
+  }, [productNameFilter, categoryFilter, typeFilter, subtypeFilter, usagePlanFlagFilter, purchaseDepartmentFilter, requestingDeptFilter, budgetYearFilter, hasPurchaseApprovalFilter, sortBy, sortOrder]);
 
   useEffect(() => {
     const fetchStatusCountItems = async () => {
@@ -378,6 +380,7 @@ function PurchasePlansPageContent() {
         if (categoryFilter) params.append('category', categoryFilter);
         if (typeFilter) params.append('product_type', typeFilter);
         if (subtypeFilter) params.append('product_subtype', subtypeFilter);
+        if (usagePlanFlagFilter) params.append('usage_plan_flag', usagePlanFlagFilter);
         if (purchaseDepartmentFilter) params.append('purchase_department', purchaseDepartmentFilter);
         if (requestingDeptFilter) params.append('requesting_dept', requestingDeptFilter);
         if (budgetYearFilter) params.append('budget_year', budgetYearFilter);
@@ -397,7 +400,7 @@ function PurchasePlansPageContent() {
     };
 
     void fetchStatusCountItems();
-  }, [productNameFilter, categoryFilter, typeFilter, subtypeFilter, purchaseDepartmentFilter, requestingDeptFilter, budgetYearFilter, sortBy, sortOrder]);
+  }, [productNameFilter, categoryFilter, typeFilter, subtypeFilter, usagePlanFlagFilter, purchaseDepartmentFilter, requestingDeptFilter, budgetYearFilter, sortBy, sortOrder]);
 
   const availableTypes = useMemo(() => {
     if (!categoryFilter) {
@@ -461,13 +464,14 @@ function PurchasePlansPageContent() {
     }
 
     setPage((prev) => (prev === 1 ? prev : 1));
-  }, [productNameFilter, categoryFilter, typeFilter, subtypeFilter, purchaseDepartmentFilter, requestingDeptFilter, budgetYearFilter, hasPurchaseApprovalFilter, sortBy, sortOrder]);
+  }, [productNameFilter, categoryFilter, typeFilter, subtypeFilter, usagePlanFlagFilter, purchaseDepartmentFilter, requestingDeptFilter, budgetYearFilter, hasPurchaseApprovalFilter, sortBy, sortOrder]);
 
   useEffect(() => {
     const nextProductName = searchParams.get('product_name') || '';
     const nextCategory = searchParams.get('category') || '';
     const nextType = searchParams.get('product_type') || '';
     const nextSubtype = searchParams.get('product_subtype') || '';
+    const nextUsagePlanFlag = searchParams.get('usage_plan_flag') || '';
     const nextPurchaseDepartment = searchParams.get('purchase_department') || '';
     const nextRequestingDept = searchParams.get('requesting_dept') || '';
     const nextBudgetYear = searchParams.get('budget_year') || '';
@@ -482,6 +486,7 @@ function PurchasePlansPageContent() {
     setCategoryFilter((prev) => (prev === nextCategory ? prev : nextCategory));
     setTypeFilter((prev) => (prev === nextType ? prev : nextType));
     setSubtypeFilter((prev) => (prev === nextSubtype ? prev : nextSubtype));
+    setUsagePlanFlagFilter((prev) => (prev === nextUsagePlanFlag ? prev : nextUsagePlanFlag));
     setPurchaseDepartmentFilter((prev) => (prev === nextPurchaseDepartment ? prev : nextPurchaseDepartment));
     setRequestingDeptFilter((prev) => (prev === nextRequestingDept ? prev : nextRequestingDept));
     setBudgetYearFilter((prev) => (prev === nextBudgetYear ? prev : nextBudgetYear));
@@ -504,6 +509,7 @@ function PurchasePlansPageContent() {
     if (categoryFilter) params.set('category', categoryFilter);
     if (typeFilter) params.set('product_type', typeFilter);
     if (subtypeFilter) params.set('product_subtype', subtypeFilter);
+    if (usagePlanFlagFilter) params.set('usage_plan_flag', usagePlanFlagFilter);
     if (purchaseDepartmentFilter) params.set('purchase_department', purchaseDepartmentFilter);
     if (requestingDeptFilter) params.set('requesting_dept', requestingDeptFilter);
     if (budgetYearFilter) params.set('budget_year', budgetYearFilter);
@@ -520,7 +526,7 @@ function PurchasePlansPageContent() {
       lastPushedUrlRef.current = nextUrl;
       router.replace(nextUrl, { scroll: false });
     }
-  }, [pathname, router, searchParams, productNameFilter, categoryFilter, typeFilter, subtypeFilter, purchaseDepartmentFilter, requestingDeptFilter, budgetYearFilter, hasPurchaseApprovalFilter, sortBy, sortOrder, page, pageSize]);
+  }, [pathname, router, searchParams, productNameFilter, categoryFilter, typeFilter, subtypeFilter, usagePlanFlagFilter, purchaseDepartmentFilter, requestingDeptFilter, budgetYearFilter, hasPurchaseApprovalFilter, sortBy, sortOrder, page, pageSize]);
 
   useEffect(() => {
     if (editingRowId === null) {
@@ -568,6 +574,7 @@ function PurchasePlansPageContent() {
       if (categoryFilter) params.append('category', categoryFilter);
       if (typeFilter) params.append('product_type', typeFilter);
       if (subtypeFilter) params.append('product_subtype', subtypeFilter);
+      if (usagePlanFlagFilter) params.append('usage_plan_flag', usagePlanFlagFilter);
       if (purchaseDepartmentFilter) params.append('purchase_department', purchaseDepartmentFilter);
       if (requestingDeptFilter) params.append('requesting_dept', requestingDeptFilter);
       if (budgetYearFilter) params.append('budget_year', budgetYearFilter);
@@ -634,6 +641,7 @@ function PurchasePlansPageContent() {
       if (categoryFilter) params.append('category', categoryFilter);
       if (typeFilter) params.append('product_type', typeFilter);
       if (subtypeFilter) params.append('product_subtype', subtypeFilter);
+      if (usagePlanFlagFilter) params.append('usage_plan_flag', usagePlanFlagFilter);
       if (purchaseDepartmentFilter) params.append('purchase_department', purchaseDepartmentFilter);
       if (requestingDeptFilter) params.append('requesting_dept', requestingDeptFilter);
       if (budgetYearFilter) params.append('budget_year', budgetYearFilter);
@@ -1585,6 +1593,15 @@ function PurchasePlansPageContent() {
 
         <div className="rounded-xl border border-gray-200 bg-white p-4">
           <div className="mb-4 grid grid-cols-1 gap-3 md:grid-cols-4">
+            <select
+              value={usagePlanFlagFilter}
+              onChange={(event) => setUsagePlanFlagFilter(event.target.value)}
+              className="rounded-lg border border-gray-300 px-3 py-2 text-sm"
+            >
+              <option value="">ทุกแผน</option>
+              <option value="ในแผน">ในแผน</option>
+              <option value="นอกแผน">นอกแผน</option>
+            </select>
             <select
               value={purchaseDepartmentFilter}
               onChange={(event) => setPurchaseDepartmentFilter(event.target.value)}

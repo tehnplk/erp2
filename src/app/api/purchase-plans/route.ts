@@ -83,6 +83,7 @@ function buildWhereClause(filters: {
   category?: string;
   product_type?: string;
   product_subtype?: string;
+  usage_plan_flag?: 'ในแผน' | 'นอกแผน';
   purchase_department?: string;
   budget_year?: string;
   requesting_dept?: string;
@@ -110,6 +111,11 @@ function buildWhereClause(filters: {
   if (filters.product_subtype) {
     params.push(filters.product_subtype);
     whereClauses.push(`p.subtype = $${params.length}`);
+  }
+
+  if (filters.usage_plan_flag) {
+    params.push(filters.usage_plan_flag);
+    whereClauses.push(`usage_summary.usage_plan_flag = $${params.length}`);
   }
 
   if (filters.purchase_department) {
@@ -170,6 +176,7 @@ export async function GET(request: NextRequest) {
       category,
       product_type,
       product_subtype,
+      usage_plan_flag,
       purchase_department,
       budget_year,
       requesting_dept,
@@ -185,6 +192,7 @@ export async function GET(request: NextRequest) {
       category,
       product_type,
       product_subtype,
+      usage_plan_flag,
       purchase_department,
       budget_year,
       requesting_dept,

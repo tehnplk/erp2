@@ -225,6 +225,7 @@ export const purchasePlanQuerySchema = z.object({
   category: z.string().optional(),
   product_type: z.string().optional(),
   product_subtype: z.string().optional(),
+  usage_plan_flag: z.enum(['ในแผน', 'นอกแผน']).optional(),
   purchase_department: z.string().optional(),
   budget_year: z.string().optional(),
   requesting_dept: z.string().optional(),
