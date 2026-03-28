@@ -12,7 +12,7 @@ export async function GET(request: NextRequest) {
     const page = Math.max(1, parseInt(searchParams.get('page') || '1', 10));
     const page_size = Math.min(50, Math.max(1, parseInt(searchParams.get('page_size') || '12', 10)));
 
-    const whereClauses: string[] = ['pp.id IS NULL'];
+    const whereClauses: string[] = ['up.purchase_plan_id IS NULL'];
     const params: unknown[] = [];
 
     if (search) {
@@ -30,7 +30,7 @@ export async function GET(request: NextRequest) {
       product_subtype: 'c.subtype',
       budget_year: 'up.budget_year',
       sequence_no: 'up.sequence_no',
-      requesting_dept: 'up.requesting_dept',
+      requesting_dept: `COALESCE(d.name, up.requesting_dept_code)`,
     };
     
     const safeOrderField = allowedOrderFields[order_by] || 'up.product_code';
@@ -42,9 +42,8 @@ export async function GET(request: NextRequest) {
       pgQuery(`
         SELECT COUNT(DISTINCT up.id)::int AS count 
         FROM public.usage_plan up 
-        LEFT JOIN public.purchase_plan pp ON up.id = pp.usage_plan_id 
-        LEFT JOIN public.inventory_item ii ON ii.product_code = up.product_code
-        LEFT JOIN public.inventory_balance ib ON ib.inventory_item_id = ii.id
+        LEFT JOIN public.product p_stock ON p_stock.code = up.product_code
+        LEFT JOIN public.inventory_stock_lot isl ON isl.product_id = p_stock.id
         ${whereSql}
       `, params),
       pgQuery(`
@@ -95,24 +94,23 @@ const usagePlanSelect = `
     c.subtype as product_subtype,
     p.unit,
     COALESCE(p.cost_price, 0)::float8 AS cost_price,
-    up.requesting_dept,
+    COALESCE(d.name, up.requesting_dept_code) AS requesting_dept,
     up.requested_amount,
     up.approved_quota,
     up.budget_year,
     up.sequence_no,
-    COALESCE(SUM(ib.on_hand_qty), 0) as inventory_qty,
-    COALESCE(SUM(ib.available_qty), 0) as available_qty
+    COALESCE(SUM(isl.qty_on_hand), 0) as inventory_qty,
+    COALESCE(SUM(isl.qty_on_hand), 0) as available_qty
   FROM public.usage_plan up
   LEFT JOIN public.product p ON p.code = up.product_code
   LEFT JOIN public.category c ON c.category = p.category
-  LEFT JOIN public.purchase_plan pp ON up.id = pp.usage_plan_id
-  LEFT JOIN public.inventory_item ii ON ii.product_code = up.product_code
-  LEFT JOIN public.inventory_balance ib ON ib.inventory_item_id = ii.id
+  LEFT JOIN public.department d ON d.department_code = up.requesting_dept_code
+  LEFT JOIN public.inventory_stock_lot isl ON isl.product_id = p.id
 `;
 
 const usagePlanGroupBy = `
   GROUP BY 
     up.id, up.product_code, p.name, p.category, c.type, c.subtype,
-    p.unit, COALESCE(p.cost_price, 0)::float8, up.requesting_dept, up.requested_amount,
+    p.unit, COALESCE(p.cost_price, 0)::float8, COALESCE(d.name, up.requesting_dept_code), up.requested_amount,
     up.approved_quota, up.budget_year, up.sequence_no
 `;

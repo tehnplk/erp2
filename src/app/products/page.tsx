@@ -4,6 +4,7 @@ import { Suspense, useState, useEffect, useMemo } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import Swal from 'sweetalert2';
 import { Check, X, Pencil, Trash2, ChevronUp, ChevronDown, FilePenLine, ArrowUpDown } from 'lucide-react';
+import { formatBaht } from '@/lib/format-baht';
 
 type Product = {
   id: number;
@@ -1125,8 +1126,8 @@ function ProductsPageContent() {
                         <th className="px-2 py-2 text-left text-[10px] font-medium text-gray-500 uppercase">ประเภท</th>
                         <th className="px-2 py-2 text-left text-[10px] font-medium text-gray-500 uppercase">ชนิดย่อย</th>
                         <th className="px-2 py-2 text-left text-[10px] font-medium text-gray-500 uppercase">หน่วย</th>
-                        <th className="px-2 py-2 text-left text-[10px] font-medium text-gray-500 uppercase">ราคาทุน</th>
-                        <th className="px-2 py-2 text-left text-[10px] font-medium text-gray-500 uppercase">ราคาขาย</th>
+                        <th className="px-2 py-2 text-left text-[10px] font-medium text-gray-500 uppercase">ราคาทุน (บาท)</th>
+                        <th className="px-2 py-2 text-left text-[10px] font-medium text-gray-500 uppercase">ราคาขาย (บาท)</th>
                         <th className="px-2 py-2 text-left text-[10px] font-medium text-gray-500 uppercase">คงคลัง</th>
                         <th className="px-2 py-2 text-left text-[10px] font-medium text-gray-500 uppercase">มูลค่า</th>
                         <th className="px-2 py-2 text-left text-[10px] font-medium text-gray-500 uppercase">จัดการ</th>
@@ -1606,7 +1607,7 @@ function ProductsPageContent() {
                       className="w-full rounded border border-gray-300 px-2 py-1 text-sm"
                     />
                   ) : (
-                    product.cost_price ? `฿${Number(product.cost_price).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '-'
+                    product.cost_price ? formatBaht(product.cost_price) : '-'
                   )}
                 </td>
                 <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-600 w-28">
@@ -1619,7 +1620,7 @@ function ProductsPageContent() {
                       className="w-full rounded border border-gray-300 px-2 py-1 text-sm"
                     />
                   ) : (
-                    product.sell_price ? `฿${Number(product.sell_price).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '-'
+                    product.sell_price ? formatBaht(product.sell_price) : '-'
                   )}
                 </td>
                 <td className="px-3 py-4 whitespace-nowrap w-24">

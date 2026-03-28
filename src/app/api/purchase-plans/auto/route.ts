@@ -8,6 +8,7 @@ type AutoGroupRow = {
   purchase_department_id: number | null;
   usage_plan_ids: number[];
   total_quota: number;
+  inventory_qty: number;
 };
 
 export async function POST(_request: NextRequest) {
@@ -21,9 +22,16 @@ export async function POST(_request: NextRequest) {
          up.product_code,
          p.purchase_department_id,
          ARRAY_AGG(up.id ORDER BY up.id) AS usage_plan_ids,
-         COALESCE(SUM(GREATEST(COALESCE(up.approved_quota, up.requested_amount, 0), 0)), 0)::int AS total_quota
+         COALESCE(SUM(GREATEST(COALESCE(up.approved_quota, up.requested_amount, 0), 0)), 0)::int AS total_quota,
+         COALESCE(MAX(stock.inventory_qty), 0)::int AS inventory_qty
        FROM public.usage_plan up
        LEFT JOIN public.product p ON p.code = up.product_code
+       LEFT JOIN (
+         SELECT p_stock.code AS product_code, COALESCE(SUM(isl.qty_on_hand), 0)::int AS inventory_qty
+         FROM public.inventory_stock_lot isl
+         INNER JOIN public.product p_stock ON p_stock.id = isl.product_id
+         GROUP BY p_stock.code
+       ) stock ON stock.product_code = up.product_code
        WHERE up.purchase_plan_id IS NULL
          AND up.plan_flag = 'ในแผน'
          AND up.product_code IS NOT NULL
@@ -44,6 +52,8 @@ export async function POST(_request: NextRequest) {
 
     for (const group of groupedResult.rows) {
       const quota = Number(group.total_quota || 0);
+      const inventoryQty = Number(group.inventory_qty || 0);
+      const purchaseQty = Math.max(quota - inventoryQty, 0);
       const usagePlanIds = Array.isArray(group.usage_plan_ids)
         ? group.usage_plan_ids.map((id) => Number(id)).filter((id) => Number.isInteger(id) && id > 0)
         : [];
@@ -56,7 +66,7 @@ export async function POST(_request: NextRequest) {
         `INSERT INTO public.purchase_plan (inventory_qty, qouta_qty, purchase_qty)
          VALUES ($1, $2, $3)
          RETURNING id`,
-        [0, quota, quota],
+        [inventoryQty, quota, purchaseQty],
       );
 
       const purchasePlanId = insertResult.rows[0]?.id;

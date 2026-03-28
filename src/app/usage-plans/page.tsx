@@ -970,7 +970,7 @@ function UsagePlansPageContent() {
                   <th className="px-3 py-2 text-left text-xs font-semibold uppercase text-gray-500">หน่วยนับ</th>
                   <th className="px-3 py-2 text-right text-xs font-semibold uppercase text-gray-500">จำนวนขอ</th>
                   <th className="px-3 py-2 text-right text-xs font-semibold uppercase text-gray-500">โควต้า</th>
-                  <th className="px-3 py-2 text-right text-xs font-semibold uppercase text-gray-500">ราคา/หน่วย</th>
+                  <th className="px-3 py-2 text-right text-xs font-semibold uppercase text-gray-500">ราคา/หน่วย (บาท)</th>
                   <th className="px-3 py-2 text-right text-xs font-semibold uppercase text-gray-500">รวมมูลค่า</th>
                   <th className="px-3 py-2 text-center text-xs font-semibold uppercase text-gray-500">จัดการ</th>
                 </tr>

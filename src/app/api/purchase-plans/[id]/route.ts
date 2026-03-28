@@ -21,7 +21,7 @@ async function getPurchasePlanJoinedById(id: number) {
        up.requested_amount,
        COALESCE(quota_summary.total_quota, 0)::int AS approved_quota,
        up.budget_year,
-       up.requesting_dept,
+       COALESCE(d.name, up.requesting_dept_code) AS requesting_dept,
        p.purchase_department_id,
        pd.department_code AS purchase_department_code,
        pd.name AS purchase_department_name,
@@ -36,6 +36,7 @@ async function getPurchasePlanJoinedById(id: number) {
      INNER JOIN public.usage_plan up ON up.id = pp.usage_plan_id
      LEFT JOIN public.product p ON p.code = up.product_code
      LEFT JOIN public.category c ON c.category = p.category
+     LEFT JOIN public.department d ON d.department_code = up.requesting_dept_code
      LEFT JOIN public.department pd ON pd.id = p.purchase_department_id
      LEFT JOIN (
        SELECT product_code, SUM(COALESCE(approved_quota, 0))::int AS total_quota
@@ -44,12 +45,12 @@ async function getPurchasePlanJoinedById(id: number) {
      ) quota_summary ON quota_summary.product_code = up.product_code
      LEFT JOIN (
        SELECT
-         ii.product_code,
-         COALESCE(SUM(ib.on_hand_qty), 0)::int AS inventory_qty,
-         COALESCE(SUM(ib.on_hand_qty * ib.avg_cost), 0)::float8 AS inventory_value
-       FROM public.inventory_item ii
-       INNER JOIN public.inventory_balance ib ON ib.inventory_item_id = ii.id
-       GROUP BY ii.product_code
+         p_stock.code AS product_code,
+         COALESCE(SUM(isl.qty_on_hand), 0)::int AS inventory_qty,
+         COALESCE(SUM(isl.total_value), 0)::float8 AS inventory_value
+       FROM public.inventory_stock_lot isl
+       INNER JOIN public.product p_stock ON p_stock.id = isl.product_id
+       GROUP BY p_stock.code
      ) inv ON inv.product_code = up.product_code
   LEFT JOIN (
     SELECT
@@ -95,11 +96,11 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
        LEFT JOIN public.product p ON p.code = up.product_code
        LEFT JOIN (
          SELECT
-           ii.product_code,
-           COALESCE(SUM(ib.on_hand_qty), 0)::int AS inventory_qty
-         FROM public.inventory_item ii
-         INNER JOIN public.inventory_balance ib ON ib.inventory_item_id = ii.id
-         GROUP BY ii.product_code
+           p_stock.code AS product_code,
+           COALESCE(SUM(isl.qty_on_hand), 0)::int AS inventory_qty
+         FROM public.inventory_stock_lot isl
+         INNER JOIN public.product p_stock ON p_stock.id = isl.product_id
+         GROUP BY p_stock.code
        ) inv ON inv.product_code = up.product_code
       LEFT JOIN (
         SELECT

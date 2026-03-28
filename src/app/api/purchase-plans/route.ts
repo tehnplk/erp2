@@ -35,11 +35,11 @@ const purchasePlanBaseSelect = `
   LEFT JOIN public.department pd ON pd.id = p.purchase_department_id
   LEFT JOIN (
     SELECT
-      ii.product_code,
-      COALESCE(SUM(ib.on_hand_qty), 0)::int AS inventory_qty
-    FROM public.inventory_item ii
-    INNER JOIN public.inventory_balance ib ON ib.inventory_item_id = ii.id
-    GROUP BY ii.product_code
+      p_stock.code AS product_code,
+      COALESCE(SUM(isl.qty_on_hand), 0)::int AS inventory_qty
+    FROM public.inventory_stock_lot isl
+    INNER JOIN public.product p_stock ON p_stock.id = isl.product_id
+    GROUP BY p_stock.code
   ) inventory_snapshot ON inventory_snapshot.product_code = usage_summary.product_code
   LEFT JOIN (
     SELECT
@@ -71,8 +71,19 @@ const purchasePlanSelect = `
     EXISTS (SELECT 1 FROM public.purchase_approval_detail has_pad WHERE has_pad.purchase_plan_id = pp.id) AS has_purchase_approval,
     COALESCE(inventory_snapshot.inventory_qty, pp.inventory_qty, 0)::int AS inventory_qty,
     COALESCE(purchased_summary.purchased_qty, 0)::int AS purchased_qty,
-    COALESCE(pp.purchase_qty, 0)::int AS purchase_qty,
-    ROUND(COALESCE(pp.purchase_qty, 0) * COALESCE(p.cost_price, 0), 2)::float8 AS purchase_value
+    GREATEST(
+      COALESCE(pp.qouta_qty, usage_summary.approved_quota, 0)
+      - COALESCE(inventory_snapshot.inventory_qty, pp.inventory_qty, 0),
+      0
+    )::int AS purchase_qty,
+    ROUND(
+      GREATEST(
+        COALESCE(pp.qouta_qty, usage_summary.approved_quota, 0)
+        - COALESCE(inventory_snapshot.inventory_qty, pp.inventory_qty, 0),
+        0
+      ) * COALESCE(p.cost_price, 0),
+      2
+    )::float8 AS purchase_value
   ${purchasePlanBaseSelect}
 `;
 
@@ -228,7 +239,14 @@ export async function GET(request: NextRequest) {
       purchased_qty: 'COALESCE(purchased_summary.purchased_qty, 0)',
       purchase_qty: 'COALESCE(pp.purchase_qty, 0)',
       unit_price: 'COALESCE(p.cost_price, 0)',
-      purchase_value: 'ROUND(COALESCE(pp.purchase_qty, 0) * COALESCE(p.cost_price, 0), 2)',
+      purchase_value: `ROUND(
+        GREATEST(
+          COALESCE(pp.qouta_qty, usage_summary.approved_quota, 0)
+          - COALESCE(inventory_snapshot.inventory_qty, pp.inventory_qty, 0),
+          0
+        ) * COALESCE(p.cost_price, 0),
+        2
+      )`,
       budget_year: 'usage_summary.budget_year',
     };
 
@@ -372,13 +390,21 @@ export async function POST(request: NextRequest) {
 
       const totalQuota = usagePlansResult.rows.reduce((sum, row) => sum + Number(row.approved_quota ?? 0), 0);
       const qoutaQty = payload.qouta_qty > 0 ? payload.qouta_qty : totalQuota;
-      const purchaseQty = payload.purchase_qty > 0 ? payload.purchase_qty : qoutaQty;
+
+      const inventoryResult = await client.query<{ inventory_qty: number }>(
+        `SELECT COALESCE(SUM(qty_on_hand), 0)::int AS inventory_qty
+         FROM public.inventory_stock_lot
+         WHERE product_code = $1`,
+        [productCodes[0]],
+      );
+      const inventoryQty = Number(inventoryResult.rows[0]?.inventory_qty ?? 0);
+      const purchaseQty = Math.max(qoutaQty - inventoryQty, 0);
 
       const insertResult = await client.query<{ id: number; inventory_qty: number; qouta_qty: number; purchase_qty: number }>(
         `INSERT INTO public.purchase_plan (inventory_qty, qouta_qty, purchase_qty)
          VALUES ($1, $2, $3)
          RETURNING id, inventory_qty, qouta_qty, purchase_qty`,
-        [payload.inventory_qty, qoutaQty, purchaseQty],
+        [inventoryQty, qoutaQty, purchaseQty],
       );
 
       const purchasePlanId = insertResult.rows[0].id;

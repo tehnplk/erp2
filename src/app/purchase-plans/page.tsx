@@ -1713,7 +1713,7 @@ function PurchasePlansPageContent() {
                   <th className="px-3 py-2 text-right text-xs font-semibold uppercase text-gray-500">คงคลัง</th>
                   <th className="px-3 py-2 text-right text-xs font-semibold uppercase text-gray-500">แผนซื้อ</th>
                   <th className="px-3 py-2 text-right text-xs font-semibold uppercase text-gray-500">ซื้อแล้ว</th>
-                  <th className="px-3 py-2 text-right text-xs font-semibold uppercase text-gray-500">ราคาต่อหน่วย</th>
+                  <th className="px-3 py-2 text-right text-xs font-semibold uppercase text-gray-500">ราคาต่อหน่วย (บาท)</th>
                   <th className="px-3 py-2 text-right text-xs font-semibold uppercase text-gray-500">มูลค่าซื้อ</th>
                 </tr>
               </thead>
@@ -1872,7 +1872,7 @@ function PurchasePlansPageContent() {
                         <th className="px-3 py-2 text-left text-xs font-semibold text-gray-500">รหัสสินค้า</th>
                         <th className="px-3 py-2 text-left text-xs font-semibold text-gray-500">ชื่อสินค้า</th>
                         <th className="px-3 py-2 text-left text-xs font-semibold text-gray-500">หน่วย</th>
-                        <th className="px-3 py-2 text-right text-xs font-semibold text-gray-500">ราคา</th>
+                        <th className="px-3 py-2 text-right text-xs font-semibold text-gray-500">ราคา (บาท)</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100 bg-white">

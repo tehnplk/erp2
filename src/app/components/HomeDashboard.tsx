@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
+import { formatBaht } from '@/lib/format-baht';
 import {
   BadgeCheck,
   BarChart4,
@@ -86,12 +87,6 @@ type LegendItem = {
   color: string;
 };
 
-const currencyFormatter = new Intl.NumberFormat('th-TH', {
-  style: 'currency',
-  currency: 'THB',
-  maximumFractionDigits: 0,
-});
-
 const numberFormatter = new Intl.NumberFormat('th-TH');
 
 const pieColors = ['#2563eb', '#0f766e', '#9333ea', '#ea580c', '#dc2626', '#16a34a', '#0891b2'];
@@ -112,11 +107,7 @@ const overviewUnitMap: Record<string, string> = {
   แผนก: 'หน่วยงาน',
 };
 
-const valueStatUnitMap: Record<string, string> = {
-  มูลค่าแผนการใช้: 'บาท',
-  มูลค่าแผนจัดซื้อ: 'บาท',
-  มูลค่าอนุมัติจัดซื้อ: 'บาท',
-};
+const valueStatUnitMap: Record<string, string> = {};
 
 const departmentValueLegendItems: LegendItem[] = [
   { key: 'surveyValue', label: 'มูลค่าแผนการใช้', color: '#0f766e' },
@@ -275,7 +266,7 @@ export default function HomeDashboard({
             >
               <p className="text-xs font-semibold uppercase tracking-widest text-slate-500">{stat.label}</p>
               <p className="mt-3 text-2xl font-bold text-slate-900">
-                {currencyFormatter.format(stat.value)}
+                {formatBaht(stat.value)}
                 {valueStatUnitMap[stat.label] && (
                   <span className="ml-2 align-middle text-base font-medium text-slate-500">
                     {valueStatUnitMap[stat.label]}
@@ -331,7 +322,7 @@ export default function HomeDashboard({
                   <CartesianGrid strokeDasharray="3 3" horizontal={false} />
                   <XAxis type="number" tickFormatter={(value) => `${Math.round(Number(value) / 1000)}k`} />
                   <YAxis type="category" dataKey="name" width={180} tick={{ fontSize: 12 }} />
-                  <Tooltip formatter={(value) => [currencyFormatter.format(Number(value)), 'ยอดใช้เงิน']} />
+                  <Tooltip formatter={(value) => [formatBaht(Number(value)), 'ยอดใช้เงิน']} />
                   <Legend content={() => null} />
                   {purchasePlanDepartmentSpendVisibility.total_value && (
                     <Bar dataKey="total_value" name="ยอดใช้เงินแผนจัดซื้อ" fill="#2563eb" radius={[0, 10, 10, 0]} />
@@ -354,14 +345,14 @@ export default function HomeDashboard({
                     <div className="min-w-0">
                       <p className="truncate font-medium text-slate-900">{row.name}</p>
                       <p className="mt-1 text-xs text-slate-500">
-                        เฉลี่ย {currencyFormatter.format(row.avg_value)} / รายการ
+                        เฉลี่ย {formatBaht(row.avg_value)} / รายการ
                       </p>
                     </div>
                     <div className="text-right font-medium text-slate-600">
                       {numberFormatter.format(row.item_count)}
                     </div>
                     <div className="text-right font-semibold text-slate-900">
-                      {currencyFormatter.format(row.total_value)}
+                      {formatBaht(row.total_value)}
                     </div>
                   </div>
                 ))}
@@ -386,7 +377,7 @@ export default function HomeDashboard({
                 <CartesianGrid strokeDasharray="3 3" vertical={false} />
                 <XAxis dataKey="name" angle={-15} textAnchor="end" height={70} tick={{ fontSize: 12 }} />
                 <YAxis tickFormatter={(value) => `${Math.round(Number(value) / 1000)}k`} />
-                <Tooltip formatter={(value) => [currencyFormatter.format(Number(value)), 'มูลค่า']} />
+                <Tooltip formatter={(value) => [formatBaht(Number(value)), 'มูลค่า']} />
                 <Legend content={() => null} />
                 {departmentValueVisibility.surveyValue && (
                   <Bar dataKey="surveyValue" name="มูลค่าแผนการใช้" fill="#0f766e" radius={[8, 8, 0, 0]} />
@@ -453,7 +444,7 @@ export default function HomeDashboard({
                   <CartesianGrid strokeDasharray="3 3" vertical={false} />
                   <XAxis dataKey="year" />
                   <YAxis tickFormatter={(value) => `${Math.round(Number(value) / 1000)}k`} />
-                  <Tooltip formatter={(value) => currencyFormatter.format(Number(value))} />
+                  <Tooltip formatter={(value) => formatBaht(Number(value))} />
                   <Legend content={() => null} />
                   {budgetTrendVisibility.surveyValue && (
                     <Line type="monotone" dataKey="surveyValue" name="มูลค่าความต้องการ" stroke="#2563eb" strokeWidth={3} dot={{ r: 4 }} />
@@ -582,3 +573,5 @@ export default function HomeDashboard({
     </div>
   );
 }
+
+

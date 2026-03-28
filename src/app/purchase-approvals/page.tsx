@@ -2120,7 +2120,7 @@ function PurchaseApprovalsPageContent() {
                                   {/* <th className="px-3 py-2 text-left text-[10px] font-medium text-gray-600 uppercase tracking-wider">หมวด</th> */}
                                   <th className="px-3 py-2 text-left text-[10px] font-medium text-gray-600 uppercase tracking-wider">จำนวน</th>
                                   <th className="px-3 py-2 text-left text-[10px] font-medium text-gray-600 uppercase tracking-wider">หน่วย</th>
-                                  <th className="px-3 py-2 text-left text-[10px] font-medium text-gray-600 uppercase tracking-wider">ราคา/หน่วย</th>
+                                  <th className="px-3 py-2 text-left text-[10px] font-medium text-gray-600 uppercase tracking-wider">ราคา/หน่วย (บาท)</th>
                                   <th className="px-3 py-2 text-left text-[10px] font-medium text-gray-600 uppercase tracking-wider">มูลค่ารวม</th>
                                 </tr>
                               </thead>

@@ -94,6 +94,51 @@ export const inventoryBalanceQuerySchema = z.object({
   ...paginationFields
 });
 
+export const inventoryStockQuerySchema = z.object({
+  search: z.string().optional(),
+  category: z.string().optional(),
+  product_type: z.string().optional(),
+  product_subtype: z.string().optional(),
+  lot: z.string().optional(),
+  unit: z.string().optional(),
+  order_by: z.enum(['product_code', 'product_name', 'category', 'product_type', 'lot_count', 'total_qty', 'total_value', 'avg_unit_price', 'last_received_at']).optional(),
+  sort_order: z.enum(['asc', 'desc']).optional(),
+  ...paginationFields
+});
+
+export const inventoryStockLotQuerySchema = z.object({
+  product_id: z.coerce.number().int().positive().optional(),
+  search: z.string().optional(),
+  category: z.string().optional(),
+  product_type: z.string().optional(),
+  lot_no: z.string().optional(),
+  available_only: z.enum(['true', 'false']).optional(),
+  sort_order: z.enum(['asc', 'desc']).optional(),
+  ...paginationFields,
+});
+
+export const inventoryIssueQuerySchema = z.object({
+  requesting_department: z.string().optional(),
+  search: z.string().optional(),
+  start_date: z.string().optional(),
+  end_date: z.string().optional(),
+  order_by: z.enum(['issue_no', 'issue_date', 'requesting_department', 'total_items', 'total_qty', 'created_at']).optional(),
+  sort_order: z.enum(['asc', 'desc']).optional(),
+  ...paginationFields,
+});
+
+export const createInventoryIssueSchema = z.object({
+  issue_date: z.string().min(1),
+  requesting_department_id: z.coerce.number().int().positive(),
+  note: z.string().optional(),
+  items: z.array(
+    z.object({
+      stock_lot_id: z.coerce.number().int().positive(),
+      issued_qty: z.coerce.number().int().positive(),
+    })
+  ).min(1),
+});
+
 export const inventoryMovementQuerySchema = z.object({
   inventory_item_id: z.coerce.number().int().positive().optional(),
   product_code: z.string().optional(),
@@ -137,20 +182,51 @@ export const approveInventoryRequisitionSchema = z.object({
   })).min(1)
 });
 
-export const createInventoryIssueSchema = z.object({
-  requisition_id: z.coerce.number().int().positive(),
-  issue_no: z.string().optional(),
-  issue_date: z.string().optional(),
-  requesting_department: nonEmptyString,
-  issued_by: z.string().nullable().optional(),
-  approved_by: z.string().nullable().optional(),
-  note: z.string().nullable().optional(),
-  items: z.array(z.object({
-    requisition_item_id: z.coerce.number().int().positive(),
-    inventory_item_id: z.coerce.number().int().positive(),
-    issued_qty: z.coerce.number().int().positive()
-  })).min(1)
+export const inventoryProductSearchQuerySchema = z.object({
+  q: z.string().trim().min(1, 'q is required'),
+  limit: z.coerce.number().int().min(1).max(100).optional(),
 });
+
+export const inventoryReceiptQuerySchema = z.object({
+  receipt_type: z.enum(['OPENING_BALANCE', 'DELIVERY_NOTE']).optional(),
+  start_date: z.string().optional(),
+  end_date: z.string().optional(),
+  search: z.string().optional(),
+  ...paginationFields,
+});
+
+export const createInventoryReceiptSchema = z.object({
+  receipt_type: z.enum(['OPENING_BALANCE', 'DELIVERY_NOTE']),
+  receipt_date: z.string().min(1),
+  delivery_note_no: z.string().optional(),
+  note: z.string().optional(),
+  items: z.array(
+    z.object({
+      product_code: z.string().trim().min(1),
+      lot_no: z.string().trim().min(1),
+      received_qty: z.coerce.number().positive(),
+      total_price: z.coerce.number().min(0),
+    })
+  ).min(1),
+}).superRefine((data, ctx) => {
+  if (data.receipt_type === 'DELIVERY_NOTE' && !data.delivery_note_no?.trim()) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['delivery_note_no'],
+      message: 'delivery_note_no is required when receipt_type is DELIVERY_NOTE',
+    });
+  }
+
+  if (data.receipt_type === 'OPENING_BALANCE' && !data.note?.trim()) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['note'],
+      message: 'note is required when receipt_type is OPENING_BALANCE',
+    });
+  }
+});
+
+export const updateInventoryReceiptSchema = createInventoryReceiptSchema;
 
 // Seller schemas
 export const createSellerSchema = z.object({

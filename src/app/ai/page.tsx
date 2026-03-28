@@ -41,7 +41,7 @@ export default function AIPage() {
     },
     {
       id: 5,
-      text: 'จากการวิเคราะห์ข้อมูลการใช้งานและสต็อกปัจจุบัน ผมแนะนำการจัดซื้อดังนี้:\n\nต้องจัดซื้อด่วน:\n• ยาแก้ปวด - เหลือ 15%\n• เข็มฉีดยา - เหลือ 8%\n\nควรจัดซื้อ:\n• ผ้าพันแผล - เหลือ 35%\n• แอลกอฮอล์ - เหลือ 28%\n\nงบประมาณที่แนะนำ: ฿125,000\n\nต้องการให้สร้างใบสั่งซื้อให้ไหมครับ?',
+      text: 'จากการวิเคราะห์ข้อมูลการใช้งานและสต็อกปัจจุบัน ผมแนะนำการจัดซื้อดังนี้:\n\nต้องจัดซื้อด่วน:\n• ยาแก้ปวด - เหลือ 15%\n• เข็มฉีดยา - เหลือ 8%\n\nควรจัดซื้อ:\n• ผ้าพันแผล - เหลือ 35%\n• แอลกอฮอล์ - เหลือ 28%\n\nงบประมาณที่แนะนำ: 125,000 บาท\n\nต้องการให้สร้างใบสั่งซื้อให้ไหมครับ?',
       isUser: false,
       timestamp: '10:34'
     }
@@ -176,7 +176,7 @@ export default function AIPage() {
                         <div className="grid grid-cols-2 gap-2">
                           <div className="flex items-center gap-2">
                             <DollarSign className="h-4 w-4" />
-                            งบประมาณ: ฿125,000
+                            งบประมาณ: 125,000 บาท
                           </div>
                           <div className="flex items-center gap-2">
                             <TrendingUp className="h-4 w-4" />
@@ -219,7 +219,7 @@ export default function AIPage() {
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs text-gray-700">
                         <div className="flex items-center gap-2">
                           <DollarSign className="h-4 w-4" />
-                          งบประมาณที่แนะนำ: ฿125,000
+                          งบประมาณที่แนะนำ: 125,000 บาท
                         </div>
                         <div className="flex items-center gap-2">
                           <Target className="h-4 w-4" />
