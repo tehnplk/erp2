@@ -101,7 +101,7 @@ export const inventoryStockQuerySchema = z.object({
   product_subtype: z.string().optional(),
   lot: z.string().optional(),
   unit: z.string().optional(),
-  order_by: z.enum(['product_code', 'product_name', 'category', 'product_type', 'lot_count', 'total_qty', 'total_value', 'avg_unit_price', 'last_received_at']).optional(),
+  order_by: z.enum(['product_code', 'product_name', 'category', 'product_type', 'unit', 'lot_count', 'total_qty', 'total_value', 'avg_unit_price', 'last_received_at']).optional(),
   sort_order: z.enum(['asc', 'desc']).optional(),
   ...paginationFields
 });
@@ -113,6 +113,7 @@ export const inventoryStockLotQuerySchema = z.object({
   product_type: z.string().optional(),
   lot_no: z.string().optional(),
   available_only: z.enum(['true', 'false']).optional(),
+  order_by: z.enum(['lot_no', 'last_received_at', 'last_delivery_note_no', 'total_received_qty', 'total_received_value', 'qty_on_hand']).optional(),
   sort_order: z.enum(['asc', 'desc']).optional(),
   ...paginationFields,
 });
@@ -122,7 +123,7 @@ export const inventoryIssueQuerySchema = z.object({
   search: z.string().optional(),
   start_date: z.string().optional(),
   end_date: z.string().optional(),
-  order_by: z.enum(['issue_no', 'issue_date', 'requesting_department', 'total_items', 'total_qty', 'created_at']).optional(),
+  order_by: z.enum(['issue_no', 'issue_date', 'requesting_department', 'total_items', 'total_qty', 'total_value', 'note', 'created_at']).optional(),
   sort_order: z.enum(['asc', 'desc']).optional(),
   ...paginationFields,
 });

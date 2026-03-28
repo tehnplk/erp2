@@ -36,6 +36,7 @@ export async function GET(request: NextRequest) {
       product_type,
       lot_no,
       available_only,
+      order_by = 'last_received_at',
       sort_order = 'asc',
       page = 1,
       page_size = 20,
@@ -80,10 +81,16 @@ export async function GET(request: NextRequest) {
 
     const whereSql = whereClauses.length ? `WHERE ${whereClauses.join(' AND ')}` : '';
     const safeSortOrder = sort_order === 'desc' ? 'DESC' : 'ASC';
-    const orderBySql =
-      safeSortOrder === 'ASC'
-        ? 'v.last_received_at ASC NULLS LAST, v.product_code ASC, v.lot_no ASC'
-        : 'v.last_received_at DESC NULLS LAST, v.product_code DESC, v.lot_no DESC';
+    const orderMap: Record<string, string> = {
+      lot_no: 'v.lot_no',
+      last_received_at: 'v.last_received_at',
+      last_delivery_note_no: 'v.last_delivery_note_no',
+      total_received_qty: 'v.total_received_qty',
+      total_received_value: 'v.total_received_value',
+      qty_on_hand: 'v.qty_on_hand',
+    };
+    const safeOrderBy = orderMap[order_by] || 'v.last_received_at';
+    const nullsClause = safeOrderBy === 'v.last_received_at' || safeOrderBy === 'v.last_delivery_note_no' ? ' NULLS LAST' : '';
     const offset = (page - 1) * page_size;
 
     const countParams = params.slice();
@@ -120,7 +127,7 @@ export async function GET(request: NextRequest) {
             v.last_received_at
           FROM public.inventory_stock_lot_detail_summary v
           ${whereSql}
-          ORDER BY ${orderBySql}
+          ORDER BY ${safeOrderBy} ${safeSortOrder}${nullsClause}, v.lot_no ASC
           LIMIT $${listParams.length - 1} OFFSET $${listParams.length}
         `,
         listParams

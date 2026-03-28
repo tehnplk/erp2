@@ -91,6 +91,7 @@ export async function GET(request: NextRequest) {
       product_name: 'v.product_name',
       category: 'v.category',
       product_type: 'v.product_type',
+      unit: 'v.unit',
       lot_count: 'v.lot_count',
       total_qty: 'v.total_qty',
       total_value: 'v.total_value',

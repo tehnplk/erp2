@@ -3,6 +3,7 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import { ChevronDown, ChevronRight, Plus, Trash2 } from 'lucide-react';
 import { InventoryBreadcrumbs } from '../_components/inventory-breadcrumbs';
+import { SortableHeader } from '../_components/sortable-header';
 import { formatBaht } from '@/lib/format-baht';
 
 type StockRow = {
@@ -74,11 +75,31 @@ type ReceiptFormItem = {
   total_price: string;
 };
 
+type SortOrder = 'asc' | 'desc';
+type StockSortKey = 'product_code' | 'product_name' | 'unit' | 'total_qty' | 'avg_unit_price' | 'total_value';
+type LotSortKey = 'lot_no' | 'last_received_at' | 'last_delivery_note_no' | 'total_received_qty' | 'total_received_value' | 'qty_on_hand';
+type ReceiptSortKey = 'product_code' | 'product_name' | 'lot_no' | 'received_qty' | 'total_price';
+
 function formatDate(value: string | null) {
   if (!value) return '-';
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return '-';
   return date.toLocaleDateString('th-TH');
+}
+
+function compareMixedValues(left: string | number | null | undefined, right: string | number | null | undefined) {
+  if (typeof left === 'number' || typeof right === 'number') {
+    return Number(left ?? 0) - Number(right ?? 0);
+  }
+
+  const leftValue = String(left ?? '').trim();
+  const rightValue = String(right ?? '').trim();
+  return leftValue.localeCompare(rightValue, 'th');
+}
+
+function toggleSort(currentKey: string, currentOrder: SortOrder, nextKey: string): SortOrder {
+  if (currentKey !== nextKey) return 'asc';
+  return currentOrder === 'asc' ? 'desc' : 'asc';
 }
 
 export default function InventoryStockPage() {
@@ -88,6 +109,10 @@ export default function InventoryStockPage() {
   const [categoryFilter, setCategoryFilter] = useState('');
   const [typeFilter, setTypeFilter] = useState('');
   const [lotFilter, setLotFilter] = useState('');
+  const [stockSortBy, setStockSortBy] = useState<StockSortKey>('product_code');
+  const [stockSortOrder, setStockSortOrder] = useState<SortOrder>('asc');
+  const [lotSortBy, setLotSortBy] = useState<LotSortKey>('last_received_at');
+  const [lotSortOrder, setLotSortOrder] = useState<SortOrder>('asc');
   const [categoryOptions, setCategoryOptions] = useState<string[]>([]);
   const [categoryTypeMap, setCategoryTypeMap] = useState<Record<string, string[]>>({});
   const [rows, setRows] = useState<StockRow[]>([]);
@@ -111,6 +136,8 @@ export default function InventoryStockPage() {
   const [receiptSaving, setReceiptSaving] = useState(false);
   const [receiptMessage, setReceiptMessage] = useState('');
   const [receiptSearchText, setReceiptSearchText] = useState('');
+  const [receiptSortBy, setReceiptSortBy] = useState<ReceiptSortKey>('product_code');
+  const [receiptSortOrder, setReceiptSortOrder] = useState<SortOrder>('asc');
   const [receiptProductOptions, setReceiptProductOptions] = useState<ReceiptProductOption[]>([]);
   const [receiptSearching, setReceiptSearching] = useState(false);
   const [receiptActiveOptionIndex, setReceiptActiveOptionIndex] = useState(-1);
@@ -133,13 +160,32 @@ export default function InventoryStockPage() {
     [receiptItems]
   );
 
+  const sortedReceiptItems = useMemo(() => {
+    return [...receiptItems].sort((left, right) => {
+      const valueMap: Record<ReceiptSortKey, [string | number, string | number]> = {
+        product_code: [left.product_code, right.product_code],
+        product_name: [left.product_name, right.product_name],
+        lot_no: [left.lot_no, right.lot_no],
+        received_qty: [Number(left.received_qty || 0), Number(right.received_qty || 0)],
+        total_price: [Number(left.total_price || 0), Number(right.total_price || 0)],
+      };
+      const [leftValue, rightValue] = valueMap[receiptSortBy];
+      const compared = compareMixedValues(leftValue, rightValue);
+      if (compared === 0) {
+        return left.product_code.localeCompare(right.product_code, 'th');
+      }
+      return receiptSortOrder === 'asc' ? compared : -compared;
+    });
+  }, [receiptItems, receiptSortBy, receiptSortOrder]);
+
   const fetchLotRows = async (productId: number) => {
     setLotLoadingByProduct((prev) => ({ ...prev, [productId]: true }));
     try {
       const params = new URLSearchParams({
         product_id: String(productId),
         page_size: '100',
-        sort_order: 'asc',
+        order_by: lotSortBy,
+        sort_order: lotSortOrder,
       });
       const response = await fetch(`/api/inventory/stock/lots?${params.toString()}`);
       const payload: ApiResponse<StockLotDetailRow[]> = await response.json();
@@ -169,8 +215,8 @@ export default function InventoryStockPage() {
       const params = new URLSearchParams({
         page: String(page),
         page_size: String(pageSize),
-        order_by: 'product_code',
-        sort_order: 'asc',
+        order_by: stockSortBy,
+        sort_order: stockSortOrder,
       });
 
       if (search.trim()) {
@@ -231,13 +277,22 @@ export default function InventoryStockPage() {
     }, 200);
 
     return () => window.clearTimeout(timeout);
-  }, [page, pageSize, search, categoryFilter, typeFilter, lotFilter]);
+  }, [page, pageSize, search, categoryFilter, typeFilter, lotFilter, stockSortBy, stockSortOrder]);
 
   useEffect(() => {
     setExpandedProductIds([]);
     setLotRowsByProduct({});
     setLotLoadingByProduct({});
-  }, [page, pageSize, search, categoryFilter, typeFilter, lotFilter]);
+  }, [page, pageSize, search, categoryFilter, typeFilter, lotFilter, stockSortBy, stockSortOrder]);
+
+  useEffect(() => {
+    if (expandedProductIds.length === 0) return;
+    setLotRowsByProduct({});
+    setLotLoadingByProduct({});
+    expandedProductIds.forEach((productId) => {
+      void fetchLotRows(productId);
+    });
+  }, [lotSortBy, lotSortOrder]);
 
   useEffect(() => {
     if (!categoryFilter.trim()) return;
@@ -301,6 +356,8 @@ export default function InventoryStockPage() {
     setReceiptSearchText('');
     setReceiptProductOptions([]);
     setReceiptActiveOptionIndex(-1);
+    setReceiptSortBy('product_code');
+    setReceiptSortOrder('asc');
     setReceiptModalOpen(true);
   };
 
@@ -324,12 +381,31 @@ export default function InventoryStockPage() {
     setReceiptActiveOptionIndex(-1);
   };
 
-  const updateReceiptItemField = (index: number, field: keyof ReceiptFormItem, value: string) => {
-    setReceiptItems((prev) => prev.map((item, i) => (i === index ? { ...item, [field]: value } : item)));
+  const updateReceiptItemField = (productCode: string, field: keyof ReceiptFormItem, value: string) => {
+    setReceiptItems((prev) => prev.map((item) => (item.product_code === productCode ? { ...item, [field]: value } : item)));
   };
 
-  const removeReceiptItem = (index: number) => {
-    setReceiptItems((prev) => prev.filter((_, i) => i !== index));
+  const removeReceiptItem = (productCode: string) => {
+    setReceiptItems((prev) => prev.filter((item) => item.product_code !== productCode));
+  };
+
+  const handleStockSort = (nextKey: string) => {
+    const typedKey = nextKey as StockSortKey;
+    setStockSortOrder((currentOrder) => toggleSort(stockSortBy, currentOrder, typedKey));
+    setStockSortBy(typedKey);
+    setPage(1);
+  };
+
+  const handleLotSort = (nextKey: string) => {
+    const typedKey = nextKey as LotSortKey;
+    setLotSortOrder((currentOrder) => toggleSort(lotSortBy, currentOrder, typedKey));
+    setLotSortBy(typedKey);
+  };
+
+  const handleReceiptSort = (nextKey: string) => {
+    const typedKey = nextKey as ReceiptSortKey;
+    setReceiptSortOrder((currentOrder) => toggleSort(receiptSortBy, currentOrder, typedKey));
+    setReceiptSortBy(typedKey);
   };
 
   const toggleExpandedRow = async (productId: number) => {
@@ -533,12 +609,24 @@ export default function InventoryStockPage() {
               <thead className="bg-gray-50">
                 <tr>
                   <th className="whitespace-nowrap px-3 py-2 text-left text-xs font-semibold uppercase text-gray-500">#</th>
-                  <th className="whitespace-nowrap px-3 py-2 text-left text-xs font-semibold uppercase text-gray-500">รหัสสินค้า</th>
-                  <th className="px-3 py-2 text-left text-xs font-semibold uppercase text-gray-500">สินค้า</th>
-                  <th className="px-3 py-2 text-left text-xs font-semibold uppercase text-gray-500">หน่วย</th>
-                  <th className="px-3 py-2 text-right text-xs font-semibold uppercase text-gray-500">คงคลัง</th>
-                  <th className="px-3 py-2 text-right text-xs font-semibold uppercase text-gray-500">มูลค่า/หน่วย (บาท)</th>
-                  <th className="px-3 py-2 text-right text-xs font-semibold uppercase text-gray-500">รวมมูลค่า (บาท)</th>
+                  <th className="whitespace-nowrap px-3 py-2 text-left text-xs font-semibold uppercase text-gray-500">
+                    <SortableHeader label="รหัสสินค้า" sortKey="product_code" activeKey={stockSortBy} activeOrder={stockSortOrder} onSort={handleStockSort} />
+                  </th>
+                  <th className="px-3 py-2 text-left text-xs font-semibold uppercase text-gray-500">
+                    <SortableHeader label="สินค้า" sortKey="product_name" activeKey={stockSortBy} activeOrder={stockSortOrder} onSort={handleStockSort} />
+                  </th>
+                  <th className="px-3 py-2 text-left text-xs font-semibold uppercase text-gray-500">
+                    <SortableHeader label="หน่วย" sortKey="unit" activeKey={stockSortBy} activeOrder={stockSortOrder} onSort={handleStockSort} />
+                  </th>
+                  <th className="px-3 py-2 text-right text-xs font-semibold uppercase text-gray-500">
+                    <SortableHeader label="คงคลัง" sortKey="total_qty" activeKey={stockSortBy} activeOrder={stockSortOrder} onSort={handleStockSort} align="right" />
+                  </th>
+                  <th className="px-3 py-2 text-right text-xs font-semibold uppercase text-gray-500">
+                    <SortableHeader label="มูลค่า/หน่วย (บาท)" sortKey="avg_unit_price" activeKey={stockSortBy} activeOrder={stockSortOrder} onSort={handleStockSort} align="right" />
+                  </th>
+                  <th className="px-3 py-2 text-right text-xs font-semibold uppercase text-gray-500">
+                    <SortableHeader label="รวมมูลค่า (บาท)" sortKey="total_value" activeKey={stockSortBy} activeOrder={stockSortOrder} onSort={handleStockSort} align="right" />
+                  </th>
                   <th className="px-3 py-2 text-right text-xs font-semibold uppercase text-gray-500">จัดการ</th>
                 </tr>
               </thead>
@@ -612,12 +700,24 @@ export default function InventoryStockPage() {
                                 <table className="min-w-full text-xs">
                                   <thead className="bg-emerald-100 text-left text-emerald-700">
                                     <tr>
-                                      <th className="px-3 py-2">LOT-NO</th>
-                                      <th className="px-3 py-2">วันที่รับเข้าคลัง</th>
-                                      <th className="px-3 py-2">เลขที่ใบส่งของ</th>
-                                      <th className="px-3 py-2 text-right">จำนวนที่รับ</th>
-                                      <th className="px-3 py-2 text-right">มูลค่ารวมตอนรับเข้า (บาท)</th>
-                                      <th className="px-3 py-2 text-right">คงเหลือในคลัง</th>
+                                      <th className="px-3 py-2">
+                                        <SortableHeader label="LOT-NO" sortKey="lot_no" activeKey={lotSortBy} activeOrder={lotSortOrder} onSort={handleLotSort} />
+                                      </th>
+                                      <th className="px-3 py-2">
+                                        <SortableHeader label="วันที่รับเข้าคลัง" sortKey="last_received_at" activeKey={lotSortBy} activeOrder={lotSortOrder} onSort={handleLotSort} />
+                                      </th>
+                                      <th className="px-3 py-2">
+                                        <SortableHeader label="เลขที่ใบส่งของ" sortKey="last_delivery_note_no" activeKey={lotSortBy} activeOrder={lotSortOrder} onSort={handleLotSort} />
+                                      </th>
+                                      <th className="px-3 py-2 text-right">
+                                        <SortableHeader label="จำนวนที่รับ" sortKey="total_received_qty" activeKey={lotSortBy} activeOrder={lotSortOrder} onSort={handleLotSort} align="right" />
+                                      </th>
+                                      <th className="px-3 py-2 text-right">
+                                        <SortableHeader label="มูลค่ารวมตอนรับเข้า (บาท)" sortKey="total_received_value" activeKey={lotSortBy} activeOrder={lotSortOrder} onSort={handleLotSort} align="right" />
+                                      </th>
+                                      <th className="px-3 py-2 text-right">
+                                        <SortableHeader label="คงเหลือในคลัง" sortKey="qty_on_hand" activeKey={lotSortBy} activeOrder={lotSortOrder} onSort={handleLotSort} align="right" />
+                                      </th>
                                     </tr>
                                   </thead>
                                   <tbody className="divide-y divide-emerald-100 bg-white/70">
@@ -787,11 +887,21 @@ export default function InventoryStockPage() {
                 <table className="min-w-full text-xs">
                   <thead className="bg-gray-50 text-left text-gray-500">
                     <tr>
-                      <th className="px-3 py-2">รหัสสินค้า</th>
-                      <th className="px-3 py-2">ชื่อสินค้า</th>
-                      <th className="px-3 py-2">ล็อต</th>
-                      <th className="px-3 py-2 text-right">จำนวน</th>
-                      <th className="px-3 py-2 text-right">ราคารวม (บาท)</th>
+                      <th className="px-3 py-2">
+                        <SortableHeader label="รหัสสินค้า" sortKey="product_code" activeKey={receiptSortBy} activeOrder={receiptSortOrder} onSort={handleReceiptSort} />
+                      </th>
+                      <th className="px-3 py-2">
+                        <SortableHeader label="ชื่อสินค้า" sortKey="product_name" activeKey={receiptSortBy} activeOrder={receiptSortOrder} onSort={handleReceiptSort} />
+                      </th>
+                      <th className="px-3 py-2">
+                        <SortableHeader label="ล็อต" sortKey="lot_no" activeKey={receiptSortBy} activeOrder={receiptSortOrder} onSort={handleReceiptSort} />
+                      </th>
+                      <th className="px-3 py-2 text-right">
+                        <SortableHeader label="จำนวน" sortKey="received_qty" activeKey={receiptSortBy} activeOrder={receiptSortOrder} onSort={handleReceiptSort} align="right" />
+                      </th>
+                      <th className="px-3 py-2 text-right">
+                        <SortableHeader label="ราคารวม (บาท)" sortKey="total_price" activeKey={receiptSortBy} activeOrder={receiptSortOrder} onSort={handleReceiptSort} align="right" />
+                      </th>
                       <th className="px-3 py-2 text-right">จัดการ</th>
                     </tr>
                   </thead>
@@ -803,15 +913,15 @@ export default function InventoryStockPage() {
                         </td>
                       </tr>
                     ) : (
-                      receiptItems.map((item, index) => (
-                        <tr key={`${item.product_code}-${index}`} className="hover:bg-gray-50">
+                      sortedReceiptItems.map((item) => (
+                        <tr key={item.product_code} className="hover:bg-gray-50">
                           <td className="px-3 py-2 font-medium text-gray-900 align-top">{item.product_code}</td>
                           <td className="px-3 py-2 text-gray-700 align-top">{item.product_name}</td>
                           <td className="px-3 py-2 align-top">
                             <input
                               type="text"
                               value={item.lot_no}
-                              onChange={(event) => updateReceiptItemField(index, 'lot_no', event.target.value)}
+                              onChange={(event) => updateReceiptItemField(item.product_code, 'lot_no', event.target.value)}
                               className="w-full rounded-lg border border-slate-300 px-2 py-1"
                               placeholder="ล็อต"
                             />
@@ -823,7 +933,7 @@ export default function InventoryStockPage() {
                                 min="0"
                                 step="0.01"
                                 value={item.received_qty}
-                                onChange={(event) => updateReceiptItemField(index, 'received_qty', event.target.value)}
+                                onChange={(event) => updateReceiptItemField(item.product_code, 'received_qty', event.target.value)}
                                 className="w-full rounded-lg border border-slate-300 px-2 py-1 text-right"
                                 placeholder="0"
                               />
@@ -836,7 +946,7 @@ export default function InventoryStockPage() {
                               min="0"
                               step="0.01"
                               value={item.total_price}
-                              onChange={(event) => updateReceiptItemField(index, 'total_price', event.target.value)}
+                              onChange={(event) => updateReceiptItemField(item.product_code, 'total_price', event.target.value)}
                               className="w-full rounded-lg border border-slate-300 px-2 py-1 text-right"
                               placeholder="0.00"
                             />
@@ -844,7 +954,7 @@ export default function InventoryStockPage() {
                           <td className="px-3 py-2 text-right align-top">
                             <button
                               type="button"
-                              onClick={() => removeReceiptItem(index)}
+                              onClick={() => removeReceiptItem(item.product_code)}
                               aria-label="ลบรายการ"
                               title="ลบรายการ"
                               className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-red-300 text-red-700 hover:bg-red-50"

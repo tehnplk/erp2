@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Eye, Plus, Trash2, X } from 'lucide-react';
 import { InventoryBreadcrumbs } from '../_components/inventory-breadcrumbs';
+import { SortableHeader } from '../_components/sortable-header';
 import { formatBaht } from '@/lib/format-baht';
 
 type DepartmentOption = { id: number; name: string; department_code: string; is_active: boolean };
@@ -12,6 +13,10 @@ type IssueDetailResponse = { issue: IssueListRow; items: IssueDetailItem[] };
 type LotOption = { stock_lot_id: number; product_id: number; product_code: string; product_name: string; category: string | null; product_type: string | null; product_subtype: string | null; unit: string | null; lot_no: string; qty_on_hand: number; total_value: number; avg_unit_price: number; last_received_at: string | null };
 type IssueFormItem = LotOption & { issued_qty: string; original_issued_qty: number };
 type ApiResponse<T> = { success: boolean; data: T; totalCount?: number; error?: string; message?: string };
+type SortOrder = 'asc' | 'desc';
+type IssueListSortKey = 'issue_no' | 'issue_date' | 'requesting_department' | 'total_items' | 'total_value' | 'note';
+type IssueFormSortKey = 'product_code' | 'product_name' | 'lot_no' | 'last_received_at' | 'qty_on_hand' | 'issued_qty';
+type IssueDetailSortKey = 'product_code' | 'product_name' | 'lot_no' | 'issued_qty' | 'qty_on_hand' | 'total_value';
 
 function formatDate(value: string | null) {
   if (!value) return '-';
@@ -24,6 +29,21 @@ function formatNumber(value: number | string | null | undefined, fractionDigits 
   const parsed = Number(value ?? 0);
   const safeValue = Number.isFinite(parsed) ? parsed : 0;
   return safeValue.toLocaleString('th-TH', { minimumFractionDigits: fractionDigits, maximumFractionDigits: fractionDigits });
+}
+
+function compareMixedValues(left: string | number | null | undefined, right: string | number | null | undefined) {
+  if (typeof left === 'number' || typeof right === 'number') {
+    return Number(left ?? 0) - Number(right ?? 0);
+  }
+
+  const leftValue = String(left ?? '').trim();
+  const rightValue = String(right ?? '').trim();
+  return leftValue.localeCompare(rightValue, 'th');
+}
+
+function toggleSort(currentKey: string, currentOrder: SortOrder, nextKey: string): SortOrder {
+  if (currentKey !== nextKey) return 'asc';
+  return currentOrder === 'asc' ? 'desc' : 'asc';
 }
 
 export default function InventoryIssuesPage() {
@@ -53,15 +73,81 @@ export default function InventoryIssuesPage() {
   const [selectedIssue, setSelectedIssue] = useState<IssueDetailResponse | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailMessage, setDetailMessage] = useState('');
+  const [issueSortBy, setIssueSortBy] = useState<IssueListSortKey>('issue_date');
+  const [issueSortOrder, setIssueSortOrder] = useState<SortOrder>('desc');
+  const [selectedItemSortBy, setSelectedItemSortBy] = useState<IssueFormSortKey>('product_code');
+  const [selectedItemSortOrder, setSelectedItemSortOrder] = useState<SortOrder>('asc');
+  const [detailSortBy, setDetailSortBy] = useState<IssueDetailSortKey>('product_code');
+  const [detailSortOrder, setDetailSortOrder] = useState<SortOrder>('asc');
   const searchOptionRefs = useRef<Array<HTMLButtonElement | null>>([]);
 
   const totalPages = useMemo(() => Math.max(1, Math.ceil(totalCount / pageSize)), [totalCount, pageSize]);
   const selectedIssueTotalQty = useMemo(() => selectedItems.reduce((sum, item) => sum + Number(item.issued_qty || 0), 0), [selectedItems]);
   const selectedIssueTotalValue = useMemo(() => selectedItems.reduce((sum, item) => sum + Number(item.issued_qty || 0) * Number(item.avg_unit_price || 0), 0), [selectedItems]);
   const activeDepartments = useMemo(() => departments.filter((department) => department.is_active).slice().sort((a, b) => `${a.department_code} ${a.name}`.localeCompare(`${b.department_code} ${b.name}`)), [departments]);
+  const sortedSelectedItems = useMemo(() => {
+    const items = [...selectedItems];
+    items.sort((left, right) => {
+      const direction = selectedItemSortOrder === 'asc' ? 1 : -1;
+      const result = (() => {
+        switch (selectedItemSortBy) {
+          case 'product_code':
+            return compareMixedValues(left.product_code, right.product_code);
+          case 'product_name':
+            return compareMixedValues(left.product_name, right.product_name);
+          case 'lot_no':
+            return compareMixedValues(left.lot_no, right.lot_no);
+          case 'last_received_at':
+            return compareMixedValues(left.last_received_at, right.last_received_at);
+          case 'qty_on_hand':
+            return compareMixedValues(Number(left.qty_on_hand), Number(right.qty_on_hand));
+          case 'issued_qty':
+            return compareMixedValues(Number(left.issued_qty || 0), Number(right.issued_qty || 0));
+          default:
+            return 0;
+        }
+      })();
+      if (result !== 0) return result * direction;
+      return compareMixedValues(left.product_code, right.product_code);
+    });
+    return items;
+  }, [selectedItems, selectedItemSortBy, selectedItemSortOrder]);
+  const sortedDetailItems = useMemo(() => {
+    if (!selectedIssue) return [];
+    const items = [...selectedIssue.items];
+    items.sort((left, right) => {
+      const direction = detailSortOrder === 'asc' ? 1 : -1;
+      const result = (() => {
+        switch (detailSortBy) {
+          case 'product_code':
+            return compareMixedValues(left.product_code, right.product_code);
+          case 'product_name':
+            return compareMixedValues(left.product_name, right.product_name);
+          case 'lot_no':
+            return compareMixedValues(left.lot_no, right.lot_no);
+          case 'issued_qty':
+            return compareMixedValues(Number(left.issued_qty), Number(right.issued_qty));
+          case 'qty_on_hand':
+            return compareMixedValues(Number(left.qty_on_hand), Number(right.qty_on_hand));
+          case 'total_value':
+            return compareMixedValues(Number(left.total_value), Number(right.total_value));
+          default:
+            return 0;
+        }
+      })();
+      if (result !== 0) return result * direction;
+      return compareMixedValues(left.product_code, right.product_code);
+    });
+    return items;
+  }, [detailSortBy, detailSortOrder, selectedIssue]);
 
   const fetchIssues = async () => {
-    const params = new URLSearchParams({ page: String(page), page_size: String(pageSize), sort_order: 'desc' });
+    const params = new URLSearchParams({
+      page: String(page),
+      page_size: String(pageSize),
+      order_by: issueSortBy,
+      sort_order: issueSortOrder,
+    });
     if (search.trim()) params.set('search', search.trim());
     const response = await fetch(`/api/inventory/issues?${params.toString()}`);
     const payload: ApiResponse<IssueListRow[]> = await response.json();
@@ -101,7 +187,7 @@ export default function InventoryIssuesPage() {
       }
     }, 200);
     return () => window.clearTimeout(timeout);
-  }, [page, pageSize, search]);
+  }, [issueSortBy, issueSortOrder, page, pageSize, search]);
 
   useEffect(() => {
     if (selectedIssueId === null) return;
@@ -178,6 +264,8 @@ export default function InventoryIssuesPage() {
     setLotOptions([]);
     setActiveOptionIndex(-1);
     setSelectedItems([]);
+    setSelectedItemSortBy('product_code');
+    setSelectedItemSortOrder('asc');
     setCreateOpen(true);
   };
 
@@ -192,6 +280,8 @@ export default function InventoryIssuesPage() {
     setLotOptions([]);
     setActiveOptionIndex(-1);
     setSelectedItems([]);
+    setSelectedItemSortBy('product_code');
+    setSelectedItemSortOrder('asc');
     setCreateMessage('');
   };
 
@@ -203,10 +293,10 @@ export default function InventoryIssuesPage() {
     });
   };
 
-  const updateSelectedItemQty = (index: number, value: string) => {
+  const updateSelectedItemQty = (stockLotId: number, value: string) => {
     setSelectedItems((prev) =>
-      prev.map((item, currentIndex) => {
-        if (currentIndex !== index) return item;
+      prev.map((item) => {
+        if (item.stock_lot_id !== stockLotId) return item;
         const raw = value.trim();
         if (raw === '') return { ...item, issued_qty: '' };
         const nextValue = Math.max(0, Number(raw));
@@ -216,8 +306,8 @@ export default function InventoryIssuesPage() {
     );
   };
 
-  const removeSelectedItem = (index: number) => {
-    setSelectedItems((prev) => prev.filter((_, currentIndex) => currentIndex !== index));
+  const removeSelectedItem = (stockLotId: number) => {
+    setSelectedItems((prev) => prev.filter((item) => item.stock_lot_id !== stockLotId));
   };
 
   const effectiveAvailableQty = (item: IssueFormItem) => Number(item.qty_on_hand) + Number(item.original_issued_qty || 0);
@@ -233,6 +323,8 @@ export default function InventoryIssuesPage() {
     setShowOutOfStock(false);
     setLotOptions([]);
     setActiveOptionIndex(-1);
+    setSelectedItemSortBy('product_code');
+    setSelectedItemSortOrder('asc');
     setSelectedItems(
       issue.items.map((item) => ({
         stock_lot_id: item.stock_lot_id,
@@ -253,6 +345,22 @@ export default function InventoryIssuesPage() {
       }))
     );
     setCreateOpen(true);
+  };
+
+  const handleIssueSort = (sortKey: IssueListSortKey) => {
+    setIssueSortOrder((currentOrder) => toggleSort(issueSortBy, currentOrder, sortKey));
+    setIssueSortBy(sortKey);
+    setPage(1);
+  };
+
+  const handleSelectedItemSort = (sortKey: IssueFormSortKey) => {
+    setSelectedItemSortOrder((currentOrder) => toggleSort(selectedItemSortBy, currentOrder, sortKey));
+    setSelectedItemSortBy(sortKey);
+  };
+
+  const handleDetailSort = (sortKey: IssueDetailSortKey) => {
+    setDetailSortOrder((currentOrder) => toggleSort(detailSortBy, currentOrder, sortKey));
+    setDetailSortBy(sortKey);
   };
 
   const submitIssue = async () => {
@@ -414,12 +522,24 @@ export default function InventoryIssuesPage() {
             <table className="min-w-full text-xs">
               <thead className="bg-gray-50 text-left text-gray-500">
                 <tr>
-                  <th className="px-3 py-2">เลขที่ใบเบิกจ่าย</th>
-                  <th className="px-3 py-2">วันที่เบิก</th>
-                  <th className="px-3 py-2">หน่วยงาน</th>
-                  <th className="px-3 py-2 text-right">จำนวนรายการ</th>
-                  <th className="px-3 py-2 text-right">มูลค่ารวม (บาท)</th>
-                  <th className="px-3 py-2">หมายเหตุ</th>
+                  <th className="px-3 py-2">
+                    <SortableHeader label="เลขที่ใบเบิกจ่าย" sortKey="issue_no" activeKey={issueSortBy} activeOrder={issueSortOrder} onSort={(key) => handleIssueSort(key as IssueListSortKey)} />
+                  </th>
+                  <th className="px-3 py-2">
+                    <SortableHeader label="วันที่เบิก" sortKey="issue_date" activeKey={issueSortBy} activeOrder={issueSortOrder} onSort={(key) => handleIssueSort(key as IssueListSortKey)} />
+                  </th>
+                  <th className="px-3 py-2">
+                    <SortableHeader label="หน่วยงาน" sortKey="requesting_department" activeKey={issueSortBy} activeOrder={issueSortOrder} onSort={(key) => handleIssueSort(key as IssueListSortKey)} />
+                  </th>
+                  <th className="px-3 py-2 text-right">
+                    <SortableHeader label="จำนวนรายการ" sortKey="total_items" activeKey={issueSortBy} activeOrder={issueSortOrder} onSort={(key) => handleIssueSort(key as IssueListSortKey)} align="right" />
+                  </th>
+                  <th className="px-3 py-2 text-right">
+                    <SortableHeader label="มูลค่ารวม (บาท)" sortKey="total_value" activeKey={issueSortBy} activeOrder={issueSortOrder} onSort={(key) => handleIssueSort(key as IssueListSortKey)} align="right" />
+                  </th>
+                  <th className="px-3 py-2">
+                    <SortableHeader label="หมายเหตุ" sortKey="note" activeKey={issueSortBy} activeOrder={issueSortOrder} onSort={(key) => handleIssueSort(key as IssueListSortKey)} />
+                  </th>
                   <th className="px-3 py-2 text-right">จัดการ</th>
                 </tr>
               </thead>
@@ -621,12 +741,24 @@ export default function InventoryIssuesPage() {
               <table className="min-w-full text-xs">
                 <thead className="bg-gray-50 text-left text-gray-500">
                   <tr>
-                    <th className="px-3 py-2">รหัสสินค้า</th>
-                    <th className="px-3 py-2">สินค้า</th>
-                    <th className="px-3 py-2">LOT</th>
-                    <th className="px-3 py-2">วันรับเข้า</th>
-                    <th className="px-3 py-2 text-right">คงเหลือ</th>
-                    <th className="px-3 py-2 text-right">จำนวนเบิก</th>
+                    <th className="px-3 py-2">
+                      <SortableHeader label="รหัสสินค้า" sortKey="product_code" activeKey={selectedItemSortBy} activeOrder={selectedItemSortOrder} onSort={(key) => handleSelectedItemSort(key as IssueFormSortKey)} />
+                    </th>
+                    <th className="px-3 py-2">
+                      <SortableHeader label="สินค้า" sortKey="product_name" activeKey={selectedItemSortBy} activeOrder={selectedItemSortOrder} onSort={(key) => handleSelectedItemSort(key as IssueFormSortKey)} />
+                    </th>
+                    <th className="px-3 py-2">
+                      <SortableHeader label="LOT" sortKey="lot_no" activeKey={selectedItemSortBy} activeOrder={selectedItemSortOrder} onSort={(key) => handleSelectedItemSort(key as IssueFormSortKey)} />
+                    </th>
+                    <th className="px-3 py-2">
+                      <SortableHeader label="วันรับเข้า" sortKey="last_received_at" activeKey={selectedItemSortBy} activeOrder={selectedItemSortOrder} onSort={(key) => handleSelectedItemSort(key as IssueFormSortKey)} />
+                    </th>
+                    <th className="px-3 py-2 text-right">
+                      <SortableHeader label="คงเหลือ" sortKey="qty_on_hand" activeKey={selectedItemSortBy} activeOrder={selectedItemSortOrder} onSort={(key) => handleSelectedItemSort(key as IssueFormSortKey)} align="right" />
+                    </th>
+                    <th className="px-3 py-2 text-right">
+                      <SortableHeader label="จำนวนเบิก" sortKey="issued_qty" activeKey={selectedItemSortBy} activeOrder={selectedItemSortOrder} onSort={(key) => handleSelectedItemSort(key as IssueFormSortKey)} align="right" />
+                    </th>
                     <th className="px-3 py-2 text-right">จัดการ</th>
                   </tr>
                 </thead>
@@ -636,7 +768,7 @@ export default function InventoryIssuesPage() {
                       <td colSpan={7} className="px-3 py-6 text-center text-gray-500">ยังไม่มีรายการที่เลือก</td>
                     </tr>
                   ) : (
-                    selectedItems.map((item, index) => {
+                    sortedSelectedItems.map((item) => {
                       const isZeroStock = Number(item.qty_on_hand) <= 0;
                       return (
                         <tr key={item.stock_lot_id} className={isZeroStock ? 'bg-rose-50/50' : 'hover:bg-gray-50'}>
@@ -657,7 +789,7 @@ export default function InventoryIssuesPage() {
                                 max={item.qty_on_hand}
                                 value={item.issued_qty}
                                 disabled={isZeroStock}
-                                onChange={(event) => updateSelectedItemQty(index, event.target.value)}
+                                onChange={(event) => updateSelectedItemQty(item.stock_lot_id, event.target.value)}
                                 className="w-28 rounded-lg border border-gray-300 px-2 py-1 text-right disabled:bg-gray-100"
                               />
                               <span className="whitespace-nowrap text-[10px] text-gray-500">{item.unit || ''}</span>
@@ -666,7 +798,7 @@ export default function InventoryIssuesPage() {
                           <td className="px-3 py-2 text-right align-top">
                             <button
                               type="button"
-                              onClick={() => removeSelectedItem(index)}
+                              onClick={() => removeSelectedItem(item.stock_lot_id)}
                               aria-label="ลบรายการ"
                               title="ลบรายการ"
                               className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-red-300 text-red-700 hover:bg-red-50"
@@ -764,12 +896,24 @@ export default function InventoryIssuesPage() {
                   <table className="min-w-full text-xs">
                     <thead className="bg-gray-50 text-left text-gray-500">
                       <tr>
-                        <th className="px-3 py-2">รหัสสินค้า</th>
-                        <th className="px-3 py-2">สินค้า</th>
-                        <th className="px-3 py-2">LOT</th>
-                        <th className="px-3 py-2 text-right">จำนวนเบิก</th>
-                        <th className="px-3 py-2 text-right">คงเหลือ</th>
-                        <th className="px-3 py-2 text-right">มูลค่า</th>
+                        <th className="px-3 py-2">
+                          <SortableHeader label="รหัสสินค้า" sortKey="product_code" activeKey={detailSortBy} activeOrder={detailSortOrder} onSort={(key) => handleDetailSort(key as IssueDetailSortKey)} />
+                        </th>
+                        <th className="px-3 py-2">
+                          <SortableHeader label="สินค้า" sortKey="product_name" activeKey={detailSortBy} activeOrder={detailSortOrder} onSort={(key) => handleDetailSort(key as IssueDetailSortKey)} />
+                        </th>
+                        <th className="px-3 py-2">
+                          <SortableHeader label="LOT" sortKey="lot_no" activeKey={detailSortBy} activeOrder={detailSortOrder} onSort={(key) => handleDetailSort(key as IssueDetailSortKey)} />
+                        </th>
+                        <th className="px-3 py-2 text-right">
+                          <SortableHeader label="จำนวนเบิก" sortKey="issued_qty" activeKey={detailSortBy} activeOrder={detailSortOrder} onSort={(key) => handleDetailSort(key as IssueDetailSortKey)} align="right" />
+                        </th>
+                        <th className="px-3 py-2 text-right">
+                          <SortableHeader label="คงเหลือ" sortKey="qty_on_hand" activeKey={detailSortBy} activeOrder={detailSortOrder} onSort={(key) => handleDetailSort(key as IssueDetailSortKey)} align="right" />
+                        </th>
+                        <th className="px-3 py-2 text-right">
+                          <SortableHeader label="มูลค่า" sortKey="total_value" activeKey={detailSortBy} activeOrder={detailSortOrder} onSort={(key) => handleDetailSort(key as IssueDetailSortKey)} align="right" />
+                        </th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100 bg-white">
@@ -778,7 +922,7 @@ export default function InventoryIssuesPage() {
                           <td colSpan={6} className="px-3 py-6 text-center text-gray-500">ไม่พบรายการสินค้า</td>
                         </tr>
                       ) : (
-                        selectedIssue.items.map((item) => (
+                        sortedDetailItems.map((item) => (
                           <tr key={item.id} className="hover:bg-gray-50">
                             <td className="px-3 py-2 align-top font-medium text-gray-900">{item.product_code}</td>
                             <td className="px-3 py-2 align-top text-gray-700">

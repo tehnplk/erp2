@@ -73,6 +73,8 @@ export async function GET(request: NextRequest) {
 
     const {
       search,
+      order_by = 'issue_date',
+      sort_order = 'desc',
       page = 1,
       page_size = 20,
     } = queryValidation.data;
@@ -98,6 +100,19 @@ export async function GET(request: NextRequest) {
     }
 
     const whereSql = whereClauses.length ? `WHERE ${whereClauses.join(' AND ')}` : '';
+    const orderMap: Record<string, string> = {
+      issue_no: 'ii.issue_no',
+      issue_date: 'ii.issue_date',
+      requesting_department: 'd.name',
+      total_items: 'ii.total_items',
+      total_qty: 'ii.total_qty',
+      total_value: 'COALESCE(SUM(iit.total_value), 0)',
+      note: 'ii.note',
+      created_at: 'ii.created_at',
+    };
+    const safeOrderBy = orderMap[order_by] || 'ii.issue_date';
+    const safeSortOrder = sort_order === 'asc' ? 'ASC' : 'DESC';
+    const nullsClause = order_by === 'note' ? ' NULLS LAST' : '';
     const offset = (page - 1) * page_size;
 
     const [countResult, rowsResult] = await Promise.all([
@@ -141,7 +156,7 @@ export async function GET(request: NextRequest) {
           LEFT JOIN public.inventory_issue_item iit ON iit.issue_id = ii.id
           ${whereSql}
           GROUP BY ii.id, d.name, d.department_code
-          ORDER BY ii.issue_date DESC, ii.id DESC
+          ORDER BY ${safeOrderBy} ${safeSortOrder}${nullsClause}, ii.id DESC
           LIMIT $${params.length + 1} OFFSET $${params.length + 2}
         `,
         [...params, page_size, offset]
