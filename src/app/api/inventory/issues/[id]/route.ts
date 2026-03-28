@@ -24,21 +24,16 @@ async function restoreStockLot(client: PoolClient, stockLotId: number, qty: numb
     throw new Error(`Stock lot not found: ${stockLotId}`);
   }
 
-  const nextQty = Number(lot.qty_on_hand) + qty;
-  const nextTotalValue = Number(Number(lot.total_value) + totalValue);
-  const nextAvgUnitPrice = nextQty <= 0 ? 0 : Number((nextTotalValue / nextQty).toFixed(4));
-
   await client.query(
     `
       UPDATE public.inventory_stock_lot
       SET
         qty_on_hand = qty_on_hand + $2,
         total_value = total_value + $3,
-        avg_unit_price = $4,
         updated_at = now()
       WHERE id = $1
     `,
-    [stockLotId, qty, totalValue, nextAvgUnitPrice]
+    [stockLotId, qty, totalValue]
   );
 }
 
@@ -50,7 +45,14 @@ async function reduceStockLot(client: PoolClient, stockLotId: number, qty: numbe
     avg_unit_price: string | number;
   }>(
     `
-      SELECT id, qty_on_hand::float8 AS qty_on_hand, total_value::float8 AS total_value, avg_unit_price::float8 AS avg_unit_price
+      SELECT
+        id,
+        qty_on_hand::float8 AS qty_on_hand,
+        total_value::float8 AS total_value,
+        CASE
+          WHEN qty_on_hand <= 0 THEN 0
+          ELSE ROUND(total_value / qty_on_hand, 4)
+        END::float8 AS avg_unit_price
       FROM public.inventory_stock_lot
       WHERE id = $1
       FOR UPDATE
@@ -77,10 +79,6 @@ async function reduceStockLot(client: PoolClient, stockLotId: number, qty: numbe
       SET
         qty_on_hand = qty_on_hand - $2,
         total_value = GREATEST(total_value - $3, 0),
-        avg_unit_price = CASE
-          WHEN (qty_on_hand - $2) <= 0 THEN 0
-          ELSE ROUND(GREATEST(total_value - $3, 0) / (qty_on_hand - $2), 4)
-        END,
         updated_at = now()
       WHERE id = $1
         AND qty_on_hand >= $2
@@ -125,12 +123,14 @@ export async function GET(_request: NextRequest, context: { params: Promise<{ id
           d.name AS department_name,
           d.department_code,
           ii.note,
-          ii.total_items,
-          ii.total_qty::float8 AS total_qty,
+          COUNT(iit.id)::int AS total_items,
+          COALESCE(SUM(iit.issued_qty), 0)::float8 AS total_qty,
           ii.created_at::text
         FROM public.inventory_issue ii
         INNER JOIN public.department d ON d.id = ii.requesting_department_id
+        LEFT JOIN public.inventory_issue_item iit ON iit.issue_id = ii.id
         WHERE ii.id = $1
+        GROUP BY ii.id, d.name, d.department_code
         LIMIT 1
       `,
       [id]
@@ -172,7 +172,13 @@ export async function GET(_request: NextRequest, context: { params: Promise<{ id
           p.unit,
           isl.lot_no,
           isl.qty_on_hand::float8 AS qty_on_hand,
-          isl.last_received_at
+          (
+            SELECT MAX(r.receipt_date)
+            FROM public.inventory_receipt_item ri
+            INNER JOIN public.inventory_receipt r ON r.id = ri.receipt_id
+            WHERE ri.product_id = isl.product_id
+              AND ri.lot_no = isl.lot_no
+          ) AS last_received_at
         FROM public.inventory_issue_item iit
         INNER JOIN public.inventory_stock_lot isl ON isl.id = iit.stock_lot_id
         INNER JOIN public.product p ON p.id = isl.product_id

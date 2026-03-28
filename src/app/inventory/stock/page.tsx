@@ -2,6 +2,7 @@
 
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import { ChevronDown, ChevronRight, Pencil, Plus, Trash2, X } from 'lucide-react';
+import Swal from 'sweetalert2';
 import { InventoryBreadcrumbs } from '../_components/inventory-breadcrumbs';
 import { SortableHeader } from '../_components/sortable-header';
 import { formatBaht } from '@/lib/format-baht';
@@ -532,10 +533,17 @@ export default function InventoryStockPage() {
   };
 
   const handleDeleteLotReceiptItem = async (lotRow: StockLotDetailRow) => {
-    const confirmed = window.confirm(
-      `ยืนยันลบรายการรับเข้าคลัง ${lotRow.product_code} / ${lotRow.lot_no} จำนวน ${Number(lotRow.total_received_qty).toLocaleString('th-TH')} ${lotRow.unit || ''}`
-    );
-    if (!confirmed) return;
+    const confirmation = await Swal.fire({
+      icon: 'warning',
+      title: 'ยืนยันลบรายการรับเข้าคลัง',
+      text: `${lotRow.product_code} / ${lotRow.lot_no} จำนวน ${Number(lotRow.total_received_qty).toLocaleString('th-TH')} ${lotRow.unit || ''}`,
+      showCancelButton: true,
+      confirmButtonText: 'ลบรายการ',
+      cancelButtonText: 'ยกเลิก',
+      confirmButtonColor: '#dc2626',
+      reverseButtons: true,
+    });
+    if (!confirmation.isConfirmed) return;
 
     try {
       const response = await fetch(`/api/inventory/receipts/items/${lotRow.receipt_item_id}`, {
@@ -547,12 +555,24 @@ export default function InventoryStockPage() {
       }
 
       await refreshAfterLotMutation(lotRow.product_id);
-      setMessage(
-        `ลบรายการรับเข้าคลัง ${payload.data.product_name} (${payload.data.product_code}) LOT ${payload.data.lot_no} จำนวน ${Number(payload.data.received_qty).toLocaleString('th-TH')} ${lotRow.unit || ''}`
-      );
+      const successText = `ลบรายการรับเข้าคลัง ${payload.data.product_name} (${payload.data.product_code}) LOT ${payload.data.lot_no} จำนวน ${Number(payload.data.received_qty).toLocaleString('th-TH')} ${lotRow.unit || ''}`;
+      setMessage(successText);
+      await Swal.fire({
+        icon: 'success',
+        title: 'ลบสำเร็จ',
+        text: successText,
+        timer: 1600,
+        showConfirmButton: false,
+      });
     } catch (error) {
       console.error(error);
-      setMessage(error instanceof Error ? error.message : 'เกิดข้อผิดพลาดในการลบรายการรับเข้าคลัง');
+      const errorMessage = error instanceof Error ? error.message : 'เกิดข้อผิดพลาดในการลบรายการรับเข้าคลัง';
+      setMessage(errorMessage);
+      await Swal.fire({
+        icon: 'error',
+        title: 'ลบไม่สำเร็จ',
+        text: errorMessage,
+      });
     }
   };
 

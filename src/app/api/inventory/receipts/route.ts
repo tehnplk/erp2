@@ -179,29 +179,18 @@ export async function POST(request: NextRequest) {
 
       await client.query(
         `INSERT INTO public.inventory_stock_lot
-           (product_id, lot_no, qty_on_hand, total_value, avg_unit_price, last_received_at)
-         VALUES ($1, $2, $3, $4, $5, $6)
+           (product_id, lot_no, qty_on_hand, total_value)
+         VALUES ($1, $2, $3, $4)
          ON CONFLICT (product_id, lot_no)
          DO UPDATE SET
            qty_on_hand = public.inventory_stock_lot.qty_on_hand + EXCLUDED.qty_on_hand,
            total_value = public.inventory_stock_lot.total_value + EXCLUDED.total_value,
-           avg_unit_price = CASE
-             WHEN (public.inventory_stock_lot.qty_on_hand + EXCLUDED.qty_on_hand) = 0 THEN 0
-             ELSE ROUND(
-               (public.inventory_stock_lot.total_value + EXCLUDED.total_value)
-               / (public.inventory_stock_lot.qty_on_hand + EXCLUDED.qty_on_hand),
-               4
-             )
-           END,
-           last_received_at = GREATEST(public.inventory_stock_lot.last_received_at, EXCLUDED.last_received_at),
            updated_at = now()`,
         [
           product.id,
           item.lot_no.trim(),
           qty,
           totalPrice,
-          unitPrice,
-          receipt_date,
         ]
       );
     }

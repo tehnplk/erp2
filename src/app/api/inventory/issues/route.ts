@@ -19,7 +19,14 @@ async function reduceStockLot(client: PoolClient, stockLotId: number, qty: numbe
     avg_unit_price: string | number;
   }>(
     `
-      SELECT id, qty_on_hand::float8 AS qty_on_hand, total_value::float8 AS total_value, avg_unit_price::float8 AS avg_unit_price
+      SELECT
+        id,
+        qty_on_hand::float8 AS qty_on_hand,
+        total_value::float8 AS total_value,
+        CASE
+          WHEN qty_on_hand <= 0 THEN 0
+          ELSE ROUND(total_value / qty_on_hand, 4)
+        END::float8 AS avg_unit_price
       FROM public.inventory_stock_lot
       WHERE id = $1
       FOR UPDATE
@@ -46,10 +53,6 @@ async function reduceStockLot(client: PoolClient, stockLotId: number, qty: numbe
       SET
         qty_on_hand = qty_on_hand - $2,
         total_value = GREATEST(total_value - $3, 0),
-        avg_unit_price = CASE
-          WHEN (qty_on_hand - $2) <= 0 THEN 0
-          ELSE ROUND(GREATEST(total_value - $3, 0) / (qty_on_hand - $2), 4)
-        END,
         updated_at = now()
       WHERE id = $1
         AND qty_on_hand >= $2
@@ -104,8 +107,8 @@ export async function GET(request: NextRequest) {
       issue_no: 'ii.issue_no',
       issue_date: 'ii.issue_date',
       requesting_department: 'd.name',
-      total_items: 'ii.total_items',
-      total_qty: 'ii.total_qty',
+      total_items: 'COUNT(iit.id)',
+      total_qty: 'COALESCE(SUM(iit.issued_qty), 0)',
       total_value: 'COALESCE(SUM(iit.total_value), 0)',
       note: 'ii.note',
       created_at: 'ii.created_at',
@@ -147,8 +150,8 @@ export async function GET(request: NextRequest) {
             d.name AS department_name,
             d.department_code,
             ii.note,
-            ii.total_items,
-            ii.total_qty::float8 AS total_qty,
+            COUNT(iit.id)::int AS total_items,
+            COALESCE(SUM(iit.issued_qty), 0)::float8 AS total_qty,
             COALESCE(SUM(iit.total_value), 0)::float8 AS total_value,
             ii.created_at::text
           FROM public.inventory_issue ii

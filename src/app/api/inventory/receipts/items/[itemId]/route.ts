@@ -19,18 +19,10 @@ async function applyStockDelta(client: PoolClient, delta: StockDelta) {
      SET
        qty_on_hand = qty_on_hand + $3,
        total_value = total_value + $4,
-       avg_unit_price = CASE
-         WHEN (qty_on_hand + $3) = 0 THEN 0
-         ELSE ROUND((total_value + $4) / (qty_on_hand + $3), 4)
-       END,
-       last_received_at = CASE
-         WHEN $3 > 0 THEN GREATEST(last_received_at, $5::date)
-         ELSE last_received_at
-       END,
        updated_at = now()
      WHERE product_id = $1
        AND lot_no = $2`,
-    [delta.product_id, delta.lot_no, delta.qty_delta, delta.value_delta, delta.receipt_date]
+    [delta.product_id, delta.lot_no, delta.qty_delta, delta.value_delta]
   );
 
   if (updateResult.rowCount === 0) {
@@ -38,12 +30,11 @@ async function applyStockDelta(client: PoolClient, delta: StockDelta) {
       throw new Error(`Stock lot not found for reverse: product_id=${delta.product_id}, lot_no=${delta.lot_no}`);
     }
 
-    const unitPrice = delta.qty_delta === 0 ? 0 : Number((delta.value_delta / delta.qty_delta).toFixed(4));
     await client.query(
       `INSERT INTO public.inventory_stock_lot
-         (product_id, lot_no, qty_on_hand, total_value, avg_unit_price, last_received_at)
-       VALUES ($1, $2, $3, $4, $5, $6)`,
-      [delta.product_id, delta.lot_no, delta.qty_delta, delta.value_delta, unitPrice, delta.receipt_date]
+         (product_id, lot_no, qty_on_hand, total_value)
+       VALUES ($1, $2, $3, $4)`,
+      [delta.product_id, delta.lot_no, delta.qty_delta, delta.value_delta]
     );
   }
 

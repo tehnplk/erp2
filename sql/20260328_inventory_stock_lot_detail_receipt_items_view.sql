@@ -24,7 +24,10 @@ SELECT
   ri.total_price::numeric(14,2) AS total_received_value,
   COALESCE(isl.qty_on_hand, 0)::numeric(14,2) AS qty_on_hand,
   COALESCE(isl.total_value, 0)::numeric(14,2) AS total_value,
-  COALESCE(isl.avg_unit_price, 0)::numeric(14,4) AS avg_unit_price,
+  CASE
+    WHEN COALESCE(isl.qty_on_hand, 0) = 0 THEN 0::numeric
+    ELSE ROUND(COALESCE(isl.total_value, 0) / NULLIF(isl.qty_on_hand, 0), 4)
+  END AS avg_unit_price,
   r.receipt_date AS last_received_at,
   ri.created_at
 FROM public.inventory_receipt_item ri
