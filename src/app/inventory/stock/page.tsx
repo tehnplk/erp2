@@ -1,7 +1,7 @@
 ﻿'use client';
 
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
-import { ChevronDown, ChevronRight, Plus, Trash2 } from 'lucide-react';
+import { ChevronDown, ChevronRight, Pencil, Plus, Trash2, X } from 'lucide-react';
 import { InventoryBreadcrumbs } from '../_components/inventory-breadcrumbs';
 import { SortableHeader } from '../_components/sortable-header';
 import { formatBaht } from '@/lib/format-baht';
@@ -23,6 +23,12 @@ type StockRow = {
 };
 
 type StockLotDetailRow = {
+  receipt_item_id: number;
+  receipt_id: number;
+  receipt_no: string;
+  receipt_type: 'OPENING_BALANCE' | 'DELIVERY_NOTE';
+  receipt_date: string;
+  receipt_note: string | null;
   stock_lot_id: number;
   product_id: number;
   product_code: string;
@@ -34,6 +40,23 @@ type StockLotDetailRow = {
   last_delivery_note_no: string | null;
   qty_on_hand: number;
   last_received_at: string | null;
+};
+
+type ReceiptItemEditorState = {
+  receipt_item_id: number;
+  receipt_id: number;
+  receipt_no: string;
+  receipt_type: 'OPENING_BALANCE' | 'DELIVERY_NOTE';
+  receipt_date: string;
+  delivery_note_no: string;
+  note: string;
+  product_code: string;
+  product_name: string;
+  product_unit: string;
+  lot_no: string;
+  received_qty: string;
+  total_price: string;
+  product_id: number;
 };
 
 type StockResponse = {
@@ -127,6 +150,9 @@ export default function InventoryStockPage() {
   const [expandedProductIds, setExpandedProductIds] = useState<number[]>([]);
   const [lotRowsByProduct, setLotRowsByProduct] = useState<Record<number, StockLotDetailRow[]>>({});
   const [lotLoadingByProduct, setLotLoadingByProduct] = useState<Record<number, boolean>>({});
+  const [lotEditor, setLotEditor] = useState<ReceiptItemEditorState | null>(null);
+  const [lotEditorSaving, setLotEditorSaving] = useState(false);
+  const [lotEditorMessage, setLotEditorMessage] = useState('');
   const [receiptModalOpen, setReceiptModalOpen] = useState(false);
   const [receiptType, setReceiptType] = useState<'OPENING_BALANCE' | 'DELIVERY_NOTE'>('OPENING_BALANCE');
   const [receiptDate, setReceiptDate] = useState(() => new Date().toISOString().slice(0, 10));
@@ -418,6 +444,115 @@ export default function InventoryStockPage() {
 
     if (!lotRowsByProduct[productId] && !lotLoadingByProduct[productId]) {
       await fetchLotRows(productId);
+    }
+  };
+
+  const openLotEditor = (lotRow: StockLotDetailRow) => {
+    setLotEditorMessage('');
+    setLotEditor({
+      receipt_item_id: lotRow.receipt_item_id,
+      receipt_id: lotRow.receipt_id,
+      receipt_no: lotRow.receipt_no,
+      receipt_type: lotRow.receipt_type,
+      receipt_date: lotRow.receipt_date.slice(0, 10),
+      delivery_note_no: lotRow.receipt_type === 'DELIVERY_NOTE' ? lotRow.last_delivery_note_no || '' : '',
+      note: lotRow.receipt_type === 'OPENING_BALANCE' ? lotRow.receipt_note || '' : '',
+      product_code: lotRow.product_code,
+      product_name: lotRow.product_name,
+      product_unit: lotRow.unit || '-',
+      lot_no: lotRow.lot_no,
+      received_qty: String(Number(lotRow.total_received_qty || 0)),
+      total_price: String(Number(lotRow.total_received_value || 0)),
+      product_id: lotRow.product_id,
+    });
+  };
+
+  const refreshAfterLotMutation = async (productId: number) => {
+    await fetchStockData();
+    if (expandedProductIds.includes(productId)) {
+      await fetchLotRows(productId);
+    }
+  };
+
+  const handleLotEditorSubmit = async () => {
+    if (!lotEditor) return;
+    if (!lotEditor.lot_no.trim()) {
+      setLotEditorMessage('กรุณากรอก LOT');
+      return;
+    }
+    if (Number(lotEditor.received_qty) <= 0) {
+      setLotEditorMessage('จำนวนรับเข้าต้องมากกว่า 0');
+      return;
+    }
+    if (Number(lotEditor.total_price) < 0) {
+      setLotEditorMessage('มูลค่ารวมต้องไม่ติดลบ');
+      return;
+    }
+    if (lotEditor.receipt_type === 'DELIVERY_NOTE' && !lotEditor.delivery_note_no.trim()) {
+      setLotEditorMessage('กรุณากรอกเลขที่ใบส่งของ');
+      return;
+    }
+    if (lotEditor.receipt_type === 'OPENING_BALANCE' && !lotEditor.note.trim()) {
+      setLotEditorMessage('กรุณากรอกหมายเหตุสำหรับยอดยกมา');
+      return;
+    }
+
+    try {
+      setLotEditorSaving(true);
+      setLotEditorMessage('');
+
+      const response = await fetch(`/api/inventory/receipts/items/${lotEditor.receipt_item_id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          receipt_type: lotEditor.receipt_type,
+          receipt_date: lotEditor.receipt_date,
+          delivery_note_no: lotEditor.receipt_type === 'DELIVERY_NOTE' ? lotEditor.delivery_note_no.trim() : undefined,
+          note: lotEditor.note.trim() || undefined,
+          product_code: lotEditor.product_code,
+          lot_no: lotEditor.lot_no.trim(),
+          received_qty: Number(lotEditor.received_qty),
+          total_price: Number(lotEditor.total_price),
+        }),
+      });
+      const payload: ApiResponse<{ id: number }> = await response.json();
+      if (!response.ok || !payload.success) {
+        throw new Error(payload.error || 'แก้ไขรายการรับเข้าคลังไม่สำเร็จ');
+      }
+
+      await refreshAfterLotMutation(lotEditor.product_id);
+      setLotEditor(null);
+      setMessage(`แก้ไขรายการรับเข้าคลังสำเร็จ ${lotEditor.product_code} / ${lotEditor.lot_no}`);
+    } catch (error) {
+      console.error(error);
+      setLotEditorMessage(error instanceof Error ? error.message : 'เกิดข้อผิดพลาดในการบันทึก');
+    } finally {
+      setLotEditorSaving(false);
+    }
+  };
+
+  const handleDeleteLotReceiptItem = async (lotRow: StockLotDetailRow) => {
+    const confirmed = window.confirm(
+      `ยืนยันลบรายการรับเข้าคลัง ${lotRow.product_code} / ${lotRow.lot_no} จำนวน ${Number(lotRow.total_received_qty).toLocaleString('th-TH')} ${lotRow.unit || ''}`
+    );
+    if (!confirmed) return;
+
+    try {
+      const response = await fetch(`/api/inventory/receipts/items/${lotRow.receipt_item_id}`, {
+        method: 'DELETE',
+      });
+      const payload: ApiResponse<{ product_code: string; product_name: string; lot_no: string; received_qty: number }> = await response.json();
+      if (!response.ok || !payload.success || !payload.data) {
+        throw new Error(payload.error || 'ลบรายการรับเข้าคลังไม่สำเร็จ');
+      }
+
+      await refreshAfterLotMutation(lotRow.product_id);
+      setMessage(
+        `ลบรายการรับเข้าคลัง ${payload.data.product_name} (${payload.data.product_code}) LOT ${payload.data.lot_no} จำนวน ${Number(payload.data.received_qty).toLocaleString('th-TH')} ${lotRow.unit || ''}`
+      );
+    } catch (error) {
+      console.error(error);
+      setMessage(error instanceof Error ? error.message : 'เกิดข้อผิดพลาดในการลบรายการรับเข้าคลัง');
     }
   };
 
@@ -718,20 +853,21 @@ export default function InventoryStockPage() {
                                       <th className="px-3 py-2 text-right">
                                         <SortableHeader label="คงเหลือในคลัง" sortKey="qty_on_hand" activeKey={lotSortBy} activeOrder={lotSortOrder} onSort={handleLotSort} align="right" />
                                       </th>
+                                      <th className="px-3 py-2 text-right">จัดการ</th>
                                     </tr>
                                   </thead>
                                   <tbody className="divide-y divide-emerald-100 bg-white/70">
                                     {lotLoading ? (
                                       <tr>
-                                        <td colSpan={6} className="px-3 py-4 text-center text-emerald-600">กำลังโหลดรายละเอียดล็อต...</td>
+                                        <td colSpan={7} className="px-3 py-4 text-center text-emerald-600">กำลังโหลดรายละเอียดล็อต...</td>
                                       </tr>
                                     ) : lotRows.length === 0 ? (
                                       <tr>
-                                        <td colSpan={6} className="px-3 py-4 text-center text-emerald-600">ไม่พบรายละเอียดล็อต</td>
+                                        <td colSpan={7} className="px-3 py-4 text-center text-emerald-600">ไม่พบรายละเอียดล็อต</td>
                                       </tr>
                                     ) : (
                                       lotRows.map((lotRow) => (
-                                        <tr key={lotRow.stock_lot_id} className="hover:bg-emerald-100/60">
+                                        <tr key={lotRow.receipt_item_id} className="hover:bg-emerald-100/60">
                                           <td className="px-3 py-2 text-emerald-900">{lotRow.lot_no || '-'}</td>
                                           <td className="px-3 py-2 text-emerald-900">{formatDate(lotRow.last_received_at)}</td>
                                           <td className="px-3 py-2 text-emerald-900">{lotRow.last_delivery_note_no || '-'}</td>
@@ -740,6 +876,28 @@ export default function InventoryStockPage() {
                                             {Number(lotRow.total_received_value).toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                           </td>
                                           <td className="px-3 py-2 text-right text-emerald-900">{Number(lotRow.qty_on_hand).toLocaleString('th-TH')}</td>
+                                          <td className="px-3 py-2 text-right">
+                                            <div className="flex justify-end gap-2">
+                                              <button
+                                                type="button"
+                                                onClick={() => openLotEditor(lotRow)}
+                                                aria-label={`แก้ไข ${lotRow.product_code} ${lotRow.lot_no}`}
+                                                title="แก้ไข"
+                                                className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-emerald-300 text-emerald-700 hover:bg-emerald-100"
+                                              >
+                                                <Pencil className="h-4 w-4" />
+                                              </button>
+                                              <button
+                                                type="button"
+                                                onClick={() => void handleDeleteLotReceiptItem(lotRow)}
+                                                aria-label={`ลบ ${lotRow.product_code} ${lotRow.lot_no}`}
+                                                title="ลบ"
+                                                className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-red-300 text-red-700 hover:bg-red-50"
+                                              >
+                                                <Trash2 className="h-4 w-4" />
+                                              </button>
+                                            </div>
+                                          </td>
                                         </tr>
                                       ))
                                     )}
@@ -996,6 +1154,146 @@ export default function InventoryStockPage() {
                     {receiptSaving ? 'กำลังบันทึก...' : 'บันทึกรับเข้าคลัง'}
                   </button>
                 </div>
+              </div>
+            </div>
+          </div>
+        ) : null}
+
+        {lotEditor ? (
+          <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 p-4">
+            <div className="max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-2xl border border-slate-200 bg-white p-5 shadow-xl">
+              <div className="mb-4 flex items-center justify-between gap-3">
+                <div>
+                  <h2 className="text-xl font-semibold text-slate-900">แก้ไขรายการรับเข้าคลัง</h2>
+                  <p className="mt-1 text-sm text-slate-500">{lotEditor.receipt_no}</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setLotEditor(null)}
+                  className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-slate-300 text-slate-600 hover:bg-slate-100"
+                  aria-label="ปิด"
+                  title="ปิด"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+
+              {lotEditorMessage ? (
+                <div className="mb-4 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-sm text-blue-800">{lotEditorMessage}</div>
+              ) : null}
+
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                <label className="text-sm text-slate-700">
+                  ประเภทรับเข้า
+                  <select
+                    value={lotEditor.receipt_type}
+                    onChange={(event) =>
+                      setLotEditor((current) => current ? { ...current, receipt_type: event.target.value as 'OPENING_BALANCE' | 'DELIVERY_NOTE' } : current)
+                    }
+                    className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2"
+                  >
+                    <option value="OPENING_BALANCE">รับจากยอดยกมา</option>
+                    <option value="DELIVERY_NOTE">รับจากใบส่งของ</option>
+                  </select>
+                </label>
+
+                <label className="text-sm text-slate-700">
+                  วันที่รับเข้า
+                  <input
+                    type="date"
+                    value={lotEditor.receipt_date}
+                    onChange={(event) => setLotEditor((current) => (current ? { ...current, receipt_date: event.target.value } : current))}
+                    className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2"
+                  />
+                </label>
+
+                <label className="text-sm text-slate-700">
+                  เลขที่ใบส่งของ
+                  <input
+                    type="text"
+                    value={lotEditor.delivery_note_no}
+                    disabled={lotEditor.receipt_type !== 'DELIVERY_NOTE'}
+                    onChange={(event) => setLotEditor((current) => (current ? { ...current, delivery_note_no: event.target.value } : current))}
+                    placeholder={lotEditor.receipt_type === 'DELIVERY_NOTE' ? 'กรอกเลขที่ใบส่งของ' : 'ใช้เฉพาะประเภทใบส่งของ'}
+                    className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 disabled:bg-slate-100"
+                  />
+                </label>
+
+                <label className="text-sm text-slate-700">
+                  หมายเหตุ
+                  <input
+                    type="text"
+                    value={lotEditor.note}
+                    onChange={(event) => setLotEditor((current) => (current ? { ...current, note: event.target.value } : current))}
+                    placeholder={lotEditor.receipt_type === 'OPENING_BALANCE' ? 'บังคับกรอกสำหรับยอดยกมา' : '(ไม่บังคับ)'}
+                    className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2"
+                  />
+                </label>
+
+                <label className="text-sm text-slate-700">
+                  รหัสสินค้า
+                  <input type="text" value={lotEditor.product_code} readOnly className="mt-1 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-slate-700" />
+                </label>
+
+                <label className="text-sm text-slate-700">
+                  ชื่อสินค้า
+                  <input type="text" value={lotEditor.product_name} readOnly className="mt-1 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-slate-700" />
+                </label>
+
+                <label className="text-sm text-slate-700">
+                  LOT
+                  <input
+                    type="text"
+                    value={lotEditor.lot_no}
+                    onChange={(event) => setLotEditor((current) => (current ? { ...current, lot_no: event.target.value } : current))}
+                    className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2"
+                  />
+                </label>
+
+                <label className="text-sm text-slate-700">
+                  จำนวนรับเข้า
+                  <div className="mt-1 flex items-center gap-2">
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={lotEditor.received_qty}
+                      onChange={(event) => setLotEditor((current) => (current ? { ...current, received_qty: event.target.value } : current))}
+                      className="w-full rounded-lg border border-slate-300 px-3 py-2 text-right"
+                    />
+                    <span className="whitespace-nowrap text-sm text-slate-500">{lotEditor.product_unit}</span>
+                  </div>
+                </label>
+
+                <label className="text-sm text-slate-700 md:col-span-2">
+                  มูลค่ารวม (บาท)
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={lotEditor.total_price}
+                    onChange={(event) => setLotEditor((current) => (current ? { ...current, total_price: event.target.value } : current))}
+                    className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-right"
+                  />
+                </label>
+              </div>
+
+              <div className="mt-5 flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setLotEditor(null)}
+                  className="rounded-lg border border-slate-300 px-4 py-2 text-sm text-slate-700 hover:bg-slate-100"
+                >
+                  ยกเลิก
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void handleLotEditorSubmit()}
+                  disabled={lotEditorSaving}
+                  className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-slate-300"
+                >
+                  {lotEditorSaving ? 'กำลังบันทึก...' : 'บันทึกการแก้ไข'}
+                </button>
               </div>
             </div>
           </div>

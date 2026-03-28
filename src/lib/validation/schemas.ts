@@ -229,6 +229,33 @@ export const createInventoryReceiptSchema = z.object({
 
 export const updateInventoryReceiptSchema = createInventoryReceiptSchema;
 
+export const updateInventoryReceiptItemSchema = z.object({
+  receipt_type: z.enum(['OPENING_BALANCE', 'DELIVERY_NOTE']),
+  receipt_date: z.string().min(1),
+  delivery_note_no: z.string().optional(),
+  note: z.string().optional(),
+  product_code: z.string().trim().min(1),
+  lot_no: z.string().trim().min(1),
+  received_qty: z.coerce.number().positive(),
+  total_price: z.coerce.number().min(0),
+}).superRefine((data, ctx) => {
+  if (data.receipt_type === 'DELIVERY_NOTE' && !data.delivery_note_no?.trim()) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['delivery_note_no'],
+      message: 'delivery_note_no is required when receipt_type is DELIVERY_NOTE',
+    });
+  }
+
+  if (data.receipt_type === 'OPENING_BALANCE' && !data.note?.trim()) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['note'],
+      message: 'note is required when receipt_type is OPENING_BALANCE',
+    });
+  }
+});
+
 // Seller schemas
 export const createSellerSchema = z.object({
   code: nonEmptyString,

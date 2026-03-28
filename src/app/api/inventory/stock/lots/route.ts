@@ -5,6 +5,13 @@ import { validateQuery } from '@/lib/validation/validate';
 import { inventoryStockLotQuerySchema } from '@/lib/validation/schemas';
 
 type InventoryStockLotRow = {
+  receipt_item_id: number;
+  receipt_id: number;
+  receipt_no: string;
+  receipt_type: 'OPENING_BALANCE' | 'DELIVERY_NOTE';
+  receipt_date: string;
+  delivery_note_no: string | null;
+  receipt_note: string | null;
   stock_lot_id: number;
   product_id: number;
   product_code: string;
@@ -84,7 +91,7 @@ export async function GET(request: NextRequest) {
     const orderMap: Record<string, string> = {
       lot_no: 'v.lot_no',
       last_received_at: 'v.last_received_at',
-      last_delivery_note_no: 'v.last_delivery_note_no',
+      last_delivery_note_no: 'v.delivery_note_no',
       total_received_qty: 'v.total_received_qty',
       total_received_value: 'v.total_received_value',
       qty_on_hand: 'v.qty_on_hand',
@@ -109,6 +116,13 @@ export async function GET(request: NextRequest) {
       pgQuery<InventoryStockLotRow>(
         `
           SELECT
+            v.receipt_item_id,
+            v.receipt_id,
+            v.receipt_no,
+            v.receipt_type,
+            v.receipt_date::text,
+            v.delivery_note_no,
+            v.receipt_note,
             v.stock_lot_id,
             v.product_id,
             v.product_code,
@@ -120,7 +134,7 @@ export async function GET(request: NextRequest) {
             v.lot_no,
             v.total_received_qty::float8 AS total_received_qty,
             v.total_received_value::float8 AS total_received_value,
-            v.last_delivery_note_no,
+            v.delivery_note_no AS last_delivery_note_no,
             v.qty_on_hand::float8 AS qty_on_hand,
             v.total_value::float8 AS total_value,
             v.avg_unit_price::float8 AS avg_unit_price,
@@ -134,7 +148,15 @@ export async function GET(request: NextRequest) {
       ),
     ]);
 
-    return apiSuccess(rowsResult.rows, undefined, countResult.rows[0]?.count ?? 0, 200, { page, page_size });
+    const rows = rowsResult.rows.map((row) => ({
+      ...row,
+      last_delivery_note_no:
+        row.receipt_type === 'OPENING_BALANCE'
+          ? `ยอดยกมา-${(row.receipt_note || '').trim()}`
+          : row.delivery_note_no,
+    }));
+
+    return apiSuccess(rows, undefined, countResult.rows[0]?.count ?? 0, 200, { page, page_size });
   } catch (error) {
     console.error('Error listing inventory stock lots:', error);
     return apiError('Failed to list inventory stock lots');

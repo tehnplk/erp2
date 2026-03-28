@@ -57,3 +57,4 @@ docs/supabase.md
 *.sql
 !/sql/
 !/sql/20260328_inventory_stock_summary_view.sql
+!/sql/20260328_inventory_stock_lot_detail_receipt_items_view.sql
