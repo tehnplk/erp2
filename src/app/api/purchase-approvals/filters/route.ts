@@ -4,7 +4,7 @@ import { cacheGet, cacheSet } from '@/lib/redis';
 
 export async function GET() {
   try {
-    const cacheKey = 'erp:purchase:approvals:filters';
+    const cacheKey = 'erp:purchase:approvals:filters:v2';
     const cached = await cacheGet<any>(cacheKey);
     if (cached) return NextResponse.json(cached);
 
@@ -16,20 +16,14 @@ export async function GET() {
          ORDER BY category ASC, type ASC, subtype ASC`
       ),
       pgQuery(`
-        SELECT DISTINCT plan_summary.requesting_dept AS department
+        SELECT DISTINCT COALESCE(d.name, up.requesting_dept_code) AS department
         FROM public.purchase_approval pa
         INNER JOIN public.purchase_approval_detail pad ON pad.purchase_approval_id = pa.id
-        LEFT JOIN (
-          SELECT
-            up.purchase_plan_id,
-            STRING_AGG(DISTINCT COALESCE(d.name, up.requesting_dept_code), ', ') AS requesting_dept
-          FROM public.usage_plan up
-          LEFT JOIN public.department d ON d.department_code = up.requesting_dept_code
-          WHERE up.purchase_plan_id IS NOT NULL
-          GROUP BY up.purchase_plan_id
-        ) plan_summary ON plan_summary.purchase_plan_id = pad.purchase_plan_id
-        WHERE plan_summary.requesting_dept IS NOT NULL
-        ORDER BY plan_summary.requesting_dept ASC
+        INNER JOIN public.usage_plan up ON up.purchase_plan_id = pad.purchase_plan_id
+        LEFT JOIN public.department d ON d.department_code = up.requesting_dept_code
+        WHERE COALESCE(d.name, up.requesting_dept_code) IS NOT NULL
+          AND COALESCE(d.name, up.requesting_dept_code) <> ''
+        ORDER BY department ASC
       `),
       pgQuery(`
         SELECT DISTINCT pa.budget_year

@@ -40,7 +40,16 @@ export async function GET(request: NextRequest) {
     }
     if (department) {
       params.push(department);
-      whereClauses.push(`plan_summary.requesting_dept ILIKE $${params.length}`);
+      whereClauses.push(`
+        EXISTS (
+          SELECT 1
+          FROM public.purchase_approval_detail pad_filter
+          INNER JOIN public.usage_plan up_filter ON up_filter.purchase_plan_id = pad_filter.purchase_plan_id
+          LEFT JOIN public.department d_filter ON d_filter.department_code = up_filter.requesting_dept_code
+          WHERE pad_filter.purchase_approval_id = pa.id
+            AND COALESCE(d_filter.name, up_filter.requesting_dept_code) = $${params.length}
+        )
+      `);
     }
     if (budget_year) {
       params.push(Number(budget_year));
