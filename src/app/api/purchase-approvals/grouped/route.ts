@@ -75,10 +75,18 @@ export async function GET(request: NextRequest) {
         pa.updated_at,
         pa.version,
         MAX(plan_summary.requesting_dept) as department,
-        COUNT(pad.id) as item_count
+        MAX(plan_summary.purchase_department) as purchase_department,
+        COALESCE(MAX(total_detail_counts.item_count), 0) as item_count
       FROM public.purchase_approval pa
       LEFT JOIN public.approval_doc_status ads ON ads.code = pa.status AND ads.is_active = true
       LEFT JOIN public.purchase_approval_detail pad ON pad.purchase_approval_id = pa.id
+      LEFT JOIN (
+        SELECT
+          purchase_approval_id,
+          COUNT(*)::int AS item_count
+        FROM public.purchase_approval_detail
+        GROUP BY purchase_approval_id
+      ) total_detail_counts ON total_detail_counts.purchase_approval_id = pa.id
       LEFT JOIN (
         SELECT
           up.purchase_plan_id,
@@ -87,10 +95,12 @@ export async function GET(request: NextRequest) {
           MIN(p.name) AS product_name,
           MIN(p.category) AS category,
           MIN(p.type) AS product_type,
-          MIN(p.subtype) AS product_subtype
+          MIN(p.subtype) AS product_subtype,
+          MAX(COALESCE(purchase_pd.name, purchase_pd.department_code)) AS purchase_department
         FROM public.usage_plan up
         LEFT JOIN public.product p ON p.code = up.product_code
         LEFT JOIN public.department d ON d.department_code = up.requesting_dept_code
+        LEFT JOIN public.department purchase_pd ON purchase_pd.id = p.purchase_department_id
         WHERE up.purchase_plan_id IS NOT NULL
         GROUP BY up.purchase_plan_id
       ) plan_summary ON plan_summary.purchase_plan_id = pad.purchase_plan_id

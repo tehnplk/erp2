@@ -1115,12 +1115,14 @@ function PurchasePlansPageContent() {
         const draft = approvalDraftByPlanId[item.id];
         const quantityText = draft.quantity.toLocaleString('en-US');
         const amountText = draft.totalAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        const unitText = item.unit ?? '-';
         return `
           <tr>
             <td style="padding:6px;border:1px solid #e5e7eb;text-align:center;">${index + 1}</td>
             <td style="padding:6px;border:1px solid #e5e7eb;text-align:left;">${escapeHtml(item.product_code ?? '-')}</td>
             <td style="padding:6px;border:1px solid #e5e7eb;text-align:left;">${escapeHtml(item.product_name ?? '-')}</td>
             <td style="padding:6px;border:1px solid #e5e7eb;text-align:right;">${quantityText}</td>
+            <td style="padding:6px;border:1px solid #e5e7eb;text-align:center;">${escapeHtml(unitText)}</td>
             <td style="padding:6px;border:1px solid #e5e7eb;text-align:right;">${amountText}</td>
           </tr>
         `;
@@ -1142,7 +1144,8 @@ function PurchasePlansPageContent() {
                   <th style="padding:6px;border:1px solid #e5e7eb;">รหัสสินค้า</th>
                   <th style="padding:6px;border:1px solid #e5e7eb;">ชื่อสินค้า</th>
                   <th style="padding:6px;border:1px solid #e5e7eb;">จำนวนซื้อ</th>
-                  <th style="padding:6px;border:1px solid #e5e7eb;">มูลค่า</th>
+                  <th style="padding:6px;border:1px solid #e5e7eb;">หน่วยนับ</th>
+                  <th style="padding:6px;border:1px solid #e5e7eb;">ราคารวม(บาท)</th>
                 </tr>
               </thead>
               <tbody>${summaryRowsHtml}</tbody>
@@ -1597,6 +1600,7 @@ function PurchasePlansPageContent() {
               onChange={(event) => {
                 setCategoryFilter(event.target.value);
                 setTypeFilter('');
+                setSubtypeFilter('');
               }}
               className="rounded-lg border border-gray-300 px-3 py-2 text-sm"
             >
@@ -1607,7 +1611,11 @@ function PurchasePlansPageContent() {
             </select>
             <select
               value={typeFilter}
-              onChange={(event) => setTypeFilter(event.target.value)}
+              onChange={(event) => {
+                setTypeFilter(event.target.value);
+                setSubtypeFilter('');
+              }}
+              disabled={!categoryFilter}
               className="rounded-lg border border-gray-300 px-3 py-2 text-sm"
             >
               <option value="">ทุกประเภท</option>
@@ -1911,20 +1919,54 @@ function PurchasePlansPageContent() {
               <p className="mt-1 text-sm text-gray-600">
                 {approvalInputRow.product_code || '-'} - {approvalInputRow.product_name || '-'}
               </p>
+              <p className="mt-0.5 text-xs text-amber-500/70">
+                {[approvalInputRow.category, approvalInputRow.product_type, approvalInputRow.product_subtype].filter(Boolean).join(' - ') || '-'}
+              </p>
               <div className="mt-3 space-y-3">
                 <div>
-                  <label className="mb-1 block text-sm font-medium text-gray-700">จำนวนซื้อ</label>
-                  <input
-                    type="number"
-                    min={1}
-                    step={1}
-                    value={approvalInputQty}
-                    onChange={(event) => setApprovalInputQty(event.target.value)}
-                    className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
-                  />
+                  <label className="mb-1 block text-sm font-medium text-gray-700">จำนวนซื้อครั้งนี้</label>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="number"
+                      min={1}
+                      step={1}
+                      value={approvalInputQty}
+                      onFocus={(event) => {
+                        requestAnimationFrame(() => {
+                          event.target.select();
+                        });
+                      }}
+                      onClick={(event) => {
+                        event.currentTarget.select();
+                      }}
+                      onChange={(event) => {
+                        const nextQty = event.target.value;
+                        setApprovalInputQty(nextQty);
+
+                        const qtyValue = Number(nextQty);
+                        const unitPrice = Number(approvalInputRow.unit_price ?? approvalInputRow.price_per_unit ?? 0);
+                        if (Number.isFinite(qtyValue)) {
+                          setApprovalInputTotal(String(Number((qtyValue * unitPrice).toFixed(2))));
+                        } else {
+                          setApprovalInputTotal('');
+                        }
+                      }}
+                      onBlur={(event) => {
+                        const qtyValue = Number(event.target.value);
+                        const costPrice = Number(approvalInputRow.unit_price ?? approvalInputRow.price_per_unit ?? 0);
+                        if (Number.isFinite(qtyValue)) {
+                          setApprovalInputTotal(String(Number((qtyValue * costPrice).toFixed(2))));
+                        } else {
+                          setApprovalInputTotal('');
+                        }
+                      }}
+                      className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+                    />
+                    <span className="text-sm text-gray-600">{approvalInputRow.unit || '-'}</span>
+                  </div>
                 </div>
                 <div>
-                  <label className="mb-1 block text-sm font-medium text-gray-700">ราคารวม</label>
+                  <label className="mb-1 block text-sm font-medium text-gray-700">ราคารวม (บาท)</label>
                   <input
                     type="number"
                     min={0}

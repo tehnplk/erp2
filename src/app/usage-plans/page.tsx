@@ -877,7 +877,7 @@ function UsagePlansPageContent() {
   return (
     <div className="p-6 bg-gray-50 min-h-screen">
       <div className="mb-3 flex items-center justify-between">
-        <h1 className="text-xl font-semibold text-gray-900">แผนการใช้ (Usage Plan)</h1>
+        <h1 className="text-2xl font-semibold text-gray-900">แผนการใช้</h1>
         <button
           type="button"
           onClick={open_create_form}
@@ -887,137 +887,74 @@ function UsagePlansPageContent() {
         </button>
       </div>
 
-      <div className="grid grid-cols-1 gap-3 md:grid-cols-6">
-            <select
-              value={budget_year_filter}
-              onChange={(event) => {
-                set_budget_year_filter(event.target.value);
-                set_page(1);
-              }}
-              className="rounded-lg border border-gray-300 px-3 py-2 text-sm"
-            >
-              <option value="">ทุกปีงบ</option>
-              {Array.from(new Set([get_current_budget_year(), ...budget_years]))
-                .sort((a, b) => b - a)
-                .map((year) => (
-                  <option key={year} value={String(year)}>
-                    {year}
-                  </option>
-                ))}
-            </select>
-            <select
-              value={requesting_dept_code_filter}
-              onChange={(event) => {
-                set_requesting_dept_code_filter(event.target.value);
-                set_page(1);
-              }}
-              className="rounded-lg border border-gray-300 px-3 py-2 text-sm"
-            >
-              <option value="">ทุกหน่วยงาน</option>
-              {departments.map((department) => (
-                <option key={department.department_code} value={department.department_code}>
-                  {department.name}
-                </option>
-              ))}
-            </select>
-            <select
-              value={plan_flag_filter}
-              onChange={(event) => {
-                set_plan_flag_filter(event.target.value);
-                set_page(1);
-              }}
-              className="rounded-lg border border-gray-300 px-3 py-2 text-sm"
-            >
-              <option value="">ทุกแผน</option>
-              <option value="ในแผน">ในแผน</option>
-              <option value="นอกแผน">นอกแผน</option>
-            </select>
-            <select
-              value={category_filter}
-              onChange={(event) => {
-                set_category_filter(event.target.value);
-                set_page(1);
-              }}
-              className="rounded-lg border border-gray-300 px-3 py-2 text-sm"
-            >
-              <option value="">ทุกหมวด</option>
-              {unique_categories.map((category) => (
-                <option key={category} value={category}>
-                  {category}
-                </option>
-              ))}
-            </select>
-            <select
-              value={type_filter}
-              onChange={(event) => {
-                set_type_filter(event.target.value);
-                set_page(1);
-              }}
-              className="rounded-lg border border-gray-300 px-3 py-2 text-sm"
-              disabled={!category_filter}
-            >
-              <option value="">ทุกประเภท</option>
-              {available_types_for_category.map((type) => (
-                <option key={type} value={type}>
-                  {type}
-                </option>
-              ))}
-            </select>
-            <input
-              type="text"
-              value={product_code_filter}
-              onChange={(event) => {
-                set_product_code_filter(event.target.value);
-                set_page(1);
-              }}
-              placeholder="ค้นหารหัส/ชื่อสินค้า"
-              className="rounded-lg border border-gray-300 px-3 py-2 text-sm"
-            />
-          </div>
+      <div className="rounded-xl border border-gray-200 bg-white p-4">
+        <div className="mb-4 flex flex-wrap gap-3">
+          <select value={budget_year_filter} onChange={(event) => { set_budget_year_filter(event.target.value); set_page(1); }} className="flex-1 min-w-[100px] rounded-lg border border-gray-300 px-3 py-2 text-sm">
+            <option value="">ทุกปีงบ</option>
+            {Array.from(new Set([get_current_budget_year(), ...budget_years])).sort((a, b) => b - a).map((year) => (<option key={year} value={String(year)}>{year}</option>))}
+          </select>
+          <select value={requesting_dept_code_filter} onChange={(event) => { set_requesting_dept_code_filter(event.target.value); set_page(1); }} className="flex-1 min-w-[140px] rounded-lg border border-gray-300 px-3 py-2 text-sm">
+            <option value="">ทุกหน่วยงาน</option>
+            {departments.map((department) => (<option key={department.department_code} value={department.department_code}>{department.name}</option>))}
+          </select>
+          <select value={plan_flag_filter} onChange={(event) => { set_plan_flag_filter(event.target.value); set_page(1); }} className="flex-1 min-w-[100px] rounded-lg border border-gray-300 px-3 py-2 text-sm">
+            <option value="">ทุกแผน</option>
+            <option value="ในแผน">ในแผน</option>
+            <option value="นอกแผน">นอกแผน</option>
+          </select>
+          <select value={category_filter} onChange={(event) => { set_category_filter(event.target.value); set_page(1); }} className="flex-1 min-w-[120px] rounded-lg border border-gray-300 px-3 py-2 text-sm">
+            <option value="">ทุกหมวด</option>
+            {unique_categories.map((category) => (<option key={category} value={category}>{category}</option>))}
+          </select>
+          <select value={type_filter} onChange={(event) => { set_type_filter(event.target.value); set_page(1); }} disabled={!category_filter} className="flex-1 min-w-[120px] rounded-lg border border-gray-300 px-3 py-2 text-sm">
+            <option value="">ทุกประเภท</option>
+            {available_types_for_category.map((type) => (<option key={type} value={type}>{type}</option>))}
+          </select>
+          <input type="text" value={product_code_filter} onChange={(event) => { set_product_code_filter(event.target.value); set_page(1); }} placeholder="ค้นหารหัส/ชื่อสินค้า" className="flex-1 min-w-[180px] rounded-lg border border-gray-300 px-3 py-2 text-sm" />
+        </div>
 
-        <div className="overflow-hidden rounded-xl bg-white shadow-sm">
-          <div className="flex items-center justify-between border-b border-gray-100 px-3 py-3 text-sm text-gray-600">
-            <div className="font-medium text-gray-700">หน้า {page} / {total_pages}</div>
-            <div className="flex items-center gap-2">
-              <div className="rounded-lg border border-gray-200 bg-gray-50 px-2 py-1 text-xs text-gray-600">
-                รวม {total_count.toLocaleString()} รายการ
-              </div>
-              <div className="rounded-lg border border-gray-200 bg-gray-50 px-2 py-1 text-xs text-gray-600">
-                รวมมูลค่า {total_value_amount.toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} บาท
-              </div>
-              <select
-                aria-label="เลือกจำนวนรายการต่อหน้า"
-                value={String(page_size)}
-                onChange={(event) => {
-                  const next_size = Number(event.target.value);
-                  if (![20, 50, 100].includes(next_size)) return;
-                  set_page_size(next_size);
-                  set_page(1);
-                }}
-                className="rounded border border-gray-300 px-2 py-1 text-sm"
-              >
-                <option value="20">20</option>
-                <option value="50">50</option>
-                <option value="100">100</option>
-              </select>
-              <button
-                type="button"
-                disabled={page <= 1}
-                onClick={() => set_page((prev) => Math.max(1, prev - 1))}
-                className="rounded border border-gray-300 px-2 py-1 disabled:opacity-50"
-              >
-                ก่อนหน้า
-              </button>
-              <button
-                type="button"
-                disabled={page >= total_pages}
-                onClick={() => set_page((prev) => Math.min(total_pages, prev + 1))}
-                className="rounded border border-gray-300 px-2 py-1 disabled:opacity-50"
-              >
-                ถัดไป
-              </button>
+        <div className="mb-3 flex flex-col gap-2 rounded-lg border border-gray-100 bg-gray-50 px-3 py-2 text-sm text-gray-600 md:flex-row md:items-center md:justify-between">
+          <div className="font-medium text-gray-700">หน้า {page} / {total_pages}</div>
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="rounded border border-gray-200 bg-white px-2 py-1 text-xs text-gray-600">
+              รวม {total_count.toLocaleString()} รายการ
             </div>
+            <div className="rounded border border-gray-200 bg-white px-2 py-1 text-xs text-gray-600">
+              รวมมูลค่า {total_value_amount.toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} บาท
+            </div>
+            <select
+              aria-label="เลือกจำนวนรายการต่อหน้า"
+              value={String(page_size)}
+              onChange={(event) => {
+                const next_size = Number(event.target.value);
+                if (![20, 50, 100].includes(next_size)) return;
+                set_page_size(next_size);
+                set_page(1);
+              }}
+              className="rounded border border-gray-300 px-2 py-1 text-sm"
+            >
+              <option value="20">20</option>
+              <option value="50">50</option>
+              <option value="100">100</option>
+            </select>
+            <button
+              type="button"
+              disabled={page <= 1}
+              onClick={() => set_page((prev) => Math.max(1, prev - 1))}
+              className="rounded border border-gray-300 px-2 py-1 disabled:opacity-50"
+            >
+              ก่อนหน้า
+            </button>
+            <button
+              type="button"
+              disabled={page >= total_pages}
+              onClick={() => set_page((prev) => Math.min(total_pages, prev + 1))}
+              className="rounded border border-gray-300 px-2 py-1 disabled:opacity-50"
+            >
+              ถัดไป
+            </button>
           </div>
+        </div>
 
           <div className="overflow-x-auto">
             <table className="w-full divide-y divide-gray-200">
