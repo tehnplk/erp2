@@ -113,9 +113,26 @@ function buildWhereClause(filters: {
     whereClauses.push(`p.subtype = $${params.length}`);
   }
 
-  if (filters.usage_plan_flag) {
-    params.push(filters.usage_plan_flag);
-    whereClauses.push(`usage_summary.usage_plan_flag = $${params.length}`);
+  if (filters.usage_plan_flag === 'นอกแผน') {
+    whereClauses.push(`
+      EXISTS (
+        SELECT 1
+        FROM public.usage_plan up_flag
+        WHERE up_flag.purchase_plan_id = pp.id
+          AND up_flag.plan_flag = 'นอกแผน'
+      )
+    `);
+  }
+
+  if (filters.usage_plan_flag === 'ในแผน') {
+    whereClauses.push(`
+      EXISTS (
+        SELECT 1
+        FROM public.usage_plan up_flag
+        WHERE up_flag.purchase_plan_id = pp.id
+          AND COALESCE(up_flag.plan_flag, 'ในแผน') = 'ในแผน'
+      )
+    `);
   }
 
   if (filters.purchase_department) {
@@ -225,6 +242,7 @@ export async function GET(request: NextRequest) {
       category,
       product_type,
       product_subtype,
+      usage_plan_flag,
       purchase_department,
       budget_year,
       requesting_dept,

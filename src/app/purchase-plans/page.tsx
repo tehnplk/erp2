@@ -1592,7 +1592,7 @@ function PurchasePlansPageContent() {
         </div>
 
         <div className="rounded-xl border border-gray-200 bg-white p-4">
-          <div className="mb-4 grid grid-cols-1 gap-3 md:grid-cols-4">
+          <div className="mb-4 grid grid-cols-1 gap-3 md:grid-cols-5">
             <select
               value={usagePlanFlagFilter}
               onChange={(event) => setUsagePlanFlagFilter(event.target.value)}
