@@ -46,6 +46,7 @@ const purchaseApprovalSelect = `
     pa.created_at,
     pa.updated_at,
     pa.version,
+    MAX(plan_summary.purchase_department) AS purchase_department,
     COUNT(pad.id)::int AS item_count
 `;
 
@@ -61,10 +62,12 @@ const purchaseApprovalFrom = `
       MIN(p.name) AS product_name,
       MIN(p.category) AS category,
       MIN(p.type) AS product_type,
-      MIN(p.subtype) AS product_subtype
+      MIN(p.subtype) AS product_subtype,
+      MAX(COALESCE(purchase_pd.name, purchase_pd.department_code)) AS purchase_department
     FROM public.usage_plan up
     LEFT JOIN public.product p ON p.code = up.product_code
     LEFT JOIN public.department d ON d.department_code = up.requesting_dept_code
+    LEFT JOIN public.department purchase_pd ON purchase_pd.id = p.purchase_department_id
     WHERE up.purchase_plan_id IS NOT NULL
     GROUP BY up.purchase_plan_id
   ) plan_summary ON plan_summary.purchase_plan_id = pad.purchase_plan_id
@@ -88,6 +91,7 @@ export async function GET(request: NextRequest) {
       product_type,
       product_subtype,
       department,
+      purchase_department,
       budget_year,
       page,
       page_size: pageSize
@@ -112,16 +116,18 @@ export async function GET(request: NextRequest) {
       params.push(product_subtype);
       whereClauses.push(`plan_summary.product_subtype = $${params.length}`);
     }
-    if (department) {
-      params.push(department);
+    const resolvedPurchaseDepartment = purchase_department || department;
+    if (resolvedPurchaseDepartment) {
+      params.push(resolvedPurchaseDepartment);
       whereClauses.push(`
         EXISTS (
           SELECT 1
           FROM public.purchase_approval_detail pad_filter
           INNER JOIN public.usage_plan up_filter ON up_filter.purchase_plan_id = pad_filter.purchase_plan_id
-          LEFT JOIN public.department d_filter ON d_filter.department_code = up_filter.requesting_dept_code
+          LEFT JOIN public.product p_filter ON p_filter.code = up_filter.product_code
+          LEFT JOIN public.department d_filter ON d_filter.id = p_filter.purchase_department_id
           WHERE pad_filter.purchase_approval_id = pa.id
-            AND COALESCE(d_filter.name, up_filter.requesting_dept_code) = $${params.length}
+            AND COALESCE(d_filter.name, d_filter.department_code) = $${params.length}
         )
       `);
     }
@@ -149,6 +155,7 @@ export async function GET(request: NextRequest) {
       created_at: 'pa.created_at',
       updated_at: 'pa.updated_at',
       department: 'plan_summary.requesting_dept',
+      purchase_department: 'plan_summary.purchase_department',
       budget_year: 'pa.budget_year',
       product_name: 'plan_summary.product_name',
       product_code: 'plan_summary.product_code',

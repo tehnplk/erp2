@@ -110,7 +110,7 @@ function PurchaseApprovalsPageContent() {
   const [nameFilter, setNameFilter] = useState(searchParams.get('product_name') || '');
   const [categoryFilter, setCategoryFilter] = useState(searchParams.get('category') || '');
   const [typeFilter, setTypeFilter] = useState(searchParams.get('product_type') || '');
-  const [departmentFilter, setDepartmentFilter] = useState(searchParams.get('department') || '');
+  const [purchaseDepartmentFilter, setPurchaseDepartmentFilter] = useState(searchParams.get('purchase_department') || searchParams.get('department') || '');
   const [budgetYearFilter, setBudgetYearFilter] = useState(searchParams.get('budget_year') || '');
   const [statusFilter, setStatusFilter] = useState(searchParams.get('status') || '');
 
@@ -165,7 +165,7 @@ function PurchaseApprovalsPageContent() {
   }, [availableTypes, typeFilter]);
 
 
-  useEffect(() => { fetchData(); }, [nameFilter, categoryFilter, typeFilter, departmentFilter, budgetYearFilter, statusFilter, page, pageSize]);
+  useEffect(() => { fetchData(); }, [nameFilter, categoryFilter, typeFilter, purchaseDepartmentFilter, budgetYearFilter, statusFilter, page, pageSize]);
 
   // When filters or sorting change, reset to first page and refresh summary data
   useEffect(() => {
@@ -174,7 +174,7 @@ function PurchaseApprovalsPageContent() {
     }
     setPage(1);
     fetchSummaryData();
-  }, [nameFilter, categoryFilter, typeFilter, departmentFilter, budgetYearFilter, statusFilter]);
+  }, [nameFilter, categoryFilter, typeFilter, purchaseDepartmentFilter, budgetYearFilter, statusFilter]);
 
   useEffect(() => { fetchFilters(); fetchSummaryData(); }, []);
 
@@ -182,7 +182,7 @@ function PurchaseApprovalsPageContent() {
     const nextName = searchParams.get('product_name') || '';
     const nextCategory = searchParams.get('category') || '';
     const nextType = searchParams.get('product_type') || '';
-    const nextDepartment = searchParams.get('department') || '';
+    const nextDepartment = searchParams.get('purchase_department') || searchParams.get('department') || '';
     const nextBudgetYear = searchParams.get('budget_year') || '';
     const nextStatus = searchParams.get('status') || '';
     const nextPage = Math.max(1, parseInt(searchParams.get('page') || '1', 10) || 1);
@@ -191,7 +191,7 @@ function PurchaseApprovalsPageContent() {
     setNameFilter((prev) => (prev === nextName ? prev : nextName));
     setCategoryFilter((prev) => (prev === nextCategory ? prev : nextCategory));
     setTypeFilter((prev) => (prev === nextType ? prev : nextType));
-    setDepartmentFilter((prev) => (prev === nextDepartment ? prev : nextDepartment));
+    setPurchaseDepartmentFilter((prev) => (prev === nextDepartment ? prev : nextDepartment));
     setBudgetYearFilter((prev) => (prev === nextBudgetYear ? prev : nextBudgetYear));
     setStatusFilter((prev) => (prev === nextStatus ? prev : nextStatus));
     setPage((prev) => (prev === nextPage ? prev : nextPage));
@@ -208,7 +208,7 @@ function PurchaseApprovalsPageContent() {
     if (nameFilter) params.set('product_name', nameFilter);
     if (categoryFilter) params.set('category', categoryFilter);
     if (typeFilter) params.set('product_type', typeFilter);
-    if (departmentFilter) params.set('department', departmentFilter);
+    if (purchaseDepartmentFilter) params.set('purchase_department', purchaseDepartmentFilter);
     if (budgetYearFilter) params.set('budget_year', budgetYearFilter);
     if (statusFilter) params.set('status', statusFilter);
     if (page > 1) params.set('page', page.toString());
@@ -220,7 +220,7 @@ function PurchaseApprovalsPageContent() {
     if (nextUrl !== currentUrl) {
       router.replace(nextUrl, { scroll: false });
     }
-  }, [pathname, router, searchParams, nameFilter, categoryFilter, typeFilter, departmentFilter, budgetYearFilter, statusFilter, page, pageSize]);
+  }, [pathname, router, searchParams, nameFilter, categoryFilter, typeFilter, purchaseDepartmentFilter, budgetYearFilter, statusFilter, page, pageSize]);
 
   const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
 
@@ -259,7 +259,7 @@ function PurchaseApprovalsPageContent() {
       if (nameFilter) params.append('product_name', nameFilter);
       if (categoryFilter) params.append('category', categoryFilter);
       if (typeFilter) params.append('product_type', typeFilter);
-      if (departmentFilter) params.append('department', departmentFilter);
+      if (purchaseDepartmentFilter) params.append('purchase_department', purchaseDepartmentFilter);
       if (budgetYearFilter) params.append('budget_year', budgetYearFilter);
       if (statusFilter) params.append('status', statusFilter);
       params.append('order_by', 'created_at');
@@ -288,7 +288,7 @@ function PurchaseApprovalsPageContent() {
       if (nameFilter) params.append('product_name', nameFilter);
       if (categoryFilter) params.append('category', categoryFilter);
       if (typeFilter) params.append('product_type', typeFilter);
-      if (departmentFilter) params.append('department', departmentFilter);
+      if (purchaseDepartmentFilter) params.append('purchase_department', purchaseDepartmentFilter);
       if (budgetYearFilter) params.append('budget_year', budgetYearFilter);
       if (statusFilter) params.append('status', statusFilter);
       params.append('order_by', sortBy);
@@ -1867,8 +1867,8 @@ function PurchaseApprovalsPageContent() {
             <option value="">ปีงบประมาณ</option>
             {availableBudgetYears.map((year) => <option key={year} value={year}>{year}</option>)}
           </select>
-          <select value={departmentFilter} onChange={(e)=>setDepartmentFilter(e.target.value)} className="flex-1 min-w-[140px] rounded-lg border border-gray-300 px-3 py-2 text-sm">
-            <option value="">หน่วยงาน</option>
+          <select value={purchaseDepartmentFilter} onChange={(e)=>setPurchaseDepartmentFilter(e.target.value)} className="flex-1 min-w-[140px] rounded-lg border border-gray-300 px-3 py-2 text-sm">
+            <option value="">หน่วยงานจัดซื้อ</option>
             {departments.map((department) => <option key={department} value={department}>{department}</option>)}
           </select>
           <select value={categoryFilter} onChange={(e)=>{ setCategoryFilter(e.target.value); setTypeFilter(''); }} className="flex-1 min-w-[120px] rounded-lg border border-gray-300 px-3 py-2 text-sm">

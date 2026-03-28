@@ -12,7 +12,7 @@ export async function GET(request: NextRequest) {
     const category = searchParams.get('category');
     const product_type = searchParams.get('product_type');
     const product_subtype = searchParams.get('product_subtype');
-    const department = searchParams.get('department');
+    const purchase_department = searchParams.get('purchase_department') || searchParams.get('department');
     const budget_year = searchParams.get('budget_year');
     const status = searchParams.get('status');
     const page = parseInt(searchParams.get('page') || '1');
@@ -38,16 +38,17 @@ export async function GET(request: NextRequest) {
       params.push(product_subtype);
       whereClauses.push(`plan_summary.product_subtype = $${params.length}`);
     }
-    if (department) {
-      params.push(department);
+    if (purchase_department) {
+      params.push(purchase_department);
       whereClauses.push(`
         EXISTS (
           SELECT 1
           FROM public.purchase_approval_detail pad_filter
           INNER JOIN public.usage_plan up_filter ON up_filter.purchase_plan_id = pad_filter.purchase_plan_id
-          LEFT JOIN public.department d_filter ON d_filter.department_code = up_filter.requesting_dept_code
+          LEFT JOIN public.product p_filter ON p_filter.code = up_filter.product_code
+          LEFT JOIN public.department d_filter ON d_filter.id = p_filter.purchase_department_id
           WHERE pad_filter.purchase_approval_id = pa.id
-            AND COALESCE(d_filter.name, up_filter.requesting_dept_code) = $${params.length}
+            AND COALESCE(d_filter.name, d_filter.department_code) = $${params.length}
         )
       `);
     }

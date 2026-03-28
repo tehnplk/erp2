@@ -289,12 +289,13 @@ export const purchaseApprovalQuerySchema = z.object({
   product_type: z.string().optional(),
   product_subtype: z.string().optional(),
   department: z.string().optional(),
+  purchase_department: z.string().optional(),
   budget_year: z.string().optional(),
   status: z.string().refine((value) => get_approval_doc_status_code(value) !== null, 'Invalid approval status').optional(),
   order_by: z.enum([
     'id', 'approve_code', 'doc_no', 'doc_date', 'status', 'total_amount', 'total_items',
     'prepared_by', 'approved_by', 'approved_at', 'notes', 'created_at', 'updated_at', 'version',
-    'department', 'budget_year', 'product_name', 'product_code', 'category', 'product_type', 
+    'department', 'purchase_department', 'budget_year', 'product_name', 'product_code', 'category', 'product_type', 
     'product_subtype'
   ]).optional(),
   sort_order: z.enum(['asc', 'desc']).optional(),
