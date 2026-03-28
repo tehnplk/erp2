@@ -28,6 +28,7 @@ type InventoryStockLotRow = {
   total_value: string | number;
   avg_unit_price: string | number;
   last_received_at: string | null;
+  issue_count: string | number;
 };
 
 export async function GET(request: NextRequest) {
@@ -138,7 +139,12 @@ export async function GET(request: NextRequest) {
             v.qty_on_hand::float8 AS qty_on_hand,
             v.total_value::float8 AS total_value,
             v.avg_unit_price::float8 AS avg_unit_price,
-            v.last_received_at
+            v.last_received_at,
+            COALESCE((
+              SELECT COUNT(*)::int
+              FROM public.inventory_issue_item iit
+              WHERE iit.stock_lot_id = v.stock_lot_id
+            ), 0)::int AS issue_count
           FROM public.inventory_stock_lot_detail_summary v
           ${whereSql}
           ORDER BY ${safeOrderBy} ${safeSortOrder}${nullsClause}, v.lot_no ASC
@@ -150,6 +156,8 @@ export async function GET(request: NextRequest) {
 
     const rows = rowsResult.rows.map((row) => ({
       ...row,
+      issue_count: Number(row.issue_count || 0),
+      has_issue_history: Number(row.issue_count || 0) > 0,
       last_delivery_note_no:
         row.receipt_type === 'OPENING_BALANCE'
           ? `ยอดยกมา-${(row.receipt_note || '').trim()}`

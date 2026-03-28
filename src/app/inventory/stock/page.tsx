@@ -41,6 +41,8 @@ type StockLotDetailRow = {
   last_delivery_note_no: string | null;
   qty_on_hand: number;
   last_received_at: string | null;
+  issue_count: number;
+  has_issue_history: boolean;
 };
 
 type ReceiptItemEditorState = {
@@ -58,6 +60,7 @@ type ReceiptItemEditorState = {
   received_qty: string;
   total_price: string;
   product_id: number;
+  has_issue_history: boolean;
 };
 
 type StockResponse = {
@@ -465,6 +468,7 @@ export default function InventoryStockPage() {
       received_qty: String(Number(lotRow.total_received_qty || 0)),
       total_price: String(Number(lotRow.total_received_value || 0)),
       product_id: lotRow.product_id,
+      has_issue_history: lotRow.has_issue_history,
     });
   };
 
@@ -477,6 +481,10 @@ export default function InventoryStockPage() {
 
   const handleLotEditorSubmit = async () => {
     if (!lotEditor) return;
+    if (lotEditor.has_issue_history) {
+      setLotEditorMessage('LOT นี้มีการเบิกจ่ายไปแล้ว กรุณาลบใบเบิกจ่ายเพื่อคืนสินค้าเข้าคลังก่อนแก้ไข LOT นี้');
+      return;
+    }
     if (!lotEditor.lot_no.trim()) {
       setLotEditorMessage('กรุณากรอก LOT');
       return;
@@ -533,6 +541,15 @@ export default function InventoryStockPage() {
   };
 
   const handleDeleteLotReceiptItem = async (lotRow: StockLotDetailRow) => {
+    if (lotRow.has_issue_history) {
+      await Swal.fire({
+        icon: 'warning',
+        title: 'ไม่สามารถลบ LOT นี้ได้',
+        text: 'LOT นี้มีการเบิกจ่ายไปแล้ว กรุณาลบใบเบิกจ่ายเพื่อคืนสินค้าเข้าคลังก่อนลบ LOT นี้',
+      });
+      return;
+    }
+
     const confirmation = await Swal.fire({
       icon: 'warning',
       title: 'ยืนยันลบรายการรับเข้าคลัง',
@@ -902,8 +919,9 @@ export default function InventoryStockPage() {
                                                 type="button"
                                                 onClick={() => openLotEditor(lotRow)}
                                                 aria-label={`แก้ไข ${lotRow.product_code} ${lotRow.lot_no}`}
-                                                title="แก้ไข"
-                                                className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-emerald-300 text-emerald-700 hover:bg-emerald-100"
+                                                title={lotRow.has_issue_history ? 'ต้องลบใบเบิกจ่ายก่อนจึงจะแก้ไข LOT นี้ได้' : 'แก้ไข'}
+                                                disabled={lotRow.has_issue_history}
+                                                className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-emerald-300 text-emerald-700 hover:bg-emerald-100 disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-300 disabled:hover:bg-transparent"
                                               >
                                                 <Pencil className="h-4 w-4" />
                                               </button>
@@ -911,8 +929,9 @@ export default function InventoryStockPage() {
                                                 type="button"
                                                 onClick={() => void handleDeleteLotReceiptItem(lotRow)}
                                                 aria-label={`ลบ ${lotRow.product_code} ${lotRow.lot_no}`}
-                                                title="ลบ"
-                                                className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-red-300 text-red-700 hover:bg-red-50"
+                                                title={lotRow.has_issue_history ? 'ต้องลบใบเบิกจ่ายก่อนจึงจะลบ LOT นี้ได้' : 'ลบ'}
+                                                disabled={lotRow.has_issue_history}
+                                                className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-red-300 text-red-700 hover:bg-red-50 disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-300 disabled:hover:bg-transparent"
                                               >
                                                 <Trash2 className="h-4 w-4" />
                                               </button>

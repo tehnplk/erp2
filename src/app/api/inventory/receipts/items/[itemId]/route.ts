@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server';
 import type { PoolClient } from 'pg';
 import { pgPool } from '@/lib/pg';
-import { apiError, apiSuccess } from '@/lib/api-response';
+import { apiConflict, apiError, apiSuccess } from '@/lib/api-response';
 import { validateRequest } from '@/lib/validation/validate';
 import { idParamSchema, updateInventoryReceiptItemSchema } from '@/lib/validation/schemas';
 
@@ -48,6 +48,23 @@ async function applyStockDelta(client: PoolClient, delta: StockDelta) {
   );
 }
 
+async function lotHasIssueHistory(client: PoolClient, receiptItemId: number) {
+  const result = await client.query<{ has_issue_history: boolean }>(
+    `SELECT EXISTS(
+       SELECT 1
+       FROM public.inventory_receipt_item ri
+       INNER JOIN public.inventory_stock_lot isl
+         ON isl.product_id = ri.product_id
+        AND isl.lot_no = ri.lot_no
+       INNER JOIN public.inventory_issue_item iit ON iit.stock_lot_id = isl.id
+       WHERE ri.id = $1
+     ) AS has_issue_history`,
+    [receiptItemId]
+  );
+
+  return Boolean(result.rows[0]?.has_issue_history);
+}
+
 export async function PUT(request: NextRequest, context: { params: Promise<{ itemId: string }> }) {
   const client = await pgPool.connect();
 
@@ -89,6 +106,11 @@ export async function PUT(request: NextRequest, context: { params: Promise<{ ite
     const currentItem = currentItemResult.rows[0];
     if (!currentItem) {
       throw new Error('Receipt item not found');
+    }
+
+    if (await lotHasIssueHistory(client, id)) {
+      await client.query('ROLLBACK');
+      return apiConflict('LOT นี้มีการเบิกจ่ายไปแล้ว กรุณาลบใบเบิกจ่ายเพื่อคืนสินค้าเข้าคลังก่อนแก้ไข LOT นี้');
     }
 
     const productResult = await client.query<{ id: number }>(
@@ -214,6 +236,11 @@ export async function DELETE(_request: NextRequest, context: { params: Promise<{
     const item = itemResult.rows[0];
     if (!item) {
       throw new Error('Receipt item not found');
+    }
+
+    if (await lotHasIssueHistory(client, id)) {
+      await client.query('ROLLBACK');
+      return apiConflict('LOT นี้มีการเบิกจ่ายไปแล้ว กรุณาลบใบเบิกจ่ายเพื่อคืนสินค้าเข้าคลังก่อนลบ LOT นี้');
     }
 
     await applyStockDelta(client, {

@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server';
 import type { PoolClient } from 'pg';
 import { pgPool, pgQuery } from '@/lib/pg';
-import { apiError, apiSuccess } from '@/lib/api-response';
+import { apiConflict, apiError, apiSuccess } from '@/lib/api-response';
 import { validateRequest } from '@/lib/validation/validate';
 import { idParamSchema, updateInventoryReceiptSchema } from '@/lib/validation/schemas';
 
@@ -53,6 +53,29 @@ async function applyStockDelta(client: PoolClient, delta: StockDelta) {
        AND total_value = 0`,
     [delta.product_id, delta.lot_no]
   );
+}
+
+async function receiptHasIssuedLot(client: PoolClient, receiptId: number) {
+  const result = await client.query<{
+    product_code: string;
+    lot_no: string;
+  }>(
+    `SELECT
+       p.code AS product_code,
+       ri.lot_no
+     FROM public.inventory_receipt_item ri
+     INNER JOIN public.product p ON p.id = ri.product_id
+     INNER JOIN public.inventory_stock_lot isl
+       ON isl.product_id = ri.product_id
+      AND isl.lot_no = ri.lot_no
+     INNER JOIN public.inventory_issue_item iit ON iit.stock_lot_id = isl.id
+     WHERE ri.receipt_id = $1
+     ORDER BY ri.id ASC
+     LIMIT 1`,
+    [receiptId]
+  );
+
+  return result.rows[0] ?? null;
 }
 
 export async function GET(_request: NextRequest, context: { params: Promise<{ id: string }> }) {
@@ -158,6 +181,12 @@ export async function PUT(request: NextRequest, context: { params: Promise<{ id:
       throw new Error('Receipt not found');
     }
 
+    const issuedLot = await receiptHasIssuedLot(client, id);
+    if (issuedLot) {
+      await client.query('ROLLBACK');
+      return apiConflict(`มี LOT ที่ถูกเบิกจ่ายแล้ว (${issuedLot.product_code} / ${issuedLot.lot_no}) กรุณาลบใบเบิกจ่ายเพื่อคืนสินค้าเข้าคลังก่อนแก้ไขใบรับเข้า`);
+    }
+
     const oldItemsResult = await client.query<ReceiptItemRow>(
       `SELECT product_id, lot_no, received_qty::float8, total_price::float8
        FROM public.inventory_receipt_item
@@ -260,6 +289,12 @@ export async function DELETE(_request: NextRequest, context: { params: Promise<{
     const receipt = receiptResult.rows[0];
     if (!receipt) {
       throw new Error('Receipt not found');
+    }
+
+    const issuedLot = await receiptHasIssuedLot(client, id);
+    if (issuedLot) {
+      await client.query('ROLLBACK');
+      return apiConflict(`มี LOT ที่ถูกเบิกจ่ายแล้ว (${issuedLot.product_code} / ${issuedLot.lot_no}) กรุณาลบใบเบิกจ่ายเพื่อคืนสินค้าเข้าคลังก่อนลบใบรับเข้า`);
     }
 
     const oldItemsResult = await client.query<ReceiptItemRow>(
