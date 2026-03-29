@@ -359,6 +359,8 @@ export const purchasePlanQuerySchema = z.object({
     'product_code',
     'product_name',
     'purchase_department',
+    'usage_plan_flag',
+    'unit',
     'approved_quota',
     'inventory_qty',
     'purchased_qty',
@@ -418,7 +420,7 @@ export const purchaseApprovalQuerySchema = z.object({
   budget_year: z.string().optional(),
   status: z.string().refine((value) => get_approval_doc_status_code(value) !== null, 'Invalid approval status').optional(),
   order_by: z.enum([
-    'id', 'approve_code', 'doc_no', 'doc_date', 'status', 'total_amount', 'total_items',
+    'id', 'approve_code', 'doc_no', 'doc_date', 'status', 'total_amount', 'total_items', 'item_count',
     'prepared_by', 'approved_by', 'approved_at', 'notes', 'created_at', 'updated_at', 'version',
     'department', 'purchase_department', 'budget_year', 'product_name', 'product_code', 'category', 'product_type', 
     'product_subtype'
@@ -457,10 +459,15 @@ export const usage_plan_query_schema = z.object({
   order_by: z.enum([
     'id',
     'product_code',
+    'product_name',
     'requesting_dept_code',
+    'requesting_dept',
     'requested_amount',
     'approved_quota',
     'plan_flag',
+    'unit',
+    'price_per_unit',
+    'total_value',
     'budget_year',
     'sequence_no',
     'created_at',

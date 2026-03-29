@@ -38,10 +38,15 @@ export async function GET(request: NextRequest) {
     const allowedOrderFields: Record<string, string> = {
       id: 'up.id',
       product_code: 'up.product_code',
+      product_name: 'p.name',
       requesting_dept_code: 'up.requesting_dept_code',
+      requesting_dept: 'COALESCE(d.name, up.requesting_dept_code)',
       requested_amount: 'up.requested_amount',
       approved_quota: 'up.approved_quota',
       plan_flag: 'up.plan_flag',
+      unit: 'p.unit',
+      price_per_unit: 'COALESCE(p.cost_price, 0)',
+      total_value: 'COALESCE(up.approved_quota, 0) * COALESCE(p.cost_price, 0)',
       budget_year: 'up.budget_year',
       sequence_no: 'up.sequence_no',
       created_at: 'up.created_at',
@@ -139,7 +144,7 @@ export async function GET(request: NextRequest) {
 
     if (!hasPagination) {
       const [usagePlansResult, totalCountResult] = await Promise.all([
-        pgQuery(`${usagePlanSelect} ORDER BY ${safeOrderField} ${orderDirection}`, params),
+        pgQuery(`${usagePlanSelect} ORDER BY ${safeOrderField} ${orderDirection} NULLS LAST`, params),
         pgQuery(`SELECT COUNT(*)::int AS count ${usagePlanFromSql}`, params),
       ]);
 
@@ -159,7 +164,7 @@ export async function GET(request: NextRequest) {
 
     const [usagePlansResult, totalCountResult, summaryResult] = await Promise.all([
       pgQuery(
-        `${usagePlanSelect} ORDER BY ${safeOrderField} ${orderDirection} LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,
+        `${usagePlanSelect} ORDER BY ${safeOrderField} ${orderDirection} NULLS LAST LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,
         paginatedParams
       ),
       pgQuery(`SELECT COUNT(*)::int AS count ${usagePlanFromSql}`, params),

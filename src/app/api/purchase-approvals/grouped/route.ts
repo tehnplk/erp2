@@ -24,7 +24,10 @@ export async function GET(request: NextRequest) {
     // Filter on main approval records from source tables (usage_plan + product + department)
     if (product_name) {
       params.push(`%${product_name}%`);
-      whereClauses.push(`plan_summary.product_name ILIKE $${params.length}`);
+      whereClauses.push(`(
+        plan_summary.product_code ILIKE $${params.length}
+        OR plan_summary.product_name ILIKE $${params.length}
+      )`);
     }
     if (category) {
       params.push(category);

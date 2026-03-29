@@ -5,7 +5,7 @@ import { AlignmentType, BorderStyle, Document, ImageRun, Packer, PageOrientation
 import React, { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import Swal from 'sweetalert2';
-import { ChevronDown, ChevronRight, Save, X, Trash2, Edit, FileText, CheckCircle, XCircle, Download, Printer, FileDown, Clock, RotateCcw } from 'lucide-react';
+import { ArrowUpDown, ChevronRight, Save, X, Trash2, Edit, FileText, CheckCircle, XCircle, Download, Printer, FileDown, Clock, RotateCcw } from 'lucide-react';
 import { useSysSetting } from '@/hooks/use-sys-setting';
 
 const DEFAULT_DOC_NO = 'พล. 0733.301/พิเศษ';
@@ -114,8 +114,10 @@ function PurchaseApprovalsPageContent() {
   const [statusFilter, setStatusFilter] = useState(searchParams.get('status') || '');
 
   // sort
-  const [sortBy] = useState('created_at');
-  const [sortOrder] = useState<'asc' | 'desc'>('desc');
+  const [sortBy, setSortBy] = useState(searchParams.get('order_by') || 'created_at');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>(
+    (searchParams.get('sort_order') === 'asc' ? 'asc' : 'desc') as 'asc' | 'desc'
+  );
   const [page, setPage] = useState(Math.max(1, parseInt(searchParams.get('page') || '1', 10) || 1));
   const [pageSize, setPageSize] = useState(Math.max(1, parseInt(searchParams.get('page_size') || '20', 10) || 20));
 
@@ -187,7 +189,7 @@ function PurchaseApprovalsPageContent() {
       return;
     }
     fetchData();
-  }, [nameFilter, categoryFilter, typeFilter, purchaseDepartmentFilter, budgetYearFilter, statusFilter, page, pageSize, searchParams, effectiveBudgetYear]);
+  }, [nameFilter, categoryFilter, typeFilter, purchaseDepartmentFilter, budgetYearFilter, statusFilter, sortBy, sortOrder, page, pageSize, searchParams, effectiveBudgetYear]);
 
   // When filters or sorting change, reset to first page and refresh summary data
   useEffect(() => {
@@ -195,7 +197,7 @@ function PurchaseApprovalsPageContent() {
       return;
     }
     setPage(1);
-  }, [nameFilter, categoryFilter, typeFilter, purchaseDepartmentFilter, budgetYearFilter, statusFilter]);
+  }, [nameFilter, categoryFilter, typeFilter, purchaseDepartmentFilter, budgetYearFilter, statusFilter, sortBy, sortOrder]);
 
   useEffect(() => { fetchFilters(); }, []);
   useEffect(() => {
@@ -216,6 +218,8 @@ function PurchaseApprovalsPageContent() {
     const nextDepartment = searchParams.get('purchase_department') || searchParams.get('department') || '';
     const nextBudgetYear = searchParams.get('budget_year') || (effectiveBudgetYear ? String(effectiveBudgetYear) : '');
     const nextStatus = searchParams.get('status') || '';
+    const nextSortBy = searchParams.get('order_by') || 'created_at';
+    const nextSortOrder = (searchParams.get('sort_order') === 'asc' ? 'asc' : 'desc') as 'asc' | 'desc';
     const nextPage = Math.max(1, parseInt(searchParams.get('page') || '1', 10) || 1);
     const nextPageSize = Math.max(1, parseInt(searchParams.get('page_size') || '20', 10) || 20);
 
@@ -225,6 +229,8 @@ function PurchaseApprovalsPageContent() {
     setPurchaseDepartmentFilter((prev) => (prev === nextDepartment ? prev : nextDepartment));
     setBudgetYearFilter((prev) => (prev === nextBudgetYear ? prev : nextBudgetYear));
     setStatusFilter((prev) => (prev === nextStatus ? prev : nextStatus));
+    setSortBy((prev) => (prev === nextSortBy ? prev : nextSortBy));
+    setSortOrder((prev) => (prev === nextSortOrder ? prev : nextSortOrder));
     setPage((prev) => (prev === nextPage ? prev : nextPage));
     setPageSize((prev) => (prev === nextPageSize ? prev : nextPageSize));
     hasSyncedSearchParamsRef.current = true;
@@ -245,6 +251,10 @@ function PurchaseApprovalsPageContent() {
       params.set('budget_year', budgetYearFilter);
     }
     if (statusFilter) params.set('status', statusFilter);
+    if (sortBy && sortBy !== 'created_at') params.set('order_by', sortBy);
+    else params.delete('order_by');
+    if (sortOrder !== 'desc') params.set('sort_order', sortOrder);
+    else params.delete('sort_order');
     if (page > 1) params.set('page', page.toString());
     if (pageSize !== 20) params.set('page_size', pageSize.toString());
 
@@ -254,7 +264,7 @@ function PurchaseApprovalsPageContent() {
     if (nextUrl !== currentUrl) {
       router.replace(nextUrl, { scroll: false });
     }
-  }, [pathname, router, searchParams, nameFilter, categoryFilter, typeFilter, purchaseDepartmentFilter, budgetYearFilter, statusFilter, page, pageSize, effectiveBudgetYear]);
+  }, [pathname, router, searchParams, nameFilter, categoryFilter, typeFilter, purchaseDepartmentFilter, budgetYearFilter, statusFilter, sortBy, sortOrder, page, pageSize, effectiveBudgetYear]);
 
   const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
 
@@ -296,8 +306,8 @@ function PurchaseApprovalsPageContent() {
       if (purchaseDepartmentFilter) params.append('purchase_department', purchaseDepartmentFilter);
       if (budgetYearFilter) params.append('budget_year', budgetYearFilter);
       if (statusFilter) params.append('status', statusFilter);
-      params.append('order_by', 'created_at');
-      params.append('sort_order', 'desc');
+      params.append('order_by', sortBy);
+      params.append('sort_order', sortOrder);
       params.append('page', page.toString());
       params.append('page_size', pageSize.toString());
 
@@ -357,9 +367,24 @@ function PurchaseApprovalsPageContent() {
     finally { setFiltersLoading(false); }
   };
 
-  const handleSort = () => {};
+  const handleSort = (column: string) => {
+    if (sortBy === column) {
+      setSortOrder((prev) => (prev === 'asc' ? 'desc' : 'asc'));
+    } else {
+      setSortBy(column);
+      setSortOrder('asc');
+    }
+    setPage(1);
+  };
 
   const getHeaderClass = (col: string) => `px-3 py-3 text-left text-[10px] font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 ${col === sortBy ? 'bg-gray-100' : ''}`;
+  const renderSortIcon = (column: string) => {
+    if (sortBy !== column) {
+      return null;
+    }
+
+    return <ArrowUpDown className="h-3 w-3 text-blue-600" aria-hidden="true" />;
+  };
 
   const toggleRowExpansion = (approvalId: string) => {
     const newExpanded = new Set(expandedRows);
@@ -1917,7 +1942,7 @@ function PurchaseApprovalsPageContent() {
             <option value="">สถานะ</option>
             {statusOptions.map(x => <option key={x} value={x}>{x}</option>)}
           </select>
-          <input placeholder="ชื่อสินค้า" value={nameFilter} onChange={(e)=>setNameFilter(e.target.value)} className="flex-1 min-w-[180px] rounded-lg border border-gray-300 px-3 py-2 text-sm" />
+          <input placeholder="รหัส/ชื่อสินค้า" value={nameFilter} onChange={(e)=>setNameFilter(e.target.value)} className="flex-1 min-w-[180px] rounded-lg border border-gray-300 px-3 py-2 text-sm" />
         </div>
         {filtersLoading && <div className="mb-3 text-sm text-gray-500">กำลังโหลดตัวกรอง...</div>}
 
@@ -1972,16 +1997,15 @@ function PurchaseApprovalsPageContent() {
           <table className="w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
-                <th className="px-3 py-3 text-left text-[10px] font-medium text-gray-500 uppercase tracking-wider w-12">ลำดับ</th>
-                <th onClick={()=>handleSort()} className={getHeaderClass('created_at')}>วันที่สร้าง</th>
-                <th className="px-3 py-3 text-left text-[10px] font-medium text-gray-500 uppercase tracking-wider w-44">หน่วยงานจัดซื้อ</th>
-                {/* <th onClick={()=>handleSort('id')} className={getHeaderClass('id')}>เลขที่อนุมัติ</th> */}
-                <th onClick={()=>handleSort()} className={getHeaderClass('approve_code')}>รหัสอนุมัติ</th>
-                <th onClick={()=>handleSort()} className={getHeaderClass('doc_no')}>เลขที่หนังสือ</th>
-                <th onClick={()=>handleSort()} className={getHeaderClass('doc_date')}>ลงวันที่</th>
-                <th className="px-3 py-3 text-right text-[10px] font-medium text-gray-500 uppercase tracking-wider w-28">ราคารวม(บาท)</th>
-                <th onClick={()=>handleSort()} className={getHeaderClass('status')}>สถานะ</th>
-                <th className="px-3 py-3 text-left text-[10px] font-medium text-gray-500 uppercase tracking-wider w-20">รายการ</th>
+                <th onClick={() => handleSort('id')} className={`${getHeaderClass('id')} w-12`} aria-sort={sortBy === 'id' ? (sortOrder === 'asc' ? 'ascending' : 'descending') : 'none'}><span className="inline-flex items-center gap-1">ลำดับ {renderSortIcon('id')}</span></th>
+                <th onClick={() => handleSort('created_at')} className={getHeaderClass('created_at')} aria-sort={sortBy === 'created_at' ? (sortOrder === 'asc' ? 'ascending' : 'descending') : 'none'}><span className="inline-flex items-center gap-1">วันที่สร้าง {renderSortIcon('created_at')}</span></th>
+                <th onClick={() => handleSort('purchase_department')} className={`${getHeaderClass('purchase_department')} w-44`} aria-sort={sortBy === 'purchase_department' ? (sortOrder === 'asc' ? 'ascending' : 'descending') : 'none'}><span className="inline-flex items-center gap-1">หน่วยงานจัดซื้อ {renderSortIcon('purchase_department')}</span></th>
+                <th onClick={() => handleSort('approve_code')} className={getHeaderClass('approve_code')} aria-sort={sortBy === 'approve_code' ? (sortOrder === 'asc' ? 'ascending' : 'descending') : 'none'}><span className="inline-flex items-center gap-1">รหัสอนุมัติ {renderSortIcon('approve_code')}</span></th>
+                <th onClick={() => handleSort('doc_no')} className={getHeaderClass('doc_no')} aria-sort={sortBy === 'doc_no' ? (sortOrder === 'asc' ? 'ascending' : 'descending') : 'none'}><span className="inline-flex items-center gap-1">เลขที่หนังสือ {renderSortIcon('doc_no')}</span></th>
+                <th onClick={() => handleSort('doc_date')} className={getHeaderClass('doc_date')} aria-sort={sortBy === 'doc_date' ? (sortOrder === 'asc' ? 'ascending' : 'descending') : 'none'}><span className="inline-flex items-center gap-1">ลงวันที่ {renderSortIcon('doc_date')}</span></th>
+                <th onClick={() => handleSort('total_amount')} className={`${getHeaderClass('total_amount')} text-right w-28`} aria-sort={sortBy === 'total_amount' ? (sortOrder === 'asc' ? 'ascending' : 'descending') : 'none'}><span className="inline-flex items-center gap-1 justify-end">ราคารวม(บาท) {renderSortIcon('total_amount')}</span></th>
+                <th onClick={() => handleSort('status')} className={getHeaderClass('status')} aria-sort={sortBy === 'status' ? (sortOrder === 'asc' ? 'ascending' : 'descending') : 'none'}><span className="inline-flex items-center gap-1">สถานะ {renderSortIcon('status')}</span></th>
+                <th onClick={() => handleSort('item_count')} className={`${getHeaderClass('item_count')} w-20`} aria-sort={sortBy === 'item_count' ? (sortOrder === 'asc' ? 'ascending' : 'descending') : 'none'}><span className="inline-flex items-center gap-1 justify-end">รายการ {renderSortIcon('item_count')}</span></th>
                 <th className="px-3 py-3 text-center text-[10px] font-medium text-gray-500 uppercase tracking-wider w-24">อนุมัติ</th>
                 <th className="px-3 py-3 text-left text-[10px] font-medium text-gray-500 uppercase tracking-wider w-20">Action</th>
               </tr>

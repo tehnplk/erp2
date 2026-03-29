@@ -87,7 +87,7 @@ const purchasePlanSelect = `
   ${purchasePlanBaseSelect}
 `;
 
-const PURCHASE_PLAN_CACHE_VERSION = 'v2';
+const PURCHASE_PLAN_CACHE_VERSION = 'v3';
 
 function buildWhereClause(filters: {
   product_name?: string;
@@ -233,11 +233,17 @@ export async function GET(request: NextRequest) {
       id: 'pp.id',
       product_code: 'usage_summary.product_code',
       product_name: 'p.name',
-      purchase_department: 'p.purchase_department_id',
+      purchase_department: 'COALESCE(pd.name, pd.department_code)',
+      usage_plan_flag: 'usage_summary.usage_plan_flag',
+      unit: 'p.unit',
       approved_quota: 'COALESCE(pp.qouta_qty, usage_summary.approved_quota, 0)',
       inventory_qty: 'COALESCE(inventory_snapshot.inventory_qty, pp.inventory_qty, 0)',
       purchased_qty: 'COALESCE(purchased_summary.purchased_qty, 0)',
-      purchase_qty: 'COALESCE(pp.purchase_qty, 0)',
+      purchase_qty: `GREATEST(
+        COALESCE(pp.qouta_qty, usage_summary.approved_quota, 0)
+        - COALESCE(inventory_snapshot.inventory_qty, pp.inventory_qty, 0),
+        0
+      )`,
       unit_price: 'COALESCE(p.cost_price, 0)',
       purchase_value: `ROUND(
         GREATEST(

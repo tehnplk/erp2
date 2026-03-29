@@ -3,6 +3,7 @@
 import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import Swal from 'sweetalert2';
+import { ArrowUpDown } from 'lucide-react';
 import { useSysSetting } from '@/hooks/use-sys-setting';
 
 type PurchasePlanRow = {
@@ -746,6 +747,13 @@ function PurchasePlansPageContent() {
   };
 
   const getHeaderClass = (column: string) => `px-2 py-2.5 text-left text-[10px] font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 ${column === sortBy ? 'bg-gray-100' : ''}`;
+  const renderSortIcon = (column: string) => {
+    if (sortBy !== column) {
+      return null;
+    }
+
+    return <ArrowUpDown className="h-3 w-3 text-blue-600" aria-hidden="true" />;
+  };
   const getPurchasedQtyBadgeClass = (plannedQty: number, purchasedQty: number) => {
     if (purchasedQty > plannedQty) {
       return 'bg-red-100 text-red-700';
@@ -1740,19 +1748,19 @@ function PurchasePlansPageContent() {
                       className="h-4 w-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
                     />
                   </th>
-                  <th className="px-3 py-2 text-left text-xs font-semibold uppercase text-gray-500">ID</th>
-                  <th className="px-3 py-2 text-left text-xs font-semibold uppercase text-gray-500">ปีงบ</th>
-                  <th className="px-3 py-2 text-left text-xs font-semibold uppercase text-gray-500">รหัสสินค้า</th>
-                  <th className="px-3 py-2 text-left text-xs font-semibold uppercase text-gray-500">ชื่อสินค้า</th>
-                  <th className="px-3 py-2 text-left text-xs font-semibold uppercase text-gray-500">หน่วยงานจัดซื้อ</th>
-                  <th className="px-3 py-2 text-left text-xs font-semibold uppercase text-gray-500">แผน</th>
-                  <th className="px-3 py-2 text-left text-xs font-semibold uppercase text-gray-500">หน่วยนับ</th>
-                  <th className="px-3 py-2 text-right text-xs font-semibold uppercase text-gray-500">โควต้า</th>
-                  <th className="px-3 py-2 text-right text-xs font-semibold uppercase text-gray-500">คงคลัง</th>
-                  <th className="px-3 py-2 text-right text-xs font-semibold uppercase text-gray-500">แผนซื้อ</th>
-                  <th className="px-3 py-2 text-right text-xs font-semibold uppercase text-gray-500">ซื้อแล้ว</th>
-                  <th className="px-3 py-2 text-right text-xs font-semibold uppercase text-gray-500">ราคาต่อหน่วย (บาท)</th>
-                  <th className="px-3 py-2 text-right text-xs font-semibold uppercase text-gray-500">มูลค่าซื้อ</th>
+                  <th onClick={() => handleSort('id')} className={getHeaderClass('id')} aria-sort={sortBy === 'id' ? (sortOrder === 'asc' ? 'ascending' : 'descending') : 'none'}><span className="inline-flex items-center gap-1">ID {renderSortIcon('id')}</span></th>
+                  <th onClick={() => handleSort('budget_year')} className={getHeaderClass('budget_year')} aria-sort={sortBy === 'budget_year' ? (sortOrder === 'asc' ? 'ascending' : 'descending') : 'none'}><span className="inline-flex items-center gap-1">ปีงบ {renderSortIcon('budget_year')}</span></th>
+                  <th onClick={() => handleSort('product_code')} className={getHeaderClass('product_code')} aria-sort={sortBy === 'product_code' ? (sortOrder === 'asc' ? 'ascending' : 'descending') : 'none'}><span className="inline-flex items-center gap-1">รหัสสินค้า {renderSortIcon('product_code')}</span></th>
+                  <th onClick={() => handleSort('product_name')} className={getHeaderClass('product_name')} aria-sort={sortBy === 'product_name' ? (sortOrder === 'asc' ? 'ascending' : 'descending') : 'none'}><span className="inline-flex items-center gap-1">ชื่อสินค้า {renderSortIcon('product_name')}</span></th>
+                  <th onClick={() => handleSort('purchase_department')} className={getHeaderClass('purchase_department')} aria-sort={sortBy === 'purchase_department' ? (sortOrder === 'asc' ? 'ascending' : 'descending') : 'none'}><span className="inline-flex items-center gap-1">หน่วยงานจัดซื้อ {renderSortIcon('purchase_department')}</span></th>
+                  <th onClick={() => handleSort('usage_plan_flag')} className={getHeaderClass('usage_plan_flag')} aria-sort={sortBy === 'usage_plan_flag' ? (sortOrder === 'asc' ? 'ascending' : 'descending') : 'none'}><span className="inline-flex items-center gap-1">แผน {renderSortIcon('usage_plan_flag')}</span></th>
+                  <th onClick={() => handleSort('unit')} className={getHeaderClass('unit')} aria-sort={sortBy === 'unit' ? (sortOrder === 'asc' ? 'ascending' : 'descending') : 'none'}><span className="inline-flex items-center gap-1">หน่วยนับ {renderSortIcon('unit')}</span></th>
+                  <th onClick={() => handleSort('approved_quota')} className={getHeaderClass('approved_quota')} aria-sort={sortBy === 'approved_quota' ? (sortOrder === 'asc' ? 'ascending' : 'descending') : 'none'}><span className="inline-flex items-center gap-1 justify-end">โควต้า {renderSortIcon('approved_quota')}</span></th>
+                  <th onClick={() => handleSort('inventory_qty')} className={getHeaderClass('inventory_qty')} aria-sort={sortBy === 'inventory_qty' ? (sortOrder === 'asc' ? 'ascending' : 'descending') : 'none'}><span className="inline-flex items-center gap-1 justify-end">คงคลัง {renderSortIcon('inventory_qty')}</span></th>
+                  <th onClick={() => handleSort('purchase_qty')} className={getHeaderClass('purchase_qty')} aria-sort={sortBy === 'purchase_qty' ? (sortOrder === 'asc' ? 'ascending' : 'descending') : 'none'}><span className="inline-flex items-center gap-1 justify-end">แผนซื้อ {renderSortIcon('purchase_qty')}</span></th>
+                  <th onClick={() => handleSort('purchased_qty')} className={getHeaderClass('purchased_qty')} aria-sort={sortBy === 'purchased_qty' ? (sortOrder === 'asc' ? 'ascending' : 'descending') : 'none'}><span className="inline-flex items-center gap-1 justify-end">ซื้อแล้ว {renderSortIcon('purchased_qty')}</span></th>
+                  <th onClick={() => handleSort('unit_price')} className={getHeaderClass('unit_price')} aria-sort={sortBy === 'unit_price' ? (sortOrder === 'asc' ? 'ascending' : 'descending') : 'none'}><span className="inline-flex items-center gap-1 justify-end">ราคาต่อหน่วย (บาท) {renderSortIcon('unit_price')}</span></th>
+                  <th onClick={() => handleSort('purchase_value')} className={getHeaderClass('purchase_value')} aria-sort={sortBy === 'purchase_value' ? (sortOrder === 'asc' ? 'ascending' : 'descending') : 'none'}><span className="inline-flex items-center gap-1 justify-end">มูลค่าซื้อ {renderSortIcon('purchase_value')}</span></th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100 bg-white">

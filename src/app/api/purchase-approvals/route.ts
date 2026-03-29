@@ -47,6 +47,12 @@ const purchaseApprovalSelect = `
     pa.updated_at,
     pa.version,
     MAX(plan_summary.purchase_department) AS purchase_department,
+    MIN(plan_summary.requesting_dept) AS department,
+    MIN(plan_summary.product_name) AS product_name,
+    MIN(plan_summary.product_code) AS product_code,
+    MIN(plan_summary.category) AS category,
+    MIN(plan_summary.product_type) AS product_type,
+    MIN(plan_summary.product_subtype) AS product_subtype,
     COUNT(pad.id)::int AS item_count
 `;
 
@@ -102,7 +108,10 @@ export async function GET(request: NextRequest) {
 
     if (product_name) {
       params.push(`%${product_name}%`);
-      whereClauses.push(`plan_summary.product_name ILIKE $${params.length}`);
+      whereClauses.push(`(
+        plan_summary.product_code ILIKE $${params.length}
+        OR plan_summary.product_name ILIKE $${params.length}
+      )`);
     }
     if (category) {
       params.push(category);
@@ -152,16 +161,17 @@ export async function GET(request: NextRequest) {
       status: 'ads.status',
       total_amount: 'pa.total_amount',
       total_items: 'pa.total_items',
+      item_count: 'item_count',
       created_at: 'pa.created_at',
       updated_at: 'pa.updated_at',
-      department: 'plan_summary.requesting_dept',
-      purchase_department: 'plan_summary.purchase_department',
+      department: 'department',
+      purchase_department: 'purchase_department',
       budget_year: 'pa.budget_year',
-      product_name: 'plan_summary.product_name',
-      product_code: 'plan_summary.product_code',
-      category: 'plan_summary.category',
-      product_type: 'plan_summary.product_type',
-      product_subtype: 'plan_summary.product_subtype',
+      product_name: 'product_name',
+      product_code: 'product_code',
+      category: 'category',
+      product_type: 'product_type',
+      product_subtype: 'product_subtype',
     };
     const safeOrderField = allowedOrderFields[order_by || 'created_at'] || 'pa.created_at';
     const safeSortOrder = sort_order === 'asc' ? 'ASC' : 'DESC';

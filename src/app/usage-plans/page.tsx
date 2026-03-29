@@ -3,6 +3,7 @@
 import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import Swal from 'sweetalert2';
+import { ArrowUpDown } from 'lucide-react';
 import { useSysSetting } from '@/hooks/use-sys-setting';
 
 const get_current_budget_year = () => {
@@ -89,6 +90,8 @@ function UsagePlansPageContent() {
   const initial_page = Math.max(1, Number(search_params.get('page') || '1') || 1);
   const requested_page_size = Number(search_params.get('page_size') || '20');
   const initial_page_size = [20, 50, 100].includes(requested_page_size) ? requested_page_size : 20;
+  const initial_sort_by = search_params.get('order_by') || 'id';
+  const initial_sort_order = (search_params.get('sort_order') === 'asc' ? 'asc' : 'desc') as 'asc' | 'desc';
 
   const [usage_plans, set_usage_plans] = useState<UsagePlanRow[]>([]);
   const [loading, set_loading] = useState(true);
@@ -98,6 +101,8 @@ function UsagePlansPageContent() {
   const [page_size, set_page_size] = useState(initial_page_size);
   const [total_count, set_total_count] = useState(0);
   const [total_value_amount, set_total_value_amount] = useState(0);
+  const [sort_by, set_sort_by] = useState(initial_sort_by);
+  const [sort_order, set_sort_order] = useState<'asc' | 'desc'>(initial_sort_order);
 
   const [product_code_filter, set_product_code_filter] = useState('');
   const [requesting_dept_code_filter, set_requesting_dept_code_filter] = useState('');
@@ -203,7 +208,7 @@ function UsagePlansPageContent() {
       return;
     }
     void fetch_usage_plans();
-  }, [page, page_size, product_code_filter, requesting_dept_code_filter, plan_flag_filter, budget_year_filter, category_filter, type_filter, search_params, effective_budget_year]);
+  }, [page, page_size, sort_by, sort_order, product_code_filter, requesting_dept_code_filter, plan_flag_filter, budget_year_filter, category_filter, type_filter, search_params, effective_budget_year]);
 
   useEffect(() => {
     if (!category_filter) {
@@ -255,6 +260,8 @@ function UsagePlansPageContent() {
     const next_page = Math.max(1, Number(search_params.get('page') || '1') || 1);
     const next_page_size_raw = Number(search_params.get('page_size') || '20');
     const next_page_size = [20, 50, 100].includes(next_page_size_raw) ? next_page_size_raw : 20;
+    const next_sort_by = search_params.get('order_by') || 'id';
+    const next_sort_order = (search_params.get('sort_order') === 'asc' ? 'asc' : 'desc') as 'asc' | 'desc';
     const next_product_code_filter = search_params.get('product_code') || '';
     const next_requesting_dept_code_filter = search_params.get('requesting_dept_code') || '';
     const next_plan_flag_filter = search_params.get('plan_flag') || '';
@@ -264,6 +271,8 @@ function UsagePlansPageContent() {
 
     set_page((prev) => (prev === next_page ? prev : next_page));
     set_page_size((prev) => (prev === next_page_size ? prev : next_page_size));
+    set_sort_by((prev) => (prev === next_sort_by ? prev : next_sort_by));
+    set_sort_order((prev) => (prev === next_sort_order ? prev : next_sort_order));
     set_product_code_filter((prev) => (prev === next_product_code_filter ? prev : next_product_code_filter));
     set_requesting_dept_code_filter((prev) => (prev === next_requesting_dept_code_filter ? prev : next_requesting_dept_code_filter));
     set_plan_flag_filter((prev) => (prev === next_plan_flag_filter ? prev : next_plan_flag_filter));
@@ -285,6 +294,18 @@ function UsagePlansPageContent() {
     params.set('page_size', String(page_size));
     
     // Update filter params
+    if (sort_by && sort_by !== 'id') {
+      params.set('order_by', sort_by);
+    } else {
+      params.delete('order_by');
+    }
+
+    if (sort_order !== 'desc') {
+      params.set('sort_order', sort_order);
+    } else {
+      params.delete('sort_order');
+    }
+
     if (product_code_filter) {
       params.set('product_code', product_code_filter);
     } else {
@@ -326,7 +347,7 @@ function UsagePlansPageContent() {
       last_pushed_url_ref.current = next_url;
       router.replace(next_url, { scroll: false });
     }
-  }, [pathname, router, search_params, page, page_size, product_code_filter, requesting_dept_code_filter, plan_flag_filter, budget_year_filter, category_filter, type_filter, effective_budget_year]);
+  }, [pathname, router, search_params, page, page_size, sort_by, sort_order, product_code_filter, requesting_dept_code_filter, plan_flag_filter, budget_year_filter, category_filter, type_filter, effective_budget_year]);
 
   const fetch_filter_options = async () => {
     try {
@@ -407,8 +428,8 @@ function UsagePlansPageContent() {
       const params = new URLSearchParams({
         page: String(page),
         page_size: String(page_size),
-        order_by: 'id',
-        sort_order: 'desc',
+        order_by: sort_by,
+        sort_order: sort_order,
       });
 
       if (product_code_filter.trim()) params.set('product_code', product_code_filter.trim());
@@ -433,6 +454,27 @@ function UsagePlansPageContent() {
     } finally {
       set_loading(false);
     }
+  };
+
+  const handleSort = (column: string) => {
+    if (sort_by === column) {
+      set_sort_order((prev) => (prev === 'asc' ? 'desc' : 'asc'));
+    } else {
+      set_sort_by(column);
+      set_sort_order('asc');
+    }
+    set_page(1);
+  };
+
+  const getHeaderClass = (column: string) =>
+    `px-3 py-2 text-left text-xs font-semibold uppercase text-gray-500 cursor-pointer hover:bg-gray-100 ${column === sort_by ? 'bg-gray-100' : ''}`;
+
+  const renderSortIcon = (column: string) => {
+    if (sort_by !== column) {
+      return null;
+    }
+
+    return <ArrowUpDown className="h-3 w-3 text-blue-600" aria-hidden="true" />;
   };
 
   const fetch_product_options = async (search: string, category: string) => {
@@ -989,18 +1031,18 @@ function UsagePlansPageContent() {
             <table className="w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="whitespace-nowrap px-3 py-2 text-left text-xs font-semibold uppercase text-gray-500">#</th>
-                  <th className="px-3 py-2 text-left text-xs font-semibold uppercase text-gray-500">ปีงบ</th>
-                  <th className="px-3 py-2 text-left text-xs font-semibold uppercase text-gray-500">ครั้งที่</th>
-                  <th className="whitespace-nowrap px-3 py-2 text-left text-xs font-semibold uppercase text-gray-500">รหัสสินค้า</th>
-                  <th className="w-[300px] px-3 py-2 text-left text-xs font-semibold uppercase text-gray-500">ชื่อสินค้า</th>
-                  <th className="pl-2 py-2 text-left text-xs font-semibold uppercase text-gray-500">หน่วยงาน</th>
-                  <th className="px-3 py-2 text-left text-xs font-semibold uppercase text-gray-500">แผน</th>
-                  <th className="px-3 py-2 text-left text-xs font-semibold uppercase text-gray-500">หน่วยนับ</th>
-                  <th className="px-3 py-2 text-right text-xs font-semibold uppercase text-gray-500">จำนวนขอ</th>
-                  <th className="px-3 py-2 text-right text-xs font-semibold uppercase text-gray-500">โควต้า</th>
-                  <th className="px-3 py-2 text-right text-xs font-semibold uppercase text-gray-500">ราคา/หน่วย (บาท)</th>
-                  <th className="px-3 py-2 text-right text-xs font-semibold uppercase text-gray-500">รวมมูลค่า</th>
+                  <th onClick={() => handleSort('id')} className={getHeaderClass('id')} aria-sort={sort_by === 'id' ? (sort_order === 'asc' ? 'ascending' : 'descending') : 'none'}><span className="inline-flex items-center gap-1"># {renderSortIcon('id')}</span></th>
+                  <th onClick={() => handleSort('budget_year')} className={getHeaderClass('budget_year')} aria-sort={sort_by === 'budget_year' ? (sort_order === 'asc' ? 'ascending' : 'descending') : 'none'}><span className="inline-flex items-center gap-1">ปีงบ {renderSortIcon('budget_year')}</span></th>
+                  <th onClick={() => handleSort('sequence_no')} className={getHeaderClass('sequence_no')} aria-sort={sort_by === 'sequence_no' ? (sort_order === 'asc' ? 'ascending' : 'descending') : 'none'}><span className="inline-flex items-center gap-1">ครั้งที่ {renderSortIcon('sequence_no')}</span></th>
+                  <th onClick={() => handleSort('product_code')} className={getHeaderClass('product_code')} aria-sort={sort_by === 'product_code' ? (sort_order === 'asc' ? 'ascending' : 'descending') : 'none'}><span className="inline-flex items-center gap-1">รหัสสินค้า {renderSortIcon('product_code')}</span></th>
+                  <th onClick={() => handleSort('product_name')} className={`${getHeaderClass('product_name')} w-[300px]`} aria-sort={sort_by === 'product_name' ? (sort_order === 'asc' ? 'ascending' : 'descending') : 'none'}><span className="inline-flex items-center gap-1">ชื่อสินค้า {renderSortIcon('product_name')}</span></th>
+                  <th onClick={() => handleSort('requesting_dept')} className={`${getHeaderClass('requesting_dept')} pl-2`} aria-sort={sort_by === 'requesting_dept' ? (sort_order === 'asc' ? 'ascending' : 'descending') : 'none'}><span className="inline-flex items-center gap-1">หน่วยงาน {renderSortIcon('requesting_dept')}</span></th>
+                  <th onClick={() => handleSort('plan_flag')} className={getHeaderClass('plan_flag')} aria-sort={sort_by === 'plan_flag' ? (sort_order === 'asc' ? 'ascending' : 'descending') : 'none'}><span className="inline-flex items-center gap-1">แผน {renderSortIcon('plan_flag')}</span></th>
+                  <th onClick={() => handleSort('unit')} className={getHeaderClass('unit')} aria-sort={sort_by === 'unit' ? (sort_order === 'asc' ? 'ascending' : 'descending') : 'none'}><span className="inline-flex items-center gap-1">หน่วยนับ {renderSortIcon('unit')}</span></th>
+                  <th onClick={() => handleSort('requested_amount')} className={getHeaderClass('requested_amount')} aria-sort={sort_by === 'requested_amount' ? (sort_order === 'asc' ? 'ascending' : 'descending') : 'none'}><span className="inline-flex items-center gap-1 justify-end">จำนวนขอ {renderSortIcon('requested_amount')}</span></th>
+                  <th onClick={() => handleSort('approved_quota')} className={getHeaderClass('approved_quota')} aria-sort={sort_by === 'approved_quota' ? (sort_order === 'asc' ? 'ascending' : 'descending') : 'none'}><span className="inline-flex items-center gap-1 justify-end">โควต้า {renderSortIcon('approved_quota')}</span></th>
+                  <th onClick={() => handleSort('price_per_unit')} className={getHeaderClass('price_per_unit')} aria-sort={sort_by === 'price_per_unit' ? (sort_order === 'asc' ? 'ascending' : 'descending') : 'none'}><span className="inline-flex items-center gap-1 justify-end">ราคา/หน่วย (บาท) {renderSortIcon('price_per_unit')}</span></th>
+                  <th onClick={() => handleSort('total_value')} className={getHeaderClass('total_value')} aria-sort={sort_by === 'total_value' ? (sort_order === 'asc' ? 'ascending' : 'descending') : 'none'}><span className="inline-flex items-center gap-1 justify-end">รวมมูลค่า {renderSortIcon('total_value')}</span></th>
                   <th className="px-3 py-2 text-center text-xs font-semibold uppercase text-gray-500">จัดการ</th>
                 </tr>
               </thead>
