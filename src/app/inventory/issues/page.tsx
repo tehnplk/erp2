@@ -56,6 +56,13 @@ function toggleSort(currentKey: string, currentOrder: SortOrder, nextKey: string
 }
 
 export default function InventoryIssuesPage() {
+  const getCurrentBudgetYearFallback = () => {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = now.getMonth();
+    return String(month >= 9 ? year + 544 : year + 543);
+  };
+
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState('');
   const [issues, setIssues] = useState<IssueListRow[]>([]);
@@ -91,6 +98,7 @@ export default function InventoryIssuesPage() {
   const [selectedItemSortOrder, setSelectedItemSortOrder] = useState<SortOrder>('asc');
   const [detailSortBy, setDetailSortBy] = useState<IssueDetailSortKey>('product_code');
   const [detailSortOrder, setDetailSortOrder] = useState<SortOrder>('asc');
+  const [budgetYear, setBudgetYear] = useState(() => getCurrentBudgetYearFallback());
   const searchOptionRefs = useRef<Array<HTMLButtonElement | null>>([]);
 
   const totalPages = useMemo(() => Math.max(1, Math.ceil(totalCount / pageSize)), [totalCount, pageSize]);
@@ -176,9 +184,10 @@ export default function InventoryIssuesPage() {
   useEffect(() => {
     const loadFormOptions = async () => {
       try {
-        const [departmentResponse, stockResponse] = await Promise.all([
+        const [departmentResponse, stockResponse, settingResponse] = await Promise.all([
           fetch('/api/departments?page_size=200'),
           fetch('/api/inventory/stock?page_size=1'),
+          fetch('/api/sys-setting/public', { cache: 'no-store' }),
         ]);
 
         const departmentPayload: ApiResponse<DepartmentOption[]> = await departmentResponse.json();
@@ -191,12 +200,19 @@ export default function InventoryIssuesPage() {
           throw new Error(stockPayload.error || 'โหลดหมวดสินค้าไม่สำเร็จ');
         }
 
+        const settingPayload: ApiResponse<{ by_name?: Record<string, { sys_value?: string }> }> = await settingResponse.json();
+        if (!settingResponse.ok || !settingPayload.success) {
+          throw new Error(settingPayload.error || 'โหลดปีงบประมาณไม่สำเร็จ');
+        }
+
         setDepartments(departmentPayload.data || []);
         setCategoryOptions(Array.isArray(stockPayload.data?.filters?.categories) ? stockPayload.data.filters.categories : []);
+        setBudgetYear(settingPayload.data?.by_name?.budget_year?.sys_value?.trim() || getCurrentBudgetYearFallback());
       } catch (error) {
         console.error(error);
         setDepartments([]);
         setCategoryOptions([]);
+        setBudgetYear(getCurrentBudgetYearFallback());
         setMessage(error instanceof Error ? error.message : 'เกิดข้อผิดพลาดในการโหลดหน่วยงาน');
       }
     };
@@ -441,12 +457,14 @@ export default function InventoryIssuesPage() {
       setCreateSaving(true);
       setCreateMessage('');
       const isEdit = formMode === 'edit' && formIssueId !== null;
+      const departmentIdToSave =
+        isEdit && selectedIssue ? selectedIssue.issue.requesting_department_id : Number(requestingDepartmentId);
       const response = await fetch(isEdit ? `/api/inventory/issues/${formIssueId}` : '/api/inventory/issues', {
         method: isEdit ? 'PUT' : 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           issue_date: issueDate,
-          requesting_department_id: Number(requestingDepartmentId),
+          requesting_department_id: departmentIdToSave,
           note: issueNote.trim() || undefined,
           items: selectedItems.map((item) => ({ stock_lot_id: item.stock_lot_id, issued_qty: Number(item.issued_qty) })),
         }),
@@ -822,6 +840,7 @@ export default function InventoryIssuesPage() {
                 หน่วยงานที่ขอเบิก
                 <select
                   value={requestingDepartmentId}
+                  disabled={formMode === 'edit'}
                   onChange={(event) => {
                     setRequestingDepartmentId(event.target.value);
                     setCreateMessage('');
@@ -829,7 +848,7 @@ export default function InventoryIssuesPage() {
                     setLotOptions([]);
                     setActiveOptionIndex(-1);
                   }}
-                  className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2"
+                  className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-500"
                 >
                   <option value="">-- เลือกหน่วยงาน --</option>
                   {activeDepartments.map((department) => (
@@ -838,6 +857,9 @@ export default function InventoryIssuesPage() {
                     </option>
                   ))}
                 </select>
+                {formMode === 'edit' ? (
+                  <p className="mt-1 text-xs text-gray-500">แก้ไขหน่วยงานไม่ได้ในโหมดแก้ไขใบเบิกจ่าย</p>
+                ) : null}
               </label>
 
               <label className="text-sm text-gray-700">
@@ -1023,7 +1045,7 @@ export default function InventoryIssuesPage() {
                     <th className="px-3 py-2 text-right">
                       <SortableHeader label="คงเหลือในคลัง" sortKey="qty_on_hand" activeKey={selectedItemSortBy} activeOrder={selectedItemSortOrder} onSort={(key) => handleSelectedItemSort(key as IssueFormSortKey)} align="right" />
                     </th>
-                    <th className="px-3 py-2 text-right">โควต้าปีงบปัจจุบัน</th>
+                    <th className="px-3 py-2 text-right">โควต้าปีงบ{budgetYear}</th>
                     <th className="px-3 py-2 text-right">เบิกไปแล้ว</th>
                     <th className="px-3 py-2 text-right">
                       <SortableHeader label="ขอเบิกครั้งนี้" sortKey="issued_qty" activeKey={selectedItemSortBy} activeOrder={selectedItemSortOrder} onSort={(key) => handleSelectedItemSort(key as IssueFormSortKey)} align="right" />

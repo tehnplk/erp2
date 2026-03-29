@@ -11,6 +11,135 @@ function buildIssueNo() {
   return `${ISSUE_PREFIX}-${new Date().toISOString().replace(/[-:.TZ]/g, '').slice(0, 14)}`;
 }
 
+function getCurrentBudgetYearFallback() {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = now.getMonth();
+  return month >= 9 ? year + 544 : year + 543;
+}
+
+async function getConfiguredBudgetYear(client: PoolClient) {
+  const settingResult = await client.query<{ sys_value: string | null }>(
+    `
+      SELECT NULLIF(TRIM(sys_value), '') AS sys_value
+      FROM public.sys_setting
+      WHERE sys_name = 'budget_year'
+      LIMIT 1
+    `
+  );
+  const settingValue = Number(settingResult.rows[0]?.sys_value ?? '');
+  if (Number.isFinite(settingValue) && settingValue > 0) {
+    return settingValue;
+  }
+  return getCurrentBudgetYearFallback();
+}
+
+async function validateIssueQuotaAgainstUsagePlan(
+  client: PoolClient,
+  params: {
+    requestingDepartmentId: number;
+    budgetYear: number;
+    items: Array<{ stock_lot_id: number; issued_qty: number }>;
+    excludeIssueId?: number;
+  }
+) {
+  const { requestingDepartmentId, budgetYear, items, excludeIssueId } = params;
+  if (items.length === 0) return;
+
+  const departmentResult = await client.query<{ department_code: string }>(
+    `SELECT department_code FROM public.department WHERE id = $1 LIMIT 1`,
+    [requestingDepartmentId]
+  );
+  const departmentCode = departmentResult.rows[0]?.department_code;
+  if (!departmentCode) {
+    throw new Error('ไม่พบหน่วยงานที่ระบุ');
+  }
+
+  const lotIds = [...new Set(items.map((item) => Number(item.stock_lot_id)).filter((value) => Number.isFinite(value) && value > 0))];
+  if (lotIds.length === 0) return;
+
+  const lotRowsResult = await client.query<{ stock_lot_id: number; product_code: string }>(
+    `
+      SELECT isl.id AS stock_lot_id, p.code AS product_code
+      FROM public.inventory_stock_lot isl
+      INNER JOIN public.product p ON p.id = isl.product_id
+      WHERE isl.id = ANY($1::int[])
+    `,
+    [lotIds]
+  );
+  const lotToProductCode = new Map<number, string>();
+  for (const row of lotRowsResult.rows) {
+    lotToProductCode.set(Number(row.stock_lot_id), row.product_code);
+  }
+
+  const requestedByProductCode = new Map<string, number>();
+  for (const item of items) {
+    const lotId = Number(item.stock_lot_id);
+    const productCode = lotToProductCode.get(lotId);
+    if (!productCode) {
+      throw new Error(`ไม่พบข้อมูลล็อตสินค้า ${lotId}`);
+    }
+    const qty = Number(item.issued_qty);
+    requestedByProductCode.set(productCode, (requestedByProductCode.get(productCode) ?? 0) + qty);
+  }
+
+  const productCodes = [...requestedByProductCode.keys()];
+  if (productCodes.length === 0) return;
+
+  const approvedQuotaResult = await client.query<{ product_code: string; approved_quota: string | number }>(
+    `
+      SELECT up.product_code, COALESCE(SUM(COALESCE(up.approved_quota, 0)), 0)::int AS approved_quota
+      FROM public.usage_plan up
+      WHERE up.requesting_dept_code = $1
+        AND up.budget_year = $2
+        AND up.product_code = ANY($3::text[])
+      GROUP BY up.product_code
+    `,
+    [departmentCode, budgetYear, productCodes]
+  );
+  const approvedQuotaByProductCode = new Map<string, number>();
+  for (const row of approvedQuotaResult.rows) {
+    approvedQuotaByProductCode.set(row.product_code, Number(row.approved_quota || 0));
+  }
+
+  const issuedQtyResult = await client.query<{ product_code: string; issued_qty: string | number }>(
+    `
+      SELECT p.code AS product_code, COALESCE(SUM(iit.issued_qty), 0)::int AS issued_qty
+      FROM public.inventory_issue_item iit
+      INNER JOIN public.inventory_issue ii ON ii.id = iit.issue_id
+      INNER JOIN public.inventory_stock_lot isl ON isl.id = iit.stock_lot_id
+      INNER JOIN public.product p ON p.id = isl.product_id
+      WHERE ii.requesting_department_id = $1
+        AND p.code = ANY($2::text[])
+        AND (
+          CASE
+            WHEN EXTRACT(MONTH FROM ii.issue_date) >= 10
+              THEN EXTRACT(YEAR FROM ii.issue_date)::int + 544
+            ELSE EXTRACT(YEAR FROM ii.issue_date)::int + 543
+          END
+        ) = $3
+        AND ($4::int IS NULL OR ii.id <> $4)
+      GROUP BY p.code
+    `,
+    [requestingDepartmentId, productCodes, budgetYear, excludeIssueId ?? null]
+  );
+  const issuedQtyByProductCode = new Map<string, number>();
+  for (const row of issuedQtyResult.rows) {
+    issuedQtyByProductCode.set(row.product_code, Number(row.issued_qty || 0));
+  }
+
+  for (const [productCode, requestedQty] of requestedByProductCode.entries()) {
+    const approvedQuota = approvedQuotaByProductCode.get(productCode) ?? 0;
+    const issuedQty = issuedQtyByProductCode.get(productCode) ?? 0;
+    const remainingQuota = approvedQuota - issuedQty;
+    if (requestedQty > remainingQuota) {
+      throw new Error(
+        `สินค้า ${productCode} เบิกเกินโควต้าปีงบ ${budgetYear} (โควต้า ${approvedQuota}, เบิกแล้ว ${issuedQty}, ขอเบิก ${requestedQty})`
+      );
+    }
+  }
+}
+
 async function reduceStockLot(client: PoolClient, stockLotId: number, qty: number) {
   const lotResult = await client.query<{
     id: number;
@@ -190,6 +319,12 @@ export async function POST(request: NextRequest) {
     const { issue_date, requesting_department_id, note, items } = validation.data;
 
     await client.query('BEGIN');
+    const budgetYear = await getConfiguredBudgetYear(client);
+    await validateIssueQuotaAgainstUsagePlan(client, {
+      requestingDepartmentId: Number(requesting_department_id),
+      budgetYear,
+      items: items.map((item) => ({ stock_lot_id: Number(item.stock_lot_id), issued_qty: Number(item.issued_qty) })),
+    });
 
     const issueInsert = await client.query<{ id: number; issue_no: string }>(
       `

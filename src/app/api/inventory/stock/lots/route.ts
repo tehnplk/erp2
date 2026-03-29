@@ -33,11 +33,27 @@ type InventoryStockLotRow = {
   issued_qty_current_budget_year: string | number;
 };
 
-function getCurrentBudgetYear() {
+function getCurrentBudgetYearFallback() {
   const now = new Date();
   const year = now.getFullYear();
   const month = now.getMonth();
   return month >= 9 ? year + 544 : year + 543;
+}
+
+async function getConfiguredBudgetYear() {
+  const settingResult = await pgQuery<{ sys_value: string | null }>(
+    `
+      SELECT NULLIF(TRIM(sys_value), '') AS sys_value
+      FROM public.sys_setting
+      WHERE sys_name = 'budget_year'
+      LIMIT 1
+    `
+  );
+  const settingValue = Number(settingResult.rows[0]?.sys_value ?? '');
+  if (Number.isFinite(settingValue) && settingValue > 0) {
+    return settingValue;
+  }
+  return getCurrentBudgetYearFallback();
 }
 
 export async function GET(request: NextRequest) {
@@ -65,7 +81,7 @@ export async function GET(request: NextRequest) {
       return apiError('กรุณาเลือกหน่วยงานก่อนค้นหาเฉพาะรายการตามแผนการใช้', 400);
     }
 
-    const currentBudgetYear = getCurrentBudgetYear();
+    const currentBudgetYear = await getConfiguredBudgetYear();
     const whereClauses: string[] = [];
     const params: Array<string | number | null> = [];
 
@@ -106,6 +122,8 @@ export async function GET(request: NextRequest) {
     if (usage_plan_only === 'true' && requesting_department_id) {
       params.push(requesting_department_id);
       const departmentParam = `$${params.length}`;
+      params.push(currentBudgetYear);
+      const budgetYearParam = `$${params.length}`;
       whereClauses.push(`EXISTS (
         SELECT 1
         FROM public.department d
@@ -113,6 +131,7 @@ export async function GET(request: NextRequest) {
           ON up.requesting_dept_code = d.department_code
         WHERE d.id = ${departmentParam}
           AND up.product_code = v.product_code
+          AND up.budget_year = ${budgetYearParam}
       )`);
     }
 
