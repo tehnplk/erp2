@@ -3,6 +3,7 @@ import { pgPool, pgQuery } from '@/lib/pg';
 import { cacheDelByPattern } from '@/lib/redis';
 import { validateRequest } from '@/lib/validation/validate';
 import { idParamSchema, update_usage_plan_schema } from '@/lib/validation/schemas';
+import type { PoolClient } from 'pg';
 
 const buildUsagePlanConstraintError = () =>
   NextResponse.json(
@@ -25,7 +26,7 @@ type UsagePlanRecord = {
 };
 
 async function syncLinkedPurchasePlanArtifacts(
-  client: Awaited<ReturnType<typeof pgPool.connect>>,
+  client: PoolClient,
   purchasePlanId: number
 ) {
   const summaryResult = await client.query<{
