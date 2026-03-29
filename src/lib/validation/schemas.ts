@@ -321,14 +321,15 @@ export const categoryQuerySchema = z.object({
 export const createSysSettingSchema = z.object({
   sys_name: nonEmptyString,
   sys_value: nonEmptyString,
-  sys_value_detail: nonEmptyString
+  sys_value_detail: nonEmptyString,
+  note: z.string().optional()
 });
 
 export const updateSysSettingSchema = createSysSettingSchema;
 
 export const sysSettingQuerySchema = z.object({
   search: z.string().optional(),
-  order_by: z.enum(['id', 'sys_name', 'sys_value', 'sys_value_detail']).optional(),
+  order_by: z.enum(['id', 'sys_name', 'sys_value', 'sys_value_detail', 'note']).optional(),
   sort_order: z.enum(['asc', 'desc']).optional(),
   ...paginationFields
 });

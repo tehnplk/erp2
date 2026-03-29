@@ -7,19 +7,21 @@ import { SortableHeader } from '../inventory/_components/sortable-header';
 import { clearSysSettingCache } from '@/lib/sys-setting';
 
 type SortOrder = 'asc' | 'desc';
-type SettingSortKey = 'id' | 'sys_name' | 'sys_value' | 'sys_value_detail';
+type SettingSortKey = 'id' | 'sys_name' | 'sys_value' | 'sys_value_detail' | 'note';
 
 type SysSetting = {
   id: number;
   sys_name: string;
   sys_value: string;
   sys_value_detail: string;
+  note: string | null;
 };
 
 type SettingFormData = {
   sys_name: string;
   sys_value: string;
   sys_value_detail: string;
+  note: string;
 };
 
 const PAGE_SIZE_OPTIONS = [10, 20, 50];
@@ -28,6 +30,7 @@ const emptyFormData: SettingFormData = {
   sys_name: '',
   sys_value: '',
   sys_value_detail: '',
+  note: '',
 };
 
 function formatErrorMessage(error: unknown) {
@@ -110,6 +113,7 @@ export default function SettingPage() {
       sys_name: setting.sys_name ?? '',
       sys_value: setting.sys_value ?? '',
       sys_value_detail: setting.sys_value_detail ?? '',
+      note: setting.note ?? '',
     });
     setModalOpen(true);
   }
@@ -146,6 +150,7 @@ export default function SettingPage() {
     const sysName = formData.sys_name.trim();
     const sysValue = formData.sys_value.trim();
     const sysValueDetail = formData.sys_value_detail.trim();
+    const note = formData.note.trim();
 
     if (!sysName || !sysValue || !sysValueDetail) {
       setFeedback({ type: 'error', message: 'กรุณากรอกข้อมูลให้ครบทุกช่อง' });
@@ -163,6 +168,7 @@ export default function SettingPage() {
             sys_name: sysName,
             sys_value: sysValue,
             sys_value_detail: sysValueDetail,
+            note: note || undefined,
           }),
         }
       );
@@ -359,19 +365,28 @@ export default function SettingPage() {
                       onSort={handleSort}
                     />
                   </th>
+                  <th className="px-4 py-3 text-left font-semibold">
+                    <SortableHeader
+                      label="note"
+                      sortKey="note"
+                      activeKey={sortBy}
+                      activeOrder={sortOrder}
+                      onSort={handleSort}
+                    />
+                  </th>
                   <th className="px-4 py-3 text-center font-semibold">จัดการ</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 bg-white">
                 {loading ? (
                   <tr>
-                    <td colSpan={5} className="px-4 py-10 text-center text-slate-500">
+                    <td colSpan={6} className="px-4 py-10 text-center text-slate-500">
                       กำลังโหลดข้อมูล...
                     </td>
                   </tr>
                 ) : settings.length === 0 ? (
                   <tr>
-                    <td colSpan={5} className="px-4 py-10 text-center text-slate-500">
+                    <td colSpan={6} className="px-4 py-10 text-center text-slate-500">
                       ไม่พบข้อมูล
                     </td>
                   </tr>
@@ -382,6 +397,7 @@ export default function SettingPage() {
                       <td className="px-4 py-3 font-mono text-slate-900">{setting.sys_name}</td>
                       <td className="px-4 py-3 text-slate-700">{setting.sys_value}</td>
                       <td className="px-4 py-3 text-slate-700">{setting.sys_value_detail}</td>
+                      <td className="px-4 py-3 text-slate-700">{setting.note || '-'}</td>
                       <td className="px-4 py-3">
                         <div className="flex justify-center gap-2">
                           <button
@@ -475,6 +491,17 @@ export default function SettingPage() {
                   onChange={(event) => setFormData((current) => ({ ...current, sys_value_detail: event.target.value }))}
                   placeholder="เช่น 1ตค2568-30กย2569"
                   rows={4}
+                  className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                />
+              </div>
+
+              <div>
+                <label className="mb-1 block text-sm font-medium text-slate-700">note</label>
+                <textarea
+                  value={formData.note}
+                  onChange={(event) => setFormData((current) => ({ ...current, note: event.target.value }))}
+                  placeholder="ตั้งค่าปีงบประมาณ"
+                  rows={3}
                   className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
                 />
               </div>

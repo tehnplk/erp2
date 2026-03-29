@@ -6,7 +6,7 @@ import { createSysSettingSchema, sysSettingQuerySchema } from '@/lib/validation/
 import { isUniqueViolation } from '@/lib/db-errors';
 
 const sysSettingSelect = `
-  SELECT id, sys_name, sys_value, sys_value_detail
+  SELECT id, sys_name, sys_value, sys_value_detail, note
   FROM public.sys_setting
 `;
 
@@ -37,6 +37,7 @@ export async function GET(request: NextRequest) {
         OR sys_name ILIKE $${paramIndex}
         OR sys_value ILIKE $${paramIndex}
         OR sys_value_detail ILIKE $${paramIndex}
+        OR COALESCE(note, '') ILIKE $${paramIndex}
       )`);
     }
 
@@ -45,6 +46,7 @@ export async function GET(request: NextRequest) {
       sys_name: 'sys_name',
       sys_value: 'sys_value',
       sys_value_detail: 'sys_value_detail',
+      note: 'note',
     };
     const safeOrderField = allowedOrderFields[orderBy] || 'id';
     const safeSortOrder = sortOrder === 'desc' ? 'DESC' : 'ASC';
@@ -83,6 +85,7 @@ export async function POST(request: NextRequest) {
     const sysName = validation.data.sys_name.trim();
     const sysValue = validation.data.sys_value.trim();
     const sysValueDetail = validation.data.sys_value_detail.trim();
+    const note = validation.data.note?.trim() || null;
 
     const existing = await pgQuery('SELECT id FROM public.sys_setting WHERE sys_name = $1 LIMIT 1', [sysName]);
     if (existing.rows.length > 0) {
@@ -94,10 +97,10 @@ export async function POST(request: NextRequest) {
 
     try {
       const result = await pgQuery(
-        `INSERT INTO public.sys_setting (id, sys_name, sys_value, sys_value_detail)
-         VALUES ($1, $2, $3, $4)
-         RETURNING id, sys_name, sys_value, sys_value_detail`,
-        [nextId, sysName, sysValue, sysValueDetail]
+        `INSERT INTO public.sys_setting (id, sys_name, sys_value, sys_value_detail, note)
+         VALUES ($1, $2, $3, $4, $5)
+         RETURNING id, sys_name, sys_value, sys_value_detail, note`,
+        [nextId, sysName, sysValue, sysValueDetail, note]
       );
 
       return apiSuccess(result.rows[0], 'System setting created successfully', undefined, 201);

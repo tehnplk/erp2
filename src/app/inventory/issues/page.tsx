@@ -603,13 +603,13 @@ export default function InventoryIssuesPage() {
 
   return (
     <div className="min-h-screen bg-gray-50 p-6">
-      <div className="mx-auto flex w-full max-w-none flex-col gap-6">
+      <div className="mx-auto w-full max-w-none space-y-6">
         <InventoryBreadcrumbs />
 
-        <section className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
-          <div className="flex flex-wrap items-start justify-between gap-4">
+        <section className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+          <div className="mb-4 flex flex-wrap items-start justify-between gap-4">
             <div>
-              <h1 className="text-xl font-bold text-gray-900">เบิกจ่าย</h1>
+              <h1 className="mt-1 text-xl font-bold text-gray-900">เบิกจ่าย</h1>
             </div>
             <button
               type="button"
@@ -621,15 +621,9 @@ export default function InventoryIssuesPage() {
             </button>
           </div>
 
-          {message ? (
-            <div className="mt-4 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-sm text-blue-800">
-              {message}
-            </div>
-          ) : null}
-
-          <div className="mt-4 flex flex-wrap gap-3">
+          <div className="mb-4 flex flex-wrap gap-3">
             <label className="flex-1 min-w-[220px] max-w-xl text-sm text-gray-700">
-              ค้นหา
+              <span className="sr-only">ค้นหา</span>
               <div className="relative mt-1">
                 <input
                   type="text"
@@ -659,13 +653,14 @@ export default function InventoryIssuesPage() {
             </label>
 
             <label className="min-w-[220px] flex-1 text-sm text-gray-700">
-              หน่วยงาน
+              <span className="sr-only">หน่วยงาน</span>
               <select
                 value={requestingDepartmentFilterId}
                 onChange={(event) => {
                   setRequestingDepartmentFilterId(event.target.value);
                   setPage(1);
                 }}
+                aria-label="หน่วยงาน"
                 className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
               >
                 <option value="">ทุกหน่วยงาน</option>
@@ -678,7 +673,7 @@ export default function InventoryIssuesPage() {
             </label>
           </div>
 
-          <div className="mt-4 flex flex-col gap-2 rounded-lg border border-gray-100 bg-gray-50 px-3 py-2 text-sm text-gray-600 md:flex-row md:items-center md:justify-between">
+          <div className="mb-3 flex flex-col gap-2 rounded-lg border border-gray-100 bg-gray-50 px-3 py-2 text-sm text-gray-600 md:flex-row md:items-center md:justify-between">
             <div className="font-medium text-gray-700">
               หน้า {page} / {totalPages}
             </div>
@@ -723,29 +718,35 @@ export default function InventoryIssuesPage() {
             </div>
           </div>
 
-          <div className="mt-4 overflow-x-auto rounded-xl border border-gray-200">
+          {message ? (
+            <div className="mb-4 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-sm text-blue-800">
+              {message}
+            </div>
+          ) : null}
+
+          <div className="overflow-x-auto rounded-xl border border-gray-200">
             <table className="min-w-full text-xs">
               <thead className="bg-gray-50 text-left text-gray-500">
                 <tr>
-                  <th className="px-3 py-2">
+                  <th className="whitespace-nowrap px-3 py-2 text-left text-xs font-semibold uppercase text-gray-500">
                     <SortableHeader label="เลขที่ใบเบิกจ่าย" sortKey="issue_no" activeKey={issueSortBy} activeOrder={issueSortOrder} onSort={(key) => handleIssueSort(key as IssueListSortKey)} />
                   </th>
-                  <th className="px-3 py-2">
+                  <th className="whitespace-nowrap px-3 py-2 text-left text-xs font-semibold uppercase text-gray-500">
                     <SortableHeader label="วันที่เบิก" sortKey="issue_date" activeKey={issueSortBy} activeOrder={issueSortOrder} onSort={(key) => handleIssueSort(key as IssueListSortKey)} />
                   </th>
-                  <th className="px-3 py-2">
+                  <th className="whitespace-nowrap px-3 py-2 text-left text-xs font-semibold uppercase text-gray-500">
                     <SortableHeader label="หน่วยงาน" sortKey="requesting_department" activeKey={issueSortBy} activeOrder={issueSortOrder} onSort={(key) => handleIssueSort(key as IssueListSortKey)} />
                   </th>
-                  <th className="px-3 py-2 text-right">
+                  <th className="whitespace-nowrap px-3 py-2 text-right text-xs font-semibold uppercase text-gray-500">
                     <SortableHeader label="จำนวนรายการ" sortKey="total_items" activeKey={issueSortBy} activeOrder={issueSortOrder} onSort={(key) => handleIssueSort(key as IssueListSortKey)} align="right" />
                   </th>
-                  <th className="px-3 py-2 text-right">
+                  <th className="whitespace-nowrap px-3 py-2 text-right text-xs font-semibold uppercase text-gray-500">
                     <SortableHeader label="มูลค่ารวม (บาท)" sortKey="total_value" activeKey={issueSortBy} activeOrder={issueSortOrder} onSort={(key) => handleIssueSort(key as IssueListSortKey)} align="right" />
                   </th>
-                  <th className="px-3 py-2">
+                  <th className="whitespace-nowrap px-3 py-2 text-left text-xs font-semibold uppercase text-gray-500">
                     <SortableHeader label="หมายเหตุ" sortKey="note" activeKey={issueSortBy} activeOrder={issueSortOrder} onSort={(key) => handleIssueSort(key as IssueListSortKey)} />
                   </th>
-                  <th className="px-3 py-2 text-right">จัดการ</th>
+                  <th className="whitespace-nowrap px-3 py-2 text-right text-xs font-semibold uppercase text-gray-500">จัดการ</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100 bg-white">

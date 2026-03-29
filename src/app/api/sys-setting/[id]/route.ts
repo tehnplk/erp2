@@ -22,7 +22,7 @@ export async function GET(
     }
 
     const result = await pgQuery(
-      'SELECT id, sys_name, sys_value, sys_value_detail FROM public.sys_setting WHERE id = $1 LIMIT 1',
+      'SELECT id, sys_name, sys_value, sys_value_detail, note FROM public.sys_setting WHERE id = $1 LIMIT 1',
       [numericId]
     );
     const setting = result.rows[0];
@@ -57,6 +57,7 @@ export async function PUT(
     const sysName = validation.data.sys_name.trim();
     const sysValue = validation.data.sys_value.trim();
     const sysValueDetail = validation.data.sys_value_detail.trim();
+    const note = validation.data.note?.trim() || null;
 
     const existing = await pgQuery('SELECT id FROM public.sys_setting WHERE id = $1 LIMIT 1', [numericId]);
     if (existing.rows.length === 0) {
@@ -76,10 +77,11 @@ export async function PUT(
         `UPDATE public.sys_setting
          SET sys_name = $1,
              sys_value = $2,
-             sys_value_detail = $3
-         WHERE id = $4
-         RETURNING id, sys_name, sys_value, sys_value_detail`,
-        [sysName, sysValue, sysValueDetail, numericId]
+             sys_value_detail = $3,
+             note = $4
+         WHERE id = $5
+         RETURNING id, sys_name, sys_value, sys_value_detail, note`,
+        [sysName, sysValue, sysValueDetail, note, numericId]
       );
 
       return apiSuccess(result.rows[0], 'System setting updated successfully');

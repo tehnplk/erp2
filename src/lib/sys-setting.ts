@@ -3,11 +3,12 @@ export type SysSettingItem = {
   sys_name: string;
   sys_value: string;
   sys_value_detail: string;
+  note: string | null;
 };
 
 export type SysSettingPublicData = {
   items: SysSettingItem[];
-  by_name: Record<string, Pick<SysSettingItem, 'sys_value' | 'sys_value_detail'>>;
+  by_name: Record<string, Pick<SysSettingItem, 'sys_value' | 'sys_value_detail' | 'note'>>;
 };
 
 let cachedSysSettings: SysSettingPublicData | null = null;

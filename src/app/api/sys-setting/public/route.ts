@@ -6,12 +6,13 @@ type SysSettingRow = {
   sys_name: string;
   sys_value: string;
   sys_value_detail: string;
+  note: string | null;
 };
 
 export async function GET() {
   try {
     const result = await pgQuery<SysSettingRow>(
-      `SELECT id, sys_name, sys_value, sys_value_detail
+      `SELECT id, sys_name, sys_value, sys_value_detail, note
        FROM public.sys_setting
        ORDER BY id ASC`
     );
@@ -21,6 +22,7 @@ export async function GET() {
       sys_name: row.sys_name,
       sys_value: row.sys_value,
       sys_value_detail: row.sys_value_detail,
+      note: row.note,
     }));
 
     const byName = Object.fromEntries(
@@ -29,6 +31,7 @@ export async function GET() {
         {
           sys_value: item.sys_value,
           sys_value_detail: item.sys_value_detail,
+          note: item.note,
         },
       ])
     );
