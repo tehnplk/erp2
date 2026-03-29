@@ -51,6 +51,12 @@ docs/supabase.md
 .playwright-mcp/
 .playwright-cli/
 
+# generated artifacts and local dev logs
+/artifacts/
+/receipts_page.png
+.tmp-dev-*.log
+*.log
+
 # backup and sql files
 *.bak
 *.back
