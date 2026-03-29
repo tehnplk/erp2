@@ -108,11 +108,13 @@ export const inventoryStockQuerySchema = z.object({
 
 export const inventoryStockLotQuerySchema = z.object({
   product_id: z.coerce.number().int().positive().optional(),
+  requesting_department_id: z.coerce.number().int().positive().optional(),
   search: z.string().optional(),
   category: z.string().optional(),
   product_type: z.string().optional(),
   lot_no: z.string().optional(),
   available_only: z.enum(['true', 'false']).optional(),
+  usage_plan_only: z.enum(['true', 'false']).optional(),
   order_by: z.enum(['lot_no', 'last_received_at', 'last_delivery_note_no', 'total_received_qty', 'total_received_value', 'qty_on_hand']).optional(),
   sort_order: z.enum(['asc', 'desc']).optional(),
   ...paginationFields,

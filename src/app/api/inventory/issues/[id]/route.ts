@@ -4,6 +4,13 @@ import { apiError, apiSuccess } from '@/lib/api-response';
 import { pgPool, pgQuery } from '@/lib/pg';
 import { createInventoryIssueSchema, idParamSchema } from '@/lib/validation/schemas';
 
+function getCurrentBudgetYear() {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = now.getMonth();
+  return month >= 9 ? year + 544 : year + 543;
+}
+
 async function restoreStockLot(client: PoolClient, stockLotId: number, qty: number, totalValue: number) {
   const lotResult = await client.query<{
     id: number;
@@ -102,6 +109,8 @@ export async function GET(_request: NextRequest, context: { params: Promise<{ id
 
     const { id } = idValidation.data;
 
+    const currentBudgetYear = getCurrentBudgetYear();
+
     const issueResult = await pgQuery<{
       id: number;
       issue_no: string;
@@ -155,6 +164,8 @@ export async function GET(_request: NextRequest, context: { params: Promise<{ id
       lot_no: string;
       qty_on_hand: string | number;
       last_received_at: string | null;
+      current_budget_quota: string | number;
+      issued_qty_current_budget_year: string | number;
     }>(
       `
         SELECT
@@ -172,6 +183,28 @@ export async function GET(_request: NextRequest, context: { params: Promise<{ id
           p.unit,
           isl.lot_no,
           isl.qty_on_hand::float8 AS qty_on_hand,
+          COALESCE((
+            SELECT SUM(COALESCE(up.approved_quota, 0))::int
+            FROM public.usage_plan up
+            WHERE up.requesting_dept_code = $2
+              AND up.product_code = p.code
+              AND up.budget_year = $3
+          ), 0)::int AS current_budget_quota,
+          COALESCE((
+            SELECT SUM(iit2.issued_qty)::int
+            FROM public.inventory_issue_item iit2
+            INNER JOIN public.inventory_issue ii2 ON ii2.id = iit2.issue_id
+            INNER JOIN public.inventory_stock_lot isl2 ON isl2.id = iit2.stock_lot_id
+            WHERE ii2.requesting_department_id = $4
+              AND isl2.product_id = p.id
+              AND (
+                CASE
+                  WHEN EXTRACT(MONTH FROM ii2.issue_date) >= 10
+                    THEN EXTRACT(YEAR FROM ii2.issue_date)::int + 544
+                  ELSE EXTRACT(YEAR FROM ii2.issue_date)::int + 543
+                END
+              ) = $3
+          ), 0)::int AS issued_qty_current_budget_year,
           (
             SELECT MAX(r.receipt_date)
             FROM public.inventory_receipt_item ri
@@ -185,7 +218,7 @@ export async function GET(_request: NextRequest, context: { params: Promise<{ id
         WHERE iit.issue_id = $1
         ORDER BY iit.id ASC
       `,
-      [id]
+      [id, issue.department_code, currentBudgetYear, issue.requesting_department_id]
     );
 
     return apiSuccess({

@@ -1,16 +1,16 @@
 ﻿'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Eye, Plus, Trash2, X } from 'lucide-react';
+import { Eye, Plus, Trash2, X, XCircle } from 'lucide-react';
 import { InventoryBreadcrumbs } from '../_components/inventory-breadcrumbs';
 import { SortableHeader } from '../_components/sortable-header';
 import { formatBaht } from '@/lib/format-baht';
 
 type DepartmentOption = { id: number; name: string; department_code: string; is_active: boolean };
 type IssueListRow = { id: number; issue_no: string; issue_date: string; requesting_department_id: number; department_name: string; department_code: string; note: string | null; total_items: number; total_qty: number; total_value: number; created_at: string };
-type IssueDetailItem = { id: number; stock_lot_id: number; issued_qty: number; unit_price: number; total_value: number; product_id: number; product_code: string; product_name: string; category: string | null; product_type: string | null; product_subtype: string | null; unit: string | null; lot_no: string; qty_on_hand: number; last_received_at: string | null };
+type IssueDetailItem = { id: number; stock_lot_id: number; issued_qty: number; unit_price: number; total_value: number; product_id: number; product_code: string; product_name: string; category: string | null; product_type: string | null; product_subtype: string | null; unit: string | null; lot_no: string; qty_on_hand: number; last_received_at: string | null; current_budget_quota: number; issued_qty_current_budget_year: number };
 type IssueDetailResponse = { issue: IssueListRow; items: IssueDetailItem[] };
-type LotOption = { stock_lot_id: number; product_id: number; product_code: string; product_name: string; category: string | null; product_type: string | null; product_subtype: string | null; unit: string | null; lot_no: string; qty_on_hand: number; total_value: number; avg_unit_price: number; last_received_at: string | null };
+type LotOption = { stock_lot_id: number; product_id: number; product_code: string; product_name: string; category: string | null; product_type: string | null; product_subtype: string | null; unit: string | null; lot_no: string; qty_on_hand: number; total_value: number; avg_unit_price: number; last_received_at: string | null; current_budget_quota: number; issued_qty_current_budget_year: number };
 type IssueFormItem = LotOption & { issued_qty: string; original_issued_qty: number };
 type ApiResponse<T> = { success: boolean; data: T; totalCount?: number; error?: string; message?: string };
 type SortOrder = 'asc' | 'desc';
@@ -29,6 +29,15 @@ function formatNumber(value: number | string | null | undefined, fractionDigits 
   const parsed = Number(value ?? 0);
   const safeValue = Number.isFinite(parsed) ? parsed : 0;
   return safeValue.toLocaleString('th-TH', { minimumFractionDigits: fractionDigits, maximumFractionDigits: fractionDigits });
+}
+
+function escapeHtml(value: string) {
+  return value
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#39;');
 }
 
 function compareMixedValues(left: string | number | null | undefined, right: string | number | null | undefined) {
@@ -51,6 +60,7 @@ export default function InventoryIssuesPage() {
   const [message, setMessage] = useState('');
   const [issues, setIssues] = useState<IssueListRow[]>([]);
   const [departments, setDepartments] = useState<DepartmentOption[]>([]);
+  const [categoryOptions, setCategoryOptions] = useState<string[]>([]);
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
@@ -62,9 +72,10 @@ export default function InventoryIssuesPage() {
   const [formIssueId, setFormIssueId] = useState<number | null>(null);
   const [issueDate, setIssueDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [requestingDepartmentId, setRequestingDepartmentId] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState('');
   const [issueNote, setIssueNote] = useState('');
   const [searchText, setSearchText] = useState('');
-  const [showOutOfStock, setShowOutOfStock] = useState(false);
+  const [usagePlanOnly, setUsagePlanOnly] = useState(false);
   const [lotOptions, setLotOptions] = useState<LotOption[]>([]);
   const [searchingLots, setSearchingLots] = useState(false);
   const [activeOptionIndex, setActiveOptionIndex] = useState(-1);
@@ -85,6 +96,10 @@ export default function InventoryIssuesPage() {
   const selectedIssueTotalQty = useMemo(() => selectedItems.reduce((sum, item) => sum + Number(item.issued_qty || 0), 0), [selectedItems]);
   const selectedIssueTotalValue = useMemo(() => selectedItems.reduce((sum, item) => sum + Number(item.issued_qty || 0) * Number(item.avg_unit_price || 0), 0), [selectedItems]);
   const activeDepartments = useMemo(() => departments.filter((department) => department.is_active).slice().sort((a, b) => `${a.department_code} ${a.name}`.localeCompare(`${b.department_code} ${b.name}`)), [departments]);
+  const selectedDepartment = useMemo(
+    () => activeDepartments.find((department) => String(department.id) === requestingDepartmentId) ?? null,
+    [activeDepartments, requestingDepartmentId]
+  );
   const sortedSelectedItems = useMemo(() => {
     const items = [...selectedItems];
     items.sort((left, right) => {
@@ -157,19 +172,33 @@ export default function InventoryIssuesPage() {
   };
 
   useEffect(() => {
-    const loadDepartments = async () => {
+    const loadFormOptions = async () => {
       try {
-        const response = await fetch('/api/departments?page_size=200');
-        const payload: ApiResponse<DepartmentOption[]> = await response.json();
-        if (!response.ok || !payload.success) throw new Error(payload.error || 'โหลดหน่วยงานไม่สำเร็จ');
-        setDepartments(payload.data || []);
+        const [departmentResponse, stockResponse] = await Promise.all([
+          fetch('/api/departments?page_size=200'),
+          fetch('/api/inventory/stock?page_size=1'),
+        ]);
+
+        const departmentPayload: ApiResponse<DepartmentOption[]> = await departmentResponse.json();
+        if (!departmentResponse.ok || !departmentPayload.success) {
+          throw new Error(departmentPayload.error || 'โหลดหน่วยงานไม่สำเร็จ');
+        }
+
+        const stockPayload: ApiResponse<{ filters?: { categories?: string[] } }> = await stockResponse.json();
+        if (!stockResponse.ok || !stockPayload.success) {
+          throw new Error(stockPayload.error || 'โหลดหมวดสินค้าไม่สำเร็จ');
+        }
+
+        setDepartments(departmentPayload.data || []);
+        setCategoryOptions(Array.isArray(stockPayload.data?.filters?.categories) ? stockPayload.data.filters.categories : []);
       } catch (error) {
         console.error(error);
         setDepartments([]);
+        setCategoryOptions([]);
         setMessage(error instanceof Error ? error.message : 'เกิดข้อผิดพลาดในการโหลดหน่วยงาน');
       }
     };
-    loadDepartments();
+    loadFormOptions();
   }, []);
 
   useEffect(() => {
@@ -220,10 +249,24 @@ export default function InventoryIssuesPage() {
       setActiveOptionIndex(-1);
       return;
     }
+    if (usagePlanOnly && !selectedDepartment) {
+      setLotOptions([]);
+      setActiveOptionIndex(-1);
+      return;
+    }
     const timeout = window.setTimeout(async () => {
       try {
         setSearchingLots(true);
-        const params = new URLSearchParams({ search: q, page_size: '20', sort_order: 'asc', available_only: showOutOfStock ? 'false' : 'true' });
+        const params = new URLSearchParams({ search: q, page_size: '20', sort_order: 'asc' });
+        if (selectedDepartment) {
+          params.set('requesting_department_id', String(selectedDepartment.id));
+        }
+        if (categoryFilter.trim()) {
+          params.set('category', categoryFilter.trim());
+        }
+        if (usagePlanOnly && selectedDepartment) {
+          params.set('usage_plan_only', 'true');
+        }
         const response = await fetch(`/api/inventory/stock/lots?${params.toString()}`);
         const payload: ApiResponse<LotOption[]> = await response.json();
         if (!response.ok || !payload.success) throw new Error(payload.error || 'ค้นหาสินค้าในคลังไม่สำเร็จ');
@@ -236,7 +279,7 @@ export default function InventoryIssuesPage() {
       }
     }, 250);
     return () => window.clearTimeout(timeout);
-  }, [searchText, showOutOfStock]);
+  }, [categoryFilter, searchText, selectedDepartment, usagePlanOnly]);
 
   useEffect(() => {
     if (lotOptions.length === 0) {
@@ -258,9 +301,10 @@ export default function InventoryIssuesPage() {
     setCreateMessage('');
     setIssueDate(new Date().toISOString().slice(0, 10));
     setRequestingDepartmentId('');
+    setCategoryFilter('');
     setIssueNote('');
     setSearchText('');
-    setShowOutOfStock(false);
+    setUsagePlanOnly(false);
     setLotOptions([]);
     setActiveOptionIndex(-1);
     setSelectedItems([]);
@@ -274,9 +318,10 @@ export default function InventoryIssuesPage() {
     setFormIssueId(null);
     setIssueDate(new Date().toISOString().slice(0, 10));
     setRequestingDepartmentId('');
+    setCategoryFilter('');
     setIssueNote('');
     setSearchText('');
-    setShowOutOfStock(false);
+    setUsagePlanOnly(false);
     setLotOptions([]);
     setActiveOptionIndex(-1);
     setSelectedItems([]);
@@ -312,15 +357,22 @@ export default function InventoryIssuesPage() {
 
   const effectiveAvailableQty = (item: IssueFormItem) => Number(item.qty_on_hand) + Number(item.original_issued_qty || 0);
 
+  const clearLotSearch = () => {
+    setSearchText('');
+    setLotOptions([]);
+    setActiveOptionIndex(-1);
+  };
+
   const openEditModal = (issue: IssueDetailResponse) => {
     setFormMode('edit');
     setFormIssueId(issue.issue.id);
     setCreateMessage('');
     setIssueDate(issue.issue.issue_date.slice(0, 10));
     setRequestingDepartmentId(String(issue.issue.requesting_department_id));
+    setCategoryFilter('');
     setIssueNote(issue.issue.note || '');
     setSearchText('');
-    setShowOutOfStock(false);
+    setUsagePlanOnly(false);
     setLotOptions([]);
     setActiveOptionIndex(-1);
     setSelectedItemSortBy('product_code');
@@ -342,6 +394,8 @@ export default function InventoryIssuesPage() {
         last_received_at: item.last_received_at,
         issued_qty: String(item.issued_qty),
         original_issued_qty: Number(item.issued_qty),
+        current_budget_quota: Number(item.current_budget_quota || 0),
+        issued_qty_current_budget_year: Number(item.issued_qty_current_budget_year || 0),
       }))
     );
     setCreateOpen(true);
@@ -426,6 +480,120 @@ export default function InventoryIssuesPage() {
     const issue = selectedIssue;
     closeDetail();
     openEditModal(issue);
+  };
+
+  const previewIssueDocument = () => {
+    if (!selectedIssue) return;
+
+    const totalQty = selectedIssue.items.reduce((sum, item) => sum + Number(item.issued_qty || 0), 0);
+    const totalValue = selectedIssue.items.reduce((sum, item) => sum + Number(item.total_value || 0), 0);
+    const rowsHtml = sortedDetailItems
+      .map((item, index) => {
+        const lineTotal = Number(item.total_value || 0);
+        return `
+          <tr>
+            <td class="cell cell-center">${index + 1}</td>
+            <td class="cell">${escapeHtml(item.product_code)}</td>
+            <td class="cell">${escapeHtml(item.product_name)}</td>
+            <td class="cell">${escapeHtml(item.lot_no)}</td>
+            <td class="cell cell-right">${formatNumber(item.issued_qty, 0)}</td>
+            <td class="cell cell-right">${formatNumber(lineTotal, 2)}</td>
+          </tr>
+        `;
+      })
+      .join('');
+
+    const issueNo = escapeHtml(selectedIssue.issue.issue_no || '-');
+    const issueDate = escapeHtml(formatDate(selectedIssue.issue.issue_date));
+    const department = escapeHtml(`${selectedIssue.issue.department_name} (${selectedIssue.issue.department_code})`);
+    const note = selectedIssue.issue.note ? escapeHtml(selectedIssue.issue.note) : '-';
+    const popup = window.open('', '_blank');
+
+    if (!popup) {
+      setDetailMessage('ไม่สามารถเปิดหน้าพรีวิวได้ กรุณาอนุญาต pop-up ของเบราว์เซอร์');
+      return;
+    }
+
+    const html = `<!doctype html>
+<html lang="th">
+  <head>
+    <meta charset="utf-8" />
+    <title>พรีวิวใบเบิกจ่าย ${issueNo}</title>
+    <style>
+      @page { size: A4 portrait; margin: 12mm; }
+      * { box-sizing: border-box; }
+      body { margin: 0; color: #111827; font-family: "Sarabun", Tahoma, Arial, sans-serif; background: #f3f4f6; }
+      .toolbar { display: flex; justify-content: flex-end; padding: 10px 12px; background: #e5e7eb; border-bottom: 1px solid #d1d5db; }
+      .toolbar button { border: 1px solid #1d4ed8; background: #2563eb; color: #fff; border-radius: 6px; padding: 6px 12px; font-size: 12px; cursor: pointer; }
+      .page { width: 210mm; min-height: 297mm; margin: 12px auto; background: #fff; padding: 14mm; border: 1px solid #d1d5db; }
+      .title { margin: 0 0 12px 0; text-align: center; font-size: 22px; font-weight: 700; }
+      .head-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 16px; margin-bottom: 12px; }
+      .head-item { font-size: 13px; }
+      .label { color: #4b5563; margin-right: 4px; }
+      .value { font-weight: 600; }
+      .note { margin: 10px 0 14px; font-size: 13px; }
+      .section-title { margin: 0 0 8px 0; font-size: 14px; font-weight: 700; }
+      table { width: 100%; border-collapse: collapse; font-size: 12px; }
+      th, td { border: 1px solid #9ca3af; padding: 6px 7px; vertical-align: top; }
+      th { background: #f3f4f6; font-weight: 700; text-align: left; }
+      .cell-right { text-align: right; white-space: nowrap; }
+      .cell-center { text-align: center; white-space: nowrap; }
+      .summary { margin-top: 12px; display: flex; justify-content: flex-end; }
+      .summary-box { min-width: 300px; border: 1px solid #9ca3af; }
+      .summary-row { display: flex; justify-content: space-between; padding: 6px 10px; font-size: 12px; border-bottom: 1px solid #d1d5db; }
+      .summary-row:last-child { border-bottom: 0; font-weight: 700; background: #f9fafb; }
+      @media print {
+        body { background: #fff; }
+        .toolbar { display: none; }
+        .page { margin: 0; border: 0; width: auto; min-height: auto; padding: 0; }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="toolbar">
+      <button onclick="window.print()">พิมพ์เอกสาร</button>
+    </div>
+    <main class="page">
+      <h1 class="title">ใบเบิกจ่ายสินค้า</h1>
+      <section class="head-grid">
+        <div class="head-item"><span class="label">เลขที่เอกสาร:</span><span class="value">${issueNo}</span></div>
+        <div class="head-item"><span class="label">วันที่เบิก:</span><span class="value">${issueDate}</span></div>
+        <div class="head-item"><span class="label">หน่วยงานที่เบิก:</span><span class="value">${department}</span></div>
+        <div class="head-item"><span class="label">จำนวนรายการ:</span><span class="value">${formatNumber(selectedIssue.items.length, 0)} รายการ</span></div>
+      </section>
+      <section class="note"><span class="label">หมายเหตุ:</span><span class="value">${note}</span></section>
+      <section>
+        <h2 class="section-title">รายการที่เบิก</h2>
+        <table>
+          <thead>
+            <tr>
+              <th class="cell-center">ลำดับ</th>
+              <th>รหัสสินค้า</th>
+              <th>รายการ</th>
+              <th>LOT</th>
+              <th class="cell-right">จำนวนเบิก</th>
+              <th class="cell-right">มูลค่า (บาท)</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${rowsHtml || '<tr><td colspan="6" class="cell-center">ไม่พบรายการ</td></tr>'}
+          </tbody>
+        </table>
+      </section>
+      <section class="summary">
+        <div class="summary-box">
+          <div class="summary-row"><span>ผลรวมจำนวนเบิก</span><span>${formatNumber(totalQty, 0)} ชิ้น</span></div>
+          <div class="summary-row"><span>ผลรวมมูลค่า</span><span>${formatNumber(totalValue, 2)} บาท</span></div>
+        </div>
+      </section>
+    </main>
+  </body>
+</html>`;
+
+    popup.document.open();
+    popup.document.write(html);
+    popup.document.close();
+    popup.focus();
   };
 
   const issueListStart = issues.length > 0 ? (page - 1) * pageSize + 1 : 0;
@@ -616,13 +784,40 @@ export default function InventoryIssuesPage() {
                 หน่วยงานที่ขอเบิก
                 <select
                   value={requestingDepartmentId}
-                  onChange={(event) => setRequestingDepartmentId(event.target.value)}
+                  onChange={(event) => {
+                    setRequestingDepartmentId(event.target.value);
+                    setCreateMessage('');
+                    setSearchText('');
+                    setLotOptions([]);
+                    setActiveOptionIndex(-1);
+                  }}
                   className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2"
                 >
                   <option value="">-- เลือกหน่วยงาน --</option>
                   {activeDepartments.map((department) => (
                     <option key={department.id} value={department.id}>
                       {department.department_code} - {department.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <label className="text-sm text-gray-700">
+                หมวดสินค้า
+                <select
+                  value={categoryFilter}
+                  onChange={(event) => {
+                    setCategoryFilter(event.target.value);
+                    setSearchText('');
+                    setLotOptions([]);
+                    setActiveOptionIndex(-1);
+                  }}
+                  className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2"
+                >
+                  <option value="">-- ทุกหมวดสินค้า --</option>
+                  {categoryOptions.map((category) => (
+                    <option key={category} value={category}>
+                      {category}
                     </option>
                   ))}
                 </select>
@@ -638,7 +833,7 @@ export default function InventoryIssuesPage() {
                 />
               </label>
 
-              <label className="text-sm text-gray-700 lg:col-span-2">
+              <label className="text-sm text-gray-700">
                 หมายเหตุ
                 <input
                   type="text"
@@ -652,52 +847,86 @@ export default function InventoryIssuesPage() {
 
             <div className="relative mt-5">
               <label className="text-sm text-gray-700">ค้นหารายการสินค้าในคลัง</label>
-              <input
-                type="text"
-                value={searchText}
-                onChange={(event) => setSearchText(event.target.value)}
-                onBlur={() => {
-                  window.setTimeout(() => {
-                    setLotOptions([]);
-                    setActiveOptionIndex(-1);
-                  }, 120);
-                }}
-                onKeyDown={(event) => {
-                  if (lotOptions.length === 0) return;
-                  if (event.key === 'ArrowDown') {
-                    event.preventDefault();
-                    setActiveOptionIndex((prev) => (prev + 1) % lotOptions.length);
-                    return;
-                  }
-                  if (event.key === 'ArrowUp') {
-                    event.preventDefault();
-                    setActiveOptionIndex((prev) => (prev <= 0 ? lotOptions.length - 1 : prev - 1));
-                    return;
-                  }
-                  if (event.key === 'Enter') {
-                    event.preventDefault();
-                    const selected = activeOptionIndex >= 0 ? lotOptions[activeOptionIndex] : lotOptions[0];
-                    if (selected) addLotToIssue(selected);
-                    return;
-                  }
-                  if (event.key === 'Escape') {
-                    setLotOptions([]);
-                    setActiveOptionIndex(-1);
-                  }
-                }}
-                placeholder="พิมพ์รหัสสินค้า / ชื่อสินค้า / เลข lot"
-                className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2"
-              />
-
-              <label className="mt-2 inline-flex items-center gap-2 text-sm text-gray-700">
+              <div className="relative mt-1">
                 <input
-                  type="checkbox"
-                  checked={showOutOfStock}
-                  onChange={(event) => setShowOutOfStock(event.target.checked)}
-                  className="h-4 w-4 rounded border-gray-300"
+                  type="text"
+                  value={searchText}
+                  onChange={(event) => setSearchText(event.target.value)}
+                  disabled={!selectedDepartment}
+                  onBlur={() => {
+                    window.setTimeout(() => {
+                      setLotOptions([]);
+                      setActiveOptionIndex(-1);
+                    }, 120);
+                  }}
+                  onFocus={() => {
+                    if (!selectedDepartment) {
+                      setCreateMessage('กรุณาเลือกหน่วยงานที่ขอเบิกก่อนค้นหารายการสินค้า');
+                    }
+                  }}
+                  onKeyDown={(event) => {
+                    if (!selectedDepartment) {
+                      event.preventDefault();
+                      setCreateMessage('กรุณาเลือกหน่วยงานที่ขอเบิกก่อนค้นหารายการสินค้า');
+                      return;
+                    }
+                    if (lotOptions.length === 0) return;
+                    if (event.key === 'ArrowDown') {
+                      event.preventDefault();
+                      setActiveOptionIndex((prev) => (prev + 1) % lotOptions.length);
+                      return;
+                    }
+                    if (event.key === 'ArrowUp') {
+                      event.preventDefault();
+                      setActiveOptionIndex((prev) => (prev <= 0 ? lotOptions.length - 1 : prev - 1));
+                      return;
+                    }
+                    if (event.key === 'Enter') {
+                      event.preventDefault();
+                      const selected = activeOptionIndex >= 0 ? lotOptions[activeOptionIndex] : lotOptions[0];
+                      if (selected) addLotToIssue(selected);
+                      return;
+                    }
+                    if (event.key === 'Escape') {
+                      setLotOptions([]);
+                      setActiveOptionIndex(-1);
+                    }
+                  }}
+                  placeholder={selectedDepartment ? 'พิมพ์รหัสสินค้า / ชื่อสินค้า / เลข lot' : 'เลือกหน่วยงานก่อนค้นหารายการสินค้า'}
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 pr-10 disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-500"
                 />
-                แสดงสินค้าหมด
-              </label>
+                {searchText ? (
+                  <button
+                    type="button"
+                    onClick={clearLotSearch}
+                    aria-label="ล้างการค้นหา"
+                    title="ล้างการค้นหา"
+                    className="absolute right-2 top-1/2 inline-flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded-full text-gray-400 transition hover:bg-gray-100 hover:text-gray-700"
+                  >
+                    <XCircle className="h-4 w-4" />
+                  </button>
+                ) : null}
+              </div>
+
+              {!selectedDepartment ? (
+                <p className="mt-1 text-xs text-amber-600">กรุณาเลือกหน่วยงานที่ขอเบิกก่อน ถึงจะค้นหารายการสินค้าได้</p>
+              ) : null}
+
+              <div className="mt-2 flex flex-wrap items-center gap-x-5 gap-y-2">
+                <label className="inline-flex items-center gap-2 text-sm text-gray-700">
+                  <input
+                    type="checkbox"
+                    checked={usagePlanOnly}
+                    onChange={(event) => setUsagePlanOnly(event.target.checked)}
+                    className="h-4 w-4 rounded border-gray-300"
+                  />
+                  <span>ค้นหาเฉพาะรายการสินค้าที่หน่วยงานทำแผนการใช้</span>
+                </label>
+              </div>
+
+              {usagePlanOnly && !selectedDepartment ? (
+                <p className="mt-1 text-xs text-amber-600">กรุณาเลือกหน่วยงานที่ขอเบิกก่อนใช้ตัวกรองตามแผนการใช้</p>
+              ) : null}
 
               {searchingLots ? <p className="mt-1 text-xs text-gray-500">กำลังค้นหา...</p> : null}
 
@@ -754,10 +983,12 @@ export default function InventoryIssuesPage() {
                       <SortableHeader label="วันรับเข้า" sortKey="last_received_at" activeKey={selectedItemSortBy} activeOrder={selectedItemSortOrder} onSort={(key) => handleSelectedItemSort(key as IssueFormSortKey)} />
                     </th>
                     <th className="px-3 py-2 text-right">
-                      <SortableHeader label="คงเหลือ" sortKey="qty_on_hand" activeKey={selectedItemSortBy} activeOrder={selectedItemSortOrder} onSort={(key) => handleSelectedItemSort(key as IssueFormSortKey)} align="right" />
+                      <SortableHeader label="คงเหลือในคลัง" sortKey="qty_on_hand" activeKey={selectedItemSortBy} activeOrder={selectedItemSortOrder} onSort={(key) => handleSelectedItemSort(key as IssueFormSortKey)} align="right" />
                     </th>
+                    <th className="px-3 py-2 text-right">โควต้าปีงบปัจจุบัน</th>
+                    <th className="px-3 py-2 text-right">เบิกไปแล้ว</th>
                     <th className="px-3 py-2 text-right">
-                      <SortableHeader label="จำนวนเบิก" sortKey="issued_qty" activeKey={selectedItemSortBy} activeOrder={selectedItemSortOrder} onSort={(key) => handleSelectedItemSort(key as IssueFormSortKey)} align="right" />
+                      <SortableHeader label="ขอเบิกครั้งนี้" sortKey="issued_qty" activeKey={selectedItemSortBy} activeOrder={selectedItemSortOrder} onSort={(key) => handleSelectedItemSort(key as IssueFormSortKey)} align="right" />
                     </th>
                     <th className="px-3 py-2 text-right">จัดการ</th>
                   </tr>
@@ -765,7 +996,7 @@ export default function InventoryIssuesPage() {
                 <tbody className="divide-y divide-gray-100 bg-white">
                   {selectedItems.length === 0 ? (
                     <tr>
-                      <td colSpan={7} className="px-3 py-6 text-center text-gray-500">ยังไม่มีรายการที่เลือก</td>
+                      <td colSpan={9} className="px-3 py-6 text-center text-gray-500">ยังไม่มีรายการที่เลือก</td>
                     </tr>
                   ) : (
                     sortedSelectedItems.map((item) => {
@@ -780,6 +1011,8 @@ export default function InventoryIssuesPage() {
                           <td className="px-3 py-2 align-top text-gray-700">{item.lot_no}</td>
                           <td className="px-3 py-2 align-top text-gray-700">{formatDate(item.last_received_at)}</td>
                           <td className={`px-3 py-2 align-top text-right ${isZeroStock ? 'font-semibold text-rose-700' : 'text-gray-700'}`}>{formatNumber(item.qty_on_hand, 0)}</td>
+                          <td className="px-3 py-2 align-top text-right text-gray-700">{formatNumber(item.current_budget_quota, 0)}</td>
+                          <td className="px-3 py-2 align-top text-right text-gray-700">{formatNumber(item.issued_qty_current_budget_year, 0)}</td>
                           <td className="px-3 py-2 align-top text-right">
                             <div className="flex items-center justify-end gap-2">
                               <input
@@ -837,6 +1070,13 @@ export default function InventoryIssuesPage() {
                 <p className="mt-1 text-sm text-gray-500">{selectedIssue?.issue.issue_no || '-'}</p>
               </div>
               <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={previewIssueDocument}
+                  className="rounded-full border border-indigo-300 px-3 py-1 text-sm text-indigo-700 hover:bg-indigo-50"
+                >
+                  พิมพ์เอกสาร
+                </button>
                 <button
                   type="button"
                   onClick={openIssueEditFromDetail}

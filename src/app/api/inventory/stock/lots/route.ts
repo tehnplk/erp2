@@ -29,7 +29,16 @@ type InventoryStockLotRow = {
   avg_unit_price: string | number;
   last_received_at: string | null;
   issue_count: string | number;
+  current_budget_quota: string | number;
+  issued_qty_current_budget_year: string | number;
 };
+
+function getCurrentBudgetYear() {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = now.getMonth();
+  return month >= 9 ? year + 544 : year + 543;
+}
 
 export async function GET(request: NextRequest) {
   try {
@@ -39,19 +48,26 @@ export async function GET(request: NextRequest) {
 
     const {
       product_id,
+      requesting_department_id,
       search,
       category,
       product_type,
       lot_no,
       available_only,
+      usage_plan_only,
       order_by = 'last_received_at',
       sort_order = 'asc',
       page = 1,
       page_size = 20,
     } = queryValidation.data;
 
+    if (usage_plan_only === 'true' && !requesting_department_id) {
+      return apiError('กรุณาเลือกหน่วยงานก่อนค้นหาเฉพาะรายการตามแผนการใช้', 400);
+    }
+
+    const currentBudgetYear = getCurrentBudgetYear();
     const whereClauses: string[] = [];
-    const params: Array<string | number> = [];
+    const params: Array<string | number | null> = [];
 
     if (product_id) {
       params.push(product_id);
@@ -87,6 +103,19 @@ export async function GET(request: NextRequest) {
       whereClauses.push('v.qty_on_hand > 0');
     }
 
+    if (usage_plan_only === 'true' && requesting_department_id) {
+      params.push(requesting_department_id);
+      const departmentParam = `$${params.length}`;
+      whereClauses.push(`EXISTS (
+        SELECT 1
+        FROM public.department d
+        INNER JOIN public.usage_plan up
+          ON up.requesting_dept_code = d.department_code
+        WHERE d.id = ${departmentParam}
+          AND up.product_code = v.product_code
+      )`);
+    }
+
     const whereSql = whereClauses.length ? `WHERE ${whereClauses.join(' AND ')}` : '';
     const safeSortOrder = sort_order === 'desc' ? 'DESC' : 'ASC';
     const orderMap: Record<string, string> = {
@@ -103,6 +132,10 @@ export async function GET(request: NextRequest) {
 
     const countParams = params.slice();
     const listParams = params.slice();
+    listParams.push(currentBudgetYear);
+    const budgetYearParam = `$${listParams.length}`;
+    listParams.push(requesting_department_id ?? null);
+    const departmentParam = `$${listParams.length}`;
     listParams.push(page_size, offset);
 
     const [countResult, rowsResult] = await Promise.all([
@@ -141,6 +174,30 @@ export async function GET(request: NextRequest) {
             v.avg_unit_price::float8 AS avg_unit_price,
             v.last_received_at,
             COALESCE((
+              SELECT SUM(COALESCE(up.approved_quota, 0))::int
+              FROM public.department d
+              INNER JOIN public.usage_plan up
+                ON up.requesting_dept_code = d.department_code
+              WHERE d.id = ${departmentParam}
+                AND up.product_code = v.product_code
+                AND up.budget_year = ${budgetYearParam}
+            ), 0)::int AS current_budget_quota,
+            COALESCE((
+              SELECT SUM(iit2.issued_qty)::int
+              FROM public.inventory_issue_item iit2
+              INNER JOIN public.inventory_issue ii2 ON ii2.id = iit2.issue_id
+              INNER JOIN public.inventory_stock_lot isl2 ON isl2.id = iit2.stock_lot_id
+              WHERE ii2.requesting_department_id = ${departmentParam}
+                AND isl2.product_id = v.product_id
+                AND (
+                  CASE
+                    WHEN EXTRACT(MONTH FROM ii2.issue_date) >= 10
+                      THEN EXTRACT(YEAR FROM ii2.issue_date)::int + 544
+                    ELSE EXTRACT(YEAR FROM ii2.issue_date)::int + 543
+                  END
+                ) = ${budgetYearParam}
+            ), 0)::int AS issued_qty_current_budget_year,
+            COALESCE((
               SELECT COUNT(*)::int
               FROM public.inventory_issue_item iit
               WHERE iit.stock_lot_id = v.stock_lot_id
@@ -156,6 +213,8 @@ export async function GET(request: NextRequest) {
 
     const rows = rowsResult.rows.map((row) => ({
       ...row,
+      current_budget_quota: Number(row.current_budget_quota || 0),
+      issued_qty_current_budget_year: Number(row.issued_qty_current_budget_year || 0),
       issue_count: Number(row.issue_count || 0),
       has_issue_history: Number(row.issue_count || 0) > 0,
       last_delivery_note_no:
