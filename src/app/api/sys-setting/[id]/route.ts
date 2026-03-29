@@ -3,6 +3,7 @@ import { pgQuery } from '@/lib/pg';
 import { apiError, apiNotFound, apiSuccess, apiConflict } from '@/lib/api-response';
 import { validateRequest } from '@/lib/validation/validate';
 import { idParamSchema, updateSysSettingSchema } from '@/lib/validation/schemas';
+import { isUniqueViolation } from '@/lib/db-errors';
 
 function parseSettingId(rawId: string) {
   const validation = idParamSchema.safeParse({ id: rawId });
@@ -67,20 +68,27 @@ export async function PUT(
       [sysName, numericId]
     );
     if (duplicate.rows.length > 0) {
-      return apiConflict('Setting with this sys_name already exists');
+      return apiConflict('sys_name นี้มีอยู่แล้ว');
     }
 
-    const result = await pgQuery(
-      `UPDATE public.sys_setting
-       SET sys_name = $1,
-           sys_value = $2,
-           sys_value_detail = $3
-       WHERE id = $4
-       RETURNING id, sys_name, sys_value, sys_value_detail`,
-      [sysName, sysValue, sysValueDetail, numericId]
-    );
+    try {
+      const result = await pgQuery(
+        `UPDATE public.sys_setting
+         SET sys_name = $1,
+             sys_value = $2,
+             sys_value_detail = $3
+         WHERE id = $4
+         RETURNING id, sys_name, sys_value, sys_value_detail`,
+        [sysName, sysValue, sysValueDetail, numericId]
+      );
 
-    return apiSuccess(result.rows[0], 'System setting updated successfully');
+      return apiSuccess(result.rows[0], 'System setting updated successfully');
+    } catch (error) {
+      if (isUniqueViolation(error)) {
+        return apiConflict('sys_name นี้มีอยู่แล้ว');
+      }
+      throw error;
+    }
   } catch (error) {
     console.error('Error updating system setting:', error);
     return apiError('Failed to update system setting');

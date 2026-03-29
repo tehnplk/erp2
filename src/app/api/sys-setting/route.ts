@@ -3,6 +3,7 @@ import { pgQuery } from '@/lib/pg';
 import { apiSuccess, apiError, apiConflict } from '@/lib/api-response';
 import { validateQuery, validateRequest } from '@/lib/validation/validate';
 import { createSysSettingSchema, sysSettingQuerySchema } from '@/lib/validation/schemas';
+import { isUniqueViolation } from '@/lib/db-errors';
 
 const sysSettingSelect = `
   SELECT id, sys_name, sys_value, sys_value_detail
@@ -85,20 +86,27 @@ export async function POST(request: NextRequest) {
 
     const existing = await pgQuery('SELECT id FROM public.sys_setting WHERE sys_name = $1 LIMIT 1', [sysName]);
     if (existing.rows.length > 0) {
-      return apiConflict('Setting with this sys_name already exists');
+      return apiConflict('sys_name นี้มีอยู่แล้ว');
     }
 
     const nextIdResult = await pgQuery('SELECT COALESCE(MAX(id), 0) + 1 AS next_id FROM public.sys_setting');
     const nextId = Number(nextIdResult.rows[0]?.next_id ?? 1);
 
-    const result = await pgQuery(
-      `INSERT INTO public.sys_setting (id, sys_name, sys_value, sys_value_detail)
-       VALUES ($1, $2, $3, $4)
-       RETURNING id, sys_name, sys_value, sys_value_detail`,
-      [nextId, sysName, sysValue, sysValueDetail]
-    );
+    try {
+      const result = await pgQuery(
+        `INSERT INTO public.sys_setting (id, sys_name, sys_value, sys_value_detail)
+         VALUES ($1, $2, $3, $4)
+         RETURNING id, sys_name, sys_value, sys_value_detail`,
+        [nextId, sysName, sysValue, sysValueDetail]
+      );
 
-    return apiSuccess(result.rows[0], 'System setting created successfully', undefined, 201);
+      return apiSuccess(result.rows[0], 'System setting created successfully', undefined, 201);
+    } catch (error) {
+      if (isUniqueViolation(error)) {
+        return apiConflict('sys_name นี้มีอยู่แล้ว');
+      }
+      throw error;
+    }
   } catch (error) {
     console.error('Error creating system setting:', error);
     return apiError('Failed to create system setting');

@@ -65,3 +65,4 @@ docs/supabase.md
 !/sql/20260328_inventory_stock_summary_view.sql
 !/sql/20260328_inventory_stock_lot_detail_receipt_items_view.sql
 !/sql/20260328_inventory_schema_optimize.sql
+!/sql/20260329_sys_setting_unique_sys_name.sql
