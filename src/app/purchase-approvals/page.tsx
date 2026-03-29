@@ -6,6 +6,7 @@ import React, { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import Swal from 'sweetalert2';
 import { ChevronDown, ChevronRight, Save, X, Trash2, Edit, FileText, CheckCircle, XCircle, Download, Printer, FileDown, Clock, RotateCcw } from 'lucide-react';
+import { useSysSetting } from '@/hooks/use-sys-setting';
 
 const DEFAULT_DOC_NO = 'พล. 0733.301/พิเศษ';
 const DOCX_FONT_FAMILY = 'TH Sarabun';
@@ -21,13 +22,6 @@ const THAI_TO_ARABIC_DIGITS: Record<string, string> = {
   '๗': '7',
   '๘': '8',
   '๙': '9',
-};
-
-const getCurrentBudgetYear = () => {
-  const now = new Date();
-  const year = now.getFullYear();
-  const month = now.getMonth();
-  return month >= 9 ? year + 544 : year + 543;
 };
 
 interface PurchaseApprovalGroup {
@@ -91,6 +85,11 @@ function PurchaseApprovalsPageContent() {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const budgetYearSetting = useSysSetting('budget_year', '');
+  const effectiveBudgetYear = useMemo<number | null>(() => {
+    const parsed = Number(budgetYearSetting);
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+  }, [budgetYearSetting]);
   const [items, setItems] = useState<PurchaseApprovalGroup[]>([]);
   const [summaryItems, setSummaryItems] = useState<PurchaseApprovalGroup[]>([]);
   const [totalCount, setTotalCount] = useState(0);
@@ -150,10 +149,24 @@ function PurchaseApprovalsPageContent() {
     return Array.from(
       new Set([
         ...budgetYears,
-        ...Array.from({ length: 6 }, (_, index) => String(getCurrentBudgetYear() - index)),
+        ...(effectiveBudgetYear ? [String(effectiveBudgetYear)] : []),
       ]),
     ).sort((a, b) => Number(b) - Number(a));
-  }, [budgetYears]);
+  }, [budgetYears, effectiveBudgetYear]);
+
+  useEffect(() => {
+    if (!effectiveBudgetYear) {
+      return;
+    }
+
+    const nextBudgetYear = String(effectiveBudgetYear);
+    setBudgetYearFilter((prev) => {
+      if (!searchParams.get('budget_year') && prev === '') {
+        return nextBudgetYear;
+      }
+      return prev;
+    });
+  }, [effectiveBudgetYear, searchParams]);
 
   useEffect(() => {
     if (!filtersLoadedRef.current) {
@@ -165,7 +178,16 @@ function PurchaseApprovalsPageContent() {
   }, [availableTypes, typeFilter]);
 
 
-  useEffect(() => { fetchData(); }, [nameFilter, categoryFilter, typeFilter, purchaseDepartmentFilter, budgetYearFilter, statusFilter, page, pageSize]);
+  useEffect(() => {
+    const hasBudgetYearParam = Boolean(searchParams.get('budget_year'));
+    if (!hasBudgetYearParam && !effectiveBudgetYear) {
+      return;
+    }
+    if (!hasBudgetYearParam && effectiveBudgetYear && !budgetYearFilter) {
+      return;
+    }
+    fetchData();
+  }, [nameFilter, categoryFilter, typeFilter, purchaseDepartmentFilter, budgetYearFilter, statusFilter, page, pageSize, searchParams, effectiveBudgetYear]);
 
   // When filters or sorting change, reset to first page and refresh summary data
   useEffect(() => {
@@ -173,17 +195,26 @@ function PurchaseApprovalsPageContent() {
       return;
     }
     setPage(1);
-    fetchSummaryData();
   }, [nameFilter, categoryFilter, typeFilter, purchaseDepartmentFilter, budgetYearFilter, statusFilter]);
 
-  useEffect(() => { fetchFilters(); fetchSummaryData(); }, []);
+  useEffect(() => { fetchFilters(); }, []);
+  useEffect(() => {
+    const hasBudgetYearParam = Boolean(searchParams.get('budget_year'));
+    if (!hasBudgetYearParam && !effectiveBudgetYear) {
+      return;
+    }
+    if (!hasBudgetYearParam && effectiveBudgetYear && !budgetYearFilter) {
+      return;
+    }
+    fetchSummaryData();
+  }, [nameFilter, categoryFilter, typeFilter, purchaseDepartmentFilter, budgetYearFilter, statusFilter, searchParams, effectiveBudgetYear]);
 
   useEffect(() => {
     const nextName = searchParams.get('product_name') || '';
     const nextCategory = searchParams.get('category') || '';
     const nextType = searchParams.get('product_type') || '';
     const nextDepartment = searchParams.get('purchase_department') || searchParams.get('department') || '';
-    const nextBudgetYear = searchParams.get('budget_year') || '';
+    const nextBudgetYear = searchParams.get('budget_year') || (effectiveBudgetYear ? String(effectiveBudgetYear) : '');
     const nextStatus = searchParams.get('status') || '';
     const nextPage = Math.max(1, parseInt(searchParams.get('page') || '1', 10) || 1);
     const nextPageSize = Math.max(1, parseInt(searchParams.get('page_size') || '20', 10) || 20);
@@ -197,7 +228,7 @@ function PurchaseApprovalsPageContent() {
     setPage((prev) => (prev === nextPage ? prev : nextPage));
     setPageSize((prev) => (prev === nextPageSize ? prev : nextPageSize));
     hasSyncedSearchParamsRef.current = true;
-  }, [searchParams]);
+  }, [searchParams, effectiveBudgetYear]);
 
   useEffect(() => {
     if (!hasSyncedSearchParamsRef.current) {
@@ -209,7 +240,10 @@ function PurchaseApprovalsPageContent() {
     if (categoryFilter) params.set('category', categoryFilter);
     if (typeFilter) params.set('product_type', typeFilter);
     if (purchaseDepartmentFilter) params.set('purchase_department', purchaseDepartmentFilter);
-    if (budgetYearFilter) params.set('budget_year', budgetYearFilter);
+    const defaultBudgetYear = effectiveBudgetYear ? String(effectiveBudgetYear) : '';
+    if (budgetYearFilter && budgetYearFilter !== defaultBudgetYear) {
+      params.set('budget_year', budgetYearFilter);
+    }
     if (statusFilter) params.set('status', statusFilter);
     if (page > 1) params.set('page', page.toString());
     if (pageSize !== 20) params.set('page_size', pageSize.toString());
@@ -220,7 +254,7 @@ function PurchaseApprovalsPageContent() {
     if (nextUrl !== currentUrl) {
       router.replace(nextUrl, { scroll: false });
     }
-  }, [pathname, router, searchParams, nameFilter, categoryFilter, typeFilter, purchaseDepartmentFilter, budgetYearFilter, statusFilter, page, pageSize]);
+  }, [pathname, router, searchParams, nameFilter, categoryFilter, typeFilter, purchaseDepartmentFilter, budgetYearFilter, statusFilter, page, pageSize, effectiveBudgetYear]);
 
   const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
 

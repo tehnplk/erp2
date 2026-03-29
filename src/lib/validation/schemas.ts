@@ -317,6 +317,22 @@ export const categoryQuerySchema = z.object({
   ...paginationFields
 });
 
+// System setting schemas
+export const createSysSettingSchema = z.object({
+  sys_name: nonEmptyString,
+  sys_value: nonEmptyString,
+  sys_value_detail: nonEmptyString
+});
+
+export const updateSysSettingSchema = createSysSettingSchema;
+
+export const sysSettingQuerySchema = z.object({
+  search: z.string().optional(),
+  order_by: z.enum(['id', 'sys_name', 'sys_value', 'sys_value_detail']).optional(),
+  sort_order: z.enum(['asc', 'desc']).optional(),
+  ...paginationFields
+});
+
 // Purchase Plan schemas
 export const createPurchasePlanSchema = z.object({
   usage_plan_ids: z.array(z.coerce.number().int().positive()).optional(),

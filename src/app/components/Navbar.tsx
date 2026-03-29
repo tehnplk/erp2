@@ -19,18 +19,21 @@ import {
   Warehouse,
   X,
 } from 'lucide-react';
+import { useSysSetting } from '@/hooks/use-sys-setting';
 
 export default function Navbar() {
   const pathname = usePathname();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const settingsRef = useRef<HTMLDivElement>(null);
+  const budgetYear = useSysSetting('budget_year', '');
 
   const settingsItems = [
     { href: '/sellers', label: 'ผู้จำหน่าย', icon: Store },
     { href: '/categories', label: 'หมวดหมู่สินค้า', icon: Pill },
     { href: '/products', label: 'รายการสินค้า', icon: Package },
     { href: '/departments', label: 'แผนก', icon: Hospital },
+    { href: '/setting', label: 'ตั้งค่าระบบ', icon: Settings },
   ];
 
   useEffect(() => {
@@ -54,6 +57,9 @@ export default function Navbar() {
           <Link href="/" className="flex items-center space-x-2">
             <Building2 className="h-6 w-6" />
             <span className="text-xl font-bold">Hospital ERP</span>
+            <span className="hidden sm:inline-flex rounded-full bg-blue-500/80 px-3 py-1 text-xs font-semibold text-blue-50">
+              ปีงบประมาณ {budgetYear || '-'}
+            </span>
           </Link>
 
           {/* Desktop Menu */}

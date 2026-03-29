@@ -3,13 +3,7 @@
 import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import Swal from 'sweetalert2';
-
-const getCurrentBudgetYear = () => {
-  const now = new Date();
-  const year = now.getFullYear();
-  const month = now.getMonth();
-  return month >= 9 ? year + 544 : year + 543;
-};
+import { useSysSetting } from '@/hooks/use-sys-setting';
 
 type PurchasePlanRow = {
   id: number;
@@ -275,6 +269,11 @@ function PurchasePlansPageContent() {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const budgetYearSetting = useSysSetting('budget_year', '');
+  const effectiveBudgetYear = useMemo<number | null>(() => {
+    const parsed = Number(budgetYearSetting);
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+  }, [budgetYearSetting]);
 
   const initialProductNameFilter = searchParams.get('product_name') || '';
   const initialCategoryFilter = searchParams.get('category') || '';
@@ -336,7 +335,7 @@ function PurchasePlansPageContent() {
   const [outOfPlanDeptCode, setOutOfPlanDeptCode] = useState('');
   const [outOfPlanCategory, setOutOfPlanCategory] = useState('');
   const [outOfPlanSearch, setOutOfPlanSearch] = useState('');
-  const [outOfPlanBudgetYear, setOutOfPlanBudgetYear] = useState(String(getCurrentBudgetYear()));
+  const [outOfPlanBudgetYear, setOutOfPlanBudgetYear] = useState('');
   const [outOfPlanPurchaseQty, setOutOfPlanPurchaseQty] = useState('1');
   const [selectedOutOfPlanProductCode, setSelectedOutOfPlanProductCode] = useState('');
   const [loadingOutOfPlanProducts, setLoadingOutOfPlanProducts] = useState(false);
@@ -355,24 +354,60 @@ function PurchasePlansPageContent() {
   const availableBudgetYears = Array.from(
     new Set([
       ...years,
-      ...Array.from({ length: 6 }, (_, index) => String(getCurrentBudgetYear() - index)),
+      ...(effectiveBudgetYear ? [String(effectiveBudgetYear)] : []),
     ]),
   ).sort((a, b) => Number(b) - Number(a));
+
+  useEffect(() => {
+    if (!effectiveBudgetYear) {
+      return;
+    }
+
+    const nextBudgetYear = String(effectiveBudgetYear);
+    setBudgetYearFilter((prev) => {
+      if (!searchParams.get('budget_year') && prev === '') {
+        return nextBudgetYear;
+      }
+      return prev;
+    });
+    setOutOfPlanBudgetYear((prev) => (prev === '' ? nextBudgetYear : prev));
+  }, [effectiveBudgetYear, searchParams]);
 
   useEffect(() => {
     void fetchFilters();
   }, []);
 
   useEffect(() => {
+    const hasBudgetYearParam = Boolean(searchParams.get('budget_year'));
+    if (!hasBudgetYearParam && !effectiveBudgetYear) {
+      return;
+    }
+    if (!hasBudgetYearParam && effectiveBudgetYear && !budgetYearFilter) {
+      return;
+    }
     void fetchData();
     void fetchApprovedPlanIds();
-  }, [sortBy, sortOrder, page, pageSize, productNameFilter, categoryFilter, typeFilter, subtypeFilter, usagePlanFlagFilter, purchaseDepartmentFilter, requestingDeptFilter, budgetYearFilter, hasPurchaseApprovalFilter]);
+  }, [sortBy, sortOrder, page, pageSize, productNameFilter, categoryFilter, typeFilter, subtypeFilter, usagePlanFlagFilter, purchaseDepartmentFilter, requestingDeptFilter, budgetYearFilter, hasPurchaseApprovalFilter, searchParams, effectiveBudgetYear]);
 
   useEffect(() => {
+    const hasBudgetYearParam = Boolean(searchParams.get('budget_year'));
+    if (!hasBudgetYearParam && !effectiveBudgetYear) {
+      return;
+    }
+    if (!hasBudgetYearParam && effectiveBudgetYear && !budgetYearFilter) {
+      return;
+    }
     void fetchSummaryData();
-  }, [productNameFilter, categoryFilter, typeFilter, subtypeFilter, usagePlanFlagFilter, purchaseDepartmentFilter, requestingDeptFilter, budgetYearFilter, hasPurchaseApprovalFilter, sortBy, sortOrder]);
+  }, [productNameFilter, categoryFilter, typeFilter, subtypeFilter, usagePlanFlagFilter, purchaseDepartmentFilter, requestingDeptFilter, budgetYearFilter, hasPurchaseApprovalFilter, sortBy, sortOrder, searchParams, effectiveBudgetYear]);
 
   useEffect(() => {
+    const hasBudgetYearParam = Boolean(searchParams.get('budget_year'));
+    if (!hasBudgetYearParam && !effectiveBudgetYear) {
+      return;
+    }
+    if (!hasBudgetYearParam && effectiveBudgetYear && !budgetYearFilter) {
+      return;
+    }
     const fetchStatusCountItems = async () => {
       try {
         const params = new URLSearchParams();
@@ -400,7 +435,7 @@ function PurchasePlansPageContent() {
     };
 
     void fetchStatusCountItems();
-  }, [productNameFilter, categoryFilter, typeFilter, subtypeFilter, usagePlanFlagFilter, purchaseDepartmentFilter, requestingDeptFilter, budgetYearFilter, sortBy, sortOrder]);
+  }, [productNameFilter, categoryFilter, typeFilter, subtypeFilter, usagePlanFlagFilter, purchaseDepartmentFilter, requestingDeptFilter, budgetYearFilter, sortBy, sortOrder, searchParams, effectiveBudgetYear]);
 
   const availableTypes = useMemo(() => {
     if (!categoryFilter) {
@@ -474,7 +509,7 @@ function PurchasePlansPageContent() {
     const nextUsagePlanFlag = searchParams.get('usage_plan_flag') || '';
     const nextPurchaseDepartment = searchParams.get('purchase_department') || '';
     const nextRequestingDept = searchParams.get('requesting_dept') || '';
-    const nextBudgetYear = searchParams.get('budget_year') || '';
+    const nextBudgetYear = searchParams.get('budget_year') || (effectiveBudgetYear ? String(effectiveBudgetYear) : '');
     const nextHasPurchaseApproval = searchParams.get('has_purchase_approval') || '';
     const nextSortBy = searchParams.get('order_by') || 'id';
     const nextSortOrder = (searchParams.get('sort_order') === 'asc' ? 'asc' : 'desc') as 'asc' | 'desc';
@@ -497,7 +532,7 @@ function PurchasePlansPageContent() {
     setPageSize((prev) => (prev === nextPageSize ? prev : nextPageSize));
     lastPushedUrlRef.current = searchParams.toString() ? `${pathname}?${searchParams.toString()}` : pathname;
     hasSyncedSearchParamsRef.current = true;
-  }, [pathname, searchParams]);
+  }, [pathname, searchParams, effectiveBudgetYear]);
 
   useEffect(() => {
     if (!hasSyncedSearchParamsRef.current) {
@@ -512,7 +547,10 @@ function PurchasePlansPageContent() {
     if (usagePlanFlagFilter) params.set('usage_plan_flag', usagePlanFlagFilter);
     if (purchaseDepartmentFilter) params.set('purchase_department', purchaseDepartmentFilter);
     if (requestingDeptFilter) params.set('requesting_dept', requestingDeptFilter);
-    if (budgetYearFilter) params.set('budget_year', budgetYearFilter);
+    const defaultBudgetYear = effectiveBudgetYear ? String(effectiveBudgetYear) : '';
+    if (budgetYearFilter && budgetYearFilter !== defaultBudgetYear) {
+      params.set('budget_year', budgetYearFilter);
+    }
     if (hasPurchaseApprovalFilter) params.set('has_purchase_approval', hasPurchaseApprovalFilter);
     if (sortBy && sortBy !== 'id') params.set('order_by', sortBy);
     if (sortOrder !== 'desc') params.set('sort_order', sortOrder);
@@ -526,7 +564,7 @@ function PurchasePlansPageContent() {
       lastPushedUrlRef.current = nextUrl;
       router.replace(nextUrl, { scroll: false });
     }
-  }, [pathname, router, searchParams, productNameFilter, categoryFilter, typeFilter, subtypeFilter, usagePlanFlagFilter, purchaseDepartmentFilter, requestingDeptFilter, budgetYearFilter, hasPurchaseApprovalFilter, sortBy, sortOrder, page, pageSize]);
+  }, [pathname, router, searchParams, productNameFilter, categoryFilter, typeFilter, subtypeFilter, usagePlanFlagFilter, purchaseDepartmentFilter, requestingDeptFilter, budgetYearFilter, hasPurchaseApprovalFilter, sortBy, sortOrder, page, pageSize, effectiveBudgetYear]);
 
   useEffect(() => {
     if (editingRowId === null) {
@@ -1190,7 +1228,7 @@ function PurchasePlansPageContent() {
 
       // Create header with basic info
       const header = {
-        budget_year: selectedItems[0]?.budget_year ?? new Date().getFullYear() + 543,
+        budget_year: selectedItems[0]?.budget_year ?? effectiveBudgetYear ?? (new Date().getFullYear() + 543),
         department: selectedDepartments[0],
         doc_date: new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().split('T')[0], // Current date
         notes: `สร้างจากแผนจัดซื้อ ${selectedItems.length} รายการ (หน่วยงานจัดซื้อ ${selectedDepartments[0]}, หมวดสินค้า ${selectedCategories[0]})`,
@@ -1480,7 +1518,7 @@ function PurchasePlansPageContent() {
     setOutOfPlanDeptCode('');
     setOutOfPlanCategory('');
     setOutOfPlanSearch('');
-    setOutOfPlanBudgetYear(String(getCurrentBudgetYear()));
+    setOutOfPlanBudgetYear(effectiveBudgetYear ? String(effectiveBudgetYear) : '');
     setOutOfPlanPurchaseQty('1');
     setSelectedOutOfPlanProductCode('');
     setOutOfPlanProducts([]);

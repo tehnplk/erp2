@@ -3,6 +3,7 @@
 import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import Swal from 'sweetalert2';
+import { useSysSetting } from '@/hooks/use-sys-setting';
 
 const get_current_budget_year = () => {
   const now = new Date();
@@ -66,12 +67,12 @@ type BulkUsagePlanItem = {
 
 type EditableField = 'requested_amount' | 'approved_quota';
 
-const default_form_state = (): FormState => ({
+const default_form_state = (budgetYear = ''): FormState => ({
   product_code: '',
   requesting_dept_code: '',
   requested_amount: '',
   approved_quota: '',
-  budget_year: String(get_current_budget_year()),
+  budget_year: budgetYear,
   sequence_no: '1',
 });
 
@@ -79,6 +80,11 @@ function UsagePlansPageContent() {
   const router = useRouter();
   const pathname = usePathname();
   const search_params = useSearchParams();
+  const budget_year_setting = useSysSetting('budget_year', '');
+  const effective_budget_year = useMemo<number | null>(() => {
+    const parsed = Number(budget_year_setting);
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+  }, [budget_year_setting]);
 
   const initial_page = Math.max(1, Number(search_params.get('page') || '1') || 1);
   const requested_page_size = Number(search_params.get('page_size') || '20');
@@ -96,7 +102,7 @@ function UsagePlansPageContent() {
   const [product_code_filter, set_product_code_filter] = useState('');
   const [requesting_dept_code_filter, set_requesting_dept_code_filter] = useState('');
   const [plan_flag_filter, set_plan_flag_filter] = useState('');
-  const [budget_year_filter, set_budget_year_filter] = useState(String(get_current_budget_year()));
+  const [budget_year_filter, set_budget_year_filter] = useState('');
   const [category_filter, set_category_filter] = useState('');
   const [type_filter, set_type_filter] = useState('');
 
@@ -173,8 +179,31 @@ function UsagePlansPageContent() {
   }, []);
 
   useEffect(() => {
+    if (!effective_budget_year) return;
+    const next_budget_year = String(effective_budget_year);
+
+    set_budget_year_filter((prev) => {
+      if (!search_params.get('budget_year') && prev === '') {
+        return next_budget_year;
+      }
+      return prev;
+    });
+
+    set_form_state((prev) => {
+      if (editing_usage_plan) return prev;
+      if (prev.budget_year === '') {
+        return { ...prev, budget_year: next_budget_year };
+      }
+      return prev;
+    });
+  }, [effective_budget_year, editing_usage_plan, search_params]);
+
+  useEffect(() => {
+    if (!search_params.get('budget_year') && !effective_budget_year) {
+      return;
+    }
     void fetch_usage_plans();
-  }, [page, page_size, product_code_filter, requesting_dept_code_filter, plan_flag_filter, budget_year_filter, category_filter, type_filter]);
+  }, [page, page_size, product_code_filter, requesting_dept_code_filter, plan_flag_filter, budget_year_filter, category_filter, type_filter, search_params, effective_budget_year]);
 
   useEffect(() => {
     if (!category_filter) {
@@ -222,14 +251,14 @@ function UsagePlansPageContent() {
   }, [active_bulk_product_suggestion_index, show_bulk_product_suggestions]);
 
   useEffect(() => {
-    const current_budget_year = get_current_budget_year();
+    const current_budget_year = effective_budget_year;
     const next_page = Math.max(1, Number(search_params.get('page') || '1') || 1);
     const next_page_size_raw = Number(search_params.get('page_size') || '20');
     const next_page_size = [20, 50, 100].includes(next_page_size_raw) ? next_page_size_raw : 20;
     const next_product_code_filter = search_params.get('product_code') || '';
     const next_requesting_dept_code_filter = search_params.get('requesting_dept_code') || '';
     const next_plan_flag_filter = search_params.get('plan_flag') || '';
-    const next_budget_year_filter = search_params.get('budget_year') || String(current_budget_year);
+    const next_budget_year_filter = search_params.get('budget_year') || (current_budget_year ? String(current_budget_year) : '');
     const next_category_filter = search_params.get('category') || '';
     const next_type_filter = search_params.get('type') || '';
 
@@ -243,14 +272,14 @@ function UsagePlansPageContent() {
     set_type_filter((prev) => (prev === next_type_filter ? prev : next_type_filter));
 
     has_synced_search_params_ref.current = true;
-  }, [search_params]);
+  }, [search_params, effective_budget_year]);
 
   useEffect(() => {
     if (!has_synced_search_params_ref.current) {
       return;
     }
 
-    const current_budget_year = get_current_budget_year();
+    const current_budget_year = effective_budget_year;
     const params = new URLSearchParams(search_params.toString());
     params.set('page', String(page));
     params.set('page_size', String(page_size));
@@ -274,7 +303,7 @@ function UsagePlansPageContent() {
       params.delete('plan_flag');
     }
     
-    if (budget_year_filter && budget_year_filter !== String(current_budget_year)) {
+    if (budget_year_filter && (!current_budget_year || budget_year_filter !== String(current_budget_year))) {
       params.set('budget_year', budget_year_filter);
     } else {
       params.delete('budget_year');
@@ -297,7 +326,7 @@ function UsagePlansPageContent() {
       last_pushed_url_ref.current = next_url;
       router.replace(next_url, { scroll: false });
     }
-  }, [pathname, router, search_params, page, page_size, product_code_filter, requesting_dept_code_filter, plan_flag_filter, budget_year_filter, category_filter, type_filter]);
+  }, [pathname, router, search_params, page, page_size, product_code_filter, requesting_dept_code_filter, plan_flag_filter, budget_year_filter, category_filter, type_filter, effective_budget_year]);
 
   const fetch_filter_options = async () => {
     try {
@@ -438,7 +467,7 @@ function UsagePlansPageContent() {
 
   const open_create_form = () => {
     set_editing_usage_plan(null);
-    set_form_state(default_form_state());
+    set_form_state(default_form_state(effective_budget_year ? String(effective_budget_year) : ''));
     set_form_errors({});
     set_product_search('');
     set_selected_bulk_category('');
@@ -674,7 +703,7 @@ function UsagePlansPageContent() {
       requesting_dept_code: row.requesting_dept_code || '',
       requested_amount: row.requested_amount != null ? String(row.requested_amount) : '',
       approved_quota: row.approved_quota != null ? String(row.approved_quota) : '',
-      budget_year: row.budget_year != null ? String(row.budget_year) : String(get_current_budget_year()),
+      budget_year: row.budget_year != null ? String(row.budget_year) : (effective_budget_year ? String(effective_budget_year) : ''),
       sequence_no: row.sequence_no != null ? String(row.sequence_no) : '1',
     });
     set_form_errors({});
@@ -891,7 +920,7 @@ function UsagePlansPageContent() {
         <div className="mb-4 flex flex-wrap gap-3">
           <select value={budget_year_filter} onChange={(event) => { set_budget_year_filter(event.target.value); set_page(1); }} className="flex-1 min-w-[100px] rounded-lg border border-gray-300 px-3 py-2 text-sm">
             <option value="">ทุกปีงบ</option>
-            {Array.from(new Set([get_current_budget_year(), ...budget_years])).sort((a, b) => b - a).map((year) => (<option key={year} value={String(year)}>{year}</option>))}
+            {Array.from(new Set([...(effective_budget_year ? [effective_budget_year] : []), ...budget_years])).sort((a, b) => b - a).map((year) => (<option key={year} value={String(year)}>{year}</option>))}
           </select>
           <select value={requesting_dept_code_filter} onChange={(event) => { set_requesting_dept_code_filter(event.target.value); set_page(1); }} className="flex-1 min-w-[140px] rounded-lg border border-gray-300 px-3 py-2 text-sm">
             <option value="">ทุกหน่วยงาน</option>
