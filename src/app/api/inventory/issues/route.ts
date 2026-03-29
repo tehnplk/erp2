@@ -75,6 +75,7 @@ export async function GET(request: NextRequest) {
     if (!queryValidation.success) return queryValidation.error;
 
     const {
+      requesting_department_id,
       search,
       order_by = 'issue_date',
       sort_order = 'desc',
@@ -100,6 +101,11 @@ export async function GET(request: NextRequest) {
             AND (p_item.code ILIKE ${p} OR p_item.name ILIKE ${p} OR isl.lot_no ILIKE ${p})
         )
       )`);
+    }
+
+    if (requesting_department_id) {
+      params.push(requesting_department_id);
+      whereClauses.push(`ii.requesting_department_id = $${params.length}`);
     }
 
     const whereSql = whereClauses.length ? `WHERE ${whereClauses.join(' AND ')}` : '';

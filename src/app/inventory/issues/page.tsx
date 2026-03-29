@@ -62,6 +62,7 @@ export default function InventoryIssuesPage() {
   const [departments, setDepartments] = useState<DepartmentOption[]>([]);
   const [categoryOptions, setCategoryOptions] = useState<string[]>([]);
   const [search, setSearch] = useState('');
+  const [requestingDepartmentFilterId, setRequestingDepartmentFilterId] = useState('');
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
   const [totalCount, setTotalCount] = useState(0);
@@ -164,6 +165,7 @@ export default function InventoryIssuesPage() {
       sort_order: issueSortOrder,
     });
     if (search.trim()) params.set('search', search.trim());
+    if (requestingDepartmentFilterId.trim()) params.set('requesting_department_id', requestingDepartmentFilterId.trim());
     const response = await fetch(`/api/inventory/issues?${params.toString()}`);
     const payload: ApiResponse<IssueListRow[]> = await response.json();
     if (!response.ok || !payload.success) throw new Error(payload.error || 'โหลดรายการใบเบิกจ่ายไม่สำเร็จ');
@@ -216,7 +218,7 @@ export default function InventoryIssuesPage() {
       }
     }, 200);
     return () => window.clearTimeout(timeout);
-  }, [issueSortBy, issueSortOrder, page, pageSize, search]);
+  }, [issueSortBy, issueSortOrder, page, pageSize, search, requestingDepartmentFilterId]);
 
   useEffect(() => {
     if (selectedIssueId === null) return;
@@ -625,61 +627,96 @@ export default function InventoryIssuesPage() {
             </div>
           ) : null}
 
-          <div className="mt-4 flex flex-wrap items-end gap-3 rounded-xl border border-gray-200 bg-gray-50 px-3 py-3">
-            <label className="w-full max-w-md text-sm text-gray-700">
+          <div className="mt-4 flex flex-wrap gap-3">
+            <label className="flex-1 min-w-[220px] max-w-xl text-sm text-gray-700">
               ค้นหา
-              <input
-                type="text"
-                value={search}
-                onChange={(event) => {
-                  setSearch(event.target.value);
-                  setPage(1);
-                }}
-                placeholder="เลขที่เอกสาร / หน่วยงาน / หมายเหตุ / สินค้า / LOT"
-                className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2"
-              />
+              <div className="relative mt-1">
+                <input
+                  type="text"
+                  value={search}
+                  onChange={(event) => {
+                    setSearch(event.target.value);
+                    setPage(1);
+                  }}
+                  placeholder="เลขที่เอกสาร / หน่วยงาน / หมายเหตุ / สินค้า / LOT"
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 pr-10 text-sm"
+                />
+                {search ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSearch('');
+                      setPage(1);
+                    }}
+                    aria-label="ล้างการค้นหา"
+                    title="ล้างการค้นหา"
+                    className="absolute right-2 top-1/2 inline-flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded-full text-gray-400 transition hover:bg-gray-100 hover:text-gray-700"
+                  >
+                    <XCircle className="h-4 w-4" />
+                  </button>
+                ) : null}
+              </div>
             </label>
 
-            <label className="text-sm text-gray-700">
-              แถวต่อหน้า
+            <label className="min-w-[220px] flex-1 text-sm text-gray-700">
+              หน่วยงาน
               <select
-                value={pageSize}
+                value={requestingDepartmentFilterId}
                 onChange={(event) => {
-                  setPageSize(Number(event.target.value));
+                  setRequestingDepartmentFilterId(event.target.value);
                   setPage(1);
                 }}
-                className="mt-1 rounded-lg border border-gray-300 px-3 py-2"
+                className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
               >
-                {[10, 20, 50].map((option) => (
-                  <option key={option} value={option}>
-                    {option}
+                <option value="">ทุกหน่วยงาน</option>
+                {activeDepartments.map((department) => (
+                  <option key={department.id} value={String(department.id)}>
+                    {department.department_code} - {department.name}
                   </option>
                 ))}
               </select>
             </label>
           </div>
 
-          <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-700">
-            <span>
-              แสดง {issueListStart}-{issueListEnd} จาก {formatNumber(totalCount)} รายการ
-            </span>
-            <div className="flex items-center gap-2">
+          <div className="mt-4 flex flex-col gap-2 rounded-lg border border-gray-100 bg-gray-50 px-3 py-2 text-sm text-gray-600 md:flex-row md:items-center md:justify-between">
+            <div className="font-medium text-gray-700">
+              หน้า {page} / {totalPages}
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="rounded border border-gray-200 bg-white px-2 py-1 text-xs text-gray-600">
+                รวม {formatNumber(totalCount)} รายการ
+              </div>
+              <div className="rounded border border-gray-200 bg-white px-2 py-1 text-xs text-gray-600">
+                แสดง {issueListStart}-{issueListEnd}
+              </div>
+              <select
+                aria-label="เลือกจำนวนรายการต่อหน้า"
+                value={String(pageSize)}
+                onChange={(event) => {
+                  const nextSize = Number(event.target.value);
+                  if (![20, 50, 100].includes(nextSize)) return;
+                  setPageSize(nextSize);
+                  setPage(1);
+                }}
+                className="rounded border border-gray-300 px-2 py-1 text-sm"
+              >
+                <option value="20">20</option>
+                <option value="50">50</option>
+                <option value="100">100</option>
+              </select>
               <button
                 type="button"
-                onClick={() => setPage((current) => Math.max(1, current - 1))}
                 disabled={page <= 1}
-                className="rounded-lg border border-gray-300 bg-white px-3 py-1 text-sm text-gray-700 hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50"
+                onClick={() => setPage((prev) => Math.max(1, prev - 1))}
+                className="rounded border border-gray-300 px-2 py-1 disabled:opacity-50"
               >
                 ก่อนหน้า
               </button>
-              <span className="whitespace-nowrap text-sm text-gray-600">
-                หน้า {page} / {totalPages}
-              </span>
               <button
                 type="button"
-                onClick={() => setPage((current) => Math.min(totalPages, current + 1))}
                 disabled={page >= totalPages}
-                className="rounded-lg border border-gray-300 bg-white px-3 py-1 text-sm text-gray-700 hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50"
+                onClick={() => setPage((prev) => Math.min(totalPages, prev + 1))}
+                className="rounded border border-gray-300 px-2 py-1 disabled:opacity-50"
               >
                 ถัดไป
               </button>

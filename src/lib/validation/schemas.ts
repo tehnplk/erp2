@@ -121,6 +121,7 @@ export const inventoryStockLotQuerySchema = z.object({
 });
 
 export const inventoryIssueQuerySchema = z.object({
+  requesting_department_id: z.coerce.number().int().positive().optional(),
   requesting_department: z.string().optional(),
   search: z.string().optional(),
   start_date: z.string().optional(),
