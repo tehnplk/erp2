@@ -63,13 +63,7 @@ export default async function Home() {
   ] = await Promise.all([
     pgQuery<CountRow>('SELECT COUNT(*)::int AS count FROM public.product WHERE is_active = true'),
     pgQuery<CountRow>('SELECT COUNT(*)::int AS count FROM public.usage_plan WHERE budget_year = $1', [effectiveBudgetYear]),
-    pgQuery<CountRow>(
-      `SELECT COUNT(DISTINCT pp.id)::int AS count
-       FROM public.purchase_plan pp
-       INNER JOIN public.usage_plan up ON up.purchase_plan_id = pp.id
-       WHERE up.budget_year = $1`,
-      [effectiveBudgetYear]
-    ),
+    pgQuery<CountRow>('SELECT COUNT(*)::int AS count FROM public.purchase_plan WHERE budget_year = $1', [effectiveBudgetYear]),
     pgQuery<CountRow>('SELECT COUNT(*)::int AS count FROM public.purchase_approval WHERE budget_year = $1', [effectiveBudgetYear]),
     pgQuery<CountRow>('SELECT COUNT(*)::int AS count FROM public.department WHERE is_active = true'),
     pgQuery<SumRow>(
@@ -80,16 +74,9 @@ export default async function Home() {
       [effectiveBudgetYear]
     ),
     pgQuery<SumRow>(
-      `SELECT COALESCE(SUM(COALESCE(pp.purchase_qty, 0) * COALESCE(p.cost_price, 0)), 0)::float8 AS total
+      `SELECT COALESCE(SUM(COALESCE(pp.purchase_value, 0)), 0)::float8 AS total
        FROM public.purchase_plan pp
-       LEFT JOIN LATERAL (
-         SELECT MIN(up.product_code) AS product_code
-         FROM public.usage_plan up
-         WHERE up.purchase_plan_id = pp.id
-           AND up.budget_year = $1
-       ) upm ON true
-       LEFT JOIN public.product p ON p.code = upm.product_code
-       WHERE upm.product_code IS NOT NULL`,
+       WHERE pp.budget_year = $1`,
       [effectiveBudgetYear]
     ),
     pgQuery<SumRow>(
@@ -104,10 +91,9 @@ export default async function Home() {
       [effectiveBudgetYear]
     ),
     pgQuery<ChartRow>(
-      `SELECT 'มีแผนจัดซื้อ' AS name, COUNT(DISTINCT pp.id)::int AS value
+      `SELECT 'มีแผนจัดซื้อ' AS name, COUNT(*)::int AS value
        FROM public.purchase_plan pp
-       INNER JOIN public.usage_plan up ON up.purchase_plan_id = pp.id
-       WHERE up.budget_year = $1`,
+       WHERE pp.budget_year = $1`,
       [effectiveBudgetYear]
     ),
     pgQuery<BudgetTrendRow>(
@@ -120,13 +106,11 @@ export default async function Home() {
          GROUP BY up.budget_year
        ),
        plan_stats AS (
-         SELECT up.budget_year::text AS year,
-                COALESCE(SUM(COALESCE(pp.purchase_qty, 0) * COALESCE(p.cost_price, 0)), 0)::float8 AS "planValue"
+         SELECT pp.budget_year::text AS year,
+                COALESCE(SUM(COALESCE(pp.purchase_value, 0)), 0)::float8 AS "planValue"
          FROM public.purchase_plan pp
-         INNER JOIN public.usage_plan up ON up.purchase_plan_id = pp.id
-         LEFT JOIN public.product p ON p.code = up.product_code
-         WHERE up.budget_year = $1
-         GROUP BY up.budget_year
+         WHERE pp.budget_year = $1
+         GROUP BY pp.budget_year
        )
        SELECT COALESCE(survey_stats.year, plan_stats.year) AS year,
               COALESCE(survey_stats."surveyValue", 0)::float8 AS "surveyValue",
@@ -183,13 +167,11 @@ export default async function Home() {
          GROUP BY COALESCE(up.requesting_dept_code, 'ไม่ระบุ')
        ),
        plan_values AS (
-         SELECT COALESCE(up.requesting_dept_code, 'ไม่ระบุ') AS name,
-                COALESCE(SUM(COALESCE(pp.purchase_qty, 0) * COALESCE(p.cost_price, 0)), 0)::float8 AS "planValue"
+         SELECT COALESCE(pp.purchase_department_name, pp.purchase_department_code, 'ไม่ระบุ') AS name,
+                COALESCE(SUM(COALESCE(pp.purchase_value, 0)), 0)::float8 AS "planValue"
          FROM public.purchase_plan pp
-         INNER JOIN public.usage_plan up ON up.purchase_plan_id = pp.id
-         LEFT JOIN public.product p ON p.code = up.product_code
-         WHERE up.budget_year = $1
-         GROUP BY COALESCE(up.requesting_dept_code, 'ไม่ระบุ')
+         WHERE pp.budget_year = $1
+         GROUP BY COALESCE(pp.purchase_department_name, pp.purchase_department_code, 'ไม่ระบุ')
        ),
        approval_values AS (
          SELECT COALESCE(up.requesting_dept_code, 'ไม่ระบุ') AS name,
@@ -215,16 +197,14 @@ export default async function Home() {
       [effectiveBudgetYear]
     ),
     pgQuery<PurchasePlanDepartmentSpendRow>(
-      `SELECT
-         COALESCE(up.requesting_dept_code, 'ไม่ระบุ') AS name,
-         COALESCE(SUM(COALESCE(pp.purchase_qty, 0) * COALESCE(p.cost_price, 0)), 0)::float8 AS total_value,
+       `SELECT
+         COALESCE(pp.purchase_department_name, pp.purchase_department_code, 'ไม่ระบุ') AS name,
+         COALESCE(SUM(COALESCE(pp.purchase_value, 0)), 0)::float8 AS total_value,
          COUNT(*)::int AS item_count,
-         COALESCE(AVG(COALESCE(pp.purchase_qty, 0) * COALESCE(p.cost_price, 0)), 0)::float8 AS avg_value
+         COALESCE(AVG(COALESCE(pp.purchase_value, 0)), 0)::float8 AS avg_value
        FROM public.purchase_plan pp
-       INNER JOIN public.usage_plan up ON up.purchase_plan_id = pp.id
-       LEFT JOIN public.product p ON p.code = up.product_code
-       WHERE up.budget_year = $1
-       GROUP BY COALESCE(up.requesting_dept_code, 'ไม่ระบุ')
+       WHERE pp.budget_year = $1
+       GROUP BY COALESCE(pp.purchase_department_name, pp.purchase_department_code, 'ไม่ระบุ')
        ORDER BY total_value DESC, name ASC
        LIMIT 10`,
       [effectiveBudgetYear]
