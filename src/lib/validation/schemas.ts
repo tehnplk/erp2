@@ -353,7 +353,6 @@ export const purchasePlanQuerySchema = z.object({
   purchase_department: z.string().optional(),
   budget_year: z.string().optional(),
   requesting_dept: z.string().optional(),
-  has_purchase_approval: z.enum(['true', 'false']).optional(),
   order_by: z.enum([
     'id',
     'product_code',
@@ -393,7 +392,14 @@ export const createPurchaseApprovalSchema = z.object({
 });
 
 export const createPurchaseApprovalDetailSchema = z.object({
-  purchase_plan_id: z.coerce.number().int().positive(),
+  purchase_plan_id: z.coerce.number().int().positive().optional(),
+  product_code: z.string().trim().min(1).optional(),
+  product_name: z.string().trim().min(1).optional(),
+  requesting_dept_text: z.string().trim().min(1).optional(),
+  purchase_department_id: z.coerce.number().int().positive().optional(),
+  purchase_department_name: z.string().trim().min(1).optional(),
+  usage_plan_flag: z.enum(['ในแผน', 'นอกแผน']).optional(),
+  budget_year: z.coerce.number().int().positive().optional(),
   line_number: z.coerce.number().int().positive().optional(),
   status: z.enum(['PENDING', 'APPROVED', 'REJECTED', 'MODIFIED']).optional(),
   proposed_quantity: z.coerce.number().int().min(0).optional(),
@@ -403,6 +409,19 @@ export const createPurchaseApprovalDetailSchema = z.object({
   remarks: z.string().optional(),
   created_by: z.string().optional(),
   updated_by: z.string().optional()
+}).superRefine((data, ctx) => {
+  if (!data.purchase_plan_id) {
+    const requiredFields: Array<keyof typeof data> = ['product_code', 'purchase_department_id', 'usage_plan_flag'];
+    requiredFields.forEach((field) => {
+      if (!data[field]) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: [field],
+          message: `${String(field)} is required when purchase_plan_id is not provided`,
+        });
+      }
+    });
+  }
 });
 
 export const createPurchaseApprovalWithDetailsSchema = z.object({
@@ -455,7 +474,6 @@ export const usage_plan_query_schema = z.object({
   budget_year: z.string().optional(),
   category: z.string().optional(),
   type: z.string().optional(),
-  has_purchase_plan: z.enum(['true', 'false']).optional(),
   order_by: z.enum([
     'id',
     'product_code',

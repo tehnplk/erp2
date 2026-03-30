@@ -135,7 +135,6 @@ export async function POST(request: NextRequest) {
         up.sequence_no,
         up.created_at,
         up.updated_at,
-        false AS has_purchase_plan,
         false AS has_purchase_approval
       FROM public.usage_plan up
       LEFT JOIN public.product p ON p.code = up.product_code

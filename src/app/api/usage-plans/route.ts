@@ -26,7 +26,6 @@ export async function GET(request: NextRequest) {
       budget_year,
       category,
       type,
-      has_purchase_plan,
       order_by,
       sort_order,
       page: validatedPage,
@@ -87,14 +86,6 @@ export async function GET(request: NextRequest) {
       whereClauses.push(`p.type ILIKE $${params.length}`);
     }
 
-    if (has_purchase_plan === 'true') {
-      whereClauses.push('up.purchase_plan_id IS NOT NULL');
-    }
-
-    if (has_purchase_plan === 'false') {
-      whereClauses.push('up.purchase_plan_id IS NULL');
-    }
-
     const whereSql = whereClauses.length > 0 ? `WHERE ${whereClauses.join(' AND ')}` : '';
 
     const hasPagination = validatedPage !== undefined || validatedPageSize !== undefined;
@@ -125,11 +116,15 @@ export async function GET(request: NextRequest) {
         up.sequence_no,
         up.created_at,
         up.updated_at,
-        (up.purchase_plan_id IS NOT NULL) AS has_purchase_plan,
         EXISTS (
           SELECT 1
           FROM public.purchase_approval_detail pad
-          WHERE pad.purchase_plan_id = up.purchase_plan_id
+          INNER JOIN public.purchase_approval pa ON pa.id = pad.purchase_approval_id
+          LEFT JOIN public.product p_plan ON p_plan.code = up.product_code
+          WHERE COALESCE(pad.product_code, '') = COALESCE(up.product_code, '')
+            AND COALESCE(pad.purchase_department_id, 0) = COALESCE(p_plan.purchase_department_id, 0)
+            AND pa.budget_year = up.budget_year
+            AND CASE WHEN COALESCE(pad.usage_plan_flag, 'ในแผน') = 'นอกแผน' THEN 'นอกแผน' ELSE 'ในแผน' END = CASE WHEN COALESCE(up.plan_flag, 'ในแผน') = 'นอกแผน' THEN 'นอกแผน' ELSE 'ในแผน' END
         ) AS has_purchase_approval
       ${usagePlanFromSql}
     `;
@@ -279,7 +274,6 @@ export async function POST(request: NextRequest) {
         up.sequence_no,
         up.created_at,
         up.updated_at,
-        false AS has_purchase_plan,
         false AS has_purchase_approval
       FROM public.usage_plan up
       LEFT JOIN public.product p ON p.code = up.product_code

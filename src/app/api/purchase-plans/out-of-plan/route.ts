@@ -1,7 +1,8 @@
-import { NextRequest, NextResponse } from 'next/server';
+﻿import { NextRequest, NextResponse } from 'next/server';
 import { pgPool, pgQuery } from '@/lib/pg';
 import { apiError, apiSuccess } from '@/lib/api-response';
 import { cacheDelByPattern } from '@/lib/redis';
+import { allocatePurchasePlanId } from '@/lib/purchase-plan';
 
 const MAX_PRODUCTS = 30;
 
@@ -102,12 +103,14 @@ export async function POST(request: NextRequest) {
       code: string;
       category: string | null;
       cost_price: number | null;
+      purchase_department_id: number | null;
       purchase_department_code: string | null;
     }>(
       `SELECT
          p.code,
          p.category,
          COALESCE(p.cost_price, 0)::float8 AS cost_price,
+         COALESCE(p.purchase_department_id, 0)::int AS purchase_department_id,
          d.department_code AS purchase_department_code
        FROM public.product p
        LEFT JOIN public.department d ON d.id = p.purchase_department_id
@@ -127,6 +130,7 @@ export async function POST(request: NextRequest) {
     if ((product.purchase_department_code || '') !== requestingDeptCode) {
       return apiError('หน่วยงานที่เลือกไม่ตรงกับหน่วยงานจัดซื้อของสินค้า', 400);
     }
+    const targetPurchaseDepartmentId = Number(product.purchase_department_id ?? 0);
 
     const client = await pgPool.connect();
     try {
@@ -135,9 +139,9 @@ export async function POST(request: NextRequest) {
       const usageInsert = await client.query<{ id: number }>(
         `INSERT INTO public.usage_plan
            (product_code, requested_amount, requesting_dept_code, plan_flag, approved_quota, budget_year, sequence_no)
-         VALUES ($1, $2, $3, $4, $5, $6, $7)
+         VALUES ($1, $2, $3, 'นอกแผน', $2, $4, 1)
          RETURNING id`,
-        [productCode, Math.trunc(qty), requestingDeptCode, 'นอกแผน', Math.trunc(qty), Math.trunc(budgetYear), 1],
+        [productCode, Math.trunc(qty), requestingDeptCode, Math.trunc(budgetYear)],
       );
 
       const usagePlanId = usageInsert.rows[0]?.id;
@@ -146,17 +150,53 @@ export async function POST(request: NextRequest) {
         return apiError('ไม่สามารถสร้าง usage plan นอกแผนได้', 500);
       }
 
-      const purchaseInsert = await client.query<{ id: number }>(
-        `INSERT INTO public.purchase_plan (inventory_qty, qouta_qty, purchase_qty)
-         VALUES ($1, $2, $3)
-         RETURNING id`,
-        [0, Math.trunc(qty), Math.trunc(qty)],
+      const existingPlanResult = await client.query<{ id: number }>(
+        `SELECT purchase_plan_id AS id
+         FROM public.usage_plan
+         WHERE purchase_plan_id IS NOT NULL
+           AND product_code = $1
+           AND budget_year = $2
+           AND EXISTS (
+             SELECT 1
+             FROM public.product p
+             WHERE p.code = public.usage_plan.product_code
+               AND COALESCE(p.purchase_department_id, 0) = $3
+           )
+           AND (CASE WHEN COALESCE(plan_flag, 'ในแผน') = 'นอกแผน' THEN 'นอกแผน' ELSE 'ในแผน' END) = 'นอกแผน'
+         GROUP BY purchase_plan_id
+         ORDER BY purchase_plan_id`,
+        [productCode, Math.trunc(budgetYear), targetPurchaseDepartmentId],
       );
 
-      const purchasePlanId = purchaseInsert.rows[0]?.id;
+      let purchasePlanId = Number(existingPlanResult.rows[0]?.id ?? 0);
       if (!purchasePlanId) {
-        await client.query('ROLLBACK');
-        return apiError('ไม่สามารถสร้างแผนจัดซื้อได้', 500);
+        purchasePlanId = await allocatePurchasePlanId(client);
+      }
+
+      const duplicatePlanIds = existingPlanResult.rows
+        .slice(1)
+        .map((row) => Number(row.id))
+        .filter((id) => Number.isInteger(id) && id > 0);
+
+      if (duplicatePlanIds.length > 0) {
+        await client.query(
+          `UPDATE public.usage_plan
+           SET purchase_plan_id = $1,
+               updated_at = NOW()
+           WHERE purchase_plan_id = ANY($2::int[])
+             AND product_code = $3
+             AND budget_year = $4
+             AND EXISTS (
+               SELECT 1
+               FROM public.product p
+               WHERE p.code = public.usage_plan.product_code
+                 AND COALESCE(p.purchase_department_id, 0) = $5
+             )
+             AND (CASE WHEN COALESCE(plan_flag, 'ในแผน') = 'นอกแผน' THEN 'นอกแผน' ELSE 'ในแผน' END) = 'นอกแผน'`,
+          [purchasePlanId, duplicatePlanIds, productCode, Math.trunc(budgetYear), targetPurchaseDepartmentId],
+        );
+
+
       }
 
       await client.query(
@@ -166,6 +206,36 @@ export async function POST(request: NextRequest) {
          WHERE id = $2`,
         [purchasePlanId, usagePlanId],
       );
+
+      const quotaResult = await client.query<{ total_quota: number }>(
+        `SELECT COALESCE(SUM(GREATEST(COALESCE(approved_quota, requested_amount, 0), 0)), 0)::int AS total_quota
+         FROM public.usage_plan
+         WHERE purchase_plan_id = $1
+           AND product_code = $2
+           AND budget_year = $3
+           AND EXISTS (
+             SELECT 1
+             FROM public.product p
+             WHERE p.code = public.usage_plan.product_code
+               AND COALESCE(p.purchase_department_id, 0) = $4
+           )
+           AND (CASE WHEN COALESCE(plan_flag, 'ในแผน') = 'นอกแผน' THEN 'นอกแผน' ELSE 'ในแผน' END) = 'นอกแผน'`,
+        [purchasePlanId, productCode, Math.trunc(budgetYear), targetPurchaseDepartmentId],
+      );
+
+      const inventoryResult = await client.query<{ inventory_qty: number }>(
+        `SELECT COALESCE(SUM(isl.qty_on_hand), 0)::int AS inventory_qty
+         FROM public.inventory_stock_lot isl
+         INNER JOIN public.product p_stock ON p_stock.id = isl.product_id
+         WHERE p_stock.code = $1`,
+        [productCode],
+      );
+
+      const qoutaQty = Number(quotaResult.rows[0]?.total_quota ?? 0);
+      const inventoryQty = Number(inventoryResult.rows[0]?.inventory_qty ?? 0);
+      const purchaseQty = Math.max(qoutaQty - inventoryQty, 0);
+
+
 
       await client.query('COMMIT');
 
@@ -178,8 +248,11 @@ export async function POST(request: NextRequest) {
           usage_plan_id: usagePlanId,
           purchase_plan_id: purchasePlanId,
           plan_flag: 'นอกแผน',
+          qouta_qty: qoutaQty,
+          inventory_qty: inventoryQty,
+          purchase_qty: purchaseQty,
         },
-        'เพิ่มแผนจัดซื้อนอกแผนสำเร็จ',
+        'บันทึก usage_plan นอกแผนเรียบร้อยแล้ว และ purchase_plan view จะแสดงเป็นนอกแผนอัตโนมัติ',
         undefined,
         201,
       );
@@ -194,4 +267,6 @@ export async function POST(request: NextRequest) {
     return apiError('Failed to create out-of-plan purchase plan');
   }
 }
+
+
 

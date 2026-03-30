@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
@@ -25,7 +25,6 @@ type PurchasePlanRow = {
   purchase_department_id?: number | null;
   purchase_department_code?: string | null;
   purchase_department_name?: string | null;
-  has_purchase_approval?: boolean;
   inventory_qty: number | null;
   inventory_value: number | null;
   purchased_qty: number | null;
@@ -283,7 +282,6 @@ function PurchasePlansPageContent() {
   const initialUsagePlanFlagFilter = searchParams.get('usage_plan_flag') || '';
   const initialRequestingDeptFilter = searchParams.get('requesting_dept') || '';
   const initialBudgetYearFilter = searchParams.get('budget_year') || '';
-  const initialHasPurchaseApprovalFilter = searchParams.get('has_purchase_approval') || '';
   const initialPurchaseDepartmentFilter = searchParams.get('purchase_department') || '';
   const initialSortBy = searchParams.get('order_by') || 'id';
   const initialSortOrder = (searchParams.get('sort_order') === 'asc' ? 'asc' : 'desc') as 'asc' | 'desc';
@@ -314,7 +312,6 @@ function PurchasePlansPageContent() {
   const [usagePlanFlagFilter, setUsagePlanFlagFilter] = useState(initialUsagePlanFlagFilter);
   const [requestingDeptFilter, setRequestingDeptFilter] = useState(initialRequestingDeptFilter);
   const [budgetYearFilter, setBudgetYearFilter] = useState(initialBudgetYearFilter);
-  const [hasPurchaseApprovalFilter, setHasPurchaseApprovalFilter] = useState(initialHasPurchaseApprovalFilter);
 
   const [sortBy, setSortBy] = useState(initialSortBy);
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>(initialSortOrder);
@@ -327,8 +324,6 @@ function PurchasePlansPageContent() {
   const [departments, setDepartments] = useState<string[]>([]);
   const [years, setYears] = useState<string[]>([]);
   const [purchaseDepartmentFilter, setPurchaseDepartmentFilter] = useState(initialPurchaseDepartmentFilter);
-  const [autoCreating, setAutoCreating] = useState(false);
-  const [approvedPlanIds, setApprovedPlanIds] = useState<Set<number>>(new Set());
   const [showOutOfPlanModal, setShowOutOfPlanModal] = useState(false);
   const [outOfPlanDepartments, setOutOfPlanDepartments] = useState<DepartmentOption[]>([]);
   const [outOfPlanCategories, setOutOfPlanCategories] = useState<string[]>([]);
@@ -387,8 +382,7 @@ function PurchasePlansPageContent() {
       return;
     }
     void fetchData();
-    void fetchApprovedPlanIds();
-  }, [sortBy, sortOrder, page, pageSize, productNameFilter, categoryFilter, typeFilter, subtypeFilter, usagePlanFlagFilter, purchaseDepartmentFilter, requestingDeptFilter, budgetYearFilter, hasPurchaseApprovalFilter, searchParams, effectiveBudgetYear]);
+  }, [sortBy, sortOrder, page, pageSize, productNameFilter, categoryFilter, typeFilter, subtypeFilter, usagePlanFlagFilter, purchaseDepartmentFilter, requestingDeptFilter, budgetYearFilter, searchParams, effectiveBudgetYear]);
 
   useEffect(() => {
     const hasBudgetYearParam = Boolean(searchParams.get('budget_year'));
@@ -399,7 +393,7 @@ function PurchasePlansPageContent() {
       return;
     }
     void fetchSummaryData();
-  }, [productNameFilter, categoryFilter, typeFilter, subtypeFilter, usagePlanFlagFilter, purchaseDepartmentFilter, requestingDeptFilter, budgetYearFilter, hasPurchaseApprovalFilter, sortBy, sortOrder, searchParams, effectiveBudgetYear]);
+  }, [productNameFilter, categoryFilter, typeFilter, subtypeFilter, usagePlanFlagFilter, purchaseDepartmentFilter, requestingDeptFilter, budgetYearFilter, sortBy, sortOrder, searchParams, effectiveBudgetYear]);
 
   useEffect(() => {
     const hasBudgetYearParam = Boolean(searchParams.get('budget_year'));
@@ -500,7 +494,7 @@ function PurchasePlansPageContent() {
     }
 
     setPage((prev) => (prev === 1 ? prev : 1));
-  }, [productNameFilter, categoryFilter, typeFilter, subtypeFilter, usagePlanFlagFilter, purchaseDepartmentFilter, requestingDeptFilter, budgetYearFilter, hasPurchaseApprovalFilter, sortBy, sortOrder]);
+  }, [productNameFilter, categoryFilter, typeFilter, subtypeFilter, usagePlanFlagFilter, purchaseDepartmentFilter, requestingDeptFilter, budgetYearFilter, sortBy, sortOrder]);
 
   useEffect(() => {
     const nextProductName = searchParams.get('product_name') || '';
@@ -511,8 +505,7 @@ function PurchasePlansPageContent() {
     const nextPurchaseDepartment = searchParams.get('purchase_department') || '';
     const nextRequestingDept = searchParams.get('requesting_dept') || '';
     const nextBudgetYear = searchParams.get('budget_year') || (effectiveBudgetYear ? String(effectiveBudgetYear) : '');
-    const nextHasPurchaseApproval = searchParams.get('has_purchase_approval') || '';
-    const nextSortBy = searchParams.get('order_by') || 'id';
+      const nextSortBy = searchParams.get('order_by') || 'id';
     const nextSortOrder = (searchParams.get('sort_order') === 'asc' ? 'asc' : 'desc') as 'asc' | 'desc';
     const nextPage = Math.max(1, parseInt(searchParams.get('page') || '1', 10) || 1);
     const nextPageSizeRaw = parseInt(searchParams.get('page_size') || '20', 10) || 20;
@@ -526,7 +519,6 @@ function PurchasePlansPageContent() {
     setPurchaseDepartmentFilter((prev) => (prev === nextPurchaseDepartment ? prev : nextPurchaseDepartment));
     setRequestingDeptFilter((prev) => (prev === nextRequestingDept ? prev : nextRequestingDept));
     setBudgetYearFilter((prev) => (prev === nextBudgetYear ? prev : nextBudgetYear));
-    setHasPurchaseApprovalFilter((prev) => (prev === nextHasPurchaseApproval ? prev : nextHasPurchaseApproval));
     setSortBy((prev) => (prev === nextSortBy ? prev : nextSortBy));
     setSortOrder((prev) => (prev === nextSortOrder ? prev : nextSortOrder));
     setPage((prev) => (prev === nextPage ? prev : nextPage));
@@ -552,7 +544,6 @@ function PurchasePlansPageContent() {
     if (budgetYearFilter && budgetYearFilter !== defaultBudgetYear) {
       params.set('budget_year', budgetYearFilter);
     }
-    if (hasPurchaseApprovalFilter) params.set('has_purchase_approval', hasPurchaseApprovalFilter);
     if (sortBy && sortBy !== 'id') params.set('order_by', sortBy);
     if (sortOrder !== 'desc') params.set('sort_order', sortOrder);
     if (page > 1) params.set('page', page.toString());
@@ -565,7 +556,7 @@ function PurchasePlansPageContent() {
       lastPushedUrlRef.current = nextUrl;
       router.replace(nextUrl, { scroll: false });
     }
-  }, [pathname, router, searchParams, productNameFilter, categoryFilter, typeFilter, subtypeFilter, usagePlanFlagFilter, purchaseDepartmentFilter, requestingDeptFilter, budgetYearFilter, hasPurchaseApprovalFilter, sortBy, sortOrder, page, pageSize, effectiveBudgetYear]);
+  }, [pathname, router, searchParams, productNameFilter, categoryFilter, typeFilter, subtypeFilter, usagePlanFlagFilter, purchaseDepartmentFilter, requestingDeptFilter, budgetYearFilter, sortBy, sortOrder, page, pageSize, effectiveBudgetYear]);
 
   useEffect(() => {
     if (editingRowId === null) {
@@ -617,7 +608,6 @@ function PurchasePlansPageContent() {
       if (purchaseDepartmentFilter) params.append('purchase_department', purchaseDepartmentFilter);
       if (requestingDeptFilter) params.append('requesting_dept', requestingDeptFilter);
       if (budgetYearFilter) params.append('budget_year', budgetYearFilter);
-      if (hasPurchaseApprovalFilter) params.append('has_purchase_approval', hasPurchaseApprovalFilter);
       params.append('order_by', sortBy);
       params.append('sort_order', sortOrder);
       params.append('page', page.toString());
@@ -654,23 +644,6 @@ function PurchasePlansPageContent() {
     }
   };
 
-  const fetchApprovedPlanIds = async () => {
-    try {
-      // Don't filter by budget year - get all approved plans
-      const response = await fetch('/api/purchase-plans/approved');
-      if (!response.ok) {
-        throw new Error('Failed to fetch approved purchase plans');
-      }
-
-      const data = await response.json();
-      if (data.success) {
-        setApprovedPlanIds(new Set(data.data));
-      }
-    } catch (error) {
-      console.error('Error fetching approved purchase plans:', error);
-    }
-  };
-
   const fetchSummaryData = async () => {
     const requestId = ++summaryRequestIdRef.current;
 
@@ -684,7 +657,6 @@ function PurchasePlansPageContent() {
       if (purchaseDepartmentFilter) params.append('purchase_department', purchaseDepartmentFilter);
       if (requestingDeptFilter) params.append('requesting_dept', requestingDeptFilter);
       if (budgetYearFilter) params.append('budget_year', budgetYearFilter);
-      if (hasPurchaseApprovalFilter) params.append('has_purchase_approval', hasPurchaseApprovalFilter);
       params.append('order_by', sortBy);
       params.append('sort_order', sortOrder);
 
@@ -716,9 +688,6 @@ function PurchasePlansPageContent() {
 
   const totalInventoryValue = summaryItems.reduce((sum, item) => sum + (item.inventory_value ?? 0), 0);
   const totalPurchaseValue = summaryItems.reduce((sum, item) => sum + (item.purchase_value ?? 0), 0);
-  const purchaseApprovalCreatedCount = statusCountItems.filter((item) => item.has_purchase_approval).length;
-  const purchaseApprovalPendingCount = statusCountItems.filter((item) => !item.has_purchase_approval).length;
-
   const goToPage = (newPage: number) => {
     if (newPage < 1 || newPage > totalPages) {
       return;
@@ -767,7 +736,7 @@ function PurchasePlansPageContent() {
   };
 
   const handleRowFocus = async (row: PurchasePlanRow, focus: 'qty' | 'price') => {
-    if (row.has_purchase_approval) {
+    if ((row.purchased_qty ?? 0) > 0) {
       return;
     }
 
@@ -1220,14 +1189,21 @@ function PurchasePlansPageContent() {
 
     if (!result.isConfirmed) {
       return;
-    }
+      }
 
-    try {
+      try {
       // Create payload for new purchase_approval table structure
+      const fallbackBudgetYear = selectedItems[0]?.budget_year ?? effectiveBudgetYear ?? (new Date().getFullYear() + 543);
       const details = selectedItems.map((item, index) => ({
+        product_code: item.product_code ?? '',
+        product_name: item.product_name ?? '',
+        requesting_dept_text: item.requesting_dept ?? '',
+        purchase_department_id: item.purchase_department_id ?? null,
+        purchase_department_name: item.purchase_department_name ?? '',
+        usage_plan_flag: item.usage_plan_flag ?? 'ในแผน',
+        budget_year: item.budget_year ?? fallbackBudgetYear,
         proposed_quantity: approvalDraftByPlanId[item.id].quantity,
         proposed_amount: approvalDraftByPlanId[item.id].totalAmount,
-        purchase_plan_id: item.id, // Link to the purchase plan
         approved_quantity: approvalDraftByPlanId[item.id].quantity,
         approved_amount: approvalDraftByPlanId[item.id].totalAmount,
         line_number: index + 1, // Start from 1
@@ -1236,7 +1212,7 @@ function PurchasePlansPageContent() {
 
       // Create header with basic info
       const header = {
-        budget_year: selectedItems[0]?.budget_year ?? effectiveBudgetYear ?? (new Date().getFullYear() + 543),
+        budget_year: fallbackBudgetYear,
         department: selectedDepartments[0],
         doc_date: new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().split('T')[0], // Current date
         notes: `สร้างจากแผนจัดซื้อ ${selectedItems.length} รายการ (หน่วยงานจัดซื้อ ${selectedDepartments[0]}, หมวดสินค้า ${selectedCategories[0]})`,
@@ -1461,38 +1437,6 @@ function PurchasePlansPageContent() {
     });
   }, [items]);
 
-  const handleAutoCreate = async () => {
-    try {
-      setAutoCreating(true);
-      const response = await fetch('/api/purchase-plans/auto', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-      });
-
-      const payload = await response.json().catch(() => null);
-      if (!response.ok || !payload?.success) {
-        throw new Error(payload?.error || 'ไม่สามารถทำแผนจัดซื้ออัตโนมัติได้');
-      }
-
-      await Swal.fire({
-        icon: 'success',
-        title: 'ทำแผนจัดซื้ออัตโนมัติสำเร็จ',
-        text: payload?.message || 'สร้างแผนจัดซื้ออัตโนมัติเรียบร้อยแล้ว',
-      });
-
-      await Promise.all([fetchData(), fetchSummaryData()]);
-    } catch (error) {
-      console.error(error);
-      await Swal.fire({
-        icon: 'error',
-        title: 'ทำแผนจัดซื้ออัตโนมัติไม่สำเร็จ',
-        text: error instanceof Error ? error.message : 'เกิดข้อผิดพลาดในการสร้างแผนจัดซื้ออัตโนมัติ',
-      });
-    } finally {
-      setAutoCreating(false);
-    }
-  };
-
   const fetchOutOfPlanOptions = async (args?: { departmentCode?: string; category?: string; searchText?: string }) => {
     try {
       setLoadingOutOfPlanProducts(true);
@@ -1583,7 +1527,7 @@ function PurchasePlansPageContent() {
       await Swal.fire({
         icon: 'success',
         title: 'เพิ่มแผนจัดซื้อนอกแผนสำเร็จ',
-        text: payload?.message || 'บันทึกลง usage_plan และ purchase_plan เรียบร้อยแล้ว',
+        text: payload?.message || 'บันทึกลง usage_plan เรียบร้อยแล้ว และ purchase_plan view จะแสดงเป็นนอกแผนอัตโนมัติ',
       });
 
       setShowOutOfPlanModal(false);
@@ -1624,14 +1568,6 @@ function PurchasePlansPageContent() {
                 className="rounded-lg border border-blue-600 bg-blue-50 px-4 py-2 text-sm font-semibold text-blue-700 hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 จัดทำเอกสารอนุมัติจัดซื้อ ({selectedPlanItems.length})
-              </button>
-              <button
-                type="button"
-                onClick={() => void handleAutoCreate()}
-                disabled={autoCreating}
-                className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {autoCreating ? 'กำลังทำแผนจัดซื้ออัตโนมัติ...' : 'ทำแผนจัดซื้ออัตโนมัติ'}
               </button>
             </div>
           </div>
@@ -1698,6 +1634,12 @@ function PurchasePlansPageContent() {
           <div className="mb-3 flex flex-col gap-2 rounded-lg border border-gray-100 bg-gray-50 px-3 py-2 text-sm text-gray-600 md:flex-row md:items-center md:justify-between">
             <div className="font-medium text-gray-700">หน้า {page} / {totalPages}</div>
             <div className="flex flex-wrap items-center gap-2">
+              <div className="rounded border border-gray-200 bg-white px-2 py-1 text-xs text-gray-600">
+                รวมแผนจัดซื้อ {summaryItems.length.toLocaleString()} รายการ
+              </div>
+              <div className="rounded border border-gray-200 bg-white px-2 py-1 text-xs text-gray-600">
+                มูลค่าแผนซื้อ {totalPurchaseValue.toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} บาท
+              </div>
               <div className="rounded border border-gray-200 bg-white px-2 py-1 text-xs text-gray-600">
                 แสดง {pageStart.toLocaleString()}-{pageEnd.toLocaleString()} จาก {totalCount.toLocaleString()} รายการ
               </div>

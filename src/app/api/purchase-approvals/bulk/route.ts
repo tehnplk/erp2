@@ -38,47 +38,48 @@ export async function POST(request: NextRequest) {
     }
 
     const { header, details } = validation.data;
-    const purchasePlanIds = Array.from(new Set(details.map((detail) => detail.purchase_plan_id)));
-
-    const purchasePlanMetaResult = await pgQuery<{
-      id: number;
-      category: string | null;
-      budget_year: number | null;
-      category_code: string | null;
-    }>(
-      `SELECT
-         pp.id,
-         p.category,
-         usage_summary.budget_year,
-         category_map.category_code
-       FROM public.purchase_plan pp
-       LEFT JOIN (
-         SELECT
-           up.purchase_plan_id,
-           MIN(up.budget_year)::int AS budget_year,
-           MIN(up.product_code) AS product_code
-         FROM public.usage_plan up
-         WHERE up.purchase_plan_id IS NOT NULL
-         GROUP BY up.purchase_plan_id
-        ) usage_summary ON usage_summary.purchase_plan_id = pp.id
-        LEFT JOIN public.product p ON p.code = usage_summary.product_code
-        LEFT JOIN (
-          SELECT category, MIN(category_code) AS category_code
-          FROM public.category
-          WHERE is_active = true
-         GROUP BY category
-       ) category_map ON category_map.category = p.category
-       WHERE pp.id = ANY($1::int[])`,
-      [purchasePlanIds]
+    const detailProductCodes = Array.from(
+      new Set(
+        details
+          .map((detail) => detail.product_code?.trim())
+          .filter((code): code is string => Boolean(code))
+      )
     );
 
-    if (purchasePlanMetaResult.rows.length !== purchasePlanIds.length) {
-      return apiError('พบรายการแผนจัดซื้อไม่ครบถ้วนสำหรับการสร้างเอกสารอนุมัติจัดซื้อ');
+    if (detailProductCodes.length === 0) {
+      return apiError('ไม่พบรหัสสินค้าสำหรับสร้างเอกสารอนุมัติ');
+    }
+
+    const productMetaResult = await pgQuery<{
+      code: string;
+      name: string | null;
+      category: string | null;
+      type: string | null;
+      subtype: string | null;
+      purchase_department_id: number | null;
+      purchase_department_name: string | null;
+    }>(
+      `SELECT
+         p.code,
+         p.name,
+         p.category,
+         p.type,
+         p.subtype,
+         p.purchase_department_id,
+         COALESCE(pd.name, pd.department_code) AS purchase_department_name
+       FROM public.product p
+       LEFT JOIN public.department pd ON pd.id = p.purchase_department_id
+       WHERE p.code = ANY($1::text[])`,
+      [detailProductCodes]
+    );
+
+    if (productMetaResult.rows.length !== detailProductCodes.length) {
+      return apiError('พบบางรายการรหัสสินค้าไม่ถูกต้องสำหรับสร้างเอกสารอนุมัติ');
     }
 
     const categories = Array.from(
       new Set(
-        purchasePlanMetaResult.rows
+        productMetaResult.rows
           .map((row) => row.category)
           .filter((category): category is string => Boolean(category))
       )
@@ -88,7 +89,26 @@ export async function POST(request: NextRequest) {
       return apiError('การสร้างเอกสารอนุมัติจัดซื้อสามารถเลือกรายการสินค้าได้เฉพาะหมวดเดียวกันเท่านั้น');
     }
 
-    const categoryCode = purchasePlanMetaResult.rows[0]?.category_code;
+    const purchaseDepartmentIds = Array.from(
+      new Set(
+        productMetaResult.rows
+          .map((row) => Number(row.purchase_department_id))
+          .filter((id) => Number.isFinite(id) && id > 0)
+      )
+    );
+
+    if (purchaseDepartmentIds.length !== 1) {
+      return apiError('การสร้างเอกสารอนุมัติจัดซื้อกำหนดได้เฉพาะหน่วยงานจัดซื้อเดียวกันเท่านั้น');
+    }
+
+    const categoryCodeResult = await pgQuery<{ category_code: string | null }>(
+      `SELECT MIN(category_code) AS category_code
+       FROM public.category
+       WHERE is_active = true
+         AND category = $1`,
+      [categories[0]]
+    );
+    const categoryCode = categoryCodeResult.rows[0]?.category_code;
     if (!categoryCode) {
       return apiError('ไม่พบรหัสหมวดสำหรับการสร้างรหัสเอกสาร');
     }
@@ -146,10 +166,22 @@ export async function POST(request: NextRequest) {
     // Create purchase approval details
     for (let i = 0; i < details.length; i++) {
       const detail = details[i];
+      const productMeta = productMetaResult.rows.find((row) => row.code === detail.product_code?.trim());
+      if (!productMeta) {
+        throw new Error(`ไม่พบข้อมูลสินค้าสำหรับรหัส ${detail.product_code}`);
+      }
+
       const detailWithApprovalId = {
         ...detail,
         purchase_approval_id: purchaseApprovalId,
-        line_number: detail.line_number || (i + 1)
+        line_number: detail.line_number || (i + 1),
+        product_code: productMeta.code,
+        product_name: detail.product_name || productMeta.name || null,
+        requesting_dept_text: detail.requesting_dept_text || null,
+        purchase_department_id: productMeta.purchase_department_id,
+        purchase_department_name: detail.purchase_department_name || productMeta.purchase_department_name || null,
+        usage_plan_flag: detail.usage_plan_flag || 'ในแผน',
+        budget_year: Number(detail.budget_year || budgetYear),
       };
       const normalizedQty = Number(detailWithApprovalId.proposed_quantity ?? detailWithApprovalId.approved_quantity ?? 0);
       const normalizedAmount = Number(detailWithApprovalId.proposed_amount ?? detailWithApprovalId.approved_amount ?? 0);
@@ -159,14 +191,22 @@ export async function POST(request: NextRequest) {
       
       const detailResult = await pgQuery(
         `INSERT INTO public.purchase_approval_detail 
-         (purchase_approval_id, purchase_plan_id, line_number, status, proposed_quantity, proposed_amount, approved_quantity, 
-          approved_amount, cal_unit_price, remarks, created_by, updated_by, version)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, 1)
-         RETURNING id, purchase_approval_id, purchase_plan_id, line_number, status,
+         (purchase_approval_id, product_code, product_name, requesting_dept_text, purchase_department_id,
+          purchase_department_name, usage_plan_flag, budget_year, line_number, status, proposed_quantity, proposed_amount,
+          approved_quantity, approved_amount, cal_unit_price, remarks, created_by, updated_by, version)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, 1)
+         RETURNING id, purchase_approval_id, product_code, product_name, requesting_dept_text,
+                  purchase_department_id, purchase_department_name, usage_plan_flag, budget_year, line_number, status,
                   proposed_quantity, proposed_amount, approved_quantity, approved_amount, cal_unit_price, remarks, created_at, updated_at, version`,
         [
           detailWithApprovalId.purchase_approval_id,
-          detailWithApprovalId.purchase_plan_id,
+          detailWithApprovalId.product_code,
+          detailWithApprovalId.product_name,
+          detailWithApprovalId.requesting_dept_text,
+          detailWithApprovalId.purchase_department_id,
+          detailWithApprovalId.purchase_department_name,
+          detailWithApprovalId.usage_plan_flag,
+          detailWithApprovalId.budget_year,
           detailWithApprovalId.line_number,
           detailWithApprovalId.status || 'PENDING',
           normalizedQty,

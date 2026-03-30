@@ -25,6 +25,10 @@ type UsagePlanRecord = {
   updated_at: string | Date | null;
 };
 
+type UsagePlanApprovalCheck = {
+  has_purchase_approval: boolean;
+};
+
 async function syncLinkedPurchasePlanArtifacts(
   client: PoolClient,
   purchasePlanId: number
@@ -59,15 +63,6 @@ async function syncLinkedPurchasePlanArtifacts(
 
   const inventoryQty = Number(inventoryResult.rows[0]?.inventory_qty ?? 0);
   const purchaseQty = Math.max(approvedQuota - inventoryQty, 0);
-
-  await client.query(
-    `UPDATE public.purchase_plan
-     SET qouta_qty = $1,
-         inventory_qty = $2,
-         purchase_qty = $3
-     WHERE id = $4`,
-    [approvedQuota, inventoryQty, purchaseQty, purchasePlanId]
-  );
 
   const detailResult = await client.query<{
     id: number;
@@ -305,8 +300,16 @@ export async function PUT(
         up.sequence_no,
         up.created_at,
         up.updated_at,
-        CASE WHEN up.purchase_plan_id IS NOT NULL THEN true ELSE false END AS has_purchase_plan,
-        CASE WHEN EXISTS (SELECT 1 FROM public.purchase_approval_detail pad WHERE pad.purchase_plan_id = up.purchase_plan_id) THEN true ELSE false END AS has_purchase_approval
+        CASE WHEN EXISTS (
+          SELECT 1
+          FROM public.purchase_approval_detail pad
+          INNER JOIN public.purchase_approval pa ON pa.id = pad.purchase_approval_id
+          LEFT JOIN public.product p_plan ON p_plan.code = up.product_code
+          WHERE COALESCE(pad.product_code, '') = COALESCE(up.product_code, '')
+            AND COALESCE(pad.purchase_department_id, 0) = COALESCE(p_plan.purchase_department_id, 0)
+            AND pa.budget_year = up.budget_year
+            AND CASE WHEN COALESCE(pad.usage_plan_flag, 'ในแผน') = 'นอกแผน' THEN 'นอกแผน' ELSE 'ในแผน' END = CASE WHEN COALESCE(up.plan_flag, 'ในแผน') = 'นอกแผน' THEN 'นอกแผน' ELSE 'ในแผน' END
+        ) THEN true ELSE false END AS has_purchase_approval
       FROM public.usage_plan up
       LEFT JOIN public.product p ON p.code = up.product_code
       LEFT JOIN public.department d ON d.department_code = up.requesting_dept_code
@@ -349,9 +352,38 @@ export async function DELETE(
 
     const numericId = parsedId.data.id;
 
+    const approvalCheckResult = await pgQuery<UsagePlanApprovalCheck>(
+      `SELECT EXISTS (
+         SELECT 1
+         FROM public.usage_plan up
+         INNER JOIN public.purchase_approval_detail pad ON COALESCE(pad.product_code, '') = COALESCE(up.product_code, '')
+         INNER JOIN public.purchase_approval pa ON pa.id = pad.purchase_approval_id
+         LEFT JOIN public.product p_plan ON p_plan.code = up.product_code
+         WHERE up.id = $1
+           AND COALESCE(pad.purchase_department_id, 0) = COALESCE(p_plan.purchase_department_id, 0)
+           AND pa.budget_year = up.budget_year
+           AND CASE WHEN COALESCE(pad.usage_plan_flag, 'ในแผน') = 'นอกแผน' THEN 'นอกแผน' ELSE 'ในแผน' END
+             = CASE WHEN COALESCE(up.plan_flag, 'ในแผน') = 'นอกแผน' THEN 'นอกแผน' ELSE 'ในแผน' END
+       ) AS has_purchase_approval`,
+      [numericId]
+    );
+
+    if (approvalCheckResult.rows[0]?.has_purchase_approval) {
+      return NextResponse.json(
+        { error: 'รายการนี้ถูกใช้ในเอกสารอนุมัติแล้ว จึงไม่สามารถลบได้' },
+        { status: 400 }
+      );
+    }
+
     await pgQuery('DELETE FROM public.usage_plan WHERE id = $1', [numericId]);
 
-    await cacheDelByPattern('erp:usage_plans:list:*');
+    await Promise.all([
+      cacheDelByPattern('erp:usage_plans:list:*'),
+      cacheDelByPattern('erp:purchase:plans:list:*'),
+      cacheDelByPattern('erp:purchase:plans:filters*'),
+      cacheDelByPattern('erp:purchase:approvals:list:*'),
+      cacheDelByPattern('erp:purchase:approvals:filters*'),
+    ]);
 
     return NextResponse.json({ message: 'Usage plan deleted successfully' });
   } catch (error) {

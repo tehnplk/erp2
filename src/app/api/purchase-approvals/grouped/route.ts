@@ -27,21 +27,53 @@ export async function GET(request: NextRequest) {
     if (product_name) {
       params.push(`%${product_name}%`);
       whereClauses.push(`(
-        plan_summary.product_code ILIKE $${params.length}
-        OR plan_summary.product_name ILIKE $${params.length}
+        EXISTS (
+          SELECT 1
+          FROM public.purchase_approval_detail pad_filter
+          LEFT JOIN public.product p_filter ON p_filter.code = pad_filter.product_code
+          WHERE pad_filter.purchase_approval_id = pa.id
+            AND (
+              COALESCE(pad_filter.product_code, '') ILIKE $${params.length}
+              OR COALESCE(pad_filter.product_name, p_filter.name, '') ILIKE $${params.length}
+            )
+        )
       )`);
     }
     if (category) {
       params.push(category);
-      whereClauses.push(`plan_summary.category = $${params.length}`);
+      whereClauses.push(`
+        EXISTS (
+          SELECT 1
+          FROM public.purchase_approval_detail pad_filter
+          LEFT JOIN public.product p_filter ON p_filter.code = pad_filter.product_code
+          WHERE pad_filter.purchase_approval_id = pa.id
+            AND COALESCE(p_filter.category, '') = $${params.length}
+        )
+      `);
     }
     if (product_type) {
       params.push(product_type);
-      whereClauses.push(`plan_summary.product_type = $${params.length}`);
+      whereClauses.push(`
+        EXISTS (
+          SELECT 1
+          FROM public.purchase_approval_detail pad_filter
+          LEFT JOIN public.product p_filter ON p_filter.code = pad_filter.product_code
+          WHERE pad_filter.purchase_approval_id = pa.id
+            AND COALESCE(p_filter.type, '') = $${params.length}
+        )
+      `);
     }
     if (product_subtype) {
       params.push(product_subtype);
-      whereClauses.push(`plan_summary.product_subtype = $${params.length}`);
+      whereClauses.push(`
+        EXISTS (
+          SELECT 1
+          FROM public.purchase_approval_detail pad_filter
+          LEFT JOIN public.product p_filter ON p_filter.code = pad_filter.product_code
+          WHERE pad_filter.purchase_approval_id = pa.id
+            AND COALESCE(p_filter.subtype, '') = $${params.length}
+        )
+      `);
     }
     if (purchase_department) {
       params.push(purchase_department);
@@ -105,12 +137,14 @@ export async function GET(request: NextRequest) {
         pa.created_at,
         pa.updated_at,
         pa.version,
-        MAX(plan_summary.requesting_dept) as department,
-        MAX(plan_summary.purchase_department) as purchase_department,
+        STRING_AGG(DISTINCT COALESCE(pad.requesting_dept_text, ''), ', ') FILTER (WHERE COALESCE(pad.requesting_dept_text, '') <> '') AS department,
+        MAX(purchase_department_summary.purchase_department) as purchase_department,
         COALESCE(MAX(total_detail_counts.item_count), 0) as item_count
       FROM public.purchase_approval pa
       LEFT JOIN public.approval_doc_status ads ON ads.code = pa.status AND ads.is_active = true
       LEFT JOIN public.purchase_approval_detail pad ON pad.purchase_approval_id = pa.id
+      LEFT JOIN public.product p ON p.code = pad.product_code
+      LEFT JOIN public.department purchase_pd ON purchase_pd.id = p.purchase_department_id
       LEFT JOIN (
         SELECT
           purchase_approval_id,
@@ -119,22 +153,14 @@ export async function GET(request: NextRequest) {
         GROUP BY purchase_approval_id
       ) total_detail_counts ON total_detail_counts.purchase_approval_id = pa.id
       LEFT JOIN (
-        SELECT
-          up.purchase_plan_id,
-          MIN(up.product_code) AS product_code,
-          STRING_AGG(DISTINCT COALESCE(d.name, up.requesting_dept_code), ', ') AS requesting_dept,
-          MIN(p.name) AS product_name,
-          MIN(p.category) AS category,
-          MIN(p.type) AS product_type,
-          MIN(p.subtype) AS product_subtype,
-          MAX(COALESCE(purchase_pd.name, purchase_pd.department_code)) AS purchase_department
-        FROM public.usage_plan up
-        LEFT JOIN public.product p ON p.code = up.product_code
-        LEFT JOIN public.department d ON d.department_code = up.requesting_dept_code
-        LEFT JOIN public.department purchase_pd ON purchase_pd.id = p.purchase_department_id
-        WHERE up.purchase_plan_id IS NOT NULL
-        GROUP BY up.purchase_plan_id
-      ) plan_summary ON plan_summary.purchase_plan_id = pad.purchase_plan_id
+        SELECT DISTINCT ON (pad_first.purchase_approval_id)
+          pad_first.purchase_approval_id,
+          COALESCE(purchase_pd_first.name, purchase_pd_first.department_code) AS purchase_department
+        FROM public.purchase_approval_detail pad_first
+        LEFT JOIN public.product p_first ON p_first.code = pad_first.product_code
+        LEFT JOIN public.department purchase_pd_first ON purchase_pd_first.id = p_first.purchase_department_id
+        ORDER BY pad_first.purchase_approval_id, pad_first.line_number ASC, pad_first.id ASC
+      ) purchase_department_summary ON purchase_department_summary.purchase_approval_id = pa.id
       ${whereSql}
       GROUP BY pa.id, pa.approve_code, pa.doc_no, pa.doc_date, pa.budget_year, pa.seller_id, pa.is_inspection, ads.status, pa.status, pa.total_amount, pa.total_items,
                pa.prepared_by, pa.approved_by, pa.approved_at, pa.notes, pa.created_at, pa.updated_at, pa.version
@@ -147,6 +173,7 @@ export async function GET(request: NextRequest) {
         pa.id as purchase_approval_id,
         pa.approve_code,
         pad.purchase_plan_id,
+        pad.usage_plan_flag,
         pad.line_number,
         pad.status as detail_status,
         pad.proposed_quantity,
@@ -157,8 +184,8 @@ export async function GET(request: NextRequest) {
         pad.created_at as detail_created_at,
         pad.updated_at as detail_updated_at,
         pad.version as detail_version,
-        plan_summary.product_name AS product_name,
-        plan_summary.product_code AS product_code,
+        COALESCE(pad.product_name, plan_summary.product_name, p.name) AS product_name,
+        COALESCE(pad.product_code, plan_summary.product_code, p.code) AS product_code,
         plan_summary.category AS category,
         plan_summary.product_type AS product_type,
         plan_summary.product_subtype AS product_subtype,
@@ -213,7 +240,7 @@ export async function GET(request: NextRequest) {
         WHERE up.purchase_plan_id IS NOT NULL
         GROUP BY up.purchase_plan_id
       ) plan_summary ON plan_summary.purchase_plan_id = pp.id
-      LEFT JOIN public.product p ON p.code = plan_summary.product_code
+      LEFT JOIN public.product p ON p.code = COALESCE(pad.product_code, plan_summary.product_code)
       ORDER BY pa.approve_code, pad.line_number
     `;
     

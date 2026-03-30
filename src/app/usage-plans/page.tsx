@@ -29,7 +29,7 @@ type UsagePlanRow = {
   approved_quota: number | null;
   budget_year: number | null;
   sequence_no: number | null;
-  has_purchase_plan: boolean;
+  has_purchase_approval: boolean;
 };
 
 type FormState = {
@@ -100,6 +100,7 @@ function UsagePlansPageContent() {
   const [page, set_page] = useState(initial_page);
   const [page_size, set_page_size] = useState(initial_page_size);
   const [total_count, set_total_count] = useState(0);
+  const [total_requested_value, set_total_requested_value] = useState(0);
   const [total_value_amount, set_total_value_amount] = useState(0);
   const [sort_by, set_sort_by] = useState(initial_sort_by);
   const [sort_order, set_sort_order] = useState<'asc' | 'desc'>(initial_sort_order);
@@ -445,11 +446,13 @@ function UsagePlansPageContent() {
       const data = await response.json();
       set_usage_plans(Array.isArray(data.usage_plans) ? data.usage_plans : []);
       set_total_count(typeof data.totalCount === 'number' ? data.totalCount : 0);
+      set_total_requested_value(typeof data.total_requested_value === 'number' ? data.total_requested_value : 0);
       set_total_value_amount(typeof data.total_approved_value === 'number' ? data.total_approved_value : 0);
     } catch (error) {
       console.error(error);
       set_usage_plans([]);
       set_total_count(0);
+      set_total_requested_value(0);
       set_total_value_amount(0);
     } finally {
       set_loading(false);
@@ -915,11 +918,11 @@ function UsagePlansPageContent() {
   };
 
   const handle_delete = async (row: UsagePlanRow) => {
-    if (row.has_purchase_plan) {
+    if (row.has_purchase_approval) {
       await Swal.fire({
         icon: 'error',
         title: 'ไม่สามารถลบได้',
-        text: 'รายการนี้ถูกใช้สร้างแผนจัดซื้อแล้ว',
+        text: 'รายการนี้ถูกใช้สร้างเอกสารอนุมัติแล้ว',
       });
       return;
     }
@@ -988,10 +991,13 @@ function UsagePlansPageContent() {
           <div className="font-medium text-gray-700">หน้า {page} / {total_pages}</div>
           <div className="flex flex-wrap items-center gap-2">
             <div className="rounded border border-gray-200 bg-white px-2 py-1 text-xs text-gray-600">
-              รวม {total_count.toLocaleString()} รายการ
+              รวมแผนขอใช้ {total_count.toLocaleString()} รายการ
             </div>
             <div className="rounded border border-gray-200 bg-white px-2 py-1 text-xs text-gray-600">
-              รวมมูลค่า {total_value_amount.toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} บาท
+              มูลค่าขอใช้ {total_requested_value.toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} บาท
+            </div>
+            <div className="rounded border border-gray-200 bg-white px-2 py-1 text-xs text-gray-600">
+              มูลค่าโควต้า {total_value_amount.toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} บาท
             </div>
             <select
               aria-label="เลือกจำนวนรายการต่อหน้า"
@@ -1149,11 +1155,11 @@ function UsagePlansPageContent() {
                         <div className="inline-flex items-center gap-2">
                           <button
                             type="button"
-                            disabled={saving}
+                            disabled={saving || row.has_purchase_approval}
                             onClick={() => void handle_delete(row)}
-                            className="inline-flex h-8 w-8 items-center justify-center rounded border border-red-300 text-red-700 hover:bg-red-50 disabled:opacity-50"
+                            className="inline-flex h-8 w-8 items-center justify-center rounded border border-red-300 text-red-700 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-40"
                             aria-label={`ลบ ${row.product_code || 'รายการ'}`}
-                            title="ลบ"
+                            title={row.has_purchase_approval ? 'ลบไม่ได้เพราะมีเอกสารอนุมัติแล้ว' : 'ลบ'}
                           >
                             <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
                               <path d="M3 6h18" />

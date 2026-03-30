@@ -2,13 +2,13 @@
 import { pgPool } from '@/lib/pg';
 import { apiError, apiSuccess } from '@/lib/api-response';
 import { cacheDelByPattern } from '@/lib/redis';
+import { allocatePurchasePlanId } from '@/lib/purchase-plan';
 
 type AutoGroupRow = {
   product_code: string;
+  budget_year: number | null;
   purchase_department_id: number | null;
   usage_plan_ids: number[];
-  total_quota: number;
-  inventory_qty: number;
 };
 
 export async function POST(_request: NextRequest) {
@@ -18,25 +18,18 @@ export async function POST(_request: NextRequest) {
     await client.query('BEGIN');
 
     const groupedResult = await client.query<AutoGroupRow>(
-      `SELECT
-         up.product_code,
-         p.purchase_department_id,
-         ARRAY_AGG(up.id ORDER BY up.id) AS usage_plan_ids,
-         COALESCE(SUM(GREATEST(COALESCE(up.approved_quota, up.requested_amount, 0), 0)), 0)::int AS total_quota,
-         COALESCE(MAX(stock.inventory_qty), 0)::int AS inventory_qty
-       FROM public.usage_plan up
+       `SELECT
+          up.product_code,
+          up.budget_year,
+          COALESCE(p.purchase_department_id, 0)::int AS purchase_department_id,
+          ARRAY_AGG(up.id ORDER BY up.id) AS usage_plan_ids
+        FROM public.usage_plan up
        LEFT JOIN public.product p ON p.code = up.product_code
-       LEFT JOIN (
-         SELECT p_stock.code AS product_code, COALESCE(SUM(isl.qty_on_hand), 0)::int AS inventory_qty
-         FROM public.inventory_stock_lot isl
-         INNER JOIN public.product p_stock ON p_stock.id = isl.product_id
-         GROUP BY p_stock.code
-       ) stock ON stock.product_code = up.product_code
-       WHERE up.purchase_plan_id IS NULL
-         AND up.plan_flag = 'ในแผน'
-         AND up.product_code IS NOT NULL
-       GROUP BY up.product_code, p.purchase_department_id
-       ORDER BY up.product_code`,
+        WHERE up.purchase_plan_id IS NULL
+          AND up.plan_flag = 'ในแผน'
+          AND up.product_code IS NOT NULL
+        GROUP BY up.product_code, up.budget_year, COALESCE(p.purchase_department_id, 0)
+        ORDER BY up.product_code, up.budget_year, COALESCE(p.purchase_department_id, 0)`,
     );
 
     if (groupedResult.rows.length === 0) {
@@ -51,9 +44,6 @@ export async function POST(_request: NextRequest) {
     let linkedUsagePlanCount = 0;
 
     for (const group of groupedResult.rows) {
-      const quota = Number(group.total_quota || 0);
-      const inventoryQty = Number(group.inventory_qty || 0);
-      const purchaseQty = Math.max(quota - inventoryQty, 0);
       const usagePlanIds = Array.isArray(group.usage_plan_ids)
         ? group.usage_plan_ids.map((id) => Number(id)).filter((id) => Number.isInteger(id) && id > 0)
         : [];
@@ -62,19 +52,62 @@ export async function POST(_request: NextRequest) {
         continue;
       }
 
-      const insertResult = await client.query<{ id: number }>(
-        `INSERT INTO public.purchase_plan (inventory_qty, qouta_qty, purchase_qty)
-         VALUES ($1, $2, $3)
-         RETURNING id`,
-        [inventoryQty, quota, purchaseQty],
-      );
-
-      const purchasePlanId = insertResult.rows[0]?.id;
-      if (!purchasePlanId) {
+      const targetBudgetYear = Number(group.budget_year ?? 0);
+      if (!Number.isFinite(targetBudgetYear) || targetBudgetYear <= 0) {
         continue;
       }
+      const targetPurchaseDepartmentId = Number(group.purchase_department_id ?? 0);
 
-      await client.query(
+      const existingPlanResult = await client.query<{ id: number }>(
+        `SELECT purchase_plan_id AS id
+         FROM public.usage_plan
+         WHERE purchase_plan_id IS NOT NULL
+           AND product_code = $1
+           AND budget_year = $2
+           AND EXISTS (
+             SELECT 1
+             FROM public.product p
+             WHERE p.code = public.usage_plan.product_code
+               AND COALESCE(p.purchase_department_id, 0) = $3
+           )
+           AND (CASE WHEN COALESCE(plan_flag, 'ในแผน') = 'นอกแผน' THEN 'นอกแผน' ELSE 'ในแผน' END) = 'ในแผน'
+         GROUP BY purchase_plan_id
+         ORDER BY purchase_plan_id`,
+        [group.product_code, targetBudgetYear, targetPurchaseDepartmentId],
+      );
+
+      let purchasePlanId = Number(existingPlanResult.rows[0]?.id ?? 0);
+      if (!purchasePlanId) {
+        purchasePlanId = await allocatePurchasePlanId(client);
+      }
+
+      const duplicatePlanIds = existingPlanResult.rows
+        .slice(1)
+        .map((row) => Number(row.id))
+        .filter((id) => Number.isInteger(id) && id > 0);
+
+      if (duplicatePlanIds.length > 0) {
+        await client.query(
+          `UPDATE public.usage_plan
+           SET purchase_plan_id = $1,
+               updated_at = NOW()
+           WHERE purchase_plan_id = ANY($2::int[])
+             AND product_code = $3
+             AND budget_year = $4
+             AND EXISTS (
+               SELECT 1
+               FROM public.product p
+               WHERE p.code = public.usage_plan.product_code
+                 AND COALESCE(p.purchase_department_id, 0) = $5
+             )
+             AND (CASE WHEN COALESCE(plan_flag, 'ในแผน') = 'นอกแผน' THEN 'นอกแผน' ELSE 'ในแผน' END) = 'ในแผน'`,
+          [purchasePlanId, duplicatePlanIds, group.product_code, targetBudgetYear, targetPurchaseDepartmentId],
+        );
+
+
+      }
+
+      const updateResult = await client.query(
         `UPDATE public.usage_plan
          SET purchase_plan_id = $1,
              plan_flag = 'ในแผน',
@@ -84,8 +117,34 @@ export async function POST(_request: NextRequest) {
         [purchasePlanId, usagePlanIds],
       );
 
-      createdCount += 1;
-      linkedUsagePlanCount += usagePlanIds.length;
+      const quotaResult = await client.query<{ total_quota: number }>(
+        `SELECT COALESCE(SUM(GREATEST(COALESCE(approved_quota, requested_amount, 0), 0)), 0)::int AS total_quota
+         FROM public.usage_plan
+         WHERE purchase_plan_id = $1
+           AND product_code = $2
+           AND budget_year = $3
+           AND (CASE WHEN COALESCE(plan_flag, 'ในแผน') = 'นอกแผน' THEN 'นอกแผน' ELSE 'ในแผน' END) = 'ในแผน'`,
+        [purchasePlanId, group.product_code, targetBudgetYear],
+      );
+
+      const inventoryResult = await client.query<{ inventory_qty: number }>(
+        `SELECT COALESCE(SUM(isl.qty_on_hand), 0)::int AS inventory_qty
+         FROM public.inventory_stock_lot isl
+         INNER JOIN public.product p_stock ON p_stock.id = isl.product_id
+         WHERE p_stock.code = $1`,
+        [group.product_code],
+      );
+
+      const qoutaQty = Number(quotaResult.rows[0]?.total_quota ?? 0);
+      const inventoryQty = Number(inventoryResult.rows[0]?.inventory_qty ?? 0);
+      const purchaseQty = Math.max(qoutaQty - inventoryQty, 0);
+
+
+
+      if (existingPlanResult.rows.length === 0) {
+        createdCount += 1;
+      }
+      linkedUsagePlanCount += Number(updateResult.rowCount ?? 0);
     }
 
     await client.query('COMMIT');
@@ -109,3 +168,6 @@ export async function POST(_request: NextRequest) {
     client.release();
   }
 }
+
+
+
