@@ -37,9 +37,9 @@ export default function Navbar() {
   const budgetYear = useSysSetting('budget_year', '');
   const user = session?.user;
   const isAdmin = user?.role === 'Admin';
-  const rawProfileName = user?.name || user?.email || '';
+  const rawProfileName = user?.name || user?.providerId || '';
   const [shortProfileName, inferredDepartmentName] = rawProfileName.split(' - ', 2);
-  const profileName = shortProfileName || user?.email || '';
+  const profileName = shortProfileName || user?.providerId || '';
   const profileDepartmentName = departmentName || inferredDepartmentName || '';
 
   const settingsItems = [
@@ -227,7 +227,7 @@ export default function Navbar() {
                     <div className="absolute right-0 mt-2 w-64 overflow-hidden rounded-md bg-white py-1 text-gray-800 shadow-lg">
                       <div className="border-b border-gray-100 px-4 py-3">
                         <div className="truncate text-sm font-semibold text-gray-900">{profileName}</div>
-                        <div className="truncate text-xs text-gray-500">{user.email}</div>
+                        <div className="truncate text-xs text-gray-500">{user.providerId}</div>
                         {profileDepartmentName && (
                           <div className="mt-1 truncate text-xs text-gray-500">{profileDepartmentName}</div>
                         )}
@@ -391,7 +391,7 @@ export default function Navbar() {
                   <div className="space-y-2">
                     <div className="px-3 py-2">
                       <div className="truncate text-sm font-semibold text-white">{profileName}</div>
-                      <div className="truncate text-xs text-blue-100">{user.email}</div>
+                      <div className="truncate text-xs text-blue-100">{user.providerId}</div>
                       {profileDepartmentName && (
                         <div className="mt-1 truncate text-xs text-blue-100">{profileDepartmentName}</div>
                       )}

@@ -1,6 +1,7 @@
 export type PermissionAction = 'view' | 'create' | 'edit' | 'delete';
 export type UserRole = 'Admin' | 'Manager' | 'User';
 export type PermissionModule =
+  | '/categories'
   | '/products'
   | '/sellers'
   | '/departments'
@@ -11,7 +12,7 @@ export type PermissionModule =
 
 export type AccessUser = {
   role?: string | null;
-  isDepartmentOwner?: boolean | null;
+  departmentId?: number | null;
 };
 
 const permissionModules: PermissionModule[] = [
@@ -20,6 +21,7 @@ const permissionModules: PermissionModule[] = [
   '/purchase-plans',
   '/usage-plans',
   '/departments',
+  '/categories',
   '/products',
   '/sellers',
 ];
@@ -30,7 +32,7 @@ const rolePermissions: Record<UserRole, PermissionAction[]> = {
   User: ['view'],
 };
 
-const ownerPermissions: Partial<Record<PermissionModule, PermissionAction[]>> = {
+const departmentMatchPermissions: Partial<Record<PermissionModule, PermissionAction[]>> = {
   '/usage-plans': ['view', 'edit'],
   '/purchase-plans': ['view', 'create', 'edit'],
   '/purchase-approvals': ['view', 'edit'],
@@ -81,8 +83,8 @@ export const canAccess = (user: AccessUser | null | undefined, pathname: string,
     return true;
   }
 
-  const ownerModulePermissions = ownerPermissions[modulePath] ?? [];
-  return Boolean(user.isDepartmentOwner && ownerModulePermissions.includes(action));
+  const matchedDepartmentPermissions = departmentMatchPermissions[modulePath] ?? [];
+  return Boolean(user.departmentId && matchedDepartmentPermissions.includes(action));
 };
 
 export const getAllowedActions = (user: AccessUser | null | undefined, modulePath: PermissionModule) => {
@@ -92,8 +94,8 @@ export const getAllowedActions = (user: AccessUser | null | undefined, modulePat
   if (isUserRole(user.role)) {
     rolePermissions[user.role].forEach((action) => actions.add(action));
   }
-  if (user.isDepartmentOwner) {
-    ownerPermissions[modulePath]?.forEach((action) => actions.add(action));
+  if (user.departmentId) {
+    departmentMatchPermissions[modulePath]?.forEach((action) => actions.add(action));
   }
 
   return Array.from(actions);

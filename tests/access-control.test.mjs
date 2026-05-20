@@ -19,6 +19,7 @@ test('maps HTTP methods to permission actions', () => {
 test('resolves app and API paths to documented permission modules', () => {
   assert.equal(resolvePermissionModule('/products'), '/products');
   assert.equal(resolvePermissionModule('/api/products/12'), '/products');
+  assert.equal(resolvePermissionModule('/api/categories'), '/categories');
   assert.equal(resolvePermissionModule('/api/inventory/stock/lots'), '/inventory/stock');
   assert.equal(resolvePermissionModule('/inventory/stock'), '/inventory/stock');
   assert.equal(resolvePermissionModule('/inventory/receipts'), null);
@@ -34,19 +35,22 @@ test('applies Admin Manager and User role permissions from detail_improve.md', (
 
 test('allows unauthenticated users to view documented modules only', () => {
   assert.equal(canAccess(null, '/api/products', 'GET'), true);
+  assert.equal(canAccess(null, '/api/categories', 'GET'), true);
   assert.equal(canAccess(null, '/api/products', 'POST'), false);
   assert.equal(canAccess(null, '/api/inventory/stock', 'HEAD'), true);
   assert.equal(canAccess(null, '/api/inventory/stock', 'DELETE'), false);
   assert.equal(canAccess(null, '/api/inventory/receipts', 'GET'), false);
 });
 
-test('adds owner permissions only on department-scoped modules', () => {
-  const owner = { role: 'User', isDepartmentOwner: true };
+test('adds department-match permissions only on department-scoped modules', () => {
+  const matchedDepartmentUser = { role: 'User', departmentId: 1 };
+  const userWithoutDepartmentMatch = { role: 'User', departmentId: null };
 
-  assert.equal(canAccess(owner, '/api/usage-plans/2', 'PUT'), true);
-  assert.equal(canAccess(owner, '/api/usage-plans/2', 'DELETE'), false);
-  assert.equal(canAccess(owner, '/api/purchase-plans', 'POST'), true);
-  assert.equal(canAccess(owner, '/api/purchase-approvals/2', 'PATCH'), true);
-  assert.equal(canAccess(owner, '/api/inventory/stock', 'POST'), true);
-  assert.equal(canAccess(owner, '/api/products', 'POST'), false);
+  assert.equal(canAccess(matchedDepartmentUser, '/api/usage-plans/2', 'PUT'), true);
+  assert.equal(canAccess(matchedDepartmentUser, '/api/usage-plans/2', 'DELETE'), false);
+  assert.equal(canAccess(matchedDepartmentUser, '/api/purchase-plans', 'POST'), true);
+  assert.equal(canAccess(matchedDepartmentUser, '/api/purchase-approvals/2', 'PATCH'), true);
+  assert.equal(canAccess(matchedDepartmentUser, '/api/inventory/stock', 'POST'), true);
+  assert.equal(canAccess(matchedDepartmentUser, '/api/products', 'POST'), false);
+  assert.equal(canAccess(userWithoutDepartmentMatch, '/api/purchase-plans', 'POST'), false);
 });

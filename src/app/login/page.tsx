@@ -20,7 +20,7 @@ function LoginForm() {
     setIsSubmitting(true);
 
     const result = await signIn('credentials', {
-      email: username,
+      providerId: username,
       password,
       redirect: false,
       callbackUrl,

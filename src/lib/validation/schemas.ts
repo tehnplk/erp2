@@ -302,7 +302,7 @@ export const departmentQuerySchema = z.object({
 
 // User schemas
 export const createUserSchema = z.object({
-  email: z.string().trim().min(1).max(255),
+  provider_id: z.string().trim().min(1).max(255),
   name: z.string().trim().min(1).max(255).optional().nullable(),
   password: z.string().min(6).max(128),
   role: z.enum(['Admin', 'Manager', 'User']),

@@ -19,7 +19,7 @@ export default async function ProfilePage() {
             </div>
             <div className="grid gap-1 px-5 py-4 sm:grid-cols-3">
               <dt className="text-sm font-medium text-slate-500">ชื่อผู้ใช้</dt>
-              <dd className="text-sm text-slate-950 sm:col-span-2">{user?.email || '-'}</dd>
+              <dd className="text-sm text-slate-950 sm:col-span-2">{user?.providerId || '-'}</dd>
             </div>
             <div className="grid gap-1 px-5 py-4 sm:grid-cols-3">
               <dt className="text-sm font-medium text-slate-500">บทบาท</dt>

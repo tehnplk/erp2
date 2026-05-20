@@ -46,6 +46,7 @@ next-env.d.ts
 
 # documentation
 docs/supabase.md
+docs/deployment-guide.md
 
 # playwright automation
 .playwright-mcp/

@@ -2,7 +2,7 @@ import { canAccess, resolvePermissionModule } from '@/lib/access-control';
 import { getToken } from 'next-auth/jwt';
 import { NextResponse, type NextRequest } from 'next/server';
 
-const publicPathPrefixes = ['/api/auth', '/api/sys-setting/public', '/login'];
+const publicPathPrefixes = ['/', '/api/auth', '/api/sys-setting/public', '/login'];
 
 const isPublicPath = (pathname: string) =>
   publicPathPrefixes.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`));
@@ -25,7 +25,13 @@ export async function middleware(request: NextRequest) {
     return NextResponse.json({ error: 'Auth secret is not configured' }, { status: 500 });
   }
 
-  const token = await getToken({ req: request, secret: authSecret });
+  const secureCookie = request.nextUrl.protocol === 'https:';
+  const token = await getToken({
+    req: request,
+    secret: authSecret,
+    secureCookie,
+    salt: secureCookie ? '__Secure-authjs.session-token' : 'authjs.session-token',
+  });
   if (!token) {
     if (isApiPath(pathname)) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -42,7 +48,7 @@ export async function middleware(request: NextRequest) {
     !canAccess(
       {
         role: token.role,
-        isDepartmentOwner: token.isDepartmentOwner,
+        departmentId: token.departmentId,
       },
       pathname,
       request.method

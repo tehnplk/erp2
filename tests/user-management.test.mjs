@@ -1,10 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { DuplicateUserEmailError, UserNotFoundError, createUserRecord, updateUserRecord } from '../src/lib/user-management.ts';
+import { DuplicateUserProviderIdError, UserNotFoundError, createUserRecord, updateUserRecord } from '../src/lib/user-management.ts';
 
 const input = {
-  email: ' New.User@ERP.Test ',
+  provider_id: ' New.User ',
   name: 'New User',
   password: 'Secret1234',
   role: 'Manager',
@@ -21,7 +21,7 @@ test('createUserRecord hashes password and inserts a normalized user', async () 
       rows: [
         {
           id: '101',
-          email: params[0],
+          provider_id: params[0],
           name: params[1],
           role: params[3],
           department_id: params[4],
@@ -43,14 +43,16 @@ test('createUserRecord hashes password and inserts a normalized user', async () 
   });
 
   assert.equal(calls.length, 1);
-  assert.equal(calls[0].params[0], 'new.user@erp.test');
+  assert.equal(calls[0].params[0], 'New.User');
+  assert.match(calls[0].text, /provider_id/);
+  assert.equal(calls[0].text.includes('email'), false);
   assert.equal(calls[0].params[2], 'hashed:Secret1234');
   assert.equal(calls[0].params.includes('Secret1234'), false);
-  assert.equal(user.email, 'new.user@erp.test');
+  assert.equal(user.provider_id, 'New.User');
   assert.equal(user.role, 'Manager');
 });
 
-test('createUserRecord maps duplicate email errors', async () => {
+test('createUserRecord maps duplicate provider id errors', async () => {
   const query = async () => {
     const error = new Error('duplicate key');
     error.code = '23505';
@@ -63,7 +65,7 @@ test('createUserRecord maps duplicate email errors', async () => {
         query,
         hashPassword: async () => 'hashed',
       }),
-    DuplicateUserEmailError
+    DuplicateUserProviderIdError
   );
 });
 
@@ -75,7 +77,7 @@ test('updateUserRecord updates profile fields without changing password when bla
       rows: [
         {
           id: '101',
-          email: params[0],
+          provider_id: params[0],
           name: params[1],
           role: params[2],
           department_id: params[3],
@@ -94,7 +96,7 @@ test('updateUserRecord updates profile fields without changing password when bla
   await updateUserRecord(
     '101',
     {
-      email: 'Updated.User@ERP.Test',
+      provider_id: 'Updated.User',
       name: 'Updated User',
       role: 'Admin',
       department_id: 3,
@@ -111,7 +113,8 @@ test('updateUserRecord updates profile fields without changing password when bla
   );
 
   assert.equal(calls[0].text.includes('password_hash'), false);
-  assert.equal(calls[0].params[0], 'updated.user@erp.test');
+  assert.equal(calls[0].params[0], 'Updated.User');
+  assert.match(calls[0].text, /provider_id = \$1/);
 });
 
 test('updateUserRecord hashes a provided replacement password', async () => {
@@ -124,7 +127,7 @@ test('updateUserRecord hashes a provided replacement password', async () => {
   await updateUserRecord(
     '101',
     {
-      email: 'updated@erp.test',
+      provider_id: 'updated',
       name: 'Updated',
       password: 'NewSecret123',
       role: 'Manager',
@@ -149,7 +152,7 @@ test('updateUserRecord throws when the user does not exist', async () => {
       updateUserRecord(
         '404',
         {
-          email: 'missing@erp.test',
+          provider_id: 'missing',
           name: null,
           role: 'User',
           department_id: null,

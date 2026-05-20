@@ -7,7 +7,7 @@ type Role = 'Admin' | 'Manager' | 'User';
 
 type ManagedUser = {
   id: string;
-  email: string;
+  provider_id: string;
   name: string | null;
   role: Role;
   department_id: number | null;
@@ -26,22 +26,20 @@ type Department = {
 };
 
 type UserForm = {
-  email: string;
+  provider_id: string;
   name: string;
   password: string;
   role: Role;
   department_id: string;
-  is_department_owner: boolean;
   is_active: boolean;
 };
 
 const initialForm: UserForm = {
-  email: '',
+  provider_id: '',
   name: '',
   password: '',
   role: 'User',
   department_id: '',
-  is_department_owner: false,
   is_active: true,
 };
 
@@ -118,12 +116,11 @@ export default function UsersAdminClient() {
   const openEditModal = (user: ManagedUser) => {
     setEditingUser(user);
     setForm({
-      email: user.email,
+      provider_id: user.provider_id,
       name: user.name || '',
       password: '',
       role: user.role,
       department_id: user.department_id ? String(user.department_id) : '',
-      is_department_owner: user.is_department_owner,
       is_active: user.is_active,
     });
     setMessage(null);
@@ -143,12 +140,12 @@ export default function UsersAdminClient() {
     setMessage(null);
 
     const body = {
-      email: form.email,
+      provider_id: form.provider_id,
       name: form.name || null,
       ...(editingUser && !form.password ? {} : { password: form.password }),
       role: form.role,
       department_id: form.department_id ? Number(form.department_id) : null,
-      is_department_owner: form.is_department_owner,
+      is_department_owner: false,
       is_active: form.is_active,
     };
 
@@ -271,8 +268,8 @@ export default function UsersAdminClient() {
                   users.map((user) => (
                     <tr key={user.id} className="hover:bg-slate-50">
                       <td className="px-5 py-3">
-                        <div className="font-medium text-slate-950">{user.name || user.email}</div>
-                        <div className="text-xs text-slate-500">{user.email}</div>
+                        <div className="font-medium text-slate-950">{user.name || user.provider_id}</div>
+                        <div className="text-xs text-slate-500">{user.provider_id}</div>
                       </td>
                       <td className="px-5 py-3">
                         <span className="rounded-full bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-700">
@@ -281,7 +278,7 @@ export default function UsersAdminClient() {
                       </td>
                       <td className="px-5 py-3 text-slate-700">
                         {user.department_name || '-'}
-                        {user.is_department_owner && (
+                        {false && (
                           <span className="ml-2 rounded-full bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-700">
                             เจ้าของ
                           </span>
@@ -324,7 +321,7 @@ export default function UsersAdminClient() {
             <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4">
               <div>
                 <h2 className="text-base font-semibold text-slate-950">{editingUser ? 'แก้ไขผู้ใช้' : 'เพิ่มผู้ใช้'}</h2>
-                {editingUser && <p className="text-xs text-slate-500">{editingUser.email}</p>}
+                {editingUser && <p className="text-xs text-slate-500">{editingUser.provider_id}</p>}
               </div>
               <button
                 type="button"
@@ -353,8 +350,8 @@ export default function UsersAdminClient() {
                   type="text"
                   required
                   autoComplete="username"
-                  value={form.email}
-                  onChange={(event) => updateForm('email', event.target.value)}
+                  value={form.provider_id}
+                  onChange={(event) => updateForm('provider_id', event.target.value)}
                   className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
                 />
               </label>
@@ -404,15 +401,17 @@ export default function UsersAdminClient() {
               </div>
 
               <div className="space-y-3 rounded-md border border-slate-200 bg-slate-50 p-3">
-                <label className="flex items-center gap-3 text-sm text-slate-700">
+                {/*
+                <label className="hidden">
                   <input
                     type="checkbox"
-                    checked={form.is_department_owner}
-                    onChange={(event) => updateForm('is_department_owner', event.target.checked)}
+                    checked={false}
+                    onChange={() => {}}
                     className="h-4 w-4 rounded border-slate-300 text-blue-600"
                   />
                   เจ้าของแผนก
                 </label>
+                */}
                 <label className="flex items-center gap-3 text-sm text-slate-700">
                   <input
                     type="checkbox"

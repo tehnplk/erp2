@@ -3,7 +3,7 @@ import type { UserRole } from '@/lib/access-control';
 
 export type AuthUserRecord = {
   id: string;
-  email: string;
+  provider_id: string;
   name: string | null;
   password_hash: string;
   role: UserRole;
@@ -11,21 +11,21 @@ export type AuthUserRecord = {
   is_department_owner: boolean;
 };
 
-export const getActiveUserByEmail = async (email: string) => {
+export const getActiveUserByProviderId = async (providerId: string) => {
   const result = await pgQuery<AuthUserRecord>(
     `SELECT
        id::text AS id,
-       email,
+       provider_id,
        name,
        password_hash,
        role,
        department_id,
        is_department_owner
      FROM public.users
-     WHERE lower(email) = lower($1)
+     WHERE provider_id = $1
        AND is_active = true
      LIMIT 1`,
-    [email.trim()]
+    [providerId.trim()]
   );
 
   return result.rows[0] ?? null;

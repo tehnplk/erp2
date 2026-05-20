@@ -11,22 +11,22 @@ const authConfig = {
   providers: [
     Credentials({
       credentials: {
-        email: { label: 'Username', type: 'text' },
+        providerId: { label: 'Username', type: 'text' },
         password: { label: 'Password', type: 'password' },
       },
       authorize: async (credentials) => {
-        const username = String(credentials?.email ?? '').trim();
+        const providerId = String(credentials?.providerId ?? '').trim();
         const password = String(credentials?.password ?? '');
 
-        if (!username || !password) {
+        if (!providerId || !password) {
           return null;
         }
 
-        const [{ getActiveUserByEmail, touchUserLastLogin }, { verifyPassword }] = await Promise.all([
+        const [{ getActiveUserByProviderId, touchUserLastLogin }, { verifyPassword }] = await Promise.all([
           import('@/lib/users'),
           import('@/lib/password'),
         ]);
-        const user = await getActiveUserByEmail(username);
+        const user = await getActiveUserByProviderId(providerId);
 
         if (!user || !(await verifyPassword(password, user.password_hash))) {
           return null;
@@ -36,8 +36,8 @@ const authConfig = {
 
         return {
           id: user.id,
-          email: user.email,
-          name: user.name || user.email,
+          name: user.name || user.provider_id,
+          providerId: user.provider_id,
           role: user.role,
           departmentId: user.department_id,
           isDepartmentOwner: user.is_department_owner,
@@ -48,6 +48,7 @@ const authConfig = {
   callbacks: {
     jwt({ token, user }) {
       if (user) {
+        token.providerId = user.providerId;
         token.role = user.role;
         token.departmentId = user.departmentId;
         token.isDepartmentOwner = user.isDepartmentOwner;
@@ -60,6 +61,7 @@ const authConfig = {
         if (token.sub) {
           session.user.id = token.sub;
         }
+        session.user.providerId = token.providerId;
         session.user.role = token.role;
         session.user.departmentId = token.departmentId;
         session.user.isDepartmentOwner = token.isDepartmentOwner;

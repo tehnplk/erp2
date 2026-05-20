@@ -1,7 +1,7 @@
 import { auth } from '@/auth';
 import { apiConflict, apiError, apiForbidden, apiSuccess, apiUnauthorized } from '@/lib/api-response';
 import { pgQuery } from '@/lib/pg';
-import { DuplicateUserEmailError, createUserRecord, listUserRecords } from '@/lib/user-management';
+import { DuplicateUserProviderIdError, createUserRecord, listUserRecords } from '@/lib/user-management';
 import { hashPassword } from '@/lib/password';
 import { validateRequest } from '@/lib/validation/validate';
 import { createUserSchema } from '@/lib/validation/schemas';
@@ -53,8 +53,8 @@ export async function POST(request: Request) {
 
     return apiSuccess(user, 'User created successfully', undefined, 201);
   } catch (error) {
-    if (error instanceof DuplicateUserEmailError) {
-      return apiConflict('Email is already used');
+    if (error instanceof DuplicateUserProviderIdError) {
+      return apiConflict('Username is already used');
     }
 
     console.error('Error creating user:', error);

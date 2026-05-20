@@ -10,7 +10,7 @@ datasource db {
 
 model User {
   id        Int      @id @default(autoincrement())
-  email     String   @unique
+  providerId String  @unique
   name      String?
   password  String
   createdAt DateTime @default(now())

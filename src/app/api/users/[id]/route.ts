@@ -2,7 +2,7 @@ import { auth } from '@/auth';
 import { apiConflict, apiError, apiForbidden, apiNotFound, apiSuccess, apiUnauthorized } from '@/lib/api-response';
 import { hashPassword } from '@/lib/password';
 import { pgQuery } from '@/lib/pg';
-import { DuplicateUserEmailError, UserNotFoundError, updateUserRecord } from '@/lib/user-management';
+import { DuplicateUserProviderIdError, UserNotFoundError, updateUserRecord } from '@/lib/user-management';
 import { updateUserSchema } from '@/lib/validation/schemas';
 import { validateRequest } from '@/lib/validation/validate';
 
@@ -41,8 +41,8 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
 
     return apiSuccess(user, 'User updated successfully');
   } catch (error) {
-    if (error instanceof DuplicateUserEmailError) {
-      return apiConflict('Email is already used');
+    if (error instanceof DuplicateUserProviderIdError) {
+      return apiConflict('Username is already used');
     }
 
     if (error instanceof UserNotFoundError) {

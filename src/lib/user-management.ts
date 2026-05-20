@@ -2,7 +2,7 @@ export type ManagedUserRole = 'Admin' | 'Manager' | 'User';
 
 export type UserListRecord = {
   id: string;
-  email: string;
+  provider_id: string;
   name: string | null;
   role: ManagedUserRole;
   department_id: number | null;
@@ -16,7 +16,7 @@ export type UserListRecord = {
 };
 
 export type CreateUserInput = {
-  email: string;
+  provider_id: string;
   name?: string | null;
   password: string;
   role: ManagedUserRole;
@@ -26,7 +26,7 @@ export type CreateUserInput = {
 };
 
 export type UpdateUserInput = {
-  email: string;
+  provider_id: string;
   name?: string | null;
   password?: string | null;
   role: ManagedUserRole;
@@ -45,10 +45,10 @@ export type CreateUserDependencies = {
   hashPassword: (password: string) => Promise<string>;
 };
 
-export class DuplicateUserEmailError extends Error {
+export class DuplicateUserProviderIdError extends Error {
   constructor() {
-    super('Email is already used');
-    this.name = 'DuplicateUserEmailError';
+    super('Provider id is already used');
+    this.name = 'DuplicateUserProviderIdError';
   }
 }
 
@@ -62,7 +62,7 @@ export class UserNotFoundError extends Error {
 const userListSelect = `
   SELECT
     u.id::text AS id,
-    u.email,
+    u.provider_id,
     u.name,
     u.role,
     u.department_id,
@@ -90,7 +90,7 @@ export const createUserRecord = async (
   input: CreateUserInput,
   dependencies: CreateUserDependencies
 ) => {
-  const email = input.email.trim().toLowerCase();
+  const providerId = input.provider_id.trim();
   const name = input.name?.trim() || null;
   const hashedPassword = await dependencies.hashPassword(input.password);
 
@@ -98,7 +98,7 @@ export const createUserRecord = async (
     const result = await dependencies.query(
       `WITH inserted AS (
          INSERT INTO public.users (
-           email,
+           provider_id,
            name,
            password_hash,
            role,
@@ -109,7 +109,7 @@ export const createUserRecord = async (
          VALUES ($1, $2, $3, $4, $5, $6, $7)
          RETURNING
            id::text AS id,
-           email,
+           provider_id,
            name,
            role,
            department_id,
@@ -121,7 +121,7 @@ export const createUserRecord = async (
        )
        SELECT
          i.id,
-         i.email,
+         i.provider_id,
          i.name,
          i.role,
          i.department_id,
@@ -135,7 +135,7 @@ export const createUserRecord = async (
        FROM inserted i
        LEFT JOIN public.department d ON d.id = i.department_id`,
       [
-        email,
+        providerId,
         name,
         hashedPassword,
         input.role,
@@ -148,7 +148,7 @@ export const createUserRecord = async (
     return result.rows[0] as UserListRecord;
   } catch (error: any) {
     if (error?.code === '23505') {
-      throw new DuplicateUserEmailError();
+      throw new DuplicateUserProviderIdError();
     }
     throw error;
   }
@@ -159,10 +159,10 @@ export const updateUserRecord = async (
   input: UpdateUserInput,
   dependencies: CreateUserDependencies
 ) => {
-  const email = input.email.trim().toLowerCase();
+  const providerId = input.provider_id.trim();
   const name = input.name?.trim() || null;
   const params: unknown[] = [
-    email,
+    providerId,
     name,
     input.role,
     input.department_id ?? null,
@@ -170,7 +170,7 @@ export const updateUserRecord = async (
     input.is_active,
   ];
   const assignments = [
-    'email = $1',
+    'provider_id = $1',
     'name = $2',
     'role = $3',
     'department_id = $4',
@@ -195,7 +195,7 @@ export const updateUserRecord = async (
          WHERE id = $${idParam}
          RETURNING
            id::text AS id,
-           email,
+           provider_id,
            name,
            role,
            department_id,
@@ -207,7 +207,7 @@ export const updateUserRecord = async (
        )
        SELECT
          u.id,
-         u.email,
+         u.provider_id,
          u.name,
          u.role,
          u.department_id,
@@ -230,7 +230,7 @@ export const updateUserRecord = async (
     return result.rows[0] as UserListRecord;
   } catch (error: any) {
     if (error?.code === '23505') {
-      throw new DuplicateUserEmailError();
+      throw new DuplicateUserProviderIdError();
     }
     throw error;
   }
