@@ -43,11 +43,11 @@ export default function Navbar() {
   const profileDepartmentName = departmentName || inferredDepartmentName || '';
 
   const settingsItems = [
-    { href: '/settings/sellers', label: 'เธเธนเนเธเธณเธซเธเนเธฒเธข', icon: Store },
-    { href: '/settings/categories', label: 'เธซเธกเธงเธ”เธซเธกเธนเนเธชเธดเธเธเนเธฒ', icon: Pill },
-    { href: '/settings/products', label: 'เธฃเธฒเธขเธเธฒเธฃเธชเธดเธเธเนเธฒ', icon: Package },
-    { href: '/settings/departments', label: 'เนเธเธเธ', icon: Hospital },
-    { href: '/settings/system', label: 'เธ•เธฑเนเธเธเนเธฒเธฃเธฐเธเธ', icon: Settings },
+    { href: '/settings/sellers', label: 'ผู้จำหน่าย', icon: Store },
+    { href: '/settings/categories', label: 'หมวดหมู่สินค้า', icon: Pill },
+    { href: '/settings/products', label: 'รายการสินค้า', icon: Package },
+    { href: '/settings/departments', label: 'แผนก', icon: Hospital },
+    { href: '/settings/system', label: 'ตั้งค่าระบบ', icon: Settings },
   ];
 
   useEffect(() => {
@@ -111,7 +111,7 @@ export default function Navbar() {
             <Building2 className="h-6 w-6" />
             <span className="text-xl font-bold">Hospital ERP</span>
             <span className="hidden sm:inline-flex rounded-full bg-blue-500/80 px-3 py-1 text-xs font-semibold text-blue-50">
-              เธเธตเธเธเธเธฃเธฐเธกเธฒเธ“ {budgetYear || '-'}
+              ปีงบประมาณ {budgetYear || '-'}
             </span>
           </Link>
 
@@ -127,7 +127,7 @@ export default function Navbar() {
               }`}
             >
               <HomeIcon className="mr-2 h-4 w-4" />
-              เธซเธเนเธฒเธซเธฅเธฑเธ
+              หน้าหลัก
             </Link>
 
             {/* Other top-level links */}
@@ -140,7 +140,7 @@ export default function Navbar() {
               }`}
             >
               <ClipboardList className="mr-2 h-4 w-4" />
-              เนเธเธเธเธฒเธฃเนเธเน
+              แผนการใช้
             </Link>
             <Link
               href="/purchase-plans"
@@ -151,7 +151,7 @@ export default function Navbar() {
               }`}
             >
               <BarChart4 className="mr-2 h-4 w-4" />
-              เนเธเธเธเธฑเธ”เธเธทเนเธญ
+              แผนจัดซื้อ
             </Link>
             <Link
               href="/purchase-approvals"
@@ -162,7 +162,7 @@ export default function Navbar() {
               }`}
             >
               <BadgeCheck className="mr-2 h-4 w-4" />
-              เธญเธเธธเธกเธฑเธ•เธดเธเธฑเธ”เธเธทเนเธญ
+              อนุมัติจัดซื้อ
             </Link>
             <Link
               href="/inventory"
@@ -173,9 +173,9 @@ export default function Navbar() {
               }`}
             >
               <Warehouse className="mr-2 h-4 w-4" />
-              เธฃเธฐเธเธเธเธฅเธฑเธ
+              ระบบคลัง
             </Link>
-            {/* เธ•เธฑเนเธเธเนเธฒ Dropdown - rightmost */}
+            {/* ตั้งค่า Dropdown - rightmost */}
             <div className="relative" ref={settingsRef}>
               <button
                 type="button"
@@ -185,8 +185,8 @@ export default function Navbar() {
                 aria-expanded={isSettingsOpen}
               >
                 <Settings className="mr-2 h-4 w-4" />
-                เธ•เธฑเนเธเธเนเธฒ
-                <span className="ml-1">โ–พ</span>
+                ตั้งค่า
+                <span className="ml-1">▾</span>
               </button>
               {isSettingsOpen && (
                 <div className="absolute right-0 mt-2 min-w-max bg-white text-gray-800 rounded-md shadow-lg py-1 z-50 whitespace-nowrap">
@@ -241,7 +241,7 @@ export default function Navbar() {
                         }`}
                       >
                         <UserCircle className="mr-2 h-4 w-4" />
-                        เนเธเธฃเนเธเธฅเน
+                        โปรไฟล์
                       </Link>
                       {isAdmin && (
                         <Link
@@ -252,7 +252,7 @@ export default function Navbar() {
                           }`}
                         >
                           <Users className="mr-2 h-4 w-4" />
-                          เธเธนเนเนเธเนเธเธฒเธ
+                          ผู้ใช้งาน
                         </Link>
                       )}
                       <button
@@ -261,7 +261,7 @@ export default function Navbar() {
                         className="flex w-full items-center px-4 py-2 text-left text-sm text-red-700 hover:bg-red-50"
                       >
                         <LogOut className="mr-2 h-4 w-4" />
-                        เธญเธญเธเธเธฒเธเธฃเธฐเธเธ
+                        ออกจากระบบ
                       </button>
                     </div>
                   )}
@@ -272,7 +272,7 @@ export default function Navbar() {
                   className="flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium text-blue-50 transition-colors hover:bg-blue-500"
                 >
                   <LogIn className="h-4 w-4" />
-                  เน€เธเนเธฒเธชเธนเนเธฃเธฐเธเธ
+                  เข้าสู่ระบบ
                 </Link>
               )}
             </div>
@@ -303,7 +303,7 @@ export default function Navbar() {
                 }`}
               >
                 <HomeIcon className="mr-2 h-4 w-4" />
-                เธซเธเนเธฒเธซเธฅเธฑเธ
+                หน้าหลัก
               </Link>
 
               {/* Other links */}
@@ -317,7 +317,7 @@ export default function Navbar() {
                 }`}
               >
                 <ClipboardList className="mr-2 h-4 w-4" />
-                เนเธเธเธเธฒเธฃเนเธเน
+                แผนการใช้
               </Link>
               <Link
                 href="/purchase-plans"
@@ -329,7 +329,7 @@ export default function Navbar() {
                 }`}
               >
                 <BarChart4 className="mr-2 h-4 w-4" />
-                เนเธเธเธเธฑเธ”เธเธทเนเธญ
+                แผนจัดซื้อ
               </Link>
               <Link
                 href="/purchase-approvals"
@@ -341,7 +341,7 @@ export default function Navbar() {
                 }`}
               >
                 <BadgeCheck className="mr-2 h-4 w-4" />
-                เธญเธเธธเธกเธฑเธ•เธดเธเธฑเธ”เธเธทเนเธญ
+                อนุมัติจัดซื้อ
               </Link>
               <Link
                 href="/inventory"
@@ -353,15 +353,15 @@ export default function Navbar() {
                 }`}
               >
                 <Warehouse className="mr-2 h-4 w-4" />
-                เธฃเธฐเธเธเธเธฅเธฑเธ
+                ระบบคลัง
               </Link>
-              {/* เธ•เธฑเนเธเธเนเธฒ collapsible - last in mobile menu */}
+              {/* ตั้งค่า collapsible - last in mobile menu */}
               <button
                 onClick={() => setIsSettingsOpen(!isSettingsOpen)}
                 className="flex items-center px-3 py-2 rounded-md text-sm font-medium transition-colors text-blue-100 hover:bg-blue-500 hover:text-white text-left"
               >
                 <Settings className="mr-2 h-4 w-4" />
-                เธ•เธฑเนเธเธเนเธฒ {isSettingsOpen ? 'โ–ด' : 'โ–พ'}
+                ตั้งค่า {isSettingsOpen ? '▴' : '▾'}
               </button>
               {isSettingsOpen && (
                 <div className="ml-4 flex flex-col space-y-2">
@@ -406,7 +406,7 @@ export default function Navbar() {
                       }`}
                     >
                       <UserCircle className="mr-2 h-4 w-4" />
-                      เนเธเธฃเนเธเธฅเน
+                      โปรไฟล์
                     </Link>
                     {isAdmin && (
                       <Link
@@ -419,7 +419,7 @@ export default function Navbar() {
                         }`}
                       >
                         <Users className="mr-2 h-4 w-4" />
-                        เธเธนเนเนเธเนเธเธฒเธ
+                        ผู้ใช้งาน
                       </Link>
                     )}
                     <button
@@ -428,7 +428,7 @@ export default function Navbar() {
                       className="flex w-full items-center rounded-md px-3 py-2 text-left text-sm font-medium text-blue-100 transition-colors hover:bg-blue-500 hover:text-white"
                     >
                       <LogOut className="mr-2 h-4 w-4" />
-                      เธญเธญเธเธเธฒเธเธฃเธฐเธเธ
+                      ออกจากระบบ
                     </button>
                   </div>
                 ) : (
@@ -438,7 +438,7 @@ export default function Navbar() {
                     className="flex items-center rounded-md px-3 py-2 text-sm font-medium text-blue-100 transition-colors hover:bg-blue-500 hover:text-white"
                   >
                     <LogIn className="mr-2 h-4 w-4" />
-                    เน€เธเนเธฒเธชเธนเนเธฃเธฐเธเธ
+                    เข้าสู่ระบบ
                   </Link>
                 )}
               </div>
