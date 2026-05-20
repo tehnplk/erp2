@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState, type ChangeEvent } from 'react';
 import Swal from 'sweetalert2';
 import { Pencil, Plus, Search, Trash2, X } from 'lucide-react';
-import { SortableHeader } from '../inventory/_components/sortable-header';
+import { SortableHeader } from '../../inventory/_components/sortable-header';
 import { clearSysSettingCache } from '@/lib/sys-setting';
 
 type SortOrder = 'asc' | 'desc';

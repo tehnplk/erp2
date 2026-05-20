@@ -3,6 +3,13 @@ import { getToken } from 'next-auth/jwt';
 import { NextResponse, type NextRequest } from 'next/server';
 
 const publicPathPrefixes = ['/', '/api/auth', '/api/sys-setting/public', '/login'];
+const legacySettingsPathMap: Record<string, string> = {
+  '/sellers': '/settings/sellers',
+  '/categories': '/settings/categories',
+  '/products': '/settings/products',
+  '/departments': '/settings/departments',
+  '/setting': '/settings/system',
+};
 
 const isPublicPath = (pathname: string) =>
   publicPathPrefixes.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`));
@@ -11,6 +18,13 @@ const isApiPath = (pathname: string) => pathname.startsWith('/api/');
 
 export async function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
+  const legacySettingsTarget = legacySettingsPathMap[pathname];
+
+  if (legacySettingsTarget) {
+    const redirectUrl = request.nextUrl.clone();
+    redirectUrl.pathname = legacySettingsTarget;
+    return NextResponse.redirect(redirectUrl);
+  }
 
   if (isPublicPath(pathname)) {
     return NextResponse.next();

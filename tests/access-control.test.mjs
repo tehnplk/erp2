@@ -20,6 +20,7 @@ test('resolves app and API paths to documented permission modules', () => {
   assert.equal(resolvePermissionModule('/products'), '/products');
   assert.equal(resolvePermissionModule('/api/products/12'), '/products');
   assert.equal(resolvePermissionModule('/api/categories'), '/categories');
+  assert.equal(resolvePermissionModule('/settings/products'), null);
   assert.equal(resolvePermissionModule('/api/inventory/stock/lots'), '/inventory/stock');
   assert.equal(resolvePermissionModule('/inventory/stock'), '/inventory/stock');
   assert.equal(resolvePermissionModule('/inventory/receipts'), null);
@@ -37,6 +38,7 @@ test('allows unauthenticated users to view documented modules only', () => {
   assert.equal(canAccess(null, '/api/products', 'GET'), true);
   assert.equal(canAccess(null, '/api/categories', 'GET'), true);
   assert.equal(canAccess(null, '/api/products', 'POST'), false);
+  assert.equal(canAccess(null, '/settings/products', 'GET'), false);
   assert.equal(canAccess(null, '/api/inventory/stock', 'HEAD'), true);
   assert.equal(canAccess(null, '/api/inventory/stock', 'DELETE'), false);
   assert.equal(canAccess(null, '/api/inventory/receipts', 'GET'), false);

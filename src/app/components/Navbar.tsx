@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -43,11 +43,11 @@ export default function Navbar() {
   const profileDepartmentName = departmentName || inferredDepartmentName || '';
 
   const settingsItems = [
-    { href: '/sellers', label: 'ผู้จำหน่าย', icon: Store },
-    { href: '/categories', label: 'หมวดหมู่สินค้า', icon: Pill },
-    { href: '/products', label: 'รายการสินค้า', icon: Package },
-    { href: '/departments', label: 'แผนก', icon: Hospital },
-    { href: '/setting', label: 'ตั้งค่าระบบ', icon: Settings },
+    { href: '/settings/sellers', label: 'เธเธนเนเธเธณเธซเธเนเธฒเธข', icon: Store },
+    { href: '/settings/categories', label: 'เธซเธกเธงเธ”เธซเธกเธนเนเธชเธดเธเธเนเธฒ', icon: Pill },
+    { href: '/settings/products', label: 'เธฃเธฒเธขเธเธฒเธฃเธชเธดเธเธเนเธฒ', icon: Package },
+    { href: '/settings/departments', label: 'เนเธเธเธ', icon: Hospital },
+    { href: '/settings/system', label: 'เธ•เธฑเนเธเธเนเธฒเธฃเธฐเธเธ', icon: Settings },
   ];
 
   useEffect(() => {
@@ -111,7 +111,7 @@ export default function Navbar() {
             <Building2 className="h-6 w-6" />
             <span className="text-xl font-bold">Hospital ERP</span>
             <span className="hidden sm:inline-flex rounded-full bg-blue-500/80 px-3 py-1 text-xs font-semibold text-blue-50">
-              ปีงบประมาณ {budgetYear || '-'}
+              เธเธตเธเธเธเธฃเธฐเธกเธฒเธ“ {budgetYear || '-'}
             </span>
           </Link>
 
@@ -127,7 +127,7 @@ export default function Navbar() {
               }`}
             >
               <HomeIcon className="mr-2 h-4 w-4" />
-              หน้าหลัก
+              เธซเธเนเธฒเธซเธฅเธฑเธ
             </Link>
 
             {/* Other top-level links */}
@@ -140,7 +140,7 @@ export default function Navbar() {
               }`}
             >
               <ClipboardList className="mr-2 h-4 w-4" />
-              แผนการใช้
+              เนเธเธเธเธฒเธฃเนเธเน
             </Link>
             <Link
               href="/purchase-plans"
@@ -151,7 +151,7 @@ export default function Navbar() {
               }`}
             >
               <BarChart4 className="mr-2 h-4 w-4" />
-              แผนจัดซื้อ
+              เนเธเธเธเธฑเธ”เธเธทเนเธญ
             </Link>
             <Link
               href="/purchase-approvals"
@@ -162,7 +162,7 @@ export default function Navbar() {
               }`}
             >
               <BadgeCheck className="mr-2 h-4 w-4" />
-              อนุมัติจัดซื้อ
+              เธญเธเธธเธกเธฑเธ•เธดเธเธฑเธ”เธเธทเนเธญ
             </Link>
             <Link
               href="/inventory"
@@ -173,9 +173,9 @@ export default function Navbar() {
               }`}
             >
               <Warehouse className="mr-2 h-4 w-4" />
-              ระบบคลัง
+              เธฃเธฐเธเธเธเธฅเธฑเธ
             </Link>
-            {/* ตั้งค่า Dropdown - rightmost */}
+            {/* เธ•เธฑเนเธเธเนเธฒ Dropdown - rightmost */}
             <div className="relative" ref={settingsRef}>
               <button
                 type="button"
@@ -185,8 +185,8 @@ export default function Navbar() {
                 aria-expanded={isSettingsOpen}
               >
                 <Settings className="mr-2 h-4 w-4" />
-                ตั้งค่า
-                <span className="ml-1">▾</span>
+                เธ•เธฑเนเธเธเนเธฒ
+                <span className="ml-1">โ–พ</span>
               </button>
               {isSettingsOpen && (
                 <div className="absolute right-0 mt-2 min-w-max bg-white text-gray-800 rounded-md shadow-lg py-1 z-50 whitespace-nowrap">
@@ -198,7 +198,7 @@ export default function Navbar() {
                         href={item.href}
                         onClick={() => setIsSettingsOpen(false)}
                         className={`flex items-center px-4 py-2 text-sm hover:bg-gray-100 ${
-                          pathname === item.href ? 'bg-gray-100 font-medium' : ''
+                          pathname === item.href || pathname.startsWith(`${item.href}/`) ? 'bg-gray-100 font-medium' : ''
                         }`}
                       >
                         <Icon className="mr-2 h-4 w-4" />
@@ -241,7 +241,7 @@ export default function Navbar() {
                         }`}
                       >
                         <UserCircle className="mr-2 h-4 w-4" />
-                        โปรไฟล์
+                        เนเธเธฃเนเธเธฅเน
                       </Link>
                       {isAdmin && (
                         <Link
@@ -252,7 +252,7 @@ export default function Navbar() {
                           }`}
                         >
                           <Users className="mr-2 h-4 w-4" />
-                          ผู้ใช้งาน
+                          เธเธนเนเนเธเนเธเธฒเธ
                         </Link>
                       )}
                       <button
@@ -261,7 +261,7 @@ export default function Navbar() {
                         className="flex w-full items-center px-4 py-2 text-left text-sm text-red-700 hover:bg-red-50"
                       >
                         <LogOut className="mr-2 h-4 w-4" />
-                        ออกจากระบบ
+                        เธญเธญเธเธเธฒเธเธฃเธฐเธเธ
                       </button>
                     </div>
                   )}
@@ -272,7 +272,7 @@ export default function Navbar() {
                   className="flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium text-blue-50 transition-colors hover:bg-blue-500"
                 >
                   <LogIn className="h-4 w-4" />
-                  เข้าสู่ระบบ
+                  เน€เธเนเธฒเธชเธนเนเธฃเธฐเธเธ
                 </Link>
               )}
             </div>
@@ -303,7 +303,7 @@ export default function Navbar() {
                 }`}
               >
                 <HomeIcon className="mr-2 h-4 w-4" />
-                หน้าหลัก
+                เธซเธเนเธฒเธซเธฅเธฑเธ
               </Link>
 
               {/* Other links */}
@@ -317,7 +317,7 @@ export default function Navbar() {
                 }`}
               >
                 <ClipboardList className="mr-2 h-4 w-4" />
-                แผนการใช้
+                เนเธเธเธเธฒเธฃเนเธเน
               </Link>
               <Link
                 href="/purchase-plans"
@@ -329,7 +329,7 @@ export default function Navbar() {
                 }`}
               >
                 <BarChart4 className="mr-2 h-4 w-4" />
-                แผนจัดซื้อ
+                เนเธเธเธเธฑเธ”เธเธทเนเธญ
               </Link>
               <Link
                 href="/purchase-approvals"
@@ -341,7 +341,7 @@ export default function Navbar() {
                 }`}
               >
                 <BadgeCheck className="mr-2 h-4 w-4" />
-                อนุมัติจัดซื้อ
+                เธญเธเธธเธกเธฑเธ•เธดเธเธฑเธ”เธเธทเนเธญ
               </Link>
               <Link
                 href="/inventory"
@@ -353,15 +353,15 @@ export default function Navbar() {
                 }`}
               >
                 <Warehouse className="mr-2 h-4 w-4" />
-                ระบบคลัง
+                เธฃเธฐเธเธเธเธฅเธฑเธ
               </Link>
-              {/* ตั้งค่า collapsible - last in mobile menu */}
+              {/* เธ•เธฑเนเธเธเนเธฒ collapsible - last in mobile menu */}
               <button
                 onClick={() => setIsSettingsOpen(!isSettingsOpen)}
                 className="flex items-center px-3 py-2 rounded-md text-sm font-medium transition-colors text-blue-100 hover:bg-blue-500 hover:text-white text-left"
               >
                 <Settings className="mr-2 h-4 w-4" />
-                ตั้งค่า {isSettingsOpen ? '▴' : '▾'}
+                เธ•เธฑเนเธเธเนเธฒ {isSettingsOpen ? 'โ–ด' : 'โ–พ'}
               </button>
               {isSettingsOpen && (
                 <div className="ml-4 flex flex-col space-y-2">
@@ -373,7 +373,7 @@ export default function Navbar() {
                         href={item.href}
                         onClick={() => { setIsMenuOpen(false); setIsSettingsOpen(false); }}
                         className={`flex items-center px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                          pathname === item.href
+                          (pathname === item.href || pathname.startsWith(`${item.href}/`))
                             ? 'bg-blue-700 text-white'
                             : 'text-blue-100 hover:bg-blue-500 hover:text-white'
                         }`}
@@ -406,7 +406,7 @@ export default function Navbar() {
                       }`}
                     >
                       <UserCircle className="mr-2 h-4 w-4" />
-                      โปรไฟล์
+                      เนเธเธฃเนเธเธฅเน
                     </Link>
                     {isAdmin && (
                       <Link
@@ -419,7 +419,7 @@ export default function Navbar() {
                         }`}
                       >
                         <Users className="mr-2 h-4 w-4" />
-                        ผู้ใช้งาน
+                        เธเธนเนเนเธเนเธเธฒเธ
                       </Link>
                     )}
                     <button
@@ -428,7 +428,7 @@ export default function Navbar() {
                       className="flex w-full items-center rounded-md px-3 py-2 text-left text-sm font-medium text-blue-100 transition-colors hover:bg-blue-500 hover:text-white"
                     >
                       <LogOut className="mr-2 h-4 w-4" />
-                      ออกจากระบบ
+                      เธญเธญเธเธเธฒเธเธฃเธฐเธเธ
                     </button>
                   </div>
                 ) : (
@@ -438,7 +438,7 @@ export default function Navbar() {
                     className="flex items-center rounded-md px-3 py-2 text-sm font-medium text-blue-100 transition-colors hover:bg-blue-500 hover:text-white"
                   >
                     <LogIn className="mr-2 h-4 w-4" />
-                    เข้าสู่ระบบ
+                    เน€เธเนเธฒเธชเธนเนเธฃเธฐเธเธ
                   </Link>
                 )}
               </div>
