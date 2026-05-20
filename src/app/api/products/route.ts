@@ -4,6 +4,7 @@ import { apiSuccess, apiError, apiConflict } from '@/lib/api-response';
 import { cacheGet, cacheSet, cacheDelByPattern } from '@/lib/redis';
 import { validateQuery, validateRequest } from '@/lib/validation/validate';
 import { productQuerySchema, createProductSchema } from '@/lib/validation/schemas';
+import { buildNextProductCode, getProductCodePrefixForCategory } from '@/lib/product-code';
 
 const productSelect = `SELECT id, code, category, name, type, subtype, unit, purchase_department_id, cost_price::float8 AS cost_price, sell_price::float8 AS sell_price, stock_balance, stock_value::float8 AS stock_value, seller_code, image, flag_activate, admin_note, is_active FROM public.product`;
 
@@ -100,8 +101,26 @@ export async function POST(request: NextRequest) {
       return validation.error;
     }
 
-    const { code } = validation.data;
-    const existingProductResult = await pgQuery(`SELECT id FROM public.product WHERE code = $1 LIMIT 1`, [code]);
+    const requestedCode = validation.data.code?.trim() ?? '';
+    let productCode = requestedCode;
+
+    if (!productCode) {
+      const prefix = getProductCodePrefixForCategory(validation.data.category);
+      if (!prefix) {
+        return apiError('ไม่สามารถสร้างรหัสสินค้าอัตโนมัติสำหรับหมวดนี้ได้', 400);
+      }
+
+      const existingCodesResult = await pgQuery<{ code: string }>(
+        `SELECT code
+         FROM public.product
+         WHERE code LIKE $1
+         ORDER BY code DESC`,
+        [`${prefix}-%`]
+      );
+      productCode = buildNextProductCode(prefix, existingCodesResult.rows.map((row) => row.code));
+    }
+
+    const existingProductResult = await pgQuery(`SELECT id FROM public.product WHERE code = $1 LIMIT 1`, [productCode]);
     if (existingProductResult.rows.length > 0) {
       return apiConflict('Product with this code already exists');
     }
@@ -111,7 +130,7 @@ export async function POST(request: NextRequest) {
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
        RETURNING id, code, category, name, type, subtype, unit, purchase_department_id, cost_price::float8 AS cost_price, sell_price::float8 AS sell_price, stock_balance, stock_value::float8 AS stock_value, seller_code, image, flag_activate, admin_note, is_active`,
       [
-        validation.data.code,
+        productCode,
         validation.data.category,
         validation.data.name,
         validation.data.type || null,

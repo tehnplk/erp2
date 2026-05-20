@@ -466,7 +466,7 @@ function ProductsPageContent() {
     // Validate required fields
     const newErrors: Record<string, string> = {};
     
-    if (!formData.code.trim()) {
+    if (editingProduct && !formData.code.trim()) {
       newErrors.code = 'กรุณาระบุรหัสสินค้า';
     }
     
@@ -874,13 +874,14 @@ function ProductsPageContent() {
                     </div>
                     <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                       <div>
-                        <label className="block text-sm font-medium text-gray-700">รหัสสินค้า *</label>
+                        <label className="block text-sm font-medium text-gray-700">รหัสสินค้า</label>
                         <input
                           type="text"
                           name="code"
                           value={formData.code}
                           onChange={handleInputChange}
-                          required
+                          required={Boolean(editingProduct)}
+                          placeholder={editingProduct ? undefined : 'อัตโนมัติ'}
                           className={`${modalInputClassName} ${errors.code ? modalErrorInputClassName : ''}`}
                         />
                         {errors.code && <p className="mt-1 text-sm text-red-600">{errors.code}</p>}

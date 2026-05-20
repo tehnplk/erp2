@@ -1571,6 +1571,22 @@ function PurchaseApprovalsPageContent() {
       {documentPreview ? (
         <div className="fixed inset-0 z-50 overflow-y-auto bg-black/60 p-4 md:p-8 print:bg-white print:p-0">
           <style jsx global>{`
+            @font-face {
+              font-family: 'TH Sarabun';
+              src: url('/fonts/THSarabun.ttf') format('truetype');
+              font-weight: 400;
+              font-style: normal;
+              font-display: swap;
+            }
+
+            @font-face {
+              font-family: 'TH Sarabun';
+              src: url('/fonts/THSarabun-Bold.ttf') format('truetype');
+              font-weight: 700;
+              font-style: normal;
+              font-display: swap;
+            }
+
             @media print {
               @page {
                 size: A4 portrait;
@@ -1619,6 +1635,7 @@ function PurchaseApprovalsPageContent() {
                 padding: 24px !important;
                 margin: 0 !important;
                 box-shadow: none !important;
+                font-family: 'TH Sarabun', sans-serif !important;
                 font-size: 15px !important;
                 line-height: 1.4rem !important;
                 background: #fff !important;

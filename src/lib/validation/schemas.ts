@@ -15,7 +15,7 @@ const paginationFields = {
 
 // Product schemas
 export const createProductSchema = z.object({
-  code: nonEmptyString,
+  code: z.string().trim().optional(),
   category: nonEmptyString,
   name: nonEmptyString,
   type: z.string().optional(),
@@ -32,7 +32,9 @@ export const createProductSchema = z.object({
   is_active: booleanField.optional()
 });
 
-export const updateProductSchema = createProductSchema.partial();
+export const updateProductSchema = createProductSchema.partial().extend({
+  code: nonEmptyString.optional(),
+});
 
 export const productQuerySchema = z.object({
   code: z.string().optional(),
@@ -297,6 +299,25 @@ export const departmentQuerySchema = z.object({
   include_inactive: z.coerce.boolean().optional(),
   ...paginationFields
 });
+
+// User schemas
+export const createUserSchema = z.object({
+  email: z.string().trim().min(1).max(255),
+  name: z.string().trim().min(1).max(255).optional().nullable(),
+  password: z.string().min(6).max(128),
+  role: z.enum(['Admin', 'Manager', 'User']),
+  department_id: z.coerce.number().int().positive().optional().nullable(),
+  is_department_owner: z.boolean().optional().default(false),
+  is_active: z.boolean().optional().default(true),
+});
+
+export const updateUserSchema = createUserSchema
+  .omit({ password: true })
+  .extend({
+    password: z.string().max(128).optional().nullable().refine((value) => !value || value.length >= 6, {
+      message: 'Password must be at least 6 characters',
+    }),
+  });
 
 // Category schemas
 export const createCategorySchema = z.object({
