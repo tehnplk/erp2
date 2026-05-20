@@ -16,3 +16,6 @@
 - use browser (playwright-cli) to test
 - always run `playwright-cli show` to show user what are you doing.
 - if user ask for annotate use `playwright-cli --annotate` and wait user annotation input
+
+## Deployment
+- read @docs/deployment-guide.md
