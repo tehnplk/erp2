@@ -9,6 +9,7 @@ const legacySettingsPathMap: Record<string, string> = {
   '/products': '/settings/products',
   '/departments': '/settings/departments',
   '/setting': '/settings/system',
+  '/users': '/admin/users',
 };
 
 const isPublicPath = (pathname: string) =>

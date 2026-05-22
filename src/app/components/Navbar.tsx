@@ -245,10 +245,10 @@ export default function Navbar() {
                       </Link>
                       {isAdmin && (
                         <Link
-                          href="/users"
+                          href="/admin/users"
                           onClick={() => setIsProfileOpen(false)}
                           className={`flex items-center px-4 py-2 text-sm hover:bg-gray-100 ${
-                            pathname === '/users' ? 'bg-gray-100 font-medium' : ''
+                            pathname === '/admin/users' ? 'bg-gray-100 font-medium' : ''
                           }`}
                         >
                           <Users className="mr-2 h-4 w-4" />
@@ -410,10 +410,10 @@ export default function Navbar() {
                     </Link>
                     {isAdmin && (
                       <Link
-                        href="/users"
+                        href="/admin/users"
                         onClick={() => setIsMenuOpen(false)}
                         className={`flex items-center px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                          pathname === '/users'
+                          pathname === '/admin/users'
                             ? 'bg-blue-700 text-white'
                             : 'text-blue-100 hover:bg-blue-500 hover:text-white'
                         }`}

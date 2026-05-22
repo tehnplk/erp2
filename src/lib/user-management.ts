@@ -235,3 +235,18 @@ export const updateUserRecord = async (
     throw error;
   }
 };
+
+export const deleteUserRecord = async (userId: string, query: UserQuery) => {
+  const result = await query(
+    `DELETE FROM public.users
+     WHERE id = $1
+     RETURNING id::text AS id`,
+    [userId]
+  );
+
+  if (!result.rows[0]) {
+    throw new UserNotFoundError();
+  }
+
+  return result.rows[0] as { id: string };
+};

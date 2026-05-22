@@ -2,7 +2,7 @@ import { auth } from '@/auth';
 import { apiConflict, apiError, apiForbidden, apiNotFound, apiSuccess, apiUnauthorized } from '@/lib/api-response';
 import { hashPassword } from '@/lib/password';
 import { pgQuery } from '@/lib/pg';
-import { DuplicateUserProviderIdError, UserNotFoundError, updateUserRecord } from '@/lib/user-management';
+import { DuplicateUserProviderIdError, UserNotFoundError, deleteUserRecord, updateUserRecord } from '@/lib/user-management';
 import { updateUserSchema } from '@/lib/validation/schemas';
 import { validateRequest } from '@/lib/validation/validate';
 
@@ -51,5 +51,24 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
 
     console.error('Error updating user:', error);
     return apiError('Failed to update user');
+  }
+}
+
+export async function DELETE(_request: Request, context: { params: Promise<{ id: string }> }) {
+  const admin = await requireAdmin();
+  if ('response' in admin) return admin.response;
+
+  try {
+    const { id } = await context.params;
+    const user = await deleteUserRecord(id, pgQuery);
+
+    return apiSuccess(user, 'User deleted successfully');
+  } catch (error) {
+    if (error instanceof UserNotFoundError) {
+      return apiNotFound('User');
+    }
+
+    console.error('Error deleting user:', error);
+    return apiError('Failed to delete user');
   }
 }
