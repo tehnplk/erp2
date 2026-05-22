@@ -2,10 +2,12 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import type { FormEvent } from 'react';
-import { Check, Plus, ShieldCheck, Trash2, Users, X } from 'lucide-react';
+import { ArrowDown, ArrowUp, ArrowUpDown, Check, Plus, ShieldCheck, Trash2, Users, X } from 'lucide-react';
 import Swal from 'sweetalert2';
 
 type Role = 'Admin' | 'Manager' | 'User';
+type SortDirection = 'asc' | 'desc';
+type SortKey = 'sequence' | 'name' | 'provider_id' | 'password' | 'role' | 'department' | 'status' | 'last_login';
 
 type ManagedUser = {
   id: string;
@@ -47,9 +49,12 @@ const initialForm: UserForm = {
 
 const formId = 'admin-user-inline-form';
 const inputClass =
-  'h-9 w-full rounded-md border border-slate-300 bg-white px-2.5 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100';
+  'h-8 w-full rounded-none border border-slate-400 bg-white px-2 text-xs outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-300';
 const selectClass =
-  'h-9 w-full rounded-md border border-slate-300 bg-white px-2.5 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100';
+  'h-8 w-full rounded-none border border-slate-400 bg-white px-2 text-xs outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-300';
+const headerCellClass = 'border border-slate-300 bg-slate-200 px-2 py-2 text-left text-xs font-semibold text-slate-700';
+const bodyCellClass = 'border border-slate-300 px-2 py-1';
+const numericCellClass = `${bodyCellClass} text-center text-slate-500`;
 
 const formatDate = (value: string | null) => {
   if (!value) return '-';
@@ -67,6 +72,25 @@ const roleLabel = (role: Role) => {
   return 'ผู้ใช้งาน';
 };
 
+const roleOptions: Array<{ value: Role; label: string }> = [
+  { value: 'Admin', label: roleLabel('Admin') },
+  { value: 'Manager', label: roleLabel('Manager') },
+  { value: 'User', label: roleLabel('User') },
+];
+const pageSizeOptions = [20, 50, 100];
+
+const showSuccessToast = (title: string) => {
+  void Swal.fire({
+    toast: true,
+    position: 'top-end',
+    icon: 'success',
+    title,
+    showConfirmButton: false,
+    timer: 1800,
+    timerProgressBar: true,
+  });
+};
+
 export default function UsersAdminClient() {
   const [users, setUsers] = useState<ManagedUser[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
@@ -75,13 +99,17 @@ export default function UsersAdminClient() {
   const [isEditorOpen, setIsEditorOpen] = useState(false);
   const [nameFilter, setNameFilter] = useState('');
   const [departmentFilter, setDepartmentFilter] = useState('');
+  const [sort, setSort] = useState<{ key: SortKey; direction: SortDirection }>({
+    key: 'sequence',
+    direction: 'asc',
+  });
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [deletingUserId, setDeletingUserId] = useState<string | null>(null);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
-  const activeCount = useMemo(() => users.filter((user) => user?.is_active).length, [users]);
-  const adminCount = useMemo(() => users.filter((user) => user?.role === 'Admin').length, [users]);
   const filteredUsers = useMemo(() => {
     const normalizedName = nameFilter.trim().toLowerCase();
 
@@ -92,7 +120,79 @@ export default function UsersAdminClient() {
       return matchesName && matchesDepartment;
     });
   }, [departmentFilter, nameFilter, users]);
+  const roleCounts = useMemo(
+    () =>
+      roleOptions.reduce<Record<Role, number>>(
+        (counts, role) => ({
+          ...counts,
+          [role.value]: filteredUsers.filter((user) => user?.role === role.value).length,
+        }),
+        { Admin: 0, Manager: 0, User: 0 }
+      ),
+    [filteredUsers]
+  );
+  const sortedUsers = useMemo(() => {
+    const indexedUsers = filteredUsers.map((user, index) => ({ user, index }));
+
+    indexedUsers.sort((left, right) => {
+      const sortValue = (item: { user: ManagedUser; index: number }) => {
+        switch (sort.key) {
+          case 'sequence':
+            return item.index;
+          case 'name':
+            return item.user.name || '';
+          case 'provider_id':
+            return item.user.provider_id || '';
+          case 'password':
+            return '';
+          case 'role':
+            return roleLabel(item.user.role);
+          case 'department':
+            return item.user.department_name || '';
+          case 'status':
+            return item.user.is_active ? 1 : 0;
+          case 'last_login':
+            return item.user.last_login_at ? new Date(item.user.last_login_at).getTime() : 0;
+          default:
+            return '';
+        }
+      };
+
+      const leftValue = sortValue(left);
+      const rightValue = sortValue(right);
+      let comparison = 0;
+
+      if (typeof leftValue === 'number' && typeof rightValue === 'number') {
+        comparison = leftValue - rightValue;
+      } else {
+        comparison = String(leftValue).localeCompare(String(rightValue), 'th', {
+          numeric: true,
+          sensitivity: 'base',
+        });
+      }
+
+      if (comparison === 0) {
+        comparison = left.index - right.index;
+      }
+
+      return sort.direction === 'asc' ? comparison : -comparison;
+    });
+
+    return indexedUsers.map((item) => item.user);
+  }, [filteredUsers, sort]);
+  const totalCount = sortedUsers.length;
+  const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
+  const paginatedUsers = useMemo(() => {
+    const startIndex = (page - 1) * pageSize;
+    return sortedUsers.slice(startIndex, startIndex + pageSize);
+  }, [page, pageSize, sortedUsers]);
   const isCreating = isEditorOpen && !editingUser;
+
+  useEffect(() => {
+    if (page > totalPages) {
+      setPage(totalPages);
+    }
+  }, [page, totalPages]);
 
   const loadData = async () => {
     setLoading(true);
@@ -132,6 +232,7 @@ export default function UsersAdminClient() {
     setEditingUser(null);
     setForm(initialForm);
     setMessage(null);
+    setPage(1);
     setIsEditorOpen(true);
   };
 
@@ -191,8 +292,9 @@ export default function UsersAdminClient() {
         setUsers((current) => [payload.data, ...current.filter(Boolean)]);
       }
 
+      const successText = editingUser ? 'บันทึกการแก้ไขผู้ใช้แล้ว' : 'สร้างผู้ใช้แล้ว';
       closeEditor();
-      setMessage({ type: 'success', text: editingUser ? 'บันทึกการแก้ไขผู้ใช้แล้ว' : 'สร้างผู้ใช้แล้ว' });
+      showSuccessToast(successText);
     } catch (error: any) {
       setMessage({ type: 'error', text: error?.message || 'บันทึกผู้ใช้งานไม่สำเร็จ' });
     } finally {
@@ -230,7 +332,7 @@ export default function UsersAdminClient() {
       if (editingUser?.id === user.id) {
         closeEditor();
       }
-      setMessage({ type: 'success', text: 'ลบผู้ใช้แล้ว' });
+      showSuccessToast('ลบผู้ใช้แล้ว');
     } catch (error: any) {
       setMessage({ type: 'error', text: error?.message || 'ลบผู้ใช้งานไม่สำเร็จ' });
     } finally {
@@ -246,7 +348,7 @@ export default function UsersAdminClient() {
       onChange?: (checked: boolean) => void;
     } = {}
   ) => (
-    <label className={`flex h-9 items-center gap-2 text-sm ${options.disabled ? 'text-slate-500' : 'text-slate-700'}`}>
+    <label className={`flex h-8 items-center gap-2 text-xs ${options.disabled ? 'text-slate-500' : 'text-slate-700'}`}>
       <input
         form={options.form}
         type="checkbox"
@@ -258,15 +360,45 @@ export default function UsersAdminClient() {
         role="switch"
         aria-label="สถานะ"
       />
-      <span className="relative inline-flex h-6 w-11 shrink-0 rounded-full bg-slate-300 transition-colors after:absolute after:left-0.5 after:top-0.5 after:h-5 after:w-5 after:rounded-full after:bg-white after:shadow-sm after:transition-transform peer-checked:bg-blue-600 peer-checked:after:translate-x-5 peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-blue-600 peer-disabled:opacity-80" />
-      <span className="w-8 text-xs font-semibold">{checked ? 'ON' : 'OFF'}</span>
+      <span className="relative inline-flex h-5 w-9 shrink-0 rounded-full bg-slate-300 transition-colors after:absolute after:left-0.5 after:top-0.5 after:h-4 after:w-4 after:rounded-full after:bg-white after:shadow-sm after:transition-transform peer-checked:bg-blue-600 peer-checked:after:translate-x-4 peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-blue-600 peer-disabled:opacity-80" />
+      <span className="w-7 text-xs font-semibold">{checked ? 'ON' : 'OFF'}</span>
     </label>
   );
 
+  const handleSort = (key: SortKey) => {
+    setPage(1);
+    setSort((current) =>
+      current.key === key
+        ? { key, direction: current.direction === 'asc' ? 'desc' : 'asc' }
+        : { key, direction: 'asc' }
+    );
+  };
+
+  const renderSortHeader = (key: SortKey, label: string, className = '') => {
+    const active = sort.key === key;
+    const Icon = active ? (sort.direction === 'asc' ? ArrowUp : ArrowDown) : ArrowUpDown;
+
+    return (
+      <th
+        className={`${headerCellClass} ${className}`}
+        aria-sort={active ? (sort.direction === 'asc' ? 'ascending' : 'descending') : 'none'}
+      >
+        <button
+          type="button"
+          onClick={() => handleSort(key)}
+          className={`flex w-full items-center gap-1 text-left ${className.includes('text-center') ? 'justify-center' : ''}`}
+        >
+          <span>{label}</span>
+          <Icon className={`h-3.5 w-3.5 shrink-0 ${active ? 'text-blue-700' : 'text-slate-400'}`} />
+        </button>
+      </th>
+    );
+  };
+
   const renderInlineEditorRow = (rowKey: string, sequenceLabel = '-') => (
-    <tr key={rowKey} className="bg-blue-50/50 align-top">
-      <td className="px-3 py-3 text-center text-slate-500">{sequenceLabel}</td>
-      <td className="px-3 py-3">
+    <tr key={rowKey} className="bg-blue-50/70 align-top">
+      <td className={numericCellClass}>{sequenceLabel}</td>
+      <td className={bodyCellClass}>
         <input
           form={formId}
           type="text"
@@ -276,7 +408,7 @@ export default function UsersAdminClient() {
           aria-label="ชื่อ-นามสกุล"
         />
       </td>
-      <td className="px-3 py-3">
+      <td className={bodyCellClass}>
         <input
           form={formId}
           type="text"
@@ -288,7 +420,7 @@ export default function UsersAdminClient() {
           aria-label="ชื่อผู้ใช้"
         />
       </td>
-      <td className="px-3 py-3">
+      <td className={bodyCellClass}>
         <input
           form={formId}
           type="password"
@@ -300,7 +432,7 @@ export default function UsersAdminClient() {
           aria-label="รหัสผ่าน"
         />
       </td>
-      <td className="px-3 py-3">
+      <td className={bodyCellClass}>
         <select
           form={formId}
           value={form.role}
@@ -308,12 +440,14 @@ export default function UsersAdminClient() {
           className={selectClass}
           aria-label="บทบาท"
         >
-          <option value="User">ผู้ใช้งาน</option>
-          <option value="Manager">ผู้จัดการ</option>
-          <option value="Admin">ผู้ดูแลระบบ</option>
+          {roleOptions.map((role) => (
+            <option key={role.value} value={role.value}>
+              {role.label}
+            </option>
+          ))}
         </select>
       </td>
-      <td className="px-3 py-3">
+      <td className={bodyCellClass}>
         <select
           form={formId}
           value={form.department_id}
@@ -330,20 +464,20 @@ export default function UsersAdminClient() {
           ))}
         </select>
       </td>
-      <td className="px-3 py-3">
+      <td className={bodyCellClass}>
         {renderStatusSwitch(form.is_active, {
           form: formId,
           onChange: (checked) => updateForm('is_active', checked),
         })}
       </td>
-      <td className="px-3 py-3 text-slate-500">-</td>
-      <td className="px-3 py-3 text-right">
-        <div className="inline-flex items-center gap-2">
+      <td className={`${bodyCellClass} text-slate-500`}>-</td>
+      <td className={`${bodyCellClass} text-right`}>
+        <div className="inline-flex items-center gap-1">
           <button
             form={formId}
             type="submit"
             disabled={saving}
-            className="inline-flex h-9 w-9 items-center justify-center rounded-md bg-blue-600 text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-blue-300"
+            className="inline-flex h-7 w-7 items-center justify-center rounded-sm bg-blue-600 text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-blue-300"
             aria-label={editingUser ? 'บันทึกการแก้ไขผู้ใช้' : 'สร้างผู้ใช้'}
             title={editingUser ? 'บันทึกการแก้ไขผู้ใช้' : 'สร้างผู้ใช้'}
           >
@@ -353,35 +487,23 @@ export default function UsersAdminClient() {
             type="button"
             onClick={closeEditor}
             disabled={saving}
-            className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-slate-300 text-slate-600 transition-colors hover:bg-white disabled:opacity-60"
+            className="inline-flex h-7 w-7 items-center justify-center rounded-sm border border-slate-400 bg-white text-slate-600 transition-colors hover:bg-slate-100 disabled:opacity-60"
             aria-label="ยกเลิก"
             title="ยกเลิก"
           >
             <X className="h-4 w-4" />
           </button>
-          {editingUser && (
-            <button
-              type="button"
-              onClick={() => handleDelete(editingUser)}
-              disabled={deletingUserId === editingUser.id || saving}
-              className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-red-200 text-red-600 transition-colors hover:bg-red-50 disabled:opacity-60"
-              aria-label="ลบผู้ใช้"
-              title="ลบผู้ใช้"
-            >
-              <Trash2 className="h-4 w-4" />
-            </button>
-          )}
         </div>
       </td>
     </tr>
   );
 
   return (
-    <main className="min-h-screen bg-slate-50 text-slate-900">
+    <main className="min-h-screen bg-slate-50 p-6 text-slate-900">
       <form id={formId} onSubmit={handleSubmit} />
 
-      <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
-        <div className="mb-6 flex flex-col gap-4 border-b border-slate-200 pb-5 lg:flex-row lg:items-end lg:justify-between">
+      <div className="w-full">
+        <div className="mb-4 border-b border-slate-200 pb-5">
           <div>
             <div className="mb-2 inline-flex items-center gap-2 rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">
               <ShieldCheck className="h-3.5 w-3.5" />
@@ -389,48 +511,54 @@ export default function UsersAdminClient() {
             </div>
             <h1 className="text-2xl font-semibold tracking-normal text-slate-950">จัดการผู้ใช้งาน</h1>
           </div>
-
-          <div className="flex flex-wrap items-center gap-3">
-            <div className="rounded-md border border-slate-200 bg-white px-4 py-3">
-              <div className="text-xs font-medium uppercase text-slate-500">ใช้งาน</div>
-              <div className="text-xl font-semibold text-slate-950">{activeCount}</div>
-            </div>
-            <div className="rounded-md border border-slate-200 bg-white px-4 py-3">
-              <div className="text-xs font-medium uppercase text-slate-500">ผู้ดูแล</div>
-              <div className="text-xl font-semibold text-slate-950">{adminCount}</div>
-            </div>
-          </div>
         </div>
 
-        <section className="mb-4 rounded-md border border-slate-200 bg-white px-5 py-4">
-          <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(220px,320px)]">
-            <label className="block">
-              <span className="mb-1 block text-sm font-medium text-slate-700">ค้นหาชื่อ-นามสกุล</span>
-              <input
-                type="search"
-                value={nameFilter}
-                onChange={(event) => setNameFilter(event.target.value)}
-                placeholder="ค้นหาชื่อ-นามสกุล"
-                className={inputClass}
-              />
-            </label>
+        <section className="mb-3 overflow-hidden rounded-md border border-slate-300 bg-white">
+          <div className="grid lg:grid-cols-[minmax(0,1fr)_360px]">
+            <div className="grid gap-3 border-b border-slate-300 p-3 md:grid-cols-[minmax(0,1fr)_minmax(220px,320px)] lg:border-b-0 lg:border-r">
+              <label className="block">
+                <span className="mb-1 block text-xs font-semibold text-slate-700">ค้นหาชื่อ-นามสกุล</span>
+                <input
+                  type="search"
+                  value={nameFilter}
+                  onChange={(event) => {
+                    setNameFilter(event.target.value);
+                    setPage(1);
+                  }}
+                  placeholder="ค้นหาชื่อ-นามสกุล"
+                  className={inputClass}
+                />
+              </label>
 
-            <label className="block">
-              <span className="mb-1 block text-sm font-medium text-slate-700">แผนก</span>
-              <select
-                value={departmentFilter}
-                onChange={(event) => setDepartmentFilter(event.target.value)}
-                className={selectClass}
-              >
-                <option value="">ทุกแผนก</option>
-                {departments.map((department) => (
-                  <option key={department.id} value={department.id}>
-                    {department.department_code ? `${department.department_code} - ` : ''}
-                    {department.name}
-                  </option>
-                ))}
-              </select>
-            </label>
+              <label className="block">
+                <span className="mb-1 block text-xs font-semibold text-slate-700">แผนก</span>
+                <select
+                  value={departmentFilter}
+                  onChange={(event) => {
+                    setDepartmentFilter(event.target.value);
+                    setPage(1);
+                  }}
+                  className={selectClass}
+                >
+                  <option value="">ทุกแผนก</option>
+                  {departments.map((department) => (
+                    <option key={department.id} value={department.id}>
+                      {department.department_code ? `${department.department_code} - ` : ''}
+                      {department.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+
+            <div className="grid grid-cols-3 divide-x divide-slate-300 text-xs">
+              {roleOptions.map((role) => (
+                <div key={role.value} className="px-3 py-2">
+                  <div className="font-semibold text-slate-500">{role.label}</div>
+                  <div className="mt-1 text-lg font-semibold text-slate-950">{roleCounts[role.value]}</div>
+                </div>
+              ))}
+            </div>
           </div>
         </section>
 
@@ -446,17 +574,17 @@ export default function UsersAdminClient() {
           </div>
         )}
 
-        <section className="rounded-md border border-slate-200 bg-white">
-          <div className="flex items-center justify-between gap-3 border-b border-slate-200 px-5 py-4">
+        <section className="overflow-hidden rounded-md border border-slate-300 bg-white shadow-sm">
+          <div className="flex items-center justify-between gap-3 border-b border-slate-300 bg-slate-100 px-3 py-2">
             <div className="flex items-center gap-2">
               <Users className="h-5 w-5 text-blue-600" />
-              <h2 className="text-base font-semibold text-slate-950">ผู้ใช้งาน</h2>
+              <h2 className="text-sm font-semibold text-slate-950">ผู้ใช้งาน</h2>
             </div>
             <button
               type="button"
               onClick={openCreateEditor}
               disabled={loading || saving}
-              className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-slate-300 text-slate-700 transition-colors hover:bg-slate-50 disabled:opacity-60"
+              className="inline-flex h-8 w-8 items-center justify-center rounded-sm border border-emerald-700 bg-emerald-600 text-white transition-colors hover:bg-emerald-700 disabled:opacity-60"
               aria-label="เพิ่ม"
               title="+"
             >
@@ -464,25 +592,69 @@ export default function UsersAdminClient() {
             </button>
           </div>
 
+          <div className="mx-3 my-3 flex flex-col gap-2 rounded-lg border border-gray-100 bg-gray-50 px-3 py-2 text-sm text-gray-600 md:flex-row md:items-center md:justify-between">
+            <div className="font-medium text-gray-700">
+              หน้า {page} / {totalPages}
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="rounded border border-gray-200 bg-white px-2 py-1 text-xs text-gray-600">
+                รวมผู้ใช้ {totalCount.toLocaleString('th-TH')} รายการ
+              </div>
+              <select
+                aria-label="เลือกจำนวนรายการต่อหน้า"
+                value={String(pageSize)}
+                onChange={(event) => {
+                  const nextSize = Number(event.target.value);
+                  if (!pageSizeOptions.includes(nextSize)) return;
+                  setPageSize(nextSize);
+                  setPage(1);
+                }}
+                className="rounded border border-gray-300 bg-white px-2 py-1 text-sm"
+              >
+                {pageSizeOptions.map((size) => (
+                  <option key={size} value={size}>
+                    {size}
+                  </option>
+                ))}
+              </select>
+              <button
+                type="button"
+                disabled={page <= 1}
+                onClick={() => setPage((current) => Math.max(1, current - 1))}
+                className="rounded border border-gray-300 bg-white px-2 py-1 disabled:opacity-50"
+              >
+                ก่อนหน้า
+              </button>
+              <button
+                type="button"
+                disabled={page >= totalPages}
+                onClick={() => setPage((current) => Math.min(totalPages, current + 1))}
+                className="rounded border border-gray-300 bg-white px-2 py-1 disabled:opacity-50"
+              >
+                ถัดไป
+              </button>
+            </div>
+          </div>
+
           <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-slate-200 text-sm">
-              <thead className="bg-slate-50 text-left text-xs font-semibold uppercase text-slate-500">
+            <table className="min-w-full border-collapse text-xs">
+              <thead className="sticky top-0 z-10 text-left">
                 <tr>
-                  <th className="w-16 px-3 py-3 text-center">ลำดับ</th>
-                  <th className="px-3 py-3">ชื่อ-นามสกุล</th>
-                  <th className="px-3 py-3">ชื่อผู้ใช้</th>
-                  <th className="px-3 py-3">รหัสผ่าน</th>
-                  <th className="px-3 py-3">บทบาท</th>
-                  <th className="px-3 py-3">แผนก</th>
-                  <th className="px-3 py-3">สถานะ</th>
-                  <th className="px-3 py-3">เข้าระบบล่าสุด</th>
-                  <th className="px-3 py-3 text-right">จัดการ</th>
+                  {renderSortHeader('sequence', 'ลำดับ', 'w-16 text-center')}
+                  {renderSortHeader('name', 'ชื่อ-นามสกุล')}
+                  {renderSortHeader('provider_id', 'ชื่อผู้ใช้')}
+                  {renderSortHeader('password', 'รหัสผ่าน')}
+                  {renderSortHeader('role', 'บทบาท')}
+                  {renderSortHeader('department', 'แผนก')}
+                  {renderSortHeader('status', 'สถานะ')}
+                  {renderSortHeader('last_login', 'เข้าระบบล่าสุด')}
+                  <th className={`${headerCellClass} text-right`}>จัดการ</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100">
+              <tbody>
                 {loading ? (
                   <tr>
-                    <td colSpan={9} className="px-5 py-8 text-center text-slate-500">
+                    <td colSpan={9} className="border border-slate-300 px-5 py-8 text-center text-slate-500">
                       กำลังโหลด...
                     </td>
                   </tr>
@@ -492,14 +664,14 @@ export default function UsersAdminClient() {
 
                     {filteredUsers.length === 0 && !isCreating ? (
                       <tr>
-                        <td colSpan={9} className="px-5 py-8 text-center text-slate-500">
+                        <td colSpan={9} className="border border-slate-300 px-5 py-8 text-center text-slate-500">
                           ไม่พบผู้ใช้งาน
                         </td>
                       </tr>
                     ) : (
-                      filteredUsers.map((user, index) =>
+                      paginatedUsers.map((user, index) =>
                         editingUser?.id === user.id ? (
-                          renderInlineEditorRow(user.id, String(index + 1))
+                          renderInlineEditorRow(user.id, String((page - 1) * pageSize + index + 1))
                         ) : (
                           <tr
                             key={user.id}
@@ -508,29 +680,29 @@ export default function UsersAdminClient() {
                                 openEditEditor(user);
                               }
                             }}
-                            className="cursor-pointer hover:bg-slate-50"
+                            className="cursor-cell hover:bg-blue-50"
                           >
-                            <td className="px-3 py-3 text-center text-slate-500">{index + 1}</td>
-                            <td className="px-3 py-3 font-medium text-slate-950">{user.name || '-'}</td>
-                            <td className="px-3 py-3 text-slate-700">{user.provider_id}</td>
-                            <td className="px-3 py-3 text-slate-400">-</td>
-                            <td className="px-3 py-3">
-                              <span className="rounded-full bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-700">
+                            <td className={numericCellClass}>{(page - 1) * pageSize + index + 1}</td>
+                            <td className={`${bodyCellClass} font-medium text-slate-950`}>{user.name || '-'}</td>
+                            <td className={`${bodyCellClass} text-slate-700`}>{user.provider_id}</td>
+                            <td className={`${bodyCellClass} text-slate-400`}>-</td>
+                            <td className={bodyCellClass}>
+                              <span className="inline-flex h-6 items-center border border-blue-200 bg-blue-50 px-2 text-xs font-semibold text-blue-700">
                                 {roleLabel(user.role)}
                               </span>
                             </td>
-                            <td className="px-3 py-3 text-slate-700">{user.department_name || '-'}</td>
-                            <td className="px-3 py-3">
+                            <td className={`${bodyCellClass} text-slate-700`}>{user.department_name || '-'}</td>
+                            <td className={bodyCellClass}>
                               {renderStatusSwitch(user.is_active, { disabled: true })}
                             </td>
-                            <td className="px-3 py-3 text-slate-600">{formatDate(user.last_login_at)}</td>
-                            <td className="px-3 py-3 text-right" onClick={(event) => event.stopPropagation()}>
-                              <div className="inline-flex items-center gap-2">
+                            <td className={`${bodyCellClass} text-slate-600`}>{formatDate(user.last_login_at)}</td>
+                            <td className={`${bodyCellClass} text-right`} onClick={(event) => event.stopPropagation()}>
+                              <div className="inline-flex items-center gap-1">
                                 <button
                                   type="button"
                                   onClick={() => handleDelete(user)}
                                   disabled={deletingUserId === user.id || saving}
-                                  className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-red-200 text-red-600 transition-colors hover:bg-red-50 disabled:opacity-60"
+                                  className="inline-flex h-7 w-7 items-center justify-center rounded-sm border border-red-300 bg-white text-red-600 transition-colors hover:bg-red-50 disabled:opacity-60"
                                   aria-label="ลบผู้ใช้"
                                   title="ลบผู้ใช้"
                                 >

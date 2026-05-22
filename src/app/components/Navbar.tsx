@@ -8,6 +8,7 @@ import {
   BadgeCheck,
   BarChart4,
   Building2,
+  ChevronDown,
   ClipboardList,
   Home as HomeIcon,
   Hospital,
@@ -186,7 +187,11 @@ export default function Navbar() {
               >
                 <Settings className="mr-2 h-4 w-4" />
                 ตั้งค่า
-                <span className="ml-1">▾</span>
+                <ChevronDown
+                  className={`ml-1 h-4 w-4 shrink-0 text-blue-100 transition-transform ${
+                    isSettingsOpen ? 'rotate-180' : ''
+                  }`}
+                />
               </button>
               {isSettingsOpen && (
                 <div className="absolute right-0 mt-2 min-w-max bg-white text-gray-800 rounded-md shadow-lg py-1 z-50 whitespace-nowrap">
@@ -216,12 +221,17 @@ export default function Navbar() {
                   <button
                     type="button"
                     onClick={() => setIsProfileOpen((v) => !v)}
-                    className="flex max-w-[210px] items-center gap-2 rounded-md px-3 py-2 text-sm font-medium text-blue-50 transition-colors hover:bg-blue-500"
+                    className="flex max-w-[230px] items-center gap-2 rounded-md px-3 py-2 text-sm font-medium text-blue-50 transition-colors hover:bg-blue-500"
                     aria-haspopup="true"
                     aria-expanded={isProfileOpen}
                   >
                     <UserCircle className="h-5 w-5 shrink-0" />
-                    <span className="truncate">{profileName}</span>
+                    <span className="min-w-0 truncate">{profileName}</span>
+                    <ChevronDown
+                      className={`h-4 w-4 shrink-0 text-blue-100 transition-transform ${
+                        isProfileOpen ? 'rotate-180' : ''
+                      }`}
+                    />
                   </button>
                   {isProfileOpen && (
                     <div className="absolute right-0 mt-2 w-64 overflow-hidden rounded-md bg-white py-1 text-gray-800 shadow-lg">
@@ -358,10 +368,17 @@ export default function Navbar() {
               {/* ตั้งค่า collapsible - last in mobile menu */}
               <button
                 onClick={() => setIsSettingsOpen(!isSettingsOpen)}
-                className="flex items-center px-3 py-2 rounded-md text-sm font-medium transition-colors text-blue-100 hover:bg-blue-500 hover:text-white text-left"
+                className="flex items-center justify-between px-3 py-2 rounded-md text-sm font-medium transition-colors text-blue-100 hover:bg-blue-500 hover:text-white text-left"
               >
-                <Settings className="mr-2 h-4 w-4" />
-                ตั้งค่า {isSettingsOpen ? '▴' : '▾'}
+                <span className="flex items-center">
+                  <Settings className="mr-2 h-4 w-4" />
+                  ตั้งค่า
+                </span>
+                <ChevronDown
+                  className={`h-4 w-4 shrink-0 text-blue-100 transition-transform ${
+                    isSettingsOpen ? 'rotate-180' : ''
+                  }`}
+                />
               </button>
               {isSettingsOpen && (
                 <div className="ml-4 flex flex-col space-y-2">

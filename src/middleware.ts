@@ -3,6 +3,7 @@ import { getToken } from 'next-auth/jwt';
 import { NextResponse, type NextRequest } from 'next/server';
 
 const publicPathPrefixes = ['/', '/api/auth', '/api/sys-setting/public', '/login'];
+const adminOnlyPathPrefixes = ['/admin/users', '/api/users'];
 const legacySettingsPathMap: Record<string, string> = {
   '/sellers': '/settings/sellers',
   '/categories': '/settings/categories',
@@ -14,6 +15,9 @@ const legacySettingsPathMap: Record<string, string> = {
 
 const isPublicPath = (pathname: string) =>
   publicPathPrefixes.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`));
+
+const isAdminOnlyPath = (pathname: string) =>
+  adminOnlyPathPrefixes.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`));
 
 const isApiPath = (pathname: string) => pathname.startsWith('/api/');
 
@@ -55,6 +59,14 @@ export async function middleware(request: NextRequest) {
     const loginUrl = new URL('/login', request.nextUrl.origin);
     loginUrl.searchParams.set('callbackUrl', `${request.nextUrl.pathname}${request.nextUrl.search}`);
     return NextResponse.redirect(loginUrl);
+  }
+
+  if (isAdminOnlyPath(pathname) && token.role !== 'Admin') {
+    if (isApiPath(pathname)) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
+    return NextResponse.redirect(new URL('/', request.nextUrl.origin));
   }
 
   const permissionModule = resolvePermissionModule(pathname);
