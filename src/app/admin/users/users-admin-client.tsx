@@ -428,6 +428,7 @@ export default function UsersAdminClient() {
           minLength={form.password ? 6 : undefined}
           value={form.password}
           onChange={(event) => updateForm('password', event.target.value)}
+          placeholder={editingUser ? 'ว่างไว้หากไม่เปลี่ยน' : undefined}
           className={inputClass}
           aria-label="รหัสผ่าน"
         />
