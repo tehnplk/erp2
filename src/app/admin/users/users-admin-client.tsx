@@ -73,6 +73,8 @@ export default function UsersAdminClient() {
   const [form, setForm] = useState<UserForm>(initialForm);
   const [editingUser, setEditingUser] = useState<ManagedUser | null>(null);
   const [isEditorOpen, setIsEditorOpen] = useState(false);
+  const [nameFilter, setNameFilter] = useState('');
+  const [departmentFilter, setDepartmentFilter] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [deletingUserId, setDeletingUserId] = useState<string | null>(null);
@@ -80,6 +82,16 @@ export default function UsersAdminClient() {
 
   const activeCount = useMemo(() => users.filter((user) => user?.is_active).length, [users]);
   const adminCount = useMemo(() => users.filter((user) => user?.role === 'Admin').length, [users]);
+  const filteredUsers = useMemo(() => {
+    const normalizedName = nameFilter.trim().toLowerCase();
+
+    return users.filter((user) => {
+      const matchesName = !normalizedName || (user.name || '').toLowerCase().includes(normalizedName);
+      const matchesDepartment = !departmentFilter || String(user.department_id ?? '') === departmentFilter;
+
+      return matchesName && matchesDepartment;
+    });
+  }, [departmentFilter, nameFilter, users]);
   const isCreating = isEditorOpen && !editingUser;
 
   const loadData = async () => {
@@ -390,6 +402,38 @@ export default function UsersAdminClient() {
           </div>
         </div>
 
+        <section className="mb-4 rounded-md border border-slate-200 bg-white px-5 py-4">
+          <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(220px,320px)]">
+            <label className="block">
+              <span className="mb-1 block text-sm font-medium text-slate-700">ค้นหาชื่อ-นามสกุล</span>
+              <input
+                type="search"
+                value={nameFilter}
+                onChange={(event) => setNameFilter(event.target.value)}
+                placeholder="ค้นหาชื่อ-นามสกุล"
+                className={inputClass}
+              />
+            </label>
+
+            <label className="block">
+              <span className="mb-1 block text-sm font-medium text-slate-700">แผนก</span>
+              <select
+                value={departmentFilter}
+                onChange={(event) => setDepartmentFilter(event.target.value)}
+                className={selectClass}
+              >
+                <option value="">ทุกแผนก</option>
+                {departments.map((department) => (
+                  <option key={department.id} value={department.id}>
+                    {department.department_code ? `${department.department_code} - ` : ''}
+                    {department.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+        </section>
+
         {message && (
           <div
             className={`mb-4 rounded-md border px-4 py-3 text-sm ${
@@ -446,14 +490,14 @@ export default function UsersAdminClient() {
                   <>
                     {isCreating && renderInlineEditorRow('create-user')}
 
-                    {users.length === 0 && !isCreating ? (
+                    {filteredUsers.length === 0 && !isCreating ? (
                       <tr>
                         <td colSpan={9} className="px-5 py-8 text-center text-slate-500">
-                          ไม่มีผู้ใช้งาน
+                          ไม่พบผู้ใช้งาน
                         </td>
                       </tr>
                     ) : (
-                      users.map((user, index) =>
+                      filteredUsers.map((user, index) =>
                         editingUser?.id === user.id ? (
                           renderInlineEditorRow(user.id, String(index + 1))
                         ) : (
