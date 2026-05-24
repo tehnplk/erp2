@@ -101,7 +101,7 @@ export default function UsersAdminClient() {
   const [departmentFilter, setDepartmentFilter] = useState('');
   const [sort, setSort] = useState<{ key: SortKey; direction: SortDirection }>({
     key: 'sequence',
-    direction: 'asc',
+    direction: 'desc',
   });
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
@@ -138,7 +138,7 @@ export default function UsersAdminClient() {
       const sortValue = (item: { user: ManagedUser; index: number }) => {
         switch (sort.key) {
           case 'sequence':
-            return item.index;
+            return Number(item.user.id) || 0;
           case 'name':
             return item.user.name || '';
           case 'provider_id':
@@ -370,7 +370,7 @@ export default function UsersAdminClient() {
     setSort((current) =>
       current.key === key
         ? { key, direction: current.direction === 'asc' ? 'desc' : 'asc' }
-        : { key, direction: 'asc' }
+        : { key, direction: key === 'sequence' ? 'desc' : 'asc' }
     );
   };
 
@@ -576,21 +576,11 @@ export default function UsersAdminClient() {
         )}
 
         <section className="overflow-hidden rounded-md border border-slate-300 bg-white shadow-sm">
-          <div className="flex items-center justify-between gap-3 border-b border-slate-300 bg-slate-100 px-3 py-2">
+          <div className="flex items-center gap-3 border-b border-slate-300 bg-slate-100 px-3 py-2">
             <div className="flex items-center gap-2">
               <Users className="h-5 w-5 text-blue-600" />
               <h2 className="text-sm font-semibold text-slate-950">ผู้ใช้งาน</h2>
             </div>
-            <button
-              type="button"
-              onClick={openCreateEditor}
-              disabled={loading || saving}
-              className="inline-flex h-8 w-8 items-center justify-center rounded-sm border border-emerald-700 bg-emerald-600 text-white transition-colors hover:bg-emerald-700 disabled:opacity-60"
-              aria-label="เพิ่ม"
-              title="+"
-            >
-              <Plus className="h-4 w-4" />
-            </button>
           </div>
 
           <div className="mx-3 my-3 flex flex-col gap-2 rounded-lg border border-gray-100 bg-gray-50 px-3 py-2 text-sm text-gray-600 md:flex-row md:items-center md:justify-between">
@@ -634,6 +624,16 @@ export default function UsersAdminClient() {
               >
                 ถัดไป
               </button>
+              <button
+                type="button"
+                onClick={openCreateEditor}
+                disabled={loading || saving}
+                className="inline-flex h-8 w-8 items-center justify-center rounded-sm border border-emerald-700 bg-emerald-600 text-white transition-colors hover:bg-emerald-700 disabled:opacity-60"
+                aria-label="เพิ่ม"
+                title="+"
+              >
+                <Plus className="h-4 w-4" />
+              </button>
             </div>
           </div>
 
@@ -672,7 +672,7 @@ export default function UsersAdminClient() {
                     ) : (
                       paginatedUsers.map((user, index) =>
                         editingUser?.id === user.id ? (
-                          renderInlineEditorRow(user.id, String((page - 1) * pageSize + index + 1))
+                          renderInlineEditorRow(user.id, user.id)
                         ) : (
                           <tr
                             key={user.id}
@@ -683,7 +683,7 @@ export default function UsersAdminClient() {
                             }}
                             className="cursor-cell hover:bg-blue-50"
                           >
-                            <td className={numericCellClass}>{(page - 1) * pageSize + index + 1}</td>
+                            <td className={numericCellClass}>{user.id}</td>
                             <td className={`${bodyCellClass} font-medium text-slate-950`}>{user.name || '-'}</td>
                             <td className={`${bodyCellClass} text-slate-700`}>{user.provider_id}</td>
                             <td className={`${bodyCellClass} text-slate-400`}>-</td>
