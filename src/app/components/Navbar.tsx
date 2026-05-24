@@ -31,10 +31,12 @@ export default function Navbar() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const [isRefreshingSession, setIsRefreshingSession] = useState(false);
   const [departmentName, setDepartmentName] = useState('');
   const settingsRef = useRef<HTMLDivElement>(null);
   const profileRef = useRef<HTMLDivElement>(null);
-  const { data: session, status } = useSession();
+  const { data: session, status, update } = useSession();
+  const sessionUpdateRef = useRef(update);
   const budgetYear = useSysSetting('budget_year', '');
   const user = session?.user;
   const isAdmin = user?.role === 'Admin';
@@ -96,6 +98,24 @@ export default function Navbar() {
       cancelled = true;
     };
   }, [user?.departmentId]);
+
+  useEffect(() => {
+    sessionUpdateRef.current = update;
+  }, [update]);
+
+  useEffect(() => {
+    let cancelled = false;
+    setIsRefreshingSession(true);
+    sessionUpdateRef.current().finally(() => {
+      if (!cancelled) {
+        setIsRefreshingSession(false);
+      }
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [pathname]);
 
   const handleSignOut = () => {
     setIsProfileOpen(false);
@@ -216,7 +236,15 @@ export default function Navbar() {
             </div>
 
             <div className="relative ml-2 border-l border-blue-500 pl-3" ref={profileRef}>
-              {status === 'authenticated' && user ? (
+              {status === 'loading' || (!user && isRefreshingSession) ? (
+                <div
+                  className="flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium text-blue-100"
+                  aria-live="polite"
+                >
+                  <UserCircle className="h-5 w-5 shrink-0" />
+                  <span>กำลังโหลด...</span>
+                </div>
+              ) : status === 'authenticated' && user ? (
                 <>
                   <button
                     type="button"
@@ -404,7 +432,12 @@ export default function Navbar() {
               )}
 
               <div className="mt-2 border-t border-blue-500 pt-3">
-                {status === 'authenticated' && user ? (
+                {status === 'loading' || (!user && isRefreshingSession) ? (
+                  <div className="flex items-center rounded-md px-3 py-2 text-sm font-medium text-blue-100">
+                    <UserCircle className="mr-2 h-4 w-4" />
+                    กำลังโหลด...
+                  </div>
+                ) : status === 'authenticated' && user ? (
                   <div className="space-y-2">
                     <div className="px-3 py-2">
                       <div className="truncate text-sm font-semibold text-white">{profileName}</div>
