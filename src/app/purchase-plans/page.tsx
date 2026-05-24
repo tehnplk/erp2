@@ -5,6 +5,7 @@ import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import Swal from 'sweetalert2';
 import { ArrowUpDown } from 'lucide-react';
 import { useSysSetting } from '@/hooks/use-sys-setting';
+import { useAllowedActions } from '@/hooks/use-allowed-actions';
 
 type PurchasePlanRow = {
   id: number;
@@ -266,6 +267,8 @@ function DepartmentCombobox({
 }
 
 function PurchasePlansPageContent() {
+  const { canCreate: canCreatePurchasePlan, canEdit: canEditPurchasePlan } = useAllowedActions('/purchase-plans');
+  const { canCreate: canCreatePurchaseApproval } = useAllowedActions('/purchase-approvals');
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -736,6 +739,7 @@ function PurchasePlansPageContent() {
   };
 
   const handleRowFocus = async (row: PurchasePlanRow, focus: 'qty' | 'price') => {
+    if (!canEditPurchasePlan) return;
     if ((row.purchased_qty ?? 0) > 0) {
       return;
     }
@@ -760,6 +764,7 @@ function PurchasePlansPageContent() {
   };
 
   const startInlineEdit = (row: PurchasePlanRow) => {
+    if (!canEditPurchasePlan) return;
     setEditingRowId(row.id);
     setEditingPurchaseQty(String(row.purchase_qty ?? 0));
     setEditingUnitPrice(String(row.unit_price ?? row.price_per_unit ?? 0));
@@ -772,6 +777,7 @@ function PurchasePlansPageContent() {
   };
 
   const savePurchasePlan = async (row: PurchasePlanRow, purchaseQtyText: string, unitPriceText: string) => {
+    if (!canEditPurchasePlan) return false;
     const nextPurchaseQty = Number(purchaseQtyText);
     const nextUnitPrice = Number(unitPriceText);
 
@@ -961,6 +967,7 @@ function PurchasePlansPageContent() {
   };
 
   const handleSelectAll = (checked: boolean) => {
+    if (!canCreatePurchaseApproval) return;
     if (checked) {
       void Swal.fire({
         icon: 'info',
@@ -974,6 +981,7 @@ function PurchasePlansPageContent() {
   };
 
   const handleRowSelect = (id: number, checked: boolean) => {
+    if (!canCreatePurchaseApproval) return;
     const currentItem = items.find((item) => item.id === id);
 
     if (checked && currentItem) {
@@ -1075,6 +1083,7 @@ function PurchasePlansPageContent() {
   };
 
   const handleBulkPurchaseApproval = async () => {
+    if (!canCreatePurchaseApproval) return;
     if (selectedRows.size === 0) {
       await Swal.fire({ icon: 'warning', title: 'ไม่ได้เลือกรายการ', text: 'กรุณาเลือกรายการที่ต้องการทำรายการอนุมัติจัดซื้อ' });
       return;
@@ -1466,6 +1475,7 @@ function PurchasePlansPageContent() {
   };
 
   const openOutOfPlanModal = async () => {
+    if (!canCreatePurchasePlan) return;
     setShowOutOfPlanModal(true);
     setOutOfPlanDeptCode('');
     setOutOfPlanCategory('');
@@ -1494,6 +1504,7 @@ function PurchasePlansPageContent() {
   };
 
   const handleCreateOutOfPlanPurchase = async () => {
+    if (!canCreatePurchasePlan) return;
     if (!selectedOutOfPlanProductCode) {
       await Swal.fire({ icon: 'warning', title: 'ยังไม่ได้เลือกสินค้า', text: 'กรุณาเลือกสินค้า 1 รหัสก่อนบันทึก' });
       return;
@@ -1557,14 +1568,15 @@ function PurchasePlansPageContent() {
               <button
                 type="button"
                 onClick={() => void openOutOfPlanModal()}
-                className="rounded-lg border border-emerald-600 bg-white px-4 py-2 text-sm font-semibold text-emerald-700 hover:bg-emerald-100"
+                disabled={!canCreatePurchasePlan}
+                className="rounded-lg border border-emerald-600 bg-white px-4 py-2 text-sm font-semibold text-emerald-700 hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-40"
               >
                 เพิ่มแผนจัดซื้อนอกแผนการใช้
               </button>
               <button
                 type="button"
                 onClick={() => void handleBulkPurchaseApproval()}
-                disabled={selectedPlanItems.length === 0}
+                disabled={selectedPlanItems.length === 0 || !canCreatePurchaseApproval}
                 className="rounded-lg border border-blue-600 bg-blue-50 px-4 py-2 text-sm font-semibold text-blue-700 hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 จัดทำเอกสารอนุมัติจัดซื้อ ({selectedPlanItems.length})
@@ -1687,7 +1699,8 @@ function PurchasePlansPageContent() {
                         }
                       }}
                       onChange={(event) => handleSelectAll(event.target.checked)}
-                      className="h-4 w-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
+                      disabled={!canCreatePurchaseApproval}
+                      className="h-4 w-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500 disabled:cursor-not-allowed disabled:opacity-50"
                     />
                   </th>
                   <th onClick={() => handleSort('id')} className={getHeaderClass('id')} aria-sort={sortBy === 'id' ? (sortOrder === 'asc' ? 'ascending' : 'descending') : 'none'}><span className="inline-flex items-center gap-1">ID {renderSortIcon('id')}</span></th>
@@ -1723,7 +1736,7 @@ function PurchasePlansPageContent() {
                           aria-label={`เลือกรายการ ${row.product_code ?? row.id}`}
                           checked={selectedRows.has(row.id)}
                           onChange={(event) => handleRowSelect(row.id, event.target.checked)}
-                          disabled={!isRowSelectableByRule(row)}
+                          disabled={!canCreatePurchaseApproval || !isRowSelectableByRule(row)}
                           className="h-4 w-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500 disabled:cursor-not-allowed disabled:opacity-50"
                         />
                       </td>
@@ -1907,8 +1920,8 @@ function PurchasePlansPageContent() {
                 <button
                   type="button"
                   onClick={() => void handleCreateOutOfPlanPurchase()}
-                  disabled={savingOutOfPlan}
-                  className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-60"
+                  disabled={savingOutOfPlan || !canCreatePurchasePlan}
+                  className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   {savingOutOfPlan ? 'กำลังบันทึก...' : 'บันทึกนอกแผน'}
                 </button>

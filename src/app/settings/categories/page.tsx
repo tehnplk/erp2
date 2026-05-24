@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import Swal from 'sweetalert2';
 import { Plus, Check, X, Pencil, Trash2 } from 'lucide-react';
+import { useAllowedActions } from '@/hooks/use-allowed-actions';
 
 interface Category {
   id: number;
@@ -14,6 +15,7 @@ interface Category {
 }
 
 export default function CategoriesPage() {
+  const { canCreate, canEdit, canDelete } = useAllowedActions('/categories');
   const [categories, setCategories] = useState<Category[]>([]);
   const [filteredCategories, setFilteredCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
@@ -136,6 +138,7 @@ export default function CategoriesPage() {
   };
 
   const openBulkForm = () => {
+    if (!canCreate) return;
     setShowBulkForm(true);
     setBulkRecords([createEmptyBulkCategoryRecord()]);
   };
@@ -165,6 +168,7 @@ export default function CategoriesPage() {
 
   // Delete category
   const deleteCategory = async (id: number) => {
+    if (!canDelete) return;
     const confirmation = await Swal.fire({
       title: 'Delete category?',
       text: 'Are you sure you want to delete this category?',
@@ -192,6 +196,7 @@ export default function CategoriesPage() {
 
   // Start inline editing
   const startInlineEdit = (category: Category) => {
+    if (!canEdit) return;
     setEditingId(category.id);
     setEditData({
       category_code: category.category_code,
@@ -204,6 +209,7 @@ export default function CategoriesPage() {
 
   // Save inline edit
   const saveInlineEdit = async (id: number) => {
+    if (!canEdit) return;
     try {
       const response = await fetch(`/api/categories/${id}`, {
         method: 'PUT',
@@ -259,6 +265,7 @@ export default function CategoriesPage() {
 
   // Save new record
   const saveNewRecord = async () => {
+    if (!canCreate) return;
     if (
       !newRecordData.category_code.trim() ||
       !newRecordData.category.trim() ||
@@ -337,6 +344,7 @@ export default function CategoriesPage() {
 
   // Save bulk records
   const saveBulkRecords = async () => {
+    if (!canCreate) return;
     try {
       // Filter out empty records
       const validRecords = bulkRecords.filter(record =>
@@ -629,7 +637,8 @@ export default function CategoriesPage() {
             <div className="flex gap-3">
               <button
                 onClick={saveBulkRecords}
-                className="flex-1 bg-blue-600 text-white py-2 rounded-md hover:bg-blue-700 transition-colors"
+                disabled={!canCreate}
+                className="flex-1 bg-blue-600 text-white py-2 rounded-md hover:bg-blue-700 transition-colors disabled:cursor-not-allowed disabled:opacity-40"
               >
                 บันทึกทั้งหมด ({bulkRecords.length} รายการ)
               </button>
@@ -733,7 +742,8 @@ export default function CategoriesPage() {
       <div className="mb-4 flex items-center justify-end gap-2">
         <button
           onClick={openBulkForm}
-          className="rounded-md border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50"
+          disabled={!canCreate}
+          className="rounded-md border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
         >
           Bulk insert
         </button>
@@ -742,7 +752,7 @@ export default function CategoriesPage() {
             setAddingNew(true);
             setNewRecordData(createEmptyCategoryRecord());
           }}
-          disabled={addingNew}
+          disabled={addingNew || !canCreate}
           className="rounded-md bg-blue-600 px-3 py-2 text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-blue-300"
           title="เพิ่มหมวดใหม่"
         >
@@ -871,7 +881,8 @@ export default function CategoriesPage() {
                     <div className="flex gap-1">
                       <button
                         onClick={saveNewRecord}
-                        className="text-green-600 hover:text-green-900 cursor-pointer"
+                        disabled={!canCreate}
+                        className="text-green-600 hover:text-green-900 cursor-pointer disabled:cursor-not-allowed disabled:opacity-40"
                         title="บันทึก"
                       >
                         <Check className="h-4 w-4" />
@@ -962,7 +973,8 @@ export default function CategoriesPage() {
                       <div className="flex gap-1">
                         <button
                           onClick={() => saveInlineEdit(cat.id)}
-                          className="text-green-600 hover:text-green-900 cursor-pointer"
+                          disabled={!canEdit}
+                          className="text-green-600 hover:text-green-900 cursor-pointer disabled:cursor-not-allowed disabled:opacity-40"
                           title="บันทึก"
                         >
                           <Check className="h-4 w-4" />
@@ -979,14 +991,16 @@ export default function CategoriesPage() {
                       <div className="flex gap-2">
                         <button
                           onClick={() => startInlineEdit(cat)}
-                          className="text-indigo-600 hover:text-indigo-900 cursor-pointer"
+                          disabled={!canEdit}
+                          className="text-indigo-600 hover:text-indigo-900 cursor-pointer disabled:cursor-not-allowed disabled:opacity-40"
                           title="แก้ไข"
                         >
                           <Pencil className="h-5 w-5" />
                         </button>
                         <button
                           onClick={() => deleteCategory(cat.id)}
-                          className="text-red-600 hover:text-red-900 cursor-pointer"
+                          disabled={!canDelete}
+                          className="text-red-600 hover:text-red-900 cursor-pointer disabled:cursor-not-allowed disabled:opacity-40"
                           title="ลบ"
                         >
                           <Trash2 className="h-5 w-5" />

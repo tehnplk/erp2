@@ -5,6 +5,7 @@ import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import Swal from 'sweetalert2';
 import { ArrowUpDown } from 'lucide-react';
 import { useSysSetting } from '@/hooks/use-sys-setting';
+import { useAllowedActions } from '@/hooks/use-allowed-actions';
 
 const get_current_budget_year = () => {
   const now = new Date();
@@ -78,6 +79,7 @@ const default_form_state = (budgetYear = ''): FormState => ({
 });
 
 function UsagePlansPageContent() {
+  const { canCreate, canEdit, canDelete } = useAllowedActions('/usage-plans');
   const router = useRouter();
   const pathname = usePathname();
   const search_params = useSearchParams();
@@ -511,6 +513,7 @@ function UsagePlansPageContent() {
   };
 
   const open_create_form = () => {
+    if (!canCreate) return;
     set_editing_usage_plan(null);
     set_form_state(default_form_state(effective_budget_year ? String(effective_budget_year) : ''));
     set_form_errors({});
@@ -599,7 +602,7 @@ function UsagePlansPageContent() {
   };
 
   const start_cell_edit = (row: UsagePlanRow, field: EditableField) => {
-    if (saving) return;
+    if (saving || !canEdit) return;
 
     const initial_value = field === 'requested_amount' ? String(row.requested_amount ?? 0) : String(row.approved_quota ?? 0);
 
@@ -613,6 +616,7 @@ function UsagePlansPageContent() {
   };
 
   const save_cell_edit = async (row: UsagePlanRow, field: EditableField, raw_value: string) => {
+    if (!canEdit) return false;
     const payload: Partial<Record<EditableField, string | number>> = {};
 
     const numeric = Number(raw_value);
@@ -788,6 +792,7 @@ function UsagePlansPageContent() {
 
   const handle_submit = async (event: React.FormEvent) => {
     event.preventDefault();
+    if ((editing_usage_plan && !canEdit) || (!editing_usage_plan && !canCreate)) return;
 
     if (!editing_usage_plan) {
       const errors: Record<string, string> = {};
@@ -918,6 +923,7 @@ function UsagePlansPageContent() {
   };
 
   const handle_delete = async (row: UsagePlanRow) => {
+    if (!canDelete) return;
     if (row.has_purchase_approval) {
       await Swal.fire({
         icon: 'error',
@@ -955,7 +961,8 @@ function UsagePlansPageContent() {
         <button
           type="button"
           onClick={open_create_form}
-          className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
+          disabled={!canCreate}
+          className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-40"
         >
           เพิ่มรายการ
         </button>
@@ -1088,7 +1095,7 @@ function UsagePlansPageContent() {
                       </td>
                       <td className="px-3 py-2 text-xs text-gray-700 align-top">{row.unit || '-'}</td>
                       <td
-                        className="px-3 py-2 text-right text-xs text-gray-700 align-top"
+                        className={`px-3 py-2 text-right text-xs text-gray-700 align-top ${canEdit ? '' : 'cursor-not-allowed opacity-50'}`}
                         onClick={() => start_cell_edit(row, 'requested_amount')}
                       >
                         {editing_cell?.row_id === row.id && editing_cell.field === 'requested_amount' ? (
@@ -1110,11 +1117,11 @@ function UsagePlansPageContent() {
                             className="w-24 rounded border border-gray-300 px-2 py-1 text-right text-xs"
                           />
                         ) : (
-                          <span className="cursor-pointer text-xs">{row.requested_amount ?? 0}</span>
+                          <span className={`${canEdit ? 'cursor-pointer' : 'cursor-not-allowed'} text-xs`}>{row.requested_amount ?? 0}</span>
                         )}
                       </td>
                       <td
-                        className="px-3 py-2 text-right text-xs text-gray-700 align-top"
+                        className={`px-3 py-2 text-right text-xs text-gray-700 align-top ${canEdit ? '' : 'cursor-not-allowed opacity-50'}`}
                         onClick={() => start_cell_edit(row, 'approved_quota')}
                       >
                         {editing_cell?.row_id === row.id && editing_cell.field === 'approved_quota' ? (
@@ -1136,7 +1143,7 @@ function UsagePlansPageContent() {
                             className="w-24 rounded border border-gray-300 px-2 py-1 text-right text-xs"
                           />
                         ) : (
-                          <span className="cursor-pointer text-xs">{row.approved_quota ?? 0}</span>
+                          <span className={`${canEdit ? 'cursor-pointer' : 'cursor-not-allowed'} text-xs`}>{row.approved_quota ?? 0}</span>
                         )}
                       </td>
                       <td className="px-3 py-2 text-right text-xs text-gray-700 align-top">
@@ -1155,7 +1162,7 @@ function UsagePlansPageContent() {
                         <div className="inline-flex items-center gap-2">
                           <button
                             type="button"
-                            disabled={saving || row.has_purchase_approval}
+                            disabled={saving || row.has_purchase_approval || !canDelete}
                             onClick={() => void handle_delete(row)}
                             className="inline-flex h-8 w-8 items-center justify-center rounded border border-red-300 text-red-700 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-40"
                             aria-label={`ลบ ${row.product_code || 'รายการ'}`}
@@ -1495,8 +1502,8 @@ function UsagePlansPageContent() {
                 </button>
                 <button
                   type="submit"
-                  disabled={saving}
-                  className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-60"
+                  disabled={saving || (editing_usage_plan ? !canEdit : !canCreate)}
+                  className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   {saving ? 'กำลังบันทึก...' : 'บันทึก'}
                 </button>

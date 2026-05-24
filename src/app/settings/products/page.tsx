@@ -5,6 +5,7 @@ import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import Swal from 'sweetalert2';
 import { Check, X, Pencil, Trash2, ChevronUp, ChevronDown, FilePenLine, ArrowUpDown } from 'lucide-react';
 import { formatBaht } from '@/lib/format-baht';
+import { useAllowedActions } from '@/hooks/use-allowed-actions';
 
 type Product = {
   id: number;
@@ -64,6 +65,7 @@ interface ProductFormData {
 const PAGE_SIZE_OPTIONS = [10, 20, 50];
 
 function ProductsPageContent() {
+  const { canCreate, canEdit, canDelete } = useAllowedActions('/products');
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -462,6 +464,7 @@ function ProductsPageContent() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if ((editingProduct && !canEdit) || (!editingProduct && !canCreate)) return;
     
     // Validate required fields
     const newErrors: Record<string, string> = {};
@@ -521,6 +524,7 @@ function ProductsPageContent() {
   };
 
   const handleEdit = (product: Product) => {
+    if (!canEdit) return;
     setEditingProduct(product);
     setFormData({
       code: product.code,
@@ -543,6 +547,7 @@ function ProductsPageContent() {
   };
 
   const handleDelete = async (id: number) => {
+    if (!canDelete) return;
     const result = await Swal.fire({
       title: 'คุณแน่ใจหรือไม่?',
       text: 'คุณจะไม่สามารถกู้คืนสินค้านี้ได้!',
@@ -617,6 +622,7 @@ function ProductsPageContent() {
 
   // Inline editing functions
   const startInlineEdit = (product: Product) => {
+    if (!canEdit) return;
     setEditingId(product.id);
     setEditData({
       code: product.code,
@@ -638,6 +644,7 @@ function ProductsPageContent() {
   };
 
   const saveInlineEdit = async (id: number) => {
+    if (!canEdit) return;
     try {
       const response = await fetch(`/api/products/${id}`, {
         method: 'PUT',
@@ -700,6 +707,7 @@ function ProductsPageContent() {
 
   // Save bulk products
   const saveBulkProducts = async () => {
+    if (!canCreate) return;
     try {
       // Filter out empty records (require at least code, name, category, type, subtype, unit)
       const validRecords = bulkRecords.filter(record =>
@@ -839,7 +847,8 @@ function ProductsPageContent() {
         <h1 className="text-3xl font-bold text-gray-800">รายการสินค้า</h1>
         <button
           onClick={() => setShowForm(true)}
-          className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
+          disabled={!canCreate}
+          className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded disabled:cursor-not-allowed disabled:opacity-40"
         >
           เพิ่มสินค้าใหม่
         </button>
@@ -1085,7 +1094,8 @@ function ProductsPageContent() {
                 </button>
                 <button
                   type="submit"
-                  className="inline-flex items-center justify-center rounded-xl bg-blue-600 px-5 py-3 text-sm font-medium text-white shadow-sm transition hover:bg-blue-700"
+                  disabled={editingProduct ? !canEdit : !canCreate}
+                  className="inline-flex items-center justify-center rounded-xl bg-blue-600 px-5 py-3 text-sm font-medium text-white shadow-sm transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-40"
                 >
                   {editingProduct ? 'บันทึกการแก้ไข' : 'เพิ่มสินค้า'}
                 </button>
@@ -1319,7 +1329,8 @@ function ProductsPageContent() {
             <div className="flex gap-3">
               <button
                 onClick={saveBulkProducts}
-                className="flex-1 bg-blue-600 text-white py-2 rounded-md hover:bg-blue-700 transition-colors"
+                disabled={!canCreate}
+                className="flex-1 bg-blue-600 text-white py-2 rounded-md hover:bg-blue-700 transition-colors disabled:cursor-not-allowed disabled:opacity-40"
               >
                 บันทึกทั้งหมด ({bulkRecords.length} รายการ)
               </button>
@@ -1670,7 +1681,8 @@ function ProductsPageContent() {
                     <div className="flex items-center gap-2">
                       <button
                         onClick={() => saveInlineEdit(product.id)}
-                        className="text-green-600 hover:text-green-800 cursor-pointer"
+                        disabled={!canEdit}
+                        className="text-green-600 hover:text-green-800 cursor-pointer disabled:cursor-not-allowed disabled:opacity-40"
                         title="บันทึก"
                       >
                         <Check className="h-5 w-5" />
@@ -1687,21 +1699,24 @@ function ProductsPageContent() {
                     <div className="flex items-center gap-2">
                       <button
                         onClick={() => startInlineEdit(product)}
-                        className="text-indigo-600 hover:text-indigo-900 mr-2 cursor-pointer"
+                        disabled={!canEdit}
+                        className="text-indigo-600 hover:text-indigo-900 mr-2 cursor-pointer disabled:cursor-not-allowed disabled:opacity-40"
                         title="แก้ไขในตาราง"
                       >
                         <Pencil className="h-5 w-5" />
                       </button>
                       <button
                         onClick={() => handleEdit(product)}
-                        className="text-sky-600 hover:text-sky-900 cursor-pointer"
+                        disabled={!canEdit}
+                        className="text-sky-600 hover:text-sky-900 cursor-pointer disabled:cursor-not-allowed disabled:opacity-40"
                         title="แก้ไขแบบฟอร์ม"
                       >
                         <FilePenLine className="h-5 w-5" />
                       </button>
                       <button
                         onClick={() => handleDelete(product.id)}
-                        className="text-red-600 hover:text-red-900 cursor-pointer"
+                        disabled={!canDelete}
+                        className="text-red-600 hover:text-red-900 cursor-pointer disabled:cursor-not-allowed disabled:opacity-40"
                         title="ลบ"
                       >
                         <Trash2 className="h-5 w-5" />
@@ -1720,7 +1735,8 @@ function ProductsPageContent() {
           <p className="text-gray-500 text-lg">ไม่มีข้อมูลสินค้า</p>
           <button
             onClick={() => setShowForm(true)}
-            className="mt-4 bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
+            disabled={!canCreate}
+            className="mt-4 bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded disabled:cursor-not-allowed disabled:opacity-40"
           >
             เพิ่มสินค้าใหม่
           </button>

@@ -6,6 +6,7 @@ import Swal from 'sweetalert2';
 import { InventoryBreadcrumbs } from '../_components/inventory-breadcrumbs';
 import { SortableHeader } from '../_components/sortable-header';
 import { formatBaht } from '@/lib/format-baht';
+import { useAllowedActions } from '@/hooks/use-allowed-actions';
 
 type StockRow = {
   product_id: number;
@@ -130,6 +131,7 @@ function toggleSort(currentKey: string, currentOrder: SortOrder, nextKey: string
 }
 
 export default function InventoryStockPage() {
+  const { canCreate, canEdit, canDelete } = useAllowedActions('/inventory/stock');
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState('');
   const [search, setSearch] = useState('');
@@ -377,6 +379,7 @@ export default function InventoryStockPage() {
   }, [receiptActiveOptionIndex, receiptProductOptions]);
 
   const openReceiptModal = () => {
+    if (!canCreate) return;
     setReceiptMessage('');
     setReceiptType('OPENING_BALANCE');
     setReceiptDate(new Date().toISOString().slice(0, 10));
@@ -452,6 +455,7 @@ export default function InventoryStockPage() {
   };
 
   const openLotEditor = (lotRow: StockLotDetailRow) => {
+    if (!canEdit) return;
     setLotEditorMessage('');
     setLotEditor({
       receipt_item_id: lotRow.receipt_item_id,
@@ -480,6 +484,7 @@ export default function InventoryStockPage() {
   };
 
   const handleLotEditorSubmit = async () => {
+    if (!canEdit) return;
     if (!lotEditor) return;
     if (lotEditor.has_issue_history) {
       setLotEditorMessage('LOT นี้มีการเบิกจ่ายไปแล้ว กรุณาลบใบเบิกจ่ายเพื่อคืนสินค้าเข้าคลังก่อนแก้ไข LOT นี้');
@@ -541,6 +546,7 @@ export default function InventoryStockPage() {
   };
 
   const handleDeleteLotReceiptItem = async (lotRow: StockLotDetailRow) => {
+    if (!canDelete) return;
     if (lotRow.has_issue_history) {
       await Swal.fire({
         icon: 'warning',
@@ -594,6 +600,7 @@ export default function InventoryStockPage() {
   };
 
   const handleReceiptSubmit = async () => {
+    if (!canCreate) return;
     if (receiptItems.length === 0) {
       setReceiptMessage('กรุณาเพิ่มรายการสินค้าอย่างน้อย 1 รายการ');
       return;
@@ -666,7 +673,8 @@ export default function InventoryStockPage() {
             <button
               type="button"
               onClick={openReceiptModal}
-              className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
+              disabled={!canCreate}
+              className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-40"
             >
               <Plus className="h-4 w-4" />
               รับเข้าคลัง
@@ -920,7 +928,7 @@ export default function InventoryStockPage() {
                                                 onClick={() => openLotEditor(lotRow)}
                                                 aria-label={`แก้ไข ${lotRow.product_code} ${lotRow.lot_no}`}
                                                 title={lotRow.has_issue_history ? 'ต้องลบใบเบิกจ่ายก่อนจึงจะแก้ไข LOT นี้ได้' : 'แก้ไข'}
-                                                disabled={lotRow.has_issue_history}
+                                                disabled={lotRow.has_issue_history || !canEdit}
                                                 className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-emerald-300 text-emerald-700 hover:bg-emerald-100 disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-300 disabled:hover:bg-transparent"
                                               >
                                                 <Pencil className="h-4 w-4" />
@@ -930,7 +938,7 @@ export default function InventoryStockPage() {
                                                 onClick={() => void handleDeleteLotReceiptItem(lotRow)}
                                                 aria-label={`ลบ ${lotRow.product_code} ${lotRow.lot_no}`}
                                                 title={lotRow.has_issue_history ? 'ต้องลบใบเบิกจ่ายก่อนจึงจะลบ LOT นี้ได้' : 'ลบ'}
-                                                disabled={lotRow.has_issue_history}
+                                                disabled={lotRow.has_issue_history || !canDelete}
                                                 className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-red-300 text-red-700 hover:bg-red-50 disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-300 disabled:hover:bg-transparent"
                                               >
                                                 <Trash2 className="h-4 w-4" />
@@ -1187,7 +1195,7 @@ export default function InventoryStockPage() {
                   <button
                     type="button"
                     onClick={handleReceiptSubmit}
-                    disabled={receiptSaving}
+                    disabled={receiptSaving || !canCreate}
                     className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-slate-300"
                   >
                     {receiptSaving ? 'กำลังบันทึก...' : 'บันทึกรับเข้าคลัง'}
@@ -1328,7 +1336,7 @@ export default function InventoryStockPage() {
                 <button
                   type="button"
                   onClick={() => void handleLotEditorSubmit()}
-                  disabled={lotEditorSaving}
+                  disabled={lotEditorSaving || !canEdit}
                   className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-slate-300"
                 >
                   {lotEditorSaving ? 'กำลังบันทึก...' : 'บันทึกการแก้ไข'}

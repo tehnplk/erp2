@@ -7,6 +7,7 @@ import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import Swal from 'sweetalert2';
 import { ArrowUpDown, ChevronDown, ChevronRight, Save, X, Trash2, Edit, FileText, CheckCircle, XCircle, Printer, FileDown, Clock, RotateCcw } from 'lucide-react';
 import { useSysSetting } from '@/hooks/use-sys-setting';
+import { useAllowedActions } from '@/hooks/use-allowed-actions';
 
 const DEFAULT_DOC_NO = 'พล. 0733.301/พิเศษ';
 const DOCX_FONT_FAMILY = 'TH Sarabun';
@@ -99,6 +100,7 @@ const getPlanFlagBadgeClass = (planFlag?: string | null) => {
 };
 
 function PurchaseApprovalsPageContent() {
+  const { canEdit, canDelete } = useAllowedActions('/purchase-approvals');
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -904,6 +906,7 @@ function PurchaseApprovalsPageContent() {
   };
 
   const handleInlineEdit = (id: number, field: string, value: string) => {
+    if (!canEdit) return;
     setEditingRowId(id);
     setEditingData({ field, [field]: value });
   };
@@ -924,6 +927,7 @@ function PurchaseApprovalsPageContent() {
   };
 
   const handleSaveEdit = async (id: number) => {
+    if (!canEdit) return;
     try {
       setSavingRowId(id);
       const response = await fetch(`/api/purchase-approvals/${id}`, {
@@ -959,6 +963,7 @@ function PurchaseApprovalsPageContent() {
   };
 
   const handleDelete = async (id: number, approveCode: string) => {
+    if (!canDelete) return;
     const result = await Swal.fire({
       title: 'ยืนยันการลบข้อมูล?',
       html: `คุณต้องการลบรายการอนุมัติ <strong>${approveCode}</strong> หรือไม่?<br/>การดำเนินการนี้ไม่สามารถยกเลิกได้`,
@@ -1001,6 +1006,7 @@ function PurchaseApprovalsPageContent() {
   };
 
   const handleApprove = async () => {
+    if (!canEdit) return;
     if (!documentPreview) {
       return;
     }
@@ -1060,6 +1066,7 @@ function PurchaseApprovalsPageContent() {
   };
 
   const handleReject = async () => {
+    if (!canEdit) return;
     if (!documentPreview) {
       return;
     }
@@ -1119,6 +1126,7 @@ function PurchaseApprovalsPageContent() {
   };
 
   const handlePending = async () => {
+    if (!canEdit) return;
     if (!documentPreview) {
       return;
     }
@@ -1189,6 +1197,7 @@ function PurchaseApprovalsPageContent() {
   };
 
   const handleCancelDocument = async () => {
+    if (!canEdit) return;
     if (!documentPreview) {
       return;
     }
@@ -1375,7 +1384,7 @@ function PurchaseApprovalsPageContent() {
                       ) : (
                         <span
                           onClick={() => handleInlineEdit(group.id, 'approve_code', group.approve_code)}
-                          className="cursor-pointer hover:bg-blue-50 px-1 py-0.5 rounded"
+                          className={`${canEdit ? 'cursor-pointer hover:bg-blue-50' : 'cursor-not-allowed opacity-50'} px-1 py-0.5 rounded`}
                           title="คลิกเพื่อแก้ไข"
                         >
                           {group.approve_code}
@@ -1395,7 +1404,7 @@ function PurchaseApprovalsPageContent() {
                       ) : (
                         <span
                           onClick={() => handleInlineEdit(group.id, 'doc_no', group.doc_no || '')}
-                          className="cursor-pointer hover:bg-blue-50 px-1 py-0.5 rounded"
+                          className={`${canEdit ? 'cursor-pointer hover:bg-blue-50' : 'cursor-not-allowed opacity-50'} px-1 py-0.5 rounded`}
                           title="คลิกเพื่อแก้ไข"
                         >
                           {normalizeThaiDigitsToArabic(group.doc_no || DEFAULT_DOC_NO)}
@@ -1414,7 +1423,7 @@ function PurchaseApprovalsPageContent() {
                       ) : (
                         <span
                           onClick={() => handleInlineEdit(group.id, 'doc_date', group.doc_date)}
-                          className="cursor-pointer hover:bg-blue-50 px-1 py-0.5 rounded"
+                          className={`${canEdit ? 'cursor-pointer hover:bg-blue-50' : 'cursor-not-allowed opacity-50'} px-1 py-0.5 rounded`}
                           title="คลิกเพื่อแก้ไข"
                         >
                           {formatThaiBuddhistLongDate(group.doc_date)}
@@ -1470,7 +1479,7 @@ function PurchaseApprovalsPageContent() {
                         <div className="flex items-center gap-2">
                           <button
                             onClick={() => handleSaveEdit(group.id)}
-                            disabled={savingRowId === group.id}
+                            disabled={savingRowId === group.id || !canEdit}
                             className="p-1 text-green-600 hover:text-green-800 disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
                             title="บันทึก"
                           >
@@ -1492,14 +1501,16 @@ function PurchaseApprovalsPageContent() {
                         <div className="flex items-center gap-2">
                           <button
                             onClick={() => handleInlineEdit(group.id, 'approve_code', group.approve_code)}
-                            className="p-1 text-blue-600 hover:text-blue-800 cursor-pointer"
+                            disabled={!canEdit}
+                            className="p-1 text-blue-600 hover:text-blue-800 cursor-pointer disabled:cursor-not-allowed disabled:opacity-40"
                             title="แก้ไขข้อมูล"
                           >
                             <Edit className="h-4 w-4" />
                           </button>
                           <button
                             onClick={() => handleDelete(group.id, group.approve_code)}
-                            className="p-1 text-red-600 hover:text-red-800 cursor-pointer"
+                            disabled={!canDelete}
+                            className="p-1 text-red-600 hover:text-red-800 cursor-pointer disabled:cursor-not-allowed disabled:opacity-40"
                             title="ลบรายการ"
                           >
                             <Trash2 className="h-4 w-4" />
@@ -1717,9 +1728,9 @@ function PurchaseApprovalsPageContent() {
                 <button
                   type="button"
                   onClick={handleReject}
-                  disabled={documentPreview?.status === 'REJECTED' || documentPreview?.status === 'CANCELLED'}
+                  disabled={!canEdit || documentPreview?.status === 'REJECTED' || documentPreview?.status === 'CANCELLED'}
                   className={`rounded-md border px-3 py-1.5 text-sm flex items-center gap-2 ${
-                    documentPreview?.status === 'REJECTED' || documentPreview?.status === 'CANCELLED'
+                    !canEdit || documentPreview?.status === 'REJECTED' || documentPreview?.status === 'CANCELLED'
                       ? 'border-gray-300 text-gray-400 cursor-not-allowed bg-gray-50'
                       : 'border-red-300 text-red-700 hover:bg-red-50'
                   }`}
@@ -1730,9 +1741,9 @@ function PurchaseApprovalsPageContent() {
                 <button
                   type="button"
                   onClick={handlePending}
-                  disabled={documentPreview?.status === 'PENDING' || documentPreview?.status === 'CANCELLED'}
+                  disabled={!canEdit || documentPreview?.status === 'PENDING' || documentPreview?.status === 'CANCELLED'}
                   className={`rounded-md border px-3 py-1.5 text-sm flex items-center gap-2 ${
-                    documentPreview?.status === 'PENDING' || documentPreview?.status === 'CANCELLED'
+                    !canEdit || documentPreview?.status === 'PENDING' || documentPreview?.status === 'CANCELLED'
                       ? 'border-gray-300 text-gray-400 cursor-not-allowed bg-gray-50'
                       : 'border-amber-300 text-amber-700 hover:bg-amber-50'
                   }`}
@@ -1743,9 +1754,9 @@ function PurchaseApprovalsPageContent() {
                 <button
                   type="button"
                   onClick={handleApprove}
-                  disabled={documentPreview?.status === 'APPROVED' || documentPreview?.status === 'CANCELLED'}
+                  disabled={!canEdit || documentPreview?.status === 'APPROVED' || documentPreview?.status === 'CANCELLED'}
                   className={`rounded-md border px-3 py-1.5 text-sm flex items-center gap-2 ${
-                    documentPreview?.status === 'APPROVED' || documentPreview?.status === 'CANCELLED'
+                    !canEdit || documentPreview?.status === 'APPROVED' || documentPreview?.status === 'CANCELLED'
                       ? 'border-gray-300 text-gray-400 cursor-not-allowed bg-gray-50'
                       : 'border-green-300 text-green-700 hover:bg-green-50'
                   }`}
@@ -1758,9 +1769,9 @@ function PurchaseApprovalsPageContent() {
                 <button
                   type="button"
                   onClick={handleCancelDocument}
-                  disabled={documentPreview?.status !== 'DRAFT' && documentPreview?.status !== 'CANCELLED'}
+                  disabled={!canEdit || (documentPreview?.status !== 'DRAFT' && documentPreview?.status !== 'CANCELLED')}
                   className={`rounded-md border px-3 py-1.5 text-sm flex items-center gap-2 ${
-                    documentPreview?.status !== 'DRAFT' && documentPreview?.status !== 'CANCELLED'
+                    !canEdit || (documentPreview?.status !== 'DRAFT' && documentPreview?.status !== 'CANCELLED')
                       ? 'border-gray-300 text-gray-400 cursor-not-allowed bg-gray-50'
                       : 'border-gray-400 text-gray-700 hover:bg-gray-100 cursor-pointer'
                   }`}

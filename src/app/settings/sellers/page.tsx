@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import Swal from 'sweetalert2';
 import { Store, X, Plus, Trash2, Check, Pencil, CheckCircle2, AlertCircle } from 'lucide-react';
+import { useAllowedActions } from '@/hooks/use-allowed-actions';
 
 interface Seller {
   id: number;
@@ -18,6 +19,7 @@ interface Seller {
 }
 
 export default function SellersPage() {
+  const { canCreate, canEdit, canDelete } = useAllowedActions('/sellers');
   const [sellers, setSellers] = useState<Seller[]>([]);
   const [addingNew, setAddingNew] = useState(false);
   const [formData, setFormData] = useState({
@@ -110,6 +112,7 @@ export default function SellersPage() {
   };
 
   const openBulkForm = () => {
+    if (!canCreate) return;
     setShowBulkForm(true);
     setBulkRecords([createEmptyBulkSellerRecord()]);
   };
@@ -119,6 +122,7 @@ export default function SellersPage() {
   };
 
   const saveNewRecord = async () => {
+    if (!canCreate) return;
     if (!formData.code.trim() || !formData.name.trim()) {
       setToast({
         message: 'กรุณากรอกรหัสและชื่อผู้จำหน่าย',
@@ -185,6 +189,7 @@ export default function SellersPage() {
   };
 
   const handleDelete = async (id: number) => {
+    if (!canDelete) return;
     const confirmation = await Swal.fire({
       title: 'ลบข้อมูล?',
       text: 'คุณต้องการลบผู้จำหน่ายนี้หรือไม่?',
@@ -267,6 +272,7 @@ export default function SellersPage() {
 
   // Start inline editing
   const startInlineEdit = (seller: Seller) => {
+    if (!canEdit) return;
     setEditingId(seller.id);
     setEditData({
       code: seller.code,
@@ -283,6 +289,7 @@ export default function SellersPage() {
 
   // Save inline edit
   const saveInlineEdit = async (id: number) => {
+    if (!canEdit) return;
     try {
       const response = await fetch(`/api/sellers/${id}`, {
         method: 'PUT',
@@ -338,6 +345,7 @@ export default function SellersPage() {
 
   // Save bulk sellers
   const saveBulkSellers = async () => {
+    if (!canCreate) return;
     try {
       const validRecords = bulkRecords.filter(record =>
         record.code.trim() !== '' && record.name.trim() !== ''
@@ -482,7 +490,8 @@ export default function SellersPage() {
         <div className="mb-4 flex items-center justify-end gap-2">
           <button
             onClick={openBulkForm}
-            className="rounded-md border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50"
+            disabled={!canCreate}
+            className="rounded-md border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
           >
             Bulk insert
           </button>
@@ -491,7 +500,7 @@ export default function SellersPage() {
               setAddingNew(true);
               setFormData(createEmptySellerRecord());
             }}
-            disabled={addingNew}
+            disabled={addingNew || !canCreate}
             className="rounded-md bg-blue-600 px-3 py-2 text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-blue-300"
             title="เพิ่มผู้จำหน่ายใหม่"
           >
@@ -631,7 +640,8 @@ export default function SellersPage() {
                       <div className="flex gap-1">
                         <button
                           onClick={saveNewRecord}
-                          className="text-green-600 hover:text-green-900 cursor-pointer"
+                          disabled={!canCreate}
+                          className="text-green-600 hover:text-green-900 cursor-pointer disabled:cursor-not-allowed disabled:opacity-40"
                           title="บันทึก"
                         >
                           <Check className="h-4 w-4" />
@@ -738,7 +748,8 @@ export default function SellersPage() {
                         <div className="flex gap-1">
                           <button
                             onClick={() => saveInlineEdit(seller.id)}
-                            className="text-green-600 hover:text-green-900 cursor-pointer"
+                            disabled={!canEdit}
+                            className="text-green-600 hover:text-green-900 cursor-pointer disabled:cursor-not-allowed disabled:opacity-40"
                             title="บันทึก"
                           >
                             <Check className="h-4 w-4" />
@@ -755,14 +766,16 @@ export default function SellersPage() {
                         <div className="flex gap-2">
                           <button
                             onClick={() => startInlineEdit(seller)}
-                            className="text-indigo-600 hover:text-indigo-900 cursor-pointer"
+                            disabled={!canEdit}
+                            className="text-indigo-600 hover:text-indigo-900 cursor-pointer disabled:cursor-not-allowed disabled:opacity-40"
                             title="แก้ไข"
                           >
                             <Pencil className="h-5 w-5" />
                           </button>
                           <button
                             onClick={() => handleDelete(seller.id)}
-                            className="text-red-600 hover:text-red-900 cursor-pointer"
+                            disabled={!canDelete}
+                            className="text-red-600 hover:text-red-900 cursor-pointer disabled:cursor-not-allowed disabled:opacity-40"
                             title="ลบ"
                           >
                             <Trash2 className="h-5 w-5" />
@@ -944,7 +957,8 @@ export default function SellersPage() {
             <div className="flex gap-3">
               <button
                 onClick={saveBulkSellers}
-                className="flex-1 bg-blue-600 text-white py-2 rounded-md hover:bg-blue-700 transition-colors"
+                disabled={!canCreate}
+                className="flex-1 bg-blue-600 text-white py-2 rounded-md hover:bg-blue-700 transition-colors disabled:cursor-not-allowed disabled:opacity-40"
               >
                 บันทึกทั้งหมด ({bulkRecords.length} รายการ)
               </button>

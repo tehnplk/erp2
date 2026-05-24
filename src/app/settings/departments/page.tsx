@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import Swal from 'sweetalert2';
 import { Plus, Check, X, Pencil, Trash2, CheckCircle2, AlertCircle, X as XIcon } from 'lucide-react';
+import { useAllowedActions } from '@/hooks/use-allowed-actions';
 
 interface Department {
   id: number;
@@ -12,6 +13,7 @@ interface Department {
 }
 
 export default function DepartmentsPage() {
+  const { canCreate, canEdit, canDelete } = useAllowedActions('/departments');
   const [departments, setDepartments] = useState<Department[]>([]);
   const [filteredDepartments, setFilteredDepartments] = useState<Department[]>([]);
   const [loading, setLoading] = useState(true);
@@ -82,6 +84,7 @@ export default function DepartmentsPage() {
   };
 
   const saveNewRecord = async () => {
+    if (!canCreate) return;
     if (!formData.name.trim()) {
       setToast({
         message: 'กรุณากรอกชื่อแผนก',
@@ -187,6 +190,7 @@ export default function DepartmentsPage() {
   };
 
   const openBulkForm = () => {
+    if (!canCreate) return;
     setShowBulkForm(true);
     setBulkRecords([createEmptyBulkDepartmentRecord()]);
   };
@@ -197,6 +201,7 @@ export default function DepartmentsPage() {
 
   // Delete department
   const deleteDepartment = async (id: number) => {
+    if (!canDelete) return;
     const confirmation = await Swal.fire({
       title: 'ลบข้อมูล?',
       text: 'คุณแน่ใจหรือไม่ที่จะลบแผนกนี้?',
@@ -226,6 +231,7 @@ export default function DepartmentsPage() {
 
   // Start inline editing
   const startInlineEdit = (department: Department) => {
+    if (!canEdit) return;
     setEditingId(department.id);
     setEditData({
       name: department.name,
@@ -236,6 +242,7 @@ export default function DepartmentsPage() {
 
   // Save inline edit
   const saveInlineEdit = async (id: number) => {
+    if (!canEdit) return;
     if (!editData.name.trim()) {
       setToast({
         message: 'กรุณากรอกชื่อแผนก',
@@ -322,6 +329,7 @@ export default function DepartmentsPage() {
 
   // Save bulk departments
   const saveBulkDepartments = async () => {
+    if (!canCreate) return;
     try {
       const validRecords = bulkRecords.filter(record => record.name.trim() !== '');
 
@@ -550,7 +558,8 @@ export default function DepartmentsPage() {
             <div className="flex gap-3">
               <button
                 onClick={saveBulkDepartments}
-                className="flex-1 bg-blue-600 text-white py-2 rounded-md hover:bg-blue-700 transition-colors"
+                disabled={!canCreate}
+                className="flex-1 bg-blue-600 text-white py-2 rounded-md hover:bg-blue-700 transition-colors disabled:cursor-not-allowed disabled:opacity-40"
               >
                 บันทึกทั้งหมด ({bulkRecords.length} รายการ)
               </button>
@@ -603,7 +612,8 @@ export default function DepartmentsPage() {
       <div className="mb-4 flex items-center justify-end gap-2">
         <button
           onClick={openBulkForm}
-          className="rounded-md border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50"
+          disabled={!canCreate}
+          className="rounded-md border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
         >
           Bulk insert
         </button>
@@ -612,7 +622,7 @@ export default function DepartmentsPage() {
             setShowForm(true);
             setFormData(createEmptyDepartmentRecord());
           }}
-          disabled={showForm}
+          disabled={showForm || !canCreate}
           className="rounded-md bg-blue-600 px-3 py-2 text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-blue-300"
           title="เพิ่มแผนกใหม่"
         >
@@ -718,7 +728,8 @@ export default function DepartmentsPage() {
                     <div className="flex gap-1">
                       <button
                         onClick={saveNewRecord}
-                        className="text-green-600 hover:text-green-900 cursor-pointer"
+                        disabled={!canCreate}
+                        className="text-green-600 hover:text-green-900 cursor-pointer disabled:cursor-not-allowed disabled:opacity-40"
                         title="บันทึก"
                       >
                         <Check className="h-4 w-4" />
@@ -786,7 +797,8 @@ export default function DepartmentsPage() {
                       <div className="flex gap-1">
                         <button
                           onClick={() => saveInlineEdit(dept.id)}
-                          className="text-green-600 hover:text-green-900 cursor-pointer"
+                          disabled={!canEdit}
+                          className="text-green-600 hover:text-green-900 cursor-pointer disabled:cursor-not-allowed disabled:opacity-40"
                           title="บันทึก"
                         >
                           <Check className="h-4 w-4" />
@@ -803,14 +815,16 @@ export default function DepartmentsPage() {
                       <div className="flex gap-2">
                         <button
                           onClick={() => startInlineEdit(dept)}
-                          className="text-indigo-600 hover:text-indigo-900 cursor-pointer"
+                          disabled={!canEdit}
+                          className="text-indigo-600 hover:text-indigo-900 cursor-pointer disabled:cursor-not-allowed disabled:opacity-40"
                           title="แก้ไข"
                         >
                           <Pencil className="h-5 w-5" />
                         </button>
                         <button
                           onClick={() => deleteDepartment(dept.id)}
-                          className="text-red-600 hover:text-red-900 cursor-pointer"
+                          disabled={!canDelete}
+                          className="text-red-600 hover:text-red-900 cursor-pointer disabled:cursor-not-allowed disabled:opacity-40"
                           title="ลบ"
                         >
                           <Trash2 className="h-5 w-5" />
