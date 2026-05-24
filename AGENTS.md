@@ -7,7 +7,7 @@
 ## Tech Stack
 - use 'npx ctx7' cli to research new knowledge
 
-## Database manage ment
+## Database management
 - use `db-cli --skill` to access and manage database
 - read @.env* to  to get db credatial
 
