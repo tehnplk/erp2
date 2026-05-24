@@ -424,7 +424,7 @@ export default function UsersAdminClient() {
       <td className={bodyCellClass}>
         <input
           form={formId}
-          type="password"
+          type="text"
           required={!editingUser}
           minLength={form.password ? 6 : undefined}
           name={editingUser ? 'password' : 'new_user_password'}
