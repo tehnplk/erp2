@@ -413,7 +413,8 @@ export default function UsersAdminClient() {
           form={formId}
           type="text"
           required
-          autoComplete="username"
+          name={editingUser ? 'provider_id' : 'new_user_provider_id'}
+          autoComplete={editingUser ? 'username' : 'off'}
           value={form.provider_id}
           onChange={(event) => updateForm('provider_id', event.target.value)}
           className={inputClass}
@@ -426,6 +427,8 @@ export default function UsersAdminClient() {
           type="password"
           required={!editingUser}
           minLength={form.password ? 6 : undefined}
+          name={editingUser ? 'password' : 'new_user_password'}
+          autoComplete="new-password"
           value={form.password}
           onChange={(event) => updateForm('password', event.target.value)}
           placeholder={editingUser ? 'ว่างไว้หากไม่เปลี่ยน' : undefined}
@@ -501,7 +504,7 @@ export default function UsersAdminClient() {
 
   return (
     <main className="min-h-screen bg-slate-50 p-6 text-slate-900">
-      <form id={formId} onSubmit={handleSubmit} />
+      <form id={formId} onSubmit={handleSubmit} autoComplete="off" />
 
       <div className="w-full">
         <div className="mb-4 border-b border-slate-200 pb-5">
