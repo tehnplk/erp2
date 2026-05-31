@@ -1,7 +1,13 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { DuplicateUserProviderIdError, UserNotFoundError, createUserRecord, updateUserRecord } from '../src/lib/user-management.ts';
+import {
+  DuplicateUserProviderIdError,
+  UserNotFoundError,
+  createUserRecord,
+  listUserRecords,
+  updateUserRecord,
+} from '../src/lib/user-management.ts';
 
 const input = {
   provider_id: ' New.User ',
@@ -46,6 +52,9 @@ test('createUserRecord hashes password and inserts a normalized user', async () 
   assert.equal(calls[0].params[0], 'New.User');
   assert.match(calls[0].text, /provider_id/);
   assert.equal(calls[0].text.includes('email'), false);
+  assert.equal(calls[0].text.includes('user_role_id'), true);
+  assert.equal(calls[0].text.includes('JOIN public.user_role'), true);
+  assert.equal(calls[0].text.includes('ur.role AS role'), true);
   assert.equal(calls[0].params[2], 'hashed:Secret1234');
   assert.equal(calls[0].params.includes('Secret1234'), false);
   assert.equal(user.provider_id, 'New.User');
@@ -113,6 +122,9 @@ test('updateUserRecord updates profile fields without changing password when bla
   );
 
   assert.equal(calls[0].text.includes('password_hash'), false);
+  assert.equal(calls[0].text.includes('user_role_id'), true);
+  assert.equal(calls[0].text.includes('JOIN public.user_role'), true);
+  assert.equal(calls[0].text.includes('ur.role AS role'), true);
   assert.equal(calls[0].params[0], 'Updated.User');
   assert.match(calls[0].text, /provider_id = \$1/);
 });
@@ -142,8 +154,42 @@ test('updateUserRecord hashes a provided replacement password', async () => {
   );
 
   assert.equal(calls[0].text.includes('password_hash'), true);
+  assert.equal(calls[0].text.includes('user_role_id'), true);
   assert.equal(calls[0].params.includes('NewSecret123'), false);
   assert.equal(calls[0].params.includes('hashed:NewSecret123'), true);
+});
+
+test('listUserRecords reads role names through the user_role join', async () => {
+  const calls = [];
+  const query = async (text) => {
+    calls.push(text);
+    return {
+      rows: [
+        {
+          id: '101',
+          provider_id: 'user-1',
+          name: 'User 1',
+          role: 'User',
+          department_id: null,
+          department_name: null,
+          department_code: null,
+          is_department_owner: false,
+          is_active: true,
+          last_login_at: null,
+          created_at: '2026-05-20T00:00:00.000Z',
+          updated_at: '2026-05-20T00:00:00.000Z',
+        },
+      ],
+    };
+  };
+
+  const users = await listUserRecords(query);
+
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].includes('JOIN public.user_role'), true);
+  assert.equal(calls[0].includes('ur.role AS role'), true);
+  assert.equal(calls[0].includes('u.user_role_id'), true);
+  assert.equal(users[0].role, 'User');
 });
 
 test('updateUserRecord throws when the user does not exist', async () => {

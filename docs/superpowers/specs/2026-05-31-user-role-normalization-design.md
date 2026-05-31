@@ -1,197 +1,121 @@
 # User Role Normalization Design
 
-Date: 2026-05-31
-Project: `e:\NextJS\erp`
-Status: Approved for planning
-
 ## Summary
 
-Normalize the local role system by moving role definitions into a new `public.user_role` lookup table and replacing `public.users.role` with `public.users.user_role_id`. The application will continue to use role names (`Admin`, `Manager`, `User`) at the TypeScript and UI layers, while the database stores a foreign key to the role lookup row.
+Normalize application roles into a dedicated lookup table and remove the duplicated role text column from `public.users`.
 
-This change is local-only for now. The `user_role` table is seed-only. No role management UI or API will be added.
+The new source of truth will be:
+
+- `public.user_role(id, role, is_active)`
+- `public.users.user_role_id -> public.user_role(id)`
+
+The app will continue to use role names (`Admin`, `Manager`, `User`) in TypeScript, auth session data, validation, and UI labels. Database writes will resolve those role names to `user_role.id`, and reads will join back to `user_role.role`.
 
 ## Goals
 
-- Remove duplicated role text storage from `public.users`.
-- Make `public.user_role` the database source of truth for roles.
-- Preserve current application behavior for auth, access control, middleware, and admin user management.
-- Keep role handling readable in app code by continuing to expose role names after query joins.
-- Make the migration fail loudly if unexpected legacy role data is found.
+- Replace `public.users.role` with `public.users.user_role_id`
+- Seed exactly three roles: `Admin`, `Manager`, `User`
+- Keep existing app permissions and UI behavior unchanged
+- Refactor all role-related reads and writes across the codebase
+- Fail loudly during migration if a legacy role value cannot be mapped
 
 ## Non-Goals
 
-- No production database changes in this task.
-- No CRUD screens or APIs for managing roles.
-- No permission model redesign.
-- No change to the existing role names or permission rules.
+- No role CRUD UI or API
+- No permission model redesign
+- No behavior change for access control
 
-## Current State
-
-The local database stores role text directly on `public.users.role` with a check constraint for `Admin`, `Manager`, and `User`. Application code reads and writes role text directly in:
-
-- `src/lib/users.ts`
-- `src/lib/user-management.ts`
-- `src/auth.ts`
-- `src/lib/access-control.ts`
-- `src/app/admin/users/*`
-- `src/app/api/users/*`
-- related tests and auth type definitions
-
-## Proposed Data Model
+## Database Design
 
 ### New Table
 
-`public.user_role`
+Create `public.user_role` with:
 
-- `id` integer generated identity primary key
-- `role` text not null unique
-- `is_active` boolean not null default true
+- `id BIGSERIAL PRIMARY KEY`
+- `role TEXT NOT NULL UNIQUE`
+- `is_active BOOLEAN NOT NULL DEFAULT true`
 
-Allowed seeded values:
+Constraints:
 
-- `Admin`
-- `Manager`
-- `User`
+- `user_role.role` must be limited to `Admin`, `Manager`, `User`
 
-### Updated Users Table
+Indexes:
 
-Replace:
+- unique index on `role`
+- index on `is_active`
 
-- `public.users.role text not null`
+### Users Table Change
 
-With:
+Add:
 
-- `public.users.user_role_id integer not null references public.user_role(id)`
+- `public.users.user_role_id BIGINT REFERENCES public.user_role(id)`
 
-## Migration Design
+Migration flow:
 
-Create a new SQL migration under `db/migrations` that:
+1. Create `public.user_role`
+2. Seed `Admin`, `Manager`, `User`
+3. Add nullable `public.users.user_role_id`
+4. Backfill from current `public.users.role`
+5. Abort if any user row still has null `user_role_id`
+6. Mark `user_role_id` as `NOT NULL`
+7. Add index on `users.user_role_id`
+8. Drop legacy `users.role` check constraint, index, and column
 
-1. Creates `public.user_role` if it does not exist.
-2. Seeds `Admin`, `Manager`, and `User` in an idempotent way.
-3. Adds nullable `public.users.user_role_id`.
-4. Backfills `user_role_id` by joining `public.user_role.role = public.users.role`.
-5. Verifies there are no rows with null `user_role_id` after backfill.
-6. Marks `user_role_id` as `NOT NULL`.
-7. Adds the foreign key and supporting indexes.
-8. Drops the old role check constraint, role index, and `public.users.role` column.
+## Application Design
 
-## Failure Strategy
+### Read Path
 
-The migration must not guess. If any existing `public.users.role` value does not map to a seeded `public.user_role.role`, the migration should stop with a clear error before dropping the old column.
-
-## Query and Write Design
-
-Application code will continue to work with role text values, but SQL will resolve them through joins.
-
-### Read Pattern
-
-Queries that need a user role will:
+Any code that currently reads `users.role` will instead:
 
 - join `public.user_role ur ON ur.id = u.user_role_id`
 - select `ur.role AS role`
 
-This keeps downstream TypeScript types stable while using normalized storage.
+This preserves the current application-facing shape.
 
-### Create Pattern
+### Write Path
 
-User creation will:
+Any code that currently inserts or updates `users.role` will instead:
 
-- accept role text from the app layer
-- resolve the matching `user_role.id` in SQL
-- insert that id into `public.users.user_role_id`
+- accept the same role string input (`Admin`, `Manager`, `User`)
+- resolve the matching `user_role.id` inside SQL
+- persist `users.user_role_id`
 
-The write path must not hard-code numeric role IDs.
+The app must not rely on hard-coded role IDs.
 
-### Update Pattern
+### Auth and Access
 
-User updates will:
+Authentication and JWT/session callbacks will keep returning `role` as a string union. No middleware or permission behavior should change.
 
-- accept role text from the app layer
-- resolve the matching `user_role.id` in SQL
-- update `public.users.user_role_id`
+### Admin Users UI
 
-## Application Refactor Scope
+The admin users page will continue to:
 
-### Auth
+- display the same three role options
+- submit the same role string values
+- receive role strings from the API
 
-`src/lib/users.ts` and `src/auth.ts` will be updated so the authenticated user still exposes:
+Only the persistence layer changes.
 
-- `session.user.role`
-- `token.role`
+## Error Handling
 
-These values will come from the joined `public.user_role.role` field instead of `public.users.role`.
-
-### Access Control
-
-`src/lib/access-control.ts` will continue to use the same role union and permission map:
-
-- `Admin`
-- `Manager`
-- `User`
-
-No permission behavior change is intended.
-
-### User Management
-
-`src/lib/user-management.ts` will be refactored so:
-
-- list queries join `public.user_role`
-- create queries resolve `user_role_id`
-- update queries resolve `user_role_id`
-- returned API records still expose `role` text for the UI
-
-### API and UI
-
-`src/app/api/users/*` and `src/app/admin/users/*` will keep their current request and response role shape. The admin UI remains seed-only and will still offer exactly:
-
-- `Admin`
-- `Manager`
-- `User`
-
-### Types and Validation
-
-Type definitions and zod validation can keep the role union and role enums unchanged because the external app contract does not change.
+- Migration must fail if an unexpected legacy role value exists
+- Create/update user flows must fail if a provided role string cannot resolve to a seeded role row
+- Duplicate provider ID behavior remains unchanged
 
 ## Testing Strategy
 
-Refactor tests to verify the normalized behavior rather than direct `users.role` storage.
-
-Coverage should include:
-
-- auth queries still return role text
-- user list queries still return role text
-- create user resolves role text to `user_role_id`
-- update user resolves role text to `user_role_id`
-- access control behavior remains unchanged
-
-Test data and SQL mocks should reflect joins or lookup-based writes where relevant.
+- Update unit tests for user management to verify role lookup SQL behavior
+- Update auth-oriented user query tests or related fixtures to verify join-based role reads
+- Keep access control tests focused on the existing role strings
 
 ## Risks
 
-- SQL updates may miss a query path that still references `public.users.role`.
-- Tests may still assume role text is written directly to `public.users`.
-- Future developers may be tempted to depend on seeded numeric role IDs if conventions are not explicit.
+- Missing one raw `users.role` reference could break login or admin user management
+- Using hard-coded role IDs would create fragile behavior across environments
+- Migration order matters because reads and writes must stay valid after the column swap
 
-## Mitigations
+## Implementation Notes
 
-- Search the codebase for all role references before implementation.
-- Keep role name output stable at the app boundary.
-- Resolve role IDs by role text in SQL instead of hard-coding IDs.
-- Update tests alongside each read/write path change.
-
-## Implementation Outline
-
-1. Add migration for `user_role`, backfill, and `users.user_role_id`.
-2. Update shared user/auth queries to join `user_role`.
-3. Update create and update user write paths to resolve role IDs.
-4. Update API, UI, and type consumers as needed while preserving role text externally.
-5. Update and run targeted tests for user management and access control.
-
-## Acceptance Criteria
-
-- Local DB has `public.user_role` with seeded rows for `Admin`, `Manager`, and `User`.
-- `public.users` stores `user_role_id` and no longer stores `role`.
-- App auth and admin user management still operate using role text externally.
-- Permission behavior remains unchanged.
-- No app code depends on hard-coded role IDs.
+- This repo’s active schema changes live under `db/migrations`
+- The app uses direct SQL in server-side modules rather than Prisma models for the user flows being changed
+- User instruction override: implementation may proceed immediately after this spec without a separate review pause

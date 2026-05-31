@@ -64,7 +64,7 @@ const userListSelect = `
     u.id::text AS id,
     u.provider_id,
     u.name,
-    u.role,
+    ur.role AS role,
     u.department_id,
     d.name AS department_name,
     d.department_code,
@@ -74,6 +74,7 @@ const userListSelect = `
     u.created_at::text AS created_at,
     u.updated_at::text AS updated_at
   FROM public.users u
+  JOIN public.user_role ur ON ur.id = u.user_role_id
   LEFT JOIN public.department d ON d.id = u.department_id
 `;
 
@@ -101,17 +102,25 @@ export const createUserRecord = async (
            provider_id,
            name,
            password_hash,
-           role,
+           user_role_id,
            department_id,
            is_department_owner,
            is_active
          )
-         VALUES ($1, $2, $3, $4, $5, $6, $7)
+         VALUES (
+           $1,
+           $2,
+           $3,
+           (SELECT id FROM public.user_role WHERE role = $4 AND is_active = true LIMIT 1),
+           $5,
+           $6,
+           $7
+         )
          RETURNING
            id::text AS id,
            provider_id,
            name,
-           role,
+           user_role_id,
            department_id,
            is_department_owner,
            is_active,
@@ -123,7 +132,7 @@ export const createUserRecord = async (
          i.id,
          i.provider_id,
          i.name,
-         i.role,
+         ur.role AS role,
          i.department_id,
          d.name AS department_name,
          d.department_code,
@@ -133,6 +142,7 @@ export const createUserRecord = async (
          i.created_at,
          i.updated_at
        FROM inserted i
+       JOIN public.user_role ur ON ur.id = i.user_role_id
        LEFT JOIN public.department d ON d.id = i.department_id`,
       [
         providerId,
@@ -172,7 +182,7 @@ export const updateUserRecord = async (
   const assignments = [
     'provider_id = $1',
     'name = $2',
-    'role = $3',
+    'user_role_id = (SELECT id FROM public.user_role WHERE role = $3 AND is_active = true LIMIT 1)',
     'department_id = $4',
     'is_department_owner = $5',
     'is_active = $6',
@@ -197,7 +207,7 @@ export const updateUserRecord = async (
            id::text AS id,
            provider_id,
            name,
-           role,
+           user_role_id,
            department_id,
            is_department_owner,
            is_active,
@@ -209,7 +219,7 @@ export const updateUserRecord = async (
          u.id,
          u.provider_id,
          u.name,
-         u.role,
+         ur.role AS role,
          u.department_id,
          d.name AS department_name,
          d.department_code,
@@ -219,6 +229,7 @@ export const updateUserRecord = async (
          u.created_at,
          u.updated_at
        FROM updated u
+       JOIN public.user_role ur ON ur.id = u.user_role_id
        LEFT JOIN public.department d ON d.id = u.department_id`,
       params
     );
