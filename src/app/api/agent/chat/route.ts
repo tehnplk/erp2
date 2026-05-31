@@ -21,7 +21,7 @@ const MAX_QUESTION_LENGTH = 1_000;
 const MAX_HISTORY_MESSAGES = 6;
 const MAX_TOOL_STEPS = 10;
 const MAX_TOOL_CALLS_PER_STEP = 4;
-const MAX_DATABASE_QUERIES = 4;
+const MAX_DATABASE_QUERIES = 6;
 const MAX_SCHEMA_INSPECTIONS = 4;
 const RATE_LIMIT = 10;
 const RATE_LIMIT_SECONDS = 60 * 60;
@@ -371,6 +371,12 @@ ${schema}`,
     }
 
     const message = error instanceof Error ? error.message : 'Unknown error';
+    if (message === 'DeepSeek requested too many database queries.') {
+      return NextResponse.json(
+        { error: 'ERP agent needed too many database queries. Please simplify the question or try again.' },
+        { status: 422 }
+      );
+    }
     if (message.includes('DEEPSEEK_API_KEY')) {
       return NextResponse.json({ error: 'ERP agent is not configured.' }, { status: 503 });
     }
