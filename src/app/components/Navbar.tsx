@@ -23,6 +23,7 @@ import {
   Users,
   Warehouse,
   X,
+  MessageCircleQuestion,
 } from 'lucide-react';
 import { useSysSetting } from '@/hooks/use-sys-setting';
 
@@ -195,6 +196,17 @@ export default function Navbar() {
             >
               <Warehouse className="mr-2 h-4 w-4" />
               ระบบคลัง
+            </Link>
+            <Link
+              href="/agent"
+              className={`flex items-center px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                pathname.startsWith('/agent')
+                  ? 'bg-blue-700 text-white'
+                  : 'text-blue-100 hover:bg-blue-500 hover:text-white'
+              }`}
+            >
+              <MessageCircleQuestion className="mr-2 h-4 w-4" />
+              Agent
             </Link>
             {/* ตั้งค่า Dropdown - rightmost */}
             <div className="relative" ref={settingsRef}>
@@ -392,6 +404,18 @@ export default function Navbar() {
               >
                 <Warehouse className="mr-2 h-4 w-4" />
                 ระบบคลัง
+              </Link>
+              <Link
+                href="/agent"
+                onClick={() => setIsMenuOpen(false)}
+                className={`flex items-center px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                  pathname.startsWith('/agent')
+                    ? 'bg-blue-700 text-white'
+                    : 'text-blue-100 hover:bg-blue-500 hover:text-white'
+                }`}
+              >
+                <MessageCircleQuestion className="mr-2 h-4 w-4" />
+                Agent
               </Link>
               {/* ตั้งค่า collapsible - last in mobile menu */}
               <button

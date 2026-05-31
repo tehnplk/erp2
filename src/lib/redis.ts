@@ -56,3 +56,16 @@ export async function cacheDelByPattern(pattern: string): Promise<void> {
     console.error(`Redis DelPattern Error (Pattern: ${pattern}):`, error);
   }
 }
+
+export async function consumeRateLimit(key: string, limit: number, ttlSeconds: number) {
+  const count = await redis.incr(key);
+  if (count === 1) {
+    await redis.expire(key, ttlSeconds);
+  }
+
+  return {
+    allowed: count <= limit,
+    remaining: Math.max(0, limit - count),
+    resetAfterSeconds: await redis.ttl(key),
+  };
+}

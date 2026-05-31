@@ -2,7 +2,7 @@ import { canAccess, resolvePermissionModule } from '@/lib/access-control';
 import { getToken } from 'next-auth/jwt';
 import { NextResponse, type NextRequest } from 'next/server';
 
-const publicPathPrefixes = ['/', '/api/auth', '/api/sys-setting/public', '/login'];
+const publicPathPrefixes = ['/', '/agent', '/api/agent/chat', '/api/auth', '/api/sys-setting/public', '/login'];
 const adminOnlyPathPrefixes = ['/admin/users', '/api/users'];
 const legacySettingsPathMap: Record<string, string> = {
   '/sellers': '/settings/sellers',
