@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { prepareReadOnlySql } from '../src/lib/erp-agent-sql.ts';
+import { prepareProbeSql, prepareReadOnlySql } from '../src/lib/erp-agent-sql.ts';
 
 test('prepareReadOnlySql appends a result limit', () => {
   assert.equal(
@@ -80,5 +80,46 @@ test('prepareReadOnlySql blocks auth and system schemas', () => {
   assert.throws(
     () => prepareReadOnlySql('SELECT usename, passwd FROM pg_shadow'),
     /restricted schema/
+  );
+});
+
+test('prepareReadOnlySql allows product_name from trusted master-derived views', () => {
+  assert.equal(
+    prepareReadOnlySql('SELECT product_name FROM public.purchase_plan'),
+    'SELECT product_name FROM public.purchase_plan LIMIT 100'
+  );
+  assert.equal(
+    prepareReadOnlySql('SELECT pp.product_name FROM public.purchase_plan pp'),
+    'SELECT pp.product_name FROM public.purchase_plan pp LIMIT 100'
+  );
+  assert.equal(
+    prepareReadOnlySql('SELECT product_name FROM public.inventory_stock_summary'),
+    'SELECT product_name FROM public.inventory_stock_summary LIMIT 100'
+  );
+});
+
+test('prepareReadOnlySql blocks duplicated product_name fields from base tables', () => {
+  assert.throws(
+    () => prepareReadOnlySql('SELECT pad.product_name FROM public.purchase_approval_detail pad'),
+    /product\.name/
+  );
+  assert.throws(
+    () => prepareReadOnlySql('SELECT product_name FROM public.purchase_approval_detail'),
+    /product\.name/
+  );
+  assert.equal(
+    prepareReadOnlySql('SELECT p.name AS product_name FROM public.product p'),
+    'SELECT p.name AS product_name FROM public.product p LIMIT 100'
+  );
+});
+
+test('prepareProbeSql keeps research queries small', () => {
+  assert.equal(
+    prepareProbeSql('SELECT id, code FROM public.product'),
+    'SELECT id, code FROM public.product LIMIT 5'
+  );
+  assert.equal(
+    prepareProbeSql('SELECT id, code FROM public.product LIMIT 40'),
+    'SELECT id, code FROM public.product LIMIT 5'
   );
 });

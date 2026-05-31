@@ -1,4 +1,5 @@
 const MAX_ROWS = 100;
+const MAX_PROBE_ROWS = 5;
 
 const restrictedTablePattern = /\b(?:users|user_role)\b/i;
 const restrictedSchemaPattern =
@@ -8,6 +9,14 @@ const forbiddenKeywordPattern =
   /\b(?:alter|analyze|attach|begin|call|checkpoint|comment|commit|copy|create|delete|detach|do|drop|execute|grant|insert|into|listen|lock|merge|notify|prepare|reassign|refresh|reindex|release|reset|revoke|rollback|savepoint|set|show|truncate|unlisten|update|vacuum)\b/i;
 const forbiddenFunctionPattern =
   /\b(?:current_setting|dblink|lo_export|lo_import|pg_advisory|pg_backend|pg_cancel|pg_file|pg_ls|pg_read|pg_reload|pg_rotate|pg_sleep|pg_stat_file|pg_terminate|pg_write|set_config)\s*\(/i;
+const duplicatedProductNamePattern = /\b(?:[a-z_][a-z0-9_]*\.)?product_name\b/i;
+const trustedProductNameViewNames = [
+  'inventory_stock_lot_detail_summary',
+  'inventory_stock_summary',
+  'purchase_plan',
+];
+const trustedProductNameViewPattern = trustedProductNameViewNames.join('|');
+const sqlKeywordPattern = /^(?:as|cross|full|group|inner|join|left|limit|offset|on|order|outer|right|where)$/i;
 
 export class AgentSqlError extends Error {
   constructor(message: string) {
@@ -18,7 +27,38 @@ export class AgentSqlError extends Error {
 
 const stripTrailingSemicolon = (sql: string) => sql.trim().replace(/;\s*$/, '').trim();
 
-export const prepareReadOnlySql = (inputSql: string) => {
+const removeTrustedProductNameReferences = (sql: string) => {
+  let sanitizedSql = sql.replace(/\bas\s+product_name\b/gi, '');
+  const trustedAliases = new Set(trustedProductNameViewNames);
+  const trustedSourcePattern = new RegExp(
+    `\\b(?:from|join)\\s+(?:public\\.)?(${trustedProductNameViewPattern})(?:\\s+(?:as\\s+)?([a-z_][a-z0-9_]*))?`,
+    'gi'
+  );
+
+  for (const match of sanitizedSql.matchAll(trustedSourcePattern)) {
+    if (match[2] && !sqlKeywordPattern.test(match[2])) {
+      trustedAliases.add(match[2]);
+    }
+  }
+
+  for (const alias of trustedAliases) {
+    sanitizedSql = sanitizedSql.replace(new RegExp(`\\b${alias}\\.product_name\\b`, 'gi'), '');
+  }
+
+  const sourceMatches = [
+    ...sanitizedSql.matchAll(/\b(?:from|join)\s+(?:public\.)?([a-z_][a-z0-9_]*)/gi),
+  ];
+  if (
+    sourceMatches.length === 1 &&
+    trustedProductNameViewNames.includes(sourceMatches[0][1].toLowerCase())
+  ) {
+    sanitizedSql = sanitizedSql.replace(/\bproduct_name\b/gi, '');
+  }
+
+  return sanitizedSql;
+};
+
+const validateReadOnlySql = (inputSql: string) => {
   const sql = stripTrailingSemicolon(inputSql);
   const normalizedSql = sql.replace(/"/g, '');
 
@@ -40,12 +80,22 @@ export const prepareReadOnlySql = (inputSql: string) => {
   if (forbiddenFunctionPattern.test(normalizedSql)) {
     throw new AgentSqlError('The query calls a restricted database function.');
   }
+  if (duplicatedProductNamePattern.test(removeTrustedProductNameReferences(normalizedSql))) {
+    throw new AgentSqlError('Product names must be read from product.name.');
+  }
+  return sql;
+};
 
+const applyRowLimit = (sql: string, maxRows: number) => {
   const limitMatch = sql.match(/\blimit\s+(\d+)\b/i);
-  if (!limitMatch) return `${sql} LIMIT ${MAX_ROWS}`;
+  if (!limitMatch) return `${sql} LIMIT ${maxRows}`;
 
   const currentLimit = Number(limitMatch[1]);
-  if (currentLimit <= MAX_ROWS) return sql;
+  if (currentLimit <= maxRows) return sql;
 
-  return sql.replace(/\blimit\s+\d+\b/i, `LIMIT ${MAX_ROWS}`);
+  return sql.replace(/\blimit\s+\d+\b/i, `LIMIT ${maxRows}`);
 };
+
+export const prepareReadOnlySql = (inputSql: string) => applyRowLimit(validateReadOnlySql(inputSql), MAX_ROWS);
+
+export const prepareProbeSql = (inputSql: string) => applyRowLimit(validateReadOnlySql(inputSql), MAX_PROBE_ROWS);
