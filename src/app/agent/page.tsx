@@ -21,10 +21,17 @@ export default function AgentPage() {
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const conversationEndRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     conversationEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
   }, [messages, isLoading, error]);
+
+  useEffect(() => {
+    if (!isLoading) {
+      inputRef.current?.focus();
+    }
+  }, [isLoading]);
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -81,7 +88,7 @@ export default function AgentPage() {
                 <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-cyan-100 text-cyan-700">
                   <Bot className="h-8 w-8" />
                 </div>
-                <h2 className="mt-5 text-xl font-bold text-slate-900">Start with an ERP question</h2>
+                <h2 className="mt-5 text-xl font-bold text-slate-900">Hi, I&apos;m Fern</h2>
                 <p className="mt-2 text-sm leading-6 text-slate-500">
                   Try asking for purchase plan totals, department summaries, inventory balances, or recent operational records.
                 </p>
@@ -145,6 +152,7 @@ export default function AgentPage() {
             {error && <p className="mb-3 rounded-xl bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
             <form onSubmit={handleSubmit} className="flex flex-col gap-3 sm:flex-row">
               <input
+                ref={inputRef}
                 type="text"
                 value={question}
                 onChange={(event) => setQuestion(event.target.value)}
