@@ -891,7 +891,8 @@ function ProductsPageContent() {
                           onChange={handleInputChange}
                           required={Boolean(editingProduct)}
                           placeholder={editingProduct ? undefined : 'อัตโนมัติ'}
-                          className={`${modalInputClassName} ${errors.code ? modalErrorInputClassName : ''}`}
+                          disabled={!editingProduct}
+                          className={`${modalInputClassName} ${!editingProduct ? 'cursor-not-allowed bg-gray-100 text-gray-500' : ''} ${errors.code ? modalErrorInputClassName : ''}`}
                         />
                         {errors.code && <p className="mt-1 text-sm text-red-600">{errors.code}</p>}
                       </div>
