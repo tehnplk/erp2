@@ -10,6 +10,7 @@ import {
 test('maps documented Thai product categories to product code prefixes', () => {
   assert.equal(getProductCodePrefixForCategory('งบค่าเสื่อม'), 'P010');
   assert.equal(getProductCodePrefixForCategory('ครุภัณฑ์และสิ่งก่อสร้าง'), 'P011');
+  assert.equal(getProductCodePrefixForCategory('ค่าใช้จ่ายโครงการ'), 'P006');
   assert.equal(getProductCodePrefixForCategory('ครุภัณฑ์ต่ำกว่าเกณฑ์'), 'P231');
   assert.equal(getProductCodePrefixForCategory('ยา'), 'P140');
   assert.equal(getProductCodePrefixForCategory('วัสดุการแพทย์'), 'P150');
@@ -19,7 +20,7 @@ test('maps documented Thai product categories to product code prefixes', () => {
   assert.equal(getProductCodePrefixForCategory('ค่าใช้สอย'), 'P210');
   assert.equal(getProductCodePrefixForCategory('ค่าสาธารณูปโภค'), 'P220');
   assert.equal(getProductCodePrefixForCategory('วัสดุใช้ไป'), 'P230');
-  assert.equal(PRODUCT_CATEGORY_PREFIXES.length, 11);
+  assert.equal(PRODUCT_CATEGORY_PREFIXES.length, 12);
 });
 
 test('builds next product code from existing matching codes', () => {

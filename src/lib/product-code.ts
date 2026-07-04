@@ -6,6 +6,7 @@ export type ProductCategoryPrefix = {
 export const PRODUCT_CATEGORY_PREFIXES: ProductCategoryPrefix[] = [
   { prefix: 'P010', category: 'งบค่าเสื่อม' },
   { prefix: 'P011', category: 'ครุภัณฑ์และสิ่งก่อสร้าง' },
+  { prefix: 'P006', category: 'ค่าใช้จ่ายโครงการ' },
   { prefix: 'P231', category: 'ครุภัณฑ์ต่ำกว่าเกณฑ์' },
   { prefix: 'P140', category: 'ยา' },
   { prefix: 'P150', category: 'วัสดุการแพทย์' },
