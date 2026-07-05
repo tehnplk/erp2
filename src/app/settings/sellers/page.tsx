@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Swal from 'sweetalert2';
-import { Store, X, Plus, Trash2, Check, Pencil, CheckCircle2, AlertCircle } from 'lucide-react';
+import { AlertCircle, CheckCircle2, Pencil, Plus, Save, Store, Trash2, X } from 'lucide-react';
 import { useAllowedActions } from '@/hooks/use-allowed-actions';
 
 interface Seller {
@@ -15,38 +15,52 @@ interface Seller {
   phone?: string;
   fax?: string;
   mobile?: string;
+  category_code_sale?: string[];
   is_active?: boolean;
 }
+
+interface CategoryOption {
+  category_code: string;
+  category: string;
+}
+
+type SellerFormData = {
+  code: string;
+  prefix: string;
+  name: string;
+  business: string;
+  address: string;
+  phone: string;
+  fax: string;
+  mobile: string;
+  category_code_sale: string[];
+  is_active: boolean;
+};
+
+const PAGE_SIZE_OPTIONS = [10, 20, 50];
+
+const createEmptySellerRecord = (): SellerFormData => ({
+  code: '',
+  prefix: '',
+  name: '',
+  business: '',
+  address: '',
+  phone: '',
+  fax: '',
+  mobile: '',
+  category_code_sale: [],
+  is_active: true,
+});
 
 export default function SellersPage() {
   const { canCreate, canEdit, canDelete } = useAllowedActions('/sellers');
   const [sellers, setSellers] = useState<Seller[]>([]);
-  const [addingNew, setAddingNew] = useState(false);
-  const [formData, setFormData] = useState({
-    code: '',
-    prefix: '',
-    name: '',
-    business: '',
-    address: '',
-    phone: '',
-    fax: '',
-    mobile: '',
-    is_active: true
-  });
-  const [editingId, setEditingId] = useState<number | null>(null);
-  const [editData, setEditData] = useState({
-    code: '',
-    prefix: '',
-    name: '',
-    business: '',
-    address: '',
-    phone: '',
-    fax: '',
-    mobile: '',
-    is_active: true
-  });
-  const [showBulkForm, setShowBulkForm] = useState(false);
-  const [bulkRecords, setBulkRecords] = useState<any[]>([]);
+  const [categoryOptions, setCategoryOptions] = useState<CategoryOption[]>([]);
+  const [formData, setFormData] = useState<SellerFormData>(createEmptySellerRecord());
+  const [modalMode, setModalMode] = useState<'create' | 'edit'>('create');
+  const [editingSellerId, setEditingSellerId] = useState<number | null>(null);
+  const [showSellerModal, setShowSellerModal] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState<{
     message: string;
     type: 'success' | 'error';
@@ -54,49 +68,36 @@ export default function SellersPage() {
   }>({
     message: '',
     type: 'success',
-    visible: false
+    visible: false,
   });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
-  const PAGE_SIZE_OPTIONS = [10, 20, 50];
-  const [filters, setFilters] = useState({
-    search: ''
-  });
-
-  const createEmptySellerRecord = () => ({
-    code: '',
-    prefix: '',
-    name: '',
-    business: '',
-    address: '',
-    phone: '',
-    fax: '',
-    mobile: '',
-    is_active: true
-  });
-
-  const createEmptyBulkSellerRecord = () => ({
-    id: Date.now() + Math.random(),
-    ...createEmptySellerRecord()
-  });
+  const [filters, setFilters] = useState({ search: '' });
 
   useEffect(() => {
-    fetchSellers();
+    void fetchSellers();
+    void fetchCategoryOptions();
   }, []);
 
   useEffect(() => {
-    // Reset to first page when data changes
     setPage(1);
   }, [sellers.length]);
+
+  const showToast = (message: string, type: 'success' | 'error') => {
+    setToast({ message, type, visible: true });
+    setTimeout(() => {
+      setToast((current) => ({ ...current, visible: false }));
+    }, 3000);
+  };
 
   const fetchSellers = async () => {
     try {
       setLoading(true);
       const response = await fetch('/api/sellers?include_inactive=true');
       const result = await response.json();
-      
+
       if (result.success) {
         setSellers(result.data);
         setError(null);
@@ -111,36 +112,74 @@ export default function SellersPage() {
     }
   };
 
-  const openBulkForm = () => {
-    if (!canCreate) return;
-    setShowBulkForm(true);
-    setBulkRecords([createEmptyBulkSellerRecord()]);
-  };
+  const fetchCategoryOptions = async () => {
+    try {
+      const response = await fetch('/api/categories?include_inactive=true');
+      const result = await response.json();
+      if (!result.success || !Array.isArray(result.data)) return;
 
-  const addBulkRow = () => {
-    setBulkRecords((current) => [...current, createEmptyBulkSellerRecord()]);
-  };
-
-  const saveNewRecord = async () => {
-    if (!canCreate) return;
-    if (!formData.code.trim() || !formData.name.trim()) {
-      setToast({
-        message: 'กรุณากรอกรหัสและชื่อผู้จำหน่าย',
-        type: 'error',
-        visible: true
+      const uniqueOptions = new Map<string, CategoryOption>();
+      result.data.forEach((item: CategoryOption) => {
+        const code = String(item.category_code || '').trim();
+        if (!code || uniqueOptions.has(code)) return;
+        uniqueOptions.set(code, {
+          category_code: code,
+          category: item.category || code,
+        });
       });
-      setTimeout(() => {
-        setToast({ ...toast, visible: false });
-      }, 3000);
+      setCategoryOptions(Array.from(uniqueOptions.values()).sort((a, b) => a.category_code.localeCompare(b.category_code)));
+    } catch (err) {
+      console.error('Error fetching category options:', err);
+    }
+  };
+
+  const openCreateModal = () => {
+    if (!canCreate) return;
+    setModalMode('create');
+    setEditingSellerId(null);
+    setFormData(createEmptySellerRecord());
+    setShowSellerModal(true);
+  };
+
+  const openEditModal = (seller: Seller) => {
+    if (!canEdit) return;
+    setModalMode('edit');
+    setEditingSellerId(seller.id);
+    setFormData({
+      code: seller.code,
+      prefix: seller.prefix || '',
+      name: seller.name,
+      business: seller.business || '',
+      address: seller.address || '',
+      phone: seller.phone || '',
+      fax: seller.fax || '',
+      mobile: seller.mobile || '',
+      category_code_sale: Array.isArray(seller.category_code_sale) ? seller.category_code_sale : [],
+      is_active: seller.is_active ?? true,
+    });
+    setShowSellerModal(true);
+  };
+
+  const closeSellerModal = () => {
+    setShowSellerModal(false);
+    setEditingSellerId(null);
+    setFormData(createEmptySellerRecord());
+  };
+
+  const saveSeller = async () => {
+    if ((modalMode === 'create' && !canCreate) || (modalMode === 'edit' && !canEdit)) return;
+
+    if (!formData.code.trim() || !formData.name.trim()) {
+      showToast('กรุณากรอกรหัสและชื่อผู้จำหน่าย', 'error');
       return;
     }
 
     try {
-      const response = await fetch('/api/sellers', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+      setSaving(true);
+      const url = modalMode === 'create' ? '/api/sellers' : `/api/sellers/${editingSellerId}`;
+      const response = await fetch(url, {
+        method: modalMode === 'create' ? 'POST' : 'PUT',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           code: formData.code.trim(),
           prefix: formData.prefix || '',
@@ -150,41 +189,24 @@ export default function SellersPage() {
           phone: formData.phone || '',
           fax: formData.fax || '',
           mobile: formData.mobile || '',
-          is_active: formData.is_active
+          category_code_sale: formData.category_code_sale,
+          is_active: formData.is_active,
         }),
       });
 
-      const result = await response.json();
-
-      if (result.success) {
-        await fetchSellers();
-        setAddingNew(false);
-        resetForm();
-        setToast({
-          message: 'เพิ่มผู้จำหน่ายใหม่สำเร็จ!',
-          type: 'success',
-          visible: true
-        });
-      } else {
-        setToast({
-          message: result.error || 'เกิดข้อผิดพลาดในการเพิ่มผู้จำหน่าย',
-          type: 'error',
-          visible: true
-        });
+      const result = await response.json().catch(() => null);
+      if (!response.ok || !result?.success) {
+        throw new Error(result?.error || 'Failed to save seller');
       }
-      setTimeout(() => {
-        setToast({ ...toast, visible: false });
-      }, 3000);
+
+      await fetchSellers();
+      closeSellerModal();
+      showToast(modalMode === 'create' ? 'เพิ่มผู้จำหน่ายสำเร็จ' : 'บันทึกข้อมูลสำเร็จ', 'success');
     } catch (err) {
       console.error('Error saving seller:', err);
-      setToast({
-        message: 'เกิดข้อผิดพลาดในการเพิ่มผู้จำหน่าย',
-        type: 'error',
-        visible: true
-      });
-      setTimeout(() => {
-        setToast({ ...toast, visible: false });
-      }, 3000);
+      showToast(err instanceof Error ? err.message : 'เกิดข้อผิดพลาดในการบันทึกข้อมูล', 'error');
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -201,23 +223,21 @@ export default function SellersPage() {
       cancelButtonColor: '#3085d6',
     });
 
-    if (confirmation.isConfirmed) {
-      try {
-        const response = await fetch(`/api/sellers/${id}`, {
-          method: 'DELETE',
-        });
-        
-        const result = await response.json();
-        
-        if (result.success) {
-          await fetchSellers(); // Refresh the list
-        } else {
-          await Swal.fire('เกิดข้อผิดพลาด', result.error || 'Failed to delete seller', 'error');
-        }
-      } catch (err) {
-        console.error('Error deleting seller:', err);
-        await Swal.fire('เกิดข้อผิดพลาด', 'Failed to delete seller', 'error');
+    if (!confirmation.isConfirmed) return;
+
+    try {
+      const response = await fetch(`/api/sellers/${id}`, { method: 'DELETE' });
+      const result = await response.json();
+
+      if (result.success) {
+        await fetchSellers();
+        showToast('ลบผู้จำหน่ายสำเร็จ', 'success');
+      } else {
+        await Swal.fire('เกิดข้อผิดพลาด', result.error || 'Failed to delete seller', 'error');
       }
+    } catch (err) {
+      console.error('Error deleting seller:', err);
+      await Swal.fire('เกิดข้อผิดพลาด', 'Failed to delete seller', 'error');
     }
   };
 
@@ -231,7 +251,8 @@ export default function SellersPage() {
         seller.business,
         seller.address,
         seller.phone,
-        seller.mobile
+        seller.mobile,
+        ...(seller.category_code_sale || []),
       ]
         .filter(Boolean)
         .join(' ')
@@ -244,11 +265,7 @@ export default function SellersPage() {
   const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
   const pageStart = totalCount === 0 ? 0 : (page - 1) * pageSize + 1;
   const pageEnd = totalCount === 0 ? 0 : Math.min(totalCount, pageStart + pageSize - 1);
-
-  const paginatedSellers = filteredSellers.slice(
-    (page - 1) * pageSize,
-    (page - 1) * pageSize + pageSize
-  );
+  const paginatedSellers = filteredSellers.slice((page - 1) * pageSize, (page - 1) * pageSize + pageSize);
 
   const clearFilters = () => {
     setFilters({ search: '' });
@@ -265,194 +282,68 @@ export default function SellersPage() {
     setPage(1);
   };
 
-  const resetForm = () => {
-    setFormData(createEmptySellerRecord());
-    setAddingNew(false);
-  };
-
-  // Start inline editing
-  const startInlineEdit = (seller: Seller) => {
-    if (!canEdit) return;
-    setEditingId(seller.id);
-    setEditData({
-      code: seller.code,
-      prefix: seller.prefix || '',
-      name: seller.name,
-      business: seller.business || '',
-      address: seller.address || '',
-      phone: seller.phone || '',
-      fax: seller.fax || '',
-      mobile: seller.mobile || '',
-      is_active: seller.is_active ?? true
-    });
-  };
-
-  // Save inline edit
-  const saveInlineEdit = async (id: number) => {
-    if (!canEdit) return;
-    try {
-      const response = await fetch(`/api/sellers/${id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(editData)
-      });
-
-      if (response.ok) {
-        setEditingId(null);
-        setEditData(createEmptySellerRecord());
-        fetchSellers();
-
-        setToast({
-          message: 'บันทึกข้อมูลสำเร็จ!',
-          type: 'success',
-          visible: true
-        });
-
-        setTimeout(() => {
-          setToast({ ...toast, visible: false });
-        }, 3000);
-      } else {
-        setToast({
-          message: 'เกิดข้อผิดพลาดในการบันทึกข้อมูล',
-          type: 'error',
-          visible: true
-        });
-
-        setTimeout(() => {
-          setToast({ ...toast, visible: false });
-        }, 3000);
-      }
-    } catch (error) {
-      console.error('Error updating seller:', error);
-
-      setToast({
-        message: 'เกิดข้อผิดพลาดในการบันทึกข้อมูล',
-        type: 'error',
-        visible: true
-      });
-
-      setTimeout(() => {
-        setToast({ ...toast, visible: false });
-      }, 3000);
+  const toggleCategoryCode = (selectedCodes: string[], code: string, checked: boolean) => {
+    const next = new Set(selectedCodes);
+    if (checked) {
+      next.add(code);
+    } else {
+      next.delete(code);
     }
+    return Array.from(next).sort((a, b) => a.localeCompare(b));
   };
 
-  // Cancel inline edit
-  const cancelInlineEdit = () => {
-    setEditingId(null);
-    setEditData(createEmptySellerRecord());
-  };
+  const categoryNameByCode = useMemo(() => {
+    return new Map(categoryOptions.map((option) => [option.category_code, option.category || option.category_code]));
+  }, [categoryOptions]);
 
-  // Save bulk sellers
-  const saveBulkSellers = async () => {
-    if (!canCreate) return;
-    try {
-      const validRecords = bulkRecords.filter(record =>
-        record.code.trim() !== '' && record.name.trim() !== ''
-      );
+  const renderCategoryCodeSaleSelector = (selectedCodes: string[], onChange: (nextCodes: string[]) => void) => (
+    <div className="grid max-h-44 grid-cols-1 gap-1 overflow-y-auto rounded border border-gray-200 bg-white p-2 sm:grid-cols-2">
+      {categoryOptions.map((option) => (
+        <label key={option.category_code} className="flex items-center gap-2 text-xs text-gray-700">
+          <input
+            type="checkbox"
+            checked={selectedCodes.includes(option.category_code)}
+            onChange={(event) => onChange(toggleCategoryCode(selectedCodes, option.category_code, event.target.checked))}
+            className="h-3.5 w-3.5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+          />
+          <span className="font-semibold text-gray-900">{option.category_code}</span>
+          <span className="truncate">{option.category}</span>
+        </label>
+      ))}
+    </div>
+  );
 
-      if (validRecords.length === 0) {
-        setToast({
-          message: 'กรุณากรอกข้อมูลให้ครบถ้วนอย่างน้อย 1 รายการ',
-          type: 'error',
-          visible: true
-        });
-        setTimeout(() => {
-          setToast({ ...toast, visible: false });
-        }, 3000);
-        return;
-      }
-
-      const promises = validRecords.map(record =>
-        fetch('/api/sellers', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            code: record.code.trim(),
-            prefix: record.prefix || '',
-            name: record.name.trim(),
-            business: record.business || '',
-            address: record.address || '',
-            phone: record.phone || '',
-            fax: record.fax || '',
-            mobile: record.mobile || ''
-          })
-        })
-      );
-
-      const results = await Promise.allSettled(promises);
-      const successful = results.filter(result => result.status === 'fulfilled' && result.value.ok).length;
-      const failed = results.length - successful;
-
-      if (successful > 0) {
-        setShowBulkForm(false);
-        setBulkRecords([]);
-        fetchSellers();
-
-        setToast({
-          message: `บันทึกสำเร็จ ${successful} รายการ${failed > 0 ? `, ไม่สำเร็จ ${failed} รายการ` : ''}`,
-          type: 'success',
-          visible: true
-        });
-
-        setTimeout(() => {
-          setToast({ ...toast, visible: false });
-        }, 3000);
-      }
-
-      if (failed > 0 && successful === 0) {
-        setToast({
-          message: 'เกิดข้อผิดพลาดในการบันทึกข้อมูลทั้งหมด',
-          type: 'error',
-          visible: true
-        });
-
-        setTimeout(() => {
-          setToast({ ...toast, visible: false });
-        }, 3000);
-      }
-    } catch (error) {
-      console.error('Error saving bulk sellers:', error);
-
-      setToast({
-        message: 'เกิดข้อผิดพลาดในการบันทึกข้อมูล',
-        type: 'error',
-        visible: true
-      });
-
-      setTimeout(() => {
-        setToast({ ...toast, visible: false });
-      }, 3000);
+  const renderCategoryCodeSaleNames = (codes?: string[]) => {
+    if (!codes || codes.length === 0) {
+      return <span className="text-xs text-gray-400">-</span>;
     }
+
+    return (
+      <div className="max-w-64 space-y-1 whitespace-normal">
+        {codes.map((code) => (
+          <div key={code} className="text-xs leading-5 text-gray-700">
+            {categoryNameByCode.get(code) || code}
+          </div>
+        ))}
+      </div>
+    );
   };
+
   return (
     <div className="min-h-screen pt-[52px]">
       <div className="container mx-auto px-4 py-6">
-        {/* Toast Notification */}
         {toast.visible && (
-          <div className={`fixed top-4 right-4 z-50 p-4 rounded-lg shadow-lg transition-all duration-300 ${
-            toast.type === 'success'
-              ? 'bg-green-500 text-white'
-              : 'bg-red-500 text-white'
-          }`}>
+          <div className={`fixed top-4 right-4 z-50 rounded-lg p-4 shadow-lg transition-all duration-300 ${toast.type === 'success' ? 'bg-green-500 text-white' : 'bg-red-500 text-white'}`}>
             <div className="flex items-center gap-2">
-              {toast.type === 'success' ? (
-                <CheckCircle2 className="h-5 w-5" />
-              ) : (
-                <AlertCircle className="h-5 w-5" />
-              )}
+              {toast.type === 'success' ? <CheckCircle2 className="h-5 w-5" /> : <AlertCircle className="h-5 w-5" />}
               <span>{toast.message}</span>
-              <button
-                onClick={() => setToast({ ...toast, visible: false })}
-                className="ml-2 hover:opacity-75"
-              >
+              <button onClick={() => setToast({ ...toast, visible: false })} className="ml-2 hover:opacity-75">
                 <X className="h-4 w-4" />
               </button>
             </div>
           </div>
         )}
 
-        {/* Header */}
         <div className="mb-4">
           <h1 className="flex items-center gap-3 text-2xl font-semibold text-gray-900">
             <Store className="h-7 w-7 text-blue-600" />
@@ -466,7 +357,7 @@ export default function SellersPage() {
               <label className="mb-1 block text-sm font-medium text-gray-700">ค้นหา</label>
               <input
                 type="text"
-                placeholder="ค้นหาจากรหัส ชื่อ หรือคำอธิบาย"
+                placeholder="ค้นหาจากรหัส ชื่อ หรือหมวดขาย"
                 value={filters.search}
                 onChange={(e) => {
                   setFilters({ search: e.target.value });
@@ -477,10 +368,7 @@ export default function SellersPage() {
             </div>
             <div>
               <label className="mb-1 block text-sm font-medium text-gray-700">รีเซ็ต</label>
-              <button
-                onClick={clearFilters}
-                className="w-full rounded-md bg-slate-600 px-4 py-2 text-white transition-colors hover:bg-slate-700"
-              >
+              <button onClick={clearFilters} className="w-full rounded-md bg-slate-600 px-4 py-2 text-white transition-colors hover:bg-slate-700">
                 ล้างตัวกรอง
               </button>
             </div>
@@ -489,26 +377,15 @@ export default function SellersPage() {
 
         <div className="mb-4 flex items-center justify-end gap-2">
           <button
-            onClick={openBulkForm}
+            onClick={openCreateModal}
             disabled={!canCreate}
-            className="rounded-md border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+            className="inline-flex items-center gap-2 rounded-md bg-blue-600 px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-blue-300"
           >
-            Bulk insert
-          </button>
-          <button
-            onClick={() => {
-              setAddingNew(true);
-              setFormData(createEmptySellerRecord());
-            }}
-            disabled={addingNew || !canCreate}
-            className="rounded-md bg-blue-600 px-3 py-2 text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-blue-300"
-            title="เพิ่มผู้จำหน่ายใหม่"
-          >
-            <Plus className="h-5 w-5" />
+            <Plus className="h-4 w-4" />
+            เพิ่มผู้จำหน่าย
           </button>
         </div>
 
-        {/* Pagination Controls */}
         <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
           <div className="text-sm text-gray-600">
             แสดง {pageStart}-{pageEnd} จาก {totalCount} รายการ
@@ -516,13 +393,11 @@ export default function SellersPage() {
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
             <div className="flex items-center gap-2">
               <span className="text-sm text-gray-600">แสดงต่อหน้า</span>
-              <select
-                value={pageSize}
-                onChange={handlePageSizeChange}
-                className="rounded border border-gray-300 px-2 py-1 text-sm"
-              >
+              <select value={pageSize} onChange={handlePageSizeChange} className="rounded border border-gray-300 px-2 py-1 text-sm">
                 {PAGE_SIZE_OPTIONS.map((size) => (
-                  <option key={size} value={size}>{size}</option>
+                  <option key={size} value={size}>
+                    {size}
+                  </option>
                 ))}
               </select>
             </div>
@@ -530,7 +405,7 @@ export default function SellersPage() {
               <button
                 onClick={() => goToPage(page - 1)}
                 disabled={page === 1}
-                className={`px-3 py-1 rounded border text-sm ${page === 1 ? 'text-gray-400 border-gray-200 cursor-not-allowed' : 'text-gray-700 border-gray-300 hover:bg-gray-50'}`}
+                className={`rounded border px-3 py-1 text-sm ${page === 1 ? 'cursor-not-allowed border-gray-200 text-gray-400' : 'border-gray-300 text-gray-700 hover:bg-gray-50'}`}
               >
                 ก่อนหน้า
               </button>
@@ -540,7 +415,7 @@ export default function SellersPage() {
               <button
                 onClick={() => goToPage(page + 1)}
                 disabled={page === totalPages || totalCount === 0}
-                className={`px-3 py-1 rounded border text-sm ${page === totalPages || totalCount === 0 ? 'text-gray-400 border-gray-200 cursor-not-allowed' : 'text-gray-700 border-gray-300 hover:bg-gray-50'}`}
+                className={`rounded border px-3 py-1 text-sm ${page === totalPages || totalCount === 0 ? 'cursor-not-allowed border-gray-200 text-gray-400' : 'border-gray-300 text-gray-700 hover:bg-gray-50'}`}
               >
                 ถัดไป
               </button>
@@ -553,235 +428,52 @@ export default function SellersPage() {
             <table className="w-full">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="px-6 py-3 text-left text-[10px] font-medium text-gray-500 uppercase tracking-wider">รหัส</th>
-                  <th className="px-6 py-3 text-left text-[10px] font-medium text-gray-500 uppercase tracking-wider">ชื่อผู้จำหน่าย</th>
-                  <th className="px-6 py-3 text-left text-[10px] font-medium text-gray-500 uppercase tracking-wider">ประเภทธุรกิจ</th>
-                  <th className="px-6 py-3 text-left text-[10px] font-medium text-gray-500 uppercase tracking-wider">เบอร์โทร</th>
-                  <th className="px-6 py-3 text-left text-[10px] font-medium text-gray-500 uppercase tracking-wider">มือถือ</th>
-                  <th className="px-6 py-3 text-left text-[10px] font-medium text-gray-500 uppercase tracking-wider">เปิดใช้งาน</th>
-                  <th className="px-6 py-3 text-left text-[10px] font-medium text-gray-500 uppercase tracking-wider">ACTION</th>
+                  <th className="px-6 py-3 text-left text-[10px] font-medium uppercase tracking-wider text-gray-500">รหัส</th>
+                  <th className="px-6 py-3 text-left text-[10px] font-medium uppercase tracking-wider text-gray-500">ชื่อผู้จำหน่าย</th>
+                  <th className="px-6 py-3 text-left text-[10px] font-medium uppercase tracking-wider text-gray-500">ประเภทธุรกิจ</th>
+                  <th className="px-6 py-3 text-left text-[10px] font-medium uppercase tracking-wider text-gray-500">เบอร์โทร</th>
+                  <th className="px-6 py-3 text-left text-[10px] font-medium uppercase tracking-wider text-gray-500">มือถือ</th>
+                  <th className="px-6 py-3 text-left text-[10px] font-medium uppercase tracking-wider text-gray-500">หมวดขาย</th>
+                  <th className="px-6 py-3 text-left text-[10px] font-medium uppercase tracking-wider text-gray-500">เปิดใช้งาน</th>
+                  <th className="px-6 py-3 text-left text-[10px] font-medium uppercase tracking-wider text-gray-500">Action</th>
                 </tr>
               </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {addingNew && (
-                  <tr className="bg-blue-50/60">
-                    <td className="px-6 py-4 whitespace-nowrap text-xs font-medium text-gray-900">
-                      <input
-                        type="text"
-                        value={formData.code}
-                        onChange={(e) => setFormData({ ...formData, code: e.target.value })}
-                        className="w-full px-2 py-1 border border-gray-300 rounded text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        placeholder="รหัส"
-                      />
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="space-y-2">
-                        <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
-                          <input
-                            type="text"
-                            value={formData.prefix}
-                            onChange={(e) => setFormData({ ...formData, prefix: e.target.value })}
-                            className="w-full px-2 py-1 border border-gray-300 rounded text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
-                            placeholder="คำนำหน้า"
-                          />
-                          <input
-                            type="text"
-                            value={formData.name}
-                            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                            className="w-full px-2 py-1 border border-gray-300 rounded text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
-                            placeholder="ชื่อผู้จำหน่าย"
-                          />
-                        </div>
-                        <textarea
-                          value={formData.address}
-                          onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                          className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 text-xs resize-none"
-                          rows={2}
-                          placeholder="ที่อยู่"
-                        />
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-xs text-gray-500">
-                      <input
-                        type="text"
-                        value={formData.business}
-                        onChange={(e) => setFormData({ ...formData, business: e.target.value })}
-                        className="w-full px-2 py-1 border border-gray-300 rounded text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        placeholder="ประเภทธุรกิจ"
-                      />
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-xs text-gray-500">
-                      <input
-                        type="tel"
-                        value={formData.phone}
-                        onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                        className="w-full px-2 py-1 border border-gray-300 rounded text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        placeholder="เบอร์โทร"
-                      />
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-xs text-gray-500">
-                      <input
-                        type="tel"
-                        value={formData.mobile}
-                        onChange={(e) => setFormData({ ...formData, mobile: e.target.value })}
-                        className="w-full px-2 py-1 border border-gray-300 rounded text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        placeholder="มือถือ"
-                      />
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-xs text-gray-900">
-                      <input
-                        type="checkbox"
-                        checked={formData.is_active}
-                        onChange={(e) => setFormData({ ...formData, is_active: e.target.checked })}
-                        className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                      />
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-xs font-medium w-32">
-                      <div className="flex gap-1">
-                        <button
-                          onClick={saveNewRecord}
-                          disabled={!canCreate}
-                          className="text-green-600 hover:text-green-900 cursor-pointer disabled:cursor-not-allowed disabled:opacity-40"
-                          title="บันทึก"
-                        >
-                          <Check className="h-4 w-4" />
-                        </button>
-                        <button
-                          onClick={resetForm}
-                          className="text-red-600 hover:text-red-900 cursor-pointer"
-                          title="ยกเลิก"
-                        >
-                          <X className="h-4 w-4" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                )}
+              <tbody className="divide-y divide-gray-200 bg-white">
                 {paginatedSellers.map((seller) => (
                   <tr key={seller.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap text-xs font-medium text-gray-900">
-                      {seller.code}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td className="whitespace-nowrap px-6 py-4 text-xs font-medium text-gray-900">{seller.code}</td>
+                    <td className="whitespace-nowrap px-6 py-4">
                       <div>
-                        <div className="text-xs font-medium text-gray-900">
-                          {editingId === seller.id ? (
-                            <input
-                              type="text"
-                              value={editData.name}
-                              onChange={(e) => setEditData({ ...editData, name: e.target.value })}
-                              className="w-full px-2 py-1 border border-gray-300 rounded text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
-                            />
-                          ) : (
-                            `${seller.prefix || ''} ${seller.name}`.trim()
-                          )}
-                        </div>
-                        <div className="text-xs text-gray-500">
-                          {editingId === seller.id ? (
-                            <textarea
-                              value={editData.address || ''}
-                              onChange={(e) => setEditData({ ...editData, address: e.target.value })}
-                              className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 text-xs resize-none"
-                              rows={2}
-                            />
-                          ) : (
-                            seller.address
-                          )}
-                        </div>
+                        <div className="text-xs font-medium text-gray-900">{`${seller.prefix || ''} ${seller.name}`.trim()}</div>
+                        <div className="text-xs text-gray-500">{seller.address}</div>
                       </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-xs text-gray-500">
-                      {editingId === seller.id ? (
-                        <input
-                          type="text"
-                          value={editData.business || ''}
-                          onChange={(e) => setEditData({ ...editData, business: e.target.value })}
-                          className="w-full px-2 py-1 border border-gray-300 rounded text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        />
-                      ) : (
-                        seller.business
-                      )}
+                    <td className="whitespace-nowrap px-6 py-4 text-xs text-gray-500">{seller.business}</td>
+                    <td className="whitespace-nowrap px-6 py-4 text-xs text-gray-500">{seller.phone}</td>
+                    <td className="whitespace-nowrap px-6 py-4 text-xs text-gray-500">{seller.mobile}</td>
+                    <td className="px-6 py-4 text-xs text-gray-500">{renderCategoryCodeSaleNames(seller.category_code_sale)}</td>
+                    <td className="whitespace-nowrap px-6 py-4 text-xs text-gray-900">
+                      <input checked={Boolean(seller.is_active)} readOnly type="checkbox" className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-xs text-gray-500">
-                      {editingId === seller.id ? (
-                        <input
-                          type="tel"
-                          value={editData.phone || ''}
-                          onChange={(e) => setEditData({ ...editData, phone: e.target.value })}
-                          className="w-full px-2 py-1 border border-gray-300 rounded text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        />
-                      ) : (
-                        seller.phone
-                      )}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-xs text-gray-500">
-                      {editingId === seller.id ? (
-                        <input
-                          type="tel"
-                          value={editData.mobile || ''}
-                          onChange={(e) => setEditData({ ...editData, mobile: e.target.value })}
-                          className="w-full px-2 py-1 border border-gray-300 rounded text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        />
-                      ) : (
-                        seller.mobile
-                      )}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-xs text-gray-900">
-                      {editingId === seller.id ? (
-                        <input
-                          type="checkbox"
-                          checked={Boolean(editData.is_active)}
-                          onChange={(e) => setEditData({ ...editData, is_active: e.target.checked })}
-                          className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                        />
-                      ) : (
-                        <input
-                          type="checkbox"
-                          checked={Boolean(seller.is_active)}
-                          readOnly
-                          className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                        />
-                      )}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-xs font-medium w-32">
-                      {editingId === seller.id ? (
-                        <div className="flex gap-1">
-                          <button
-                            onClick={() => saveInlineEdit(seller.id)}
-                            disabled={!canEdit}
-                            className="text-green-600 hover:text-green-900 cursor-pointer disabled:cursor-not-allowed disabled:opacity-40"
-                            title="บันทึก"
-                          >
-                            <Check className="h-4 w-4" />
-                          </button>
-                          <button
-                            onClick={() => cancelInlineEdit()}
-                            className="text-red-600 hover:text-red-900 cursor-pointer"
-                            title="ยกเลิก"
-                          >
-                            <X className="h-4 w-4" />
-                          </button>
-                        </div>
-                      ) : (
-                        <div className="flex gap-2">
-                          <button
-                            onClick={() => startInlineEdit(seller)}
-                            disabled={!canEdit}
-                            className="text-indigo-600 hover:text-indigo-900 cursor-pointer disabled:cursor-not-allowed disabled:opacity-40"
-                            title="แก้ไข"
-                          >
-                            <Pencil className="h-5 w-5" />
-                          </button>
-                          <button
-                            onClick={() => handleDelete(seller.id)}
-                            disabled={!canDelete}
-                            className="text-red-600 hover:text-red-900 cursor-pointer disabled:cursor-not-allowed disabled:opacity-40"
-                            title="ลบ"
-                          >
-                            <Trash2 className="h-5 w-5" />
-                          </button>
-                        </div>
-                      )}
+                    <td className="whitespace-nowrap px-6 py-4 text-xs font-medium">
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => openEditModal(seller)}
+                          disabled={!canEdit}
+                          className="cursor-pointer text-indigo-600 hover:text-indigo-900 disabled:cursor-not-allowed disabled:opacity-40"
+                          title="แก้ไข"
+                        >
+                          <Pencil className="h-5 w-5" />
+                        </button>
+                        <button
+                          onClick={() => handleDelete(seller.id)}
+                          disabled={!canDelete}
+                          className="cursor-pointer text-red-600 hover:text-red-900 disabled:cursor-not-allowed disabled:opacity-40"
+                          title="ลบ"
+                        >
+                          <Trash2 className="h-5 w-5" />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -790,192 +482,84 @@ export default function SellersPage() {
           </div>
         </div>
 
+        {loading && <div className="mt-6 text-center text-gray-500">กำลังโหลดข้อมูล...</div>}
+        {error && <div className="mt-6 rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</div>}
       </div>
 
-      {/* Bulk Add Sellers Modal */}
-      {showBulkForm && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-6xl max-h-[90vh] overflow-y-auto">
-            <div className="flex justify-between items-center mb-4">
-              <div>
-                <h2 className="text-xl font-bold">Bulk insert ผู้จำหน่าย</h2>
-                <p className="mt-1 text-sm text-gray-500">เพิ่มหลายรายการพร้อมกัน และกดปุ่ม + เพื่อเพิ่มแถวได้ตามต้องการ</p>
-              </div>
-              <button
-                onClick={() => {
-                  setShowBulkForm(false);
-                  setBulkRecords([]);
-                }}
-                className="text-gray-500 hover:text-gray-700"
-              >
+      {showSellerModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-lg bg-white p-6 shadow-xl">
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="text-xl font-semibold text-gray-900">{modalMode === 'create' ? 'เพิ่มผู้จำหน่าย' : 'แก้ไขผู้จำหน่าย'}</h2>
+              <button onClick={closeSellerModal} className="text-gray-500 hover:text-gray-700">
                 <X className="h-6 w-6" />
               </button>
             </div>
 
-            <div className="mb-4">
-              <div className="bg-gray-50 rounded-lg overflow-hidden">
-                <div className="overflow-x-auto">
-                  <table className="w-full">
-                    <thead className="bg-gray-100">
-                      <tr>
-                        <th className="px-2 py-2 text-left text-[10px] font-medium text-gray-500 uppercase">ลำดับ</th>
-                        <th className="px-2 py-2 text-left text-[10px] font-medium text-gray-500 uppercase">รหัส</th>
-                        <th className="px-2 py-2 text-left text-[10px] font-medium text-gray-500 uppercase">คำนำหน้า</th>
-                        <th className="px-2 py-2 text-left text-[10px] font-medium text-gray-500 uppercase">ชื่อผู้จำหน่าย</th>
-                        <th className="px-2 py-2 text-left text-[10px] font-medium text-gray-500 uppercase">ประเภทธุรกิจ</th>
-                        <th className="px-2 py-2 text-left text-[10px] font-medium text-gray-500 uppercase">ที่อยู่</th>
-                        <th className="px-2 py-2 text-left text-[10px] font-medium text-gray-500 uppercase">เบอร์โทร</th>
-                        <th className="px-2 py-2 text-left text-[10px] font-medium text-gray-500 uppercase">มือถือ</th>
-                        <th className="px-2 py-2 text-left text-[10px] font-medium text-gray-500 uppercase">จัดการ</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {bulkRecords.map((record, index) => (
-                        <tr key={record.id} className="border-b border-gray-200">
-                          <td className="px-2 py-3 text-xs text-gray-900">{index + 1}</td>
-                          <td className="px-2 py-3">
-                            <input
-                              type="text"
-                              value={record.code || ''}
-                              onChange={(e) => {
-                                const updated = [...bulkRecords];
-                                updated[index].code = e.target.value;
-                                setBulkRecords(updated);
-                              }}
-                              placeholder="รหัส"
-                              className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 text-xs"
-                            />
-                          </td>
-                          <td className="px-2 py-3">
-                            <input
-                              type="text"
-                              value={record.prefix || ''}
-                              onChange={(e) => {
-                                const updated = [...bulkRecords];
-                                updated[index].prefix = e.target.value;
-                                setBulkRecords(updated);
-                              }}
-                              placeholder="คำนำหน้า"
-                              className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 text-xs"
-                            />
-                          </td>
-                          <td className="px-2 py-3">
-                            <input
-                              type="text"
-                              value={record.name || ''}
-                              onChange={(e) => {
-                                const updated = [...bulkRecords];
-                                updated[index].name = e.target.value;
-                                setBulkRecords(updated);
-                              }}
-                              placeholder="ชื่อผู้จำหน่าย"
-                              className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 text-xs"
-                            />
-                          </td>
-                          <td className="px-2 py-3">
-                            <input
-                              type="text"
-                              value={record.business || ''}
-                              onChange={(e) => {
-                                const updated = [...bulkRecords];
-                                updated[index].business = e.target.value;
-                                setBulkRecords(updated);
-                              }}
-                              placeholder="ประเภทธุรกิจ"
-                              className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 text-xs"
-                            />
-                          </td>
-                          <td className="px-2 py-3">
-                            <textarea
-                              value={record.address || ''}
-                              onChange={(e) => {
-                                const updated = [...bulkRecords];
-                                updated[index].address = e.target.value;
-                                setBulkRecords(updated);
-                              }}
-                              placeholder="ที่อยู่"
-                              className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 text-xs resize-none"
-                              rows={2}
-                            />
-                          </td>
-                          <td className="px-2 py-3">
-                            <input
-                              type="tel"
-                              value={record.phone || ''}
-                              onChange={(e) => {
-                                const updated = [...bulkRecords];
-                                updated[index].phone = e.target.value;
-                                setBulkRecords(updated);
-                              }}
-                              placeholder="เบอร์โทร"
-                              className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 text-xs"
-                            />
-                          </td>
-                          <td className="px-2 py-3">
-                            <input
-                              type="tel"
-                              value={record.mobile || ''}
-                              onChange={(e) => {
-                                const updated = [...bulkRecords];
-                                updated[index].mobile = e.target.value;
-                                setBulkRecords(updated);
-                              }}
-                              placeholder="มือถือ"
-                              className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 text-xs"
-                            />
-                          </td>
-                          <td className="px-2 py-3">
-                            <div className="flex gap-1">
-                              <button
-                                onClick={addBulkRow}
-                                className="text-green-600 hover:text-green-900 p-1"
-                                title="เพิ่มแถวใหม่"
-                              >
-                                <Plus className="h-4 w-4" />
-                              </button>
-                              {bulkRecords.length > 1 && (
-                                <button
-                                  onClick={() => {
-                                    setBulkRecords(bulkRecords.filter(r => r.id !== record.id));
-                                  }}
-                                  className="text-red-600 hover:text-red-900 p-1"
-                                  title="ลบแถวนี้"
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </button>
-                              )}
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              <div>
+                <label className="mb-1 block text-sm font-medium text-gray-700">รหัส</label>
+                <input value={formData.code} onChange={(e) => setFormData({ ...formData, code: e.target.value })} className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
               </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium text-gray-700">คำนำหน้า</label>
+                <input value={formData.prefix} onChange={(e) => setFormData({ ...formData, prefix: e.target.value })} className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+              </div>
+              <div className="md:col-span-2">
+                <label className="mb-1 block text-sm font-medium text-gray-700">ชื่อผู้จำหน่าย</label>
+                <input value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+              </div>
+              <div className="md:col-span-2">
+                <label className="mb-1 block text-sm font-medium text-gray-700">ที่อยู่</label>
+                <textarea value={formData.address} onChange={(e) => setFormData({ ...formData, address: e.target.value })} rows={3} className="w-full resize-none rounded border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium text-gray-700">ประเภทธุรกิจ</label>
+                <input value={formData.business} onChange={(e) => setFormData({ ...formData, business: e.target.value })} className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium text-gray-700">เบอร์โทร</label>
+                <input value={formData.phone} onChange={(e) => setFormData({ ...formData, phone: e.target.value })} className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium text-gray-700">แฟกซ์</label>
+                <input value={formData.fax} onChange={(e) => setFormData({ ...formData, fax: e.target.value })} className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium text-gray-700">มือถือ</label>
+                <input value={formData.mobile} onChange={(e) => setFormData({ ...formData, mobile: e.target.value })} className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+              </div>
+              <div className="md:col-span-2">
+                <label className="mb-1 block text-sm font-medium text-gray-700">หมวดขาย</label>
+                {renderCategoryCodeSaleSelector(formData.category_code_sale, (nextCodes) => setFormData({ ...formData, category_code_sale: nextCodes }))}
+              </div>
+              <label className="flex items-center gap-2 text-sm text-gray-700">
+                <input
+                  type="checkbox"
+                  checked={formData.is_active}
+                  onChange={(e) => setFormData({ ...formData, is_active: e.target.checked })}
+                  className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                />
+                เปิดใช้งาน
+              </label>
             </div>
 
-            <div className="flex gap-3">
-              <button
-                onClick={saveBulkSellers}
-                disabled={!canCreate}
-                className="flex-1 bg-blue-600 text-white py-2 rounded-md hover:bg-blue-700 transition-colors disabled:cursor-not-allowed disabled:opacity-40"
-              >
-                บันทึกทั้งหมด ({bulkRecords.length} รายการ)
+            <div className="mt-6 flex justify-end gap-2">
+              <button onClick={closeSellerModal} className="rounded border border-gray-300 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">
+                ยกเลิก
               </button>
               <button
-                onClick={() => {
-                  setShowBulkForm(false);
-                  setBulkRecords([]);
-                }}
-                className="flex-1 bg-gray-500 text-white py-2 rounded-md hover:bg-gray-600 transition-colors"
+                onClick={() => void saveSeller()}
+                disabled={saving}
+                className="inline-flex items-center gap-2 rounded bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
               >
-                ยกเลิก
+                <Save className="h-4 w-4" />
+                {saving ? 'กำลังบันทึก...' : 'บันทึก'}
               </button>
             </div>
           </div>
         </div>
       )}
-
     </div>
   );
 }

@@ -271,6 +271,7 @@ export const createSellerSchema = z.object({
   phone: z.string().optional(),
   fax: z.string().optional(),
   mobile: z.string().optional(),
+  category_code_sale: z.array(z.string().trim().min(1)).optional(),
   is_active: booleanField.optional()
 });
 

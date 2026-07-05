@@ -28,9 +28,9 @@ export async function GET(request: NextRequest) {
       whereClauses.unshift('is_active = true');
     }
     const whereSql = whereClauses.length ? `WHERE ${whereClauses.join(' AND ')}` : '';
-    const baseSelect = 'SELECT id, code, prefix, name, business, address, phone, fax, mobile, is_active FROM public.seller';
+    const baseSelect = 'SELECT id, code, prefix, name, business, address, phone, fax, mobile, COALESCE(category_code_sale, ARRAY[]::text[]) AS category_code_sale, is_active FROM public.seller';
 
-    const cacheKeyAll = `erp:sellers:list:all:${JSON.stringify(params)}`;
+    const cacheKeyAll = `erp:sellers:list:v2:all:${JSON.stringify(params)}`;
     if (!page || !pageSize) {
       const cachedAll = await cacheGet<any>(cacheKeyAll);
       if (cachedAll) return apiSuccess(cachedAll.rows, undefined, cachedAll.rows.length);
@@ -43,7 +43,7 @@ export async function GET(request: NextRequest) {
     const skip = (page - 1) * pageSize;
 
     // --- Redis Caching Logic (Paginated) ---
-    const cacheKey = `erp:sellers:list:${JSON.stringify({ ...queryValidation.data, page, page_size: pageSize })}`;
+    const cacheKey = `erp:sellers:list:v2:${JSON.stringify({ ...queryValidation.data, page, page_size: pageSize })}`;
     const cached = await cacheGet<any>(cacheKey);
     if (cached) {
       return apiSuccess(cached.items, undefined, cached.totalCount, 200, { page, page_size: pageSize });
@@ -88,9 +88,9 @@ export async function POST(request: NextRequest) {
     }
 
     const result = await pgQuery(
-      `INSERT INTO public.seller (code, prefix, name, business, address, phone, fax, mobile, is_active)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-       RETURNING id, code, prefix, name, business, address, phone, fax, mobile, is_active`,
+      `INSERT INTO public.seller (code, prefix, name, business, address, phone, fax, mobile, category_code_sale, is_active)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::text[], $10)
+       RETURNING id, code, prefix, name, business, address, phone, fax, mobile, COALESCE(category_code_sale, ARRAY[]::text[]) AS category_code_sale, is_active`,
       [
         validation.data.code,
         validation.data.prefix || null,
@@ -100,6 +100,7 @@ export async function POST(request: NextRequest) {
         validation.data.phone || null,
         validation.data.fax || null,
         validation.data.mobile || null,
+        validation.data.category_code_sale ?? [],
         validation.data.is_active ?? true,
       ]
     );
