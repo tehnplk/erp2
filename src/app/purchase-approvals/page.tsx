@@ -66,6 +66,7 @@ interface PurchaseApprovalSubItem {
   product_name?: string;
   product_code?: string;
   usage_plan_flag?: string | null;
+  category_code?: string | null;
   category?: string;
   product_type?: string;
   product_subtype?: string;
@@ -81,6 +82,14 @@ interface PurchaseApprovalSubItem {
 
 const getApprovalDepartmentLabel = (group?: PurchaseApprovalGroup | null) => {
   return group?.purchase_department || group?.department || 'งานแผนยุทธศาสตร์';
+};
+
+const getApprovalCategoryLabel = (group?: PurchaseApprovalGroup | null) => {
+  const categories = (group?.sub_items || [])
+    .map((item) => item.category?.trim())
+    .filter(Boolean) as string[];
+
+  return categories[0] || 'หมวดสินค้า';
 };
 
 const getPlanFlagLabel = (planFlag?: string | null) => {
@@ -304,6 +313,7 @@ function PurchaseApprovalsPageContent() {
   };
 
   const documentPreviewDepartmentLabel = getApprovalDepartmentLabel(documentPreview);
+  const documentPreviewCategoryLabel = getApprovalCategoryLabel(documentPreview);
 
   const handlePageSizeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const newSize = parseInt(e.target.value, 10);
@@ -549,6 +559,7 @@ function PurchaseApprovalsPageContent() {
 
     try {
       const documentDepartmentLabel = getApprovalDepartmentLabel(documentPreview);
+      const documentCategoryLabel = getApprovalCategoryLabel(documentPreview);
       const createDocxTextRun = ({
         text,
         size,
@@ -772,7 +783,7 @@ function PurchaseApprovalsPageContent() {
                 spacing: { after: 80 },
                 children: [
                   createDocxTextRun({ text: 'เรื่อง ', bold: true, size: 30 }),
-                  createDocxTextRun({ text: 'ขอความเห็นชอบจัดซื้อ/จัดจ้าง วัสดุใช้ไป', size: 30 }),
+                  createDocxTextRun({ text: `ขอความเห็นชอบจัดซื้อ/จัดจ้าง ${documentCategoryLabel}`, size: 30 }),
                 ],
               }),
               new Paragraph({
@@ -788,7 +799,7 @@ function PurchaseApprovalsPageContent() {
                 alignment: AlignmentType.JUSTIFIED,
                 children: [
                   createDocxTextRun({
-                    text: `ตามที่โรงพยาบาลวังทองได้รับการอนุมัติแผนจัดซื้อ/จัดจ้าง วัสดุใช้ไป ตามแผนจัดซื้อวัสดุใช้ไป ปีงบประมาณ ${documentPreview.budget_year || '-'} นั้น ในการนี้ ${documentDepartmentLabel} ขออนุมัติจัดซื้อ/จัดจ้าง วัสดุใช้ไป เพื่อให้บริการหรือสนับสนุนการจัดบริการของโรงพยาบาล โดยเบิกจ่ายจาก เงินบำรุงโรงพยาบาล จำนวน ${documentPreview.item_count || 0} รายการ เป็นจำนวนเงินทั้งสิ้น ${formatMoney(documentPreview.total_amount)} บาท (${convertNumberToThaiText(documentPreview.total_amount)}) ดังรายการต่อไปนี้`,
+                    text: `ตามที่โรงพยาบาลวังทองได้รับการอนุมัติแผนจัดซื้อ/จัดจ้าง ${documentCategoryLabel} ตามแผนจัดซื้อ${documentCategoryLabel} ปีงบประมาณ ${documentPreview.budget_year || '-'} นั้น ในการนี้ ${documentDepartmentLabel} ขออนุมัติจัดซื้อ/จัดจ้าง ${documentCategoryLabel} เพื่อให้บริการหรือสนับสนุนการจัดบริการของโรงพยาบาล โดยเบิกจ่ายจาก เงินบำรุงโรงพยาบาล จำนวน ${documentPreview.item_count || 0} รายการ เป็นจำนวนเงินทั้งสิ้น ${formatMoney(documentPreview.total_amount)} บาท (${convertNumberToThaiText(documentPreview.total_amount)}) ดังรายการต่อไปนี้`,
                     size: 30,
                   }),
                 ],
@@ -1837,12 +1848,12 @@ function PurchaseApprovalsPageContent() {
                 </div>
               </div>
 
-              <div className="print-compact mb-1"><span className="font-bold">เรื่อง</span> ขอความเห็นชอบจัดซื้อ/จัดจ้าง วัสดุใช้ไป</div>
+              <div className="print-compact mb-1"><span className="font-bold">เรื่อง</span> ขอความเห็นชอบจัดซื้อ/จัดจ้าง {documentPreviewCategoryLabel}</div>
               <div className="print-compact mb-2"><span className="font-bold">เรียน</span> ผู้อำนวยการโรงพยาบาลวังทอง</div>
 
               <p className="print-compact mb-2 text-justify indent-12">
-                ตามที่โรงพยาบาลวังทองได้รับการอนุมัติแผนจัดซื้อ/จัดจ้าง วัสดุใช้ไป ตามแผนจัดซื้อวัสดุใช้ไป ปีงบประมาณ{' '}
-                {documentPreview.budget_year || '-'} นั้น ในการนี้ {documentPreviewDepartmentLabel} ขออนุมัติจัดซื้อ/จัดจ้าง วัสดุใช้ไป
+                ตามที่โรงพยาบาลวังทองได้รับการอนุมัติแผนจัดซื้อ/จัดจ้าง {documentPreviewCategoryLabel} ตามแผนจัดซื้อ{documentPreviewCategoryLabel} ปีงบประมาณ{' '}
+                {documentPreview.budget_year || '-'} นั้น ในการนี้ {documentPreviewDepartmentLabel} ขออนุมัติจัดซื้อ/จัดจ้าง {documentPreviewCategoryLabel}
                 เพื่อให้บริการหรือสนับสนุนการจัดบริการของโรงพยาบาล โดยเบิกจ่ายจาก เงินบำรุงโรงพยาบาล จำนวน{' '}
                 {documentPreview.item_count || 0} รายการ เป็นจำนวนเงินทั้งสิ้น {formatMoney(documentPreview.total_amount)} บาท ({convertNumberToThaiText(documentPreview.total_amount)})
                 ดังรายการต่อไปนี้

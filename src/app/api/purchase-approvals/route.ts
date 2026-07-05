@@ -376,7 +376,8 @@ export async function POST(request: NextRequest) {
     );
     item.rows[0].status = await get_approval_doc_status_value(item.rows[0].status_code);
 
-    await cacheDelByPattern('erp:purchase:approvals:list:v2:*');
+    await cacheDelByPattern('erp:purchase:approvals:list:*');
+    await cacheDelByPattern('erp:purchase:approvals:filters*');
 
     return apiSuccess(item.rows[0], 'Purchase approval created successfully', undefined, 201);
   } catch (error) {

@@ -340,6 +340,7 @@ function PurchasePlansPageContent() {
   const [loadingOutOfPlanProducts, setLoadingOutOfPlanProducts] = useState(false);
   const [savingOutOfPlan, setSavingOutOfPlan] = useState(false);
   const [approvalDraftByPlanId, setApprovalDraftByPlanId] = useState<Record<number, ApprovalDraftInput>>({});
+  const [selectedItemByPlanId, setSelectedItemByPlanId] = useState<Record<number, PurchasePlanRow>>({});
   const [showApprovalInputModal, setShowApprovalInputModal] = useState(false);
   const [approvalInputRow, setApprovalInputRow] = useState<PurchasePlanRow | null>(null);
   const [approvalInputQty, setApprovalInputQty] = useState('');
@@ -776,6 +777,13 @@ function PurchasePlansPageContent() {
     setEditingUnitPrice('');
   };
 
+  const getRemainingQuota = (row: PurchasePlanRow) => {
+    const approvedQuota = Number(row.approved_quota ?? 0);
+    const inventoryQty = Number(row.inventory_qty ?? 0);
+    const purchasedQty = Number(row.purchased_qty ?? 0);
+    return Math.max(approvedQuota - inventoryQty - purchasedQty, 0);
+  };
+
   const savePurchasePlan = async (row: PurchasePlanRow, purchaseQtyText: string, unitPriceText: string) => {
     if (!canEditPurchasePlan) return false;
     const nextPurchaseQty = Number(purchaseQtyText);
@@ -874,14 +882,15 @@ function PurchasePlansPageContent() {
     setEditingUnitPrice(String(nextRow.unit_price ?? nextRow.price_per_unit ?? 0));
   };
 
-  const selectedPlanItems = useMemo(
-    () => items.filter((item) => selectedRows.has(item.id)),
-    [items, selectedRows],
-  );
+  const selectedPlanItems = useMemo(() => {
+    return Array.from(selectedRows)
+      .map((id) => selectedItemByPlanId[id] ?? items.find((item) => item.id === id))
+      .filter((item): item is PurchasePlanRow => Boolean(item));
+  }, [items, selectedItemByPlanId, selectedRows]);
 
   const openApprovalInputModal = (row: PurchasePlanRow) => {
     const existing = approvalDraftByPlanId[row.id];
-    const defaultQty = existing?.quantity ?? Math.max(1, Number(row.purchase_qty ?? 0));
+    const defaultQty = existing?.quantity ?? getRemainingQuota(row);
     const unitPrice = Number(row.unit_price ?? row.price_per_unit ?? 0);
     const defaultTotal = existing?.totalAmount ?? Number((defaultQty * unitPrice).toFixed(2));
     setApprovalInputRow(row);
@@ -915,6 +924,16 @@ function PurchasePlansPageContent() {
       return;
     }
 
+    const remainingQuota = getRemainingQuota(approvalInputRow);
+    if (quantity > remainingQuota) {
+      void Swal.fire({
+        icon: 'warning',
+        title: 'จำนวนซื้อเกินโควต้าที่เหลือ',
+        text: `จำนวนซื้อครั้งนี้ห้ามเกินโควต้าที่เหลือ (${remainingQuota.toLocaleString('en-US')} ${approvalInputRow.unit || '-'})`,
+      });
+      return;
+    }
+
     if (!Number.isFinite(totalAmount) || totalAmount < 0) {
       void Swal.fire({
         icon: 'warning',
@@ -930,6 +949,10 @@ function PurchasePlansPageContent() {
         quantity,
         totalAmount,
       },
+    }));
+    setSelectedItemByPlanId((prev) => ({
+      ...prev,
+      [approvalInputRow.id]: approvalInputRow,
     }));
     setSelectedRows((prev) => {
       const next = new Set(prev);
@@ -977,6 +1000,7 @@ function PurchasePlansPageContent() {
     } else {
       setSelectedRows(new Set());
       setApprovalDraftByPlanId({});
+      setSelectedItemByPlanId({});
     }
   };
 
@@ -1021,6 +1045,14 @@ function PurchasePlansPageContent() {
 
     if (!checked) {
       setApprovalDraftByPlanId((prev) => {
+        if (!(id in prev)) {
+          return prev;
+        }
+        const next = { ...prev };
+        delete next[id];
+        return next;
+      });
+      setSelectedItemByPlanId((prev) => {
         if (!(id in prev)) {
           return prev;
         }
@@ -1248,6 +1280,7 @@ function PurchasePlansPageContent() {
       // Clear selection and refresh data
       setSelectedRows(new Set());
       setApprovalDraftByPlanId({});
+      setSelectedItemByPlanId({});
       await Promise.all([fetchData(), fetchSummaryData()]);
     } catch (error) {
       console.error(error);
@@ -1299,6 +1332,8 @@ function PurchasePlansPageContent() {
 
       // Clear selection and refresh data
       setSelectedRows(new Set());
+      setApprovalDraftByPlanId({});
+      setSelectedItemByPlanId({});
       await Promise.all([fetchData(), fetchSummaryData()]);
     } catch (error) {
       console.error(error);
@@ -1430,21 +1465,23 @@ function PurchasePlansPageContent() {
   const visibleItems = items;
 
   useEffect(() => {
-    const validIds = new Set(items.map((item) => item.id));
+    setSelectedItemByPlanId((prev) => {
+      let changed = false;
+      const next = { ...prev };
 
-    setSelectedRows((prev) => {
-      const next = new Set(Array.from(prev).filter((id) => validIds.has(id)));
-      return next.size === prev.size ? prev : next;
-    });
+      for (const item of items) {
+        if (selectedRows.has(item.id) && next[item.id] !== item) {
+          next[item.id] = item;
+          changed = true;
+        }
+      }
 
-    setApprovalDraftByPlanId((prev) => {
-      const entries = Object.entries(prev).filter(([id]) => validIds.has(Number(id)));
-      if (entries.length === Object.keys(prev).length) {
+      if (!changed) {
         return prev;
       }
-      return Object.fromEntries(entries) as Record<number, ApprovalDraftInput>;
+      return next;
     });
-  }, [items]);
+  }, [items, selectedRows]);
 
   const fetchOutOfPlanOptions = async (args?: { departmentCode?: string; category?: string; searchText?: string }) => {
     try {
@@ -1942,11 +1979,15 @@ function PurchasePlansPageContent() {
               </p>
               <div className="mt-3 space-y-3">
                 <div>
+                  <p className="mb-1 text-sm font-semibold text-red-600">
+                    เหลือโควต้าอีก {getRemainingQuota(approvalInputRow).toLocaleString('en-US')} {approvalInputRow.unit || '-'}
+                  </p>
                   <label className="mb-1 block text-sm font-medium text-gray-700">จำนวนซื้อครั้งนี้</label>
                   <div className="flex items-center gap-2">
                     <input
                       type="number"
                       min={1}
+                      max={getRemainingQuota(approvalInputRow)}
                       step={1}
                       value={approvalInputQty}
                       onFocus={(event) => {

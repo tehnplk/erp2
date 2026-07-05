@@ -257,6 +257,7 @@ export async function POST(request: NextRequest) {
     
     // Clear cache
     await cacheDelByPattern('erp:purchase:approvals:list:*');
+    await cacheDelByPattern('erp:purchase:approvals:filters*');
     await cacheDelByPattern('erp:purchase:plans:list:*');
     await cacheDelByPattern('erp:purchase:plans:filters*');
     

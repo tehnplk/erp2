@@ -76,6 +76,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     );
     
     await cacheDelByPattern('erp:purchase:approvals:list:*');
+    await cacheDelByPattern('erp:purchase:approvals:filters*');
     updated.rows[0].status = await get_approval_doc_status_value(updated.rows[0].status_code);
     return NextResponse.json(updated.rows[0]);
   } catch (error) {
@@ -171,6 +172,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
       values
     );
     await cacheDelByPattern('erp:purchase:approvals:list:*');
+    await cacheDelByPattern('erp:purchase:approvals:filters*');
     updated.rows[0].status = await get_approval_doc_status_value(updated.rows[0].status_code);
     return NextResponse.json(updated.rows[0]);
   } catch (error) {
@@ -191,6 +193,9 @@ export async function DELETE(_request: NextRequest, { params }: { params: Promis
 
     await pgQuery('DELETE FROM public.purchase_approval WHERE id = $1', [numericId]);
     await cacheDelByPattern('erp:purchase:approvals:list:*');
+    await cacheDelByPattern('erp:purchase:approvals:filters*');
+    await cacheDelByPattern('erp:purchase:plans:list:*');
+    await cacheDelByPattern('erp:purchase:plans:filters*');
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error('Error deleting purchase approval:', error);

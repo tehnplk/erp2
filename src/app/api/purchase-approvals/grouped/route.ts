@@ -186,7 +186,8 @@ export async function GET(request: NextRequest) {
         pad.version as detail_version,
         COALESCE(pad.product_name, plan_summary.product_name, p.name) AS product_name,
         COALESCE(pad.product_code, plan_summary.product_code, p.code) AS product_code,
-        plan_summary.category AS category,
+        category_master.category_code AS category_code,
+        COALESCE(category_master.category, plan_summary.category, p.category) AS category,
         plan_summary.product_type AS product_type,
         plan_summary.product_subtype AS product_subtype,
         COALESCE(pad.approved_quantity, pad.proposed_quantity, pp.purchase_qty, 0)::int AS requested_quantity,
@@ -241,6 +242,14 @@ export async function GET(request: NextRequest) {
         GROUP BY up.purchase_plan_id
       ) plan_summary ON plan_summary.purchase_plan_id = pp.id
       LEFT JOIN public.product p ON p.code = COALESCE(pad.product_code, plan_summary.product_code)
+      LEFT JOIN LATERAL (
+        SELECT c.category_code, c.category
+        FROM public.category c
+        WHERE c.category = COALESCE(plan_summary.category, p.category)
+          AND COALESCE(c.category_code, '') <> ''
+        ORDER BY c.category_code ASC
+        LIMIT 1
+      ) category_master ON true
       ORDER BY pa.approve_code, pad.line_number
     `;
     

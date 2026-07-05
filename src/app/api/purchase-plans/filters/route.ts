@@ -4,7 +4,7 @@ import { cacheGet, cacheSet } from '@/lib/redis';
 
 export async function GET() {
   try {
-    const cacheKey = 'erp:purchase:plans:filters';
+    const cacheKey = 'erp:purchase:plans:filters:v2';
     const cached = await cacheGet<unknown>(cacheKey);
     if (cached) {
       return NextResponse.json(cached);
@@ -32,14 +32,13 @@ export async function GET() {
          ORDER BY budget_year DESC`,
       ),
       pgQuery(
-        `SELECT DISTINCT pd.name AS purchase_department
-         FROM public.usage_plan up
-         INNER JOIN public.product p ON p.code = up.product_code
+        `SELECT DISTINCT COALESCE(pd.name, pd.department_code) AS purchase_department
+         FROM public.product p
          LEFT JOIN public.department pd ON pd.id = p.purchase_department_id
-         WHERE up.purchase_plan_id IS NOT NULL
-           AND pd.name IS NOT NULL
-           AND pd.name <> ''
-         ORDER BY pd.name ASC`,
+         WHERE p.purchase_department_id IS NOT NULL
+           AND COALESCE(pd.name, pd.department_code) IS NOT NULL
+           AND COALESCE(pd.name, pd.department_code) <> ''
+         ORDER BY purchase_department ASC`,
       ),
     ]);
 
