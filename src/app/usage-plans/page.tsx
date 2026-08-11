@@ -2,6 +2,7 @@
 
 import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
+import { useSession } from 'next-auth/react';
 import Swal from 'sweetalert2';
 import { ArrowUpDown } from 'lucide-react';
 import { useSysSetting } from '@/hooks/use-sys-setting';
@@ -52,6 +53,7 @@ type ProductOption = {
 };
 
 type DepartmentOption = {
+  id: number | null;
   department_code: string;
   name: string;
 };
@@ -80,6 +82,9 @@ const default_form_state = (budgetYear = ''): FormState => ({
 
 function UsagePlansPageContent() {
   const { canCreate, canEdit, canDelete } = useAllowedActions('/usage-plans');
+  const { data: session } = useSession();
+  const is_admin = session?.user?.role === 'Admin';
+  const session_department_id = session?.user?.departmentId ?? null;
   const router = useRouter();
   const pathname = usePathname();
   const search_params = useSearchParams();
@@ -175,12 +180,23 @@ function UsagePlansPageContent() {
     filtered_product_options,
   ]);
 
+  const session_department = useMemo(() => {
+    if (!session_department_id) return null;
+    return departments.find((department) => department.id === session_department_id) ?? null;
+  }, [departments, session_department_id]);
+
+  const lock_department_to_session = !is_admin;
+
   const form_department_options = useMemo(() => {
+    if (lock_department_to_session) {
+      return session_department ? [session_department] : [];
+    }
+
     const current = form_state.requesting_dept_code.trim();
     if (!current) return departments;
     if (departments.some((department) => department.department_code === current)) return departments;
-    return [{ department_code: current, name: current }, ...departments];
-  }, [departments, form_state.requesting_dept_code]);
+    return [{ id: null, department_code: current, name: current }, ...departments];
+  }, [departments, form_state.requesting_dept_code, lock_department_to_session, session_department]);
 
   useEffect(() => {
     void Promise.all([fetch_filter_options(), fetch_departments(), fetch_categories()]);
@@ -205,6 +221,14 @@ function UsagePlansPageContent() {
       return prev;
     });
   }, [effective_budget_year, editing_usage_plan, search_params]);
+
+  useEffect(() => {
+    if (!lock_department_to_session) return;
+    if (editing_usage_plan) return;
+
+    const next_department_code = session_department?.department_code || '';
+    set_form_state((prev) => (prev.requesting_dept_code === next_department_code ? prev : { ...prev, requesting_dept_code: next_department_code }));
+  }, [lock_department_to_session, editing_usage_plan, session_department]);
 
   useEffect(() => {
     if (!search_params.get('budget_year') && !effective_budget_year) {
@@ -408,11 +432,11 @@ function UsagePlansPageContent() {
       if (!response.ok || !payload?.success) return;
 
       const department_names = (payload.data || [])
-        .map((department: { department_code?: string | null; name?: string | null }) => {
+        .map((department: { id?: number | null; department_code?: string | null; name?: string | null }) => {
           const department_code = department?.department_code?.trim();
           const name = department?.name?.trim();
           if (!department_code || !name) return null;
-          return { department_code, name };
+          return { id: department?.id ?? null, department_code, name };
         })
         .filter(Boolean) as DepartmentOption[];
 
@@ -515,7 +539,10 @@ function UsagePlansPageContent() {
   const open_create_form = () => {
     if (!canCreate) return;
     set_editing_usage_plan(null);
-    set_form_state(default_form_state(effective_budget_year ? String(effective_budget_year) : ''));
+    set_form_state({
+      ...default_form_state(effective_budget_year ? String(effective_budget_year) : ''),
+      requesting_dept_code: lock_department_to_session ? session_department?.department_code || '' : '',
+    });
     set_form_errors({});
     set_product_search('');
     set_selected_bulk_category('');
@@ -1201,6 +1228,7 @@ function UsagePlansPageContent() {
                   <label className="mb-1 block text-sm font-medium text-gray-700">หน่วยงานที่ต้องการใช้</label>
                   <select
                     value={form_state.requesting_dept_code}
+                    disabled={lock_department_to_session}
                     onChange={(event) => {
                       set_form_state((prev) => ({ ...prev, requesting_dept_code: event.target.value }));
                       set_form_errors((prev) => {
@@ -1209,15 +1237,18 @@ function UsagePlansPageContent() {
                         return next;
                       });
                     }}
-                    className={`w-full rounded-lg border px-3 py-2 text-sm ${form_errors.requesting_dept_code ? 'border-red-500' : 'border-gray-300'}`}
+                    className={`w-full rounded-lg border px-3 py-2 text-sm disabled:bg-gray-100 disabled:text-gray-600 ${form_errors.requesting_dept_code ? 'border-red-500' : 'border-gray-300'}`}
                   >
-                    <option value="">เลือกหน่วยงาน</option>
+                    {lock_department_to_session ? null : <option value="">เลือกหน่วยงาน</option>}
                     {form_department_options.map((department) => (
                       <option key={department.department_code} value={department.department_code}>
                         {department.name}
                       </option>
                     ))}
                   </select>
+                  {lock_department_to_session && !session_department && (
+                    <p className="mt-1 text-xs text-amber-600">บัญชีของคุณยังไม่ได้ผูกกับหน่วยงาน กรุณาติดต่อผู้ดูแลระบบ</p>
+                  )}
                   {form_errors.requesting_dept_code && <p className="mt-1 text-xs text-red-600">{form_errors.requesting_dept_code}</p>}
                 </div>
 
