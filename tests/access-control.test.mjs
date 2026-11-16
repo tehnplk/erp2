@@ -3,6 +3,8 @@ import assert from 'node:assert/strict';
 
 import {
   canAccess,
+  canActOnDepartment,
+  decideAccess,
   getActionForMethod,
   resolvePermissionModule,
 } from '../src/lib/access-control.ts';
@@ -55,4 +57,54 @@ test('adds department-match permissions only on department-scoped modules', () =
   assert.equal(canAccess(matchedDepartmentUser, '/api/inventory/stock', 'POST'), true);
   assert.equal(canAccess(matchedDepartmentUser, '/api/products', 'POST'), false);
   assert.equal(canAccess(userWithoutDepartmentMatch, '/api/purchase-plans', 'POST'), false);
+});
+
+test('decideAccess gives the route decision the middleware enforces', () => {
+  const admin = { role: 'Admin', departmentId: null };
+  const manager = { role: 'Manager', departmentId: null };
+  const userWithDepartment = { role: 'User', departmentId: 1 };
+  const cases = [
+    [null, '/', 'GET', 'allow'],
+    [null, '/login', 'GET', 'allow'],
+    [null, '/agent', 'GET', 'allow'],
+    [null, '/api/agent/chat', 'POST', 'allow'],
+    [null, '/api/sys-setting/public', 'GET', 'allow'],
+    [null, '/api/products', 'GET', 'allow'],
+    [null, '/api/products', 'POST', 'login'],
+    [null, '/settings/products', 'GET', 'login'],
+    [null, '/api/sys-setting', 'GET', 'login'],
+    [null, '/api/inventory/issues', 'GET', 'login'],
+    [manager, '/admin/users', 'GET', 'forbid'],
+    [manager, '/api/users/1', 'PUT', 'forbid'],
+    [admin, '/api/users/1', 'PUT', 'allow'],
+    [manager, '/api/products/1', 'DELETE', 'forbid'],
+    [manager, '/api/products/1', 'PUT', 'allow'],
+    [userWithDepartment, '/api/usage-plans/2', 'PUT', 'allow'],
+    [userWithDepartment, '/api/usage-plans', 'POST', 'forbid'],
+    [userWithDepartment, '/api/usage-plans/2', 'DELETE', 'forbid'],
+    [userWithDepartment, '/api/inventory/issues', 'POST', 'allow'],
+    [userWithDepartment, '/api/sys-setting/1', 'PUT', 'allow'],
+  ];
+
+  for (const [user, pathname, method, expected] of cases) {
+    assert.equal(decideAccess(user, pathname, method), expected, JSON.stringify({ user, pathname, method }));
+  }
+});
+
+test('canActOnDepartment limits role User to its own department code', () => {
+  const cases = [
+    [{ role: 'Admin', departmentCode: null }, '0002', true],
+    [{ role: 'Manager', departmentCode: '0001' }, '0002', true],
+    [{ role: 'User', departmentCode: '0001' }, '0001', true],
+    [{ role: 'User', departmentCode: ' 0001 ' }, '0001', true],
+    [{ role: 'User', departmentCode: '0001' }, '0002', false],
+    [{ role: 'User', departmentCode: null }, null, false],
+    [{ role: 'User', departmentCode: '' }, '', false],
+    [{ role: 'User', departmentCode: '0001' }, null, false],
+    [null, '0001', false],
+  ];
+
+  for (const [user, rowDepartmentCode, expected] of cases) {
+    assert.equal(canActOnDepartment(user, rowDepartmentCode), expected, JSON.stringify({ user, rowDepartmentCode }));
+  }
 });

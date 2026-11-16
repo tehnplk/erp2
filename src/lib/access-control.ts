@@ -87,6 +87,45 @@ export const canAccess = (user: AccessUser | null | undefined, pathname: string,
   return Boolean(user.departmentId && matchedDepartmentPermissions.includes(action));
 };
 
+export type AccessDecision = 'allow' | 'login' | 'forbid';
+
+const publicPathPrefixes = ['/', '/agent', '/api/agent/chat', '/api/auth', '/api/sys-setting/public', '/login'];
+const adminOnlyPathPrefixes = ['/admin/users', '/api/users'];
+
+const matchesPrefix = (pathname: string, prefixes: string[]) =>
+  prefixes.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`));
+
+export const decideAccess = (
+  user: AccessUser | null | undefined,
+  pathname: string,
+  method: string
+): AccessDecision => {
+  if (matchesPrefix(pathname, publicPathPrefixes)) return 'allow';
+  if (canAccess(null, pathname, method)) return 'allow';
+  if (!user) return 'login';
+  if (matchesPrefix(pathname, adminOnlyPathPrefixes) && user.role !== 'Admin') return 'forbid';
+  if (resolvePermissionModule(pathname) && !canAccess(user, pathname, method)) return 'forbid';
+  return 'allow';
+};
+
+export type DepartmentScopedUser = {
+  role?: string | null;
+  departmentCode?: string | null;
+};
+
+export const canActOnAnyDepartment = (role: string | null | undefined) => role === 'Admin' || role === 'Manager';
+
+export const canActOnDepartment = (
+  user: DepartmentScopedUser | null | undefined,
+  rowDepartmentCode: string | null | undefined
+) => {
+  if (!user) return false;
+  if (canActOnAnyDepartment(user.role)) return true;
+
+  const ownCode = user.departmentCode?.trim();
+  return Boolean(ownCode) && ownCode === rowDepartmentCode?.trim();
+};
+
 export const getAllowedActions = (user: AccessUser | null | undefined, modulePath: PermissionModule) => {
   if (!user) return [];
 

@@ -1,9 +1,7 @@
-import { canAccess, resolvePermissionModule } from '@/lib/access-control';
+import { decideAccess } from '@/lib/access-control';
 import { getToken } from 'next-auth/jwt';
 import { NextResponse, type NextRequest } from 'next/server';
 
-const publicPathPrefixes = ['/', '/agent', '/api/agent/chat', '/api/auth', '/api/sys-setting/public', '/login'];
-const adminOnlyPathPrefixes = ['/admin/users', '/api/users'];
 const legacySettingsPathMap: Record<string, string> = {
   '/sellers': '/settings/sellers',
   '/categories': '/settings/categories',
@@ -12,12 +10,6 @@ const legacySettingsPathMap: Record<string, string> = {
   '/setting': '/settings/system',
   '/users': '/admin/users',
 };
-
-const isPublicPath = (pathname: string) =>
-  publicPathPrefixes.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`));
-
-const isAdminOnlyPath = (pathname: string) =>
-  adminOnlyPathPrefixes.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`));
 
 const isApiPath = (pathname: string) => pathname.startsWith('/api/');
 
@@ -31,11 +23,7 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(redirectUrl);
   }
 
-  if (isPublicPath(pathname)) {
-    return NextResponse.next();
-  }
-
-  if (canAccess(null, pathname, request.method)) {
+  if (decideAccess(null, pathname, request.method) === 'allow') {
     return NextResponse.next();
   }
 
@@ -61,26 +49,12 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(loginUrl);
   }
 
-  if (isAdminOnlyPath(pathname) && token.role !== 'Admin') {
-    if (isApiPath(pathname)) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    }
-
-    return NextResponse.redirect(new URL('/', request.nextUrl.origin));
-  }
-
-  const permissionModule = resolvePermissionModule(pathname);
-  if (
-    permissionModule &&
-    !canAccess(
-      {
-        role: token.role,
-        departmentId: token.departmentId,
-      },
-      pathname,
-      request.method
-    )
-  ) {
+  const decision = decideAccess(
+    { role: token.role, departmentId: token.departmentId },
+    pathname,
+    request.method
+  );
+  if (decision === 'forbid') {
     if (isApiPath(pathname)) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
