@@ -1,4 +1,6 @@
 ﻿import { pgQuery } from '@/lib/pg';
+import { getConfiguredBudgetYear } from '@/lib/budget-year';
+import { purchasePlanFlagSql } from '@/lib/purchase-plan';
 import HomeDashboard from './components/HomeDashboard';
 
 export const dynamic = 'force-dynamic';
@@ -23,26 +25,8 @@ const normalizeChartRows = (rows: ChartRow[]) =>
     value: Number(row.value) || 0,
   }));
 
-const getCurrentBudgetYear = () => {
-  const now = new Date();
-  const year = now.getFullYear();
-  const month = now.getMonth();
-  return month >= 9 ? year + 544 : year + 543;
-};
-
 export default async function Home() {
-  const budgetYearSettingResult = await pgQuery<SysSettingRow>(
-    `SELECT sys_value
-     FROM public.sys_setting
-     WHERE sys_name = 'budget_year'
-     ORDER BY id ASC
-     LIMIT 1`
-  );
-  const configuredBudgetYear = Number(budgetYearSettingResult.rows[0]?.sys_value || '');
-  const effectiveBudgetYear =
-    Number.isFinite(configuredBudgetYear) && configuredBudgetYear > 0
-      ? configuredBudgetYear
-      : getCurrentBudgetYear();
+  const effectiveBudgetYear = await getConfiguredBudgetYear((text, params) => pgQuery<SysSettingRow>(text, params));
 
   const [
     productCountResult,
@@ -129,9 +113,13 @@ export default async function Home() {
        ),
        plan_counts AS (
          SELECT COALESCE(up.requesting_dept_code, 'ไม่ระบุ') AS name, COUNT(*)::int AS "planCount"
-         FROM public.purchase_plan pp
-         INNER JOIN public.usage_plan up ON up.purchase_plan_id = pp.id
+         FROM public.usage_plan up
          LEFT JOIN public.product p ON p.code = up.product_code
+         INNER JOIN public.purchase_plan pp
+           ON pp.product_code = up.product_code
+          AND pp.budget_year = up.budget_year
+          AND pp.purchase_department_id = COALESCE(p.purchase_department_id, 0)
+          AND pp.usage_plan_flag = ${purchasePlanFlagSql('up.plan_flag')}
          WHERE up.budget_year = $1
          GROUP BY COALESCE(up.requesting_dept_code, 'ไม่ระบุ')
        ),
@@ -139,9 +127,10 @@ export default async function Home() {
          SELECT COALESCE(up.requesting_dept_code, 'ไม่ระบุ') AS name, COUNT(*)::int AS "approvalCount"
          FROM public.purchase_approval pa
          INNER JOIN public.purchase_approval_detail pad ON pad.purchase_approval_id = pa.id
-         INNER JOIN public.purchase_plan pp ON pp.id = pad.purchase_plan_id
-         INNER JOIN public.usage_plan up ON up.purchase_plan_id = pp.id
-         LEFT JOIN public.product p ON p.code = up.product_code
+         INNER JOIN public.usage_plan up
+           ON up.product_code = pad.product_code
+          AND up.budget_year = pa.budget_year
+          AND ${purchasePlanFlagSql('up.plan_flag')} = ${purchasePlanFlagSql('pad.usage_plan_flag')}
          WHERE pa.budget_year = $1
          GROUP BY COALESCE(up.requesting_dept_code, 'ไม่ระบุ')
        )
@@ -175,12 +164,13 @@ export default async function Home() {
        ),
        approval_values AS (
          SELECT COALESCE(up.requesting_dept_code, 'ไม่ระบุ') AS name,
-                COALESCE(SUM(COALESCE(pa.total_amount, 0)), 0)::float8 AS "approvalValue"
+                COALESCE(SUM(COALESCE(pad.proposed_amount, pad.approved_amount, 0)), 0)::float8 AS "approvalValue"
          FROM public.purchase_approval pa
          INNER JOIN public.purchase_approval_detail pad ON pad.purchase_approval_id = pa.id
-         INNER JOIN public.purchase_plan pp ON pp.id = pad.purchase_plan_id
-         INNER JOIN public.usage_plan up ON up.purchase_plan_id = pp.id
-         LEFT JOIN public.product p ON p.code = up.product_code
+         INNER JOIN public.usage_plan up
+           ON up.product_code = pad.product_code
+          AND up.budget_year = pa.budget_year
+          AND ${purchasePlanFlagSql('up.plan_flag')} = ${purchasePlanFlagSql('pad.usage_plan_flag')}
          WHERE pa.budget_year = $1
          GROUP BY COALESCE(up.requesting_dept_code, 'ไม่ระบุ')
        )

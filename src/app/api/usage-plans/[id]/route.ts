@@ -1,15 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { pgPool, pgQuery } from '@/lib/pg';
-import { cacheDelByPattern } from '@/lib/redis';
 import { validateRequest } from '@/lib/validation/validate';
 import { idParamSchema, update_usage_plan_schema } from '@/lib/validation/schemas';
-import type { PoolClient } from 'pg';
-
-const buildUsagePlanConstraintError = () =>
-  NextResponse.json(
-    { error: 'สินค้าเดิม หน่วยงานเดิม และปีงบเดิม สามารถมีได้ไม่เกิน 2 ครั้ง' },
-    { status: 400 }
-  );
+import { getConfiguredBudgetYear } from '@/lib/budget-year';
+import { usagePlanHasPurchaseApproval, usagePlanHasPurchaseApprovalSql } from '@/lib/purchase-plan';
+import { USAGE_PLAN_LIMIT_MESSAGE, claimUsagePlanSequence } from '@/lib/usage-plan';
+import { forbidOtherDepartment, invalidateUsagePlanCaches, requireUsagePlanActor } from '@/lib/usage-plan-server';
 
 type UsagePlanRecord = {
   id: number;
@@ -20,140 +16,30 @@ type UsagePlanRecord = {
   approved_quota: number | null;
   budget_year: number | null;
   sequence_no: number | null;
-  purchase_plan_id: number | null;
   created_at: string | Date | null;
   updated_at: string | Date | null;
 };
-
-type UsagePlanApprovalCheck = {
-  has_purchase_approval: boolean;
-};
-
-async function syncLinkedPurchasePlanArtifacts(
-  client: PoolClient,
-  purchasePlanId: number
-) {
-  const summaryResult = await client.query<{
-    product_code: string | null;
-    approved_quota: number | null;
-  }>(
-    `SELECT
-       MIN(up.product_code) AS product_code,
-       COALESCE(SUM(COALESCE(up.approved_quota, 0)), 0)::int AS approved_quota
-     FROM public.usage_plan up
-     WHERE up.purchase_plan_id = $1`,
-    [purchasePlanId]
-  );
-
-  const summary = summaryResult.rows[0];
-  if (!summary) {
-    return;
-  }
-
-  const productCode = summary.product_code ?? null;
-  const approvedQuota = Number(summary.approved_quota ?? 0);
-
-  const inventoryResult = await client.query<{ inventory_qty: number }>(
-    `SELECT COALESCE(SUM(isl.qty_on_hand), 0)::int AS inventory_qty
-     FROM public.inventory_stock_lot isl
-     INNER JOIN public.product p_stock ON p_stock.id = isl.product_id
-     WHERE p_stock.code = $1`,
-    [productCode]
-  );
-
-  const inventoryQty = Number(inventoryResult.rows[0]?.inventory_qty ?? 0);
-  const purchaseQty = Math.max(approvedQuota - inventoryQty, 0);
-
-  const detailResult = await client.query<{
-    id: number;
-    purchase_approval_id: number;
-  }>(
-    `SELECT id, purchase_approval_id
-     FROM public.purchase_approval_detail
-     WHERE purchase_plan_id = $1`,
-    [purchasePlanId]
-  );
-
-  if (detailResult.rows.length === 0) {
-    return;
-  }
-
-  const unitPriceResult = await client.query<{ unit_price: number }>(
-    `SELECT COALESCE(p.cost_price, 0)::float8 AS unit_price
-     FROM public.product p
-     WHERE p.code = $1
-     LIMIT 1`,
-    [productCode]
-  );
-
-  const unitPrice = Number(unitPriceResult.rows[0]?.unit_price ?? 0);
-  const amount = Number((purchaseQty * unitPrice).toFixed(2));
-
-  for (const detail of detailResult.rows) {
-    await client.query(
-      `UPDATE public.purchase_approval_detail
-       SET proposed_quantity = $1,
-           proposed_amount = $2,
-           approved_quantity = $1,
-           approved_amount = $2,
-           cal_unit_price = $3,
-           updated_at = NOW()
-       WHERE id = $4`,
-      [purchaseQty, amount, unitPrice, detail.id]
-    );
-  }
-
-  const affectedApprovalIds = Array.from(new Set(detailResult.rows.map((detail) => detail.purchase_approval_id)));
-  for (const approvalId of affectedApprovalIds) {
-    await client.query(
-      `UPDATE public.purchase_approval pa
-       SET total_items = COALESCE(detail_summary.total_items, 0),
-           total_amount = COALESCE(detail_summary.total_amount, 0),
-           updated_at = NOW()
-       FROM (
-         SELECT
-           COUNT(*)::int AS total_items,
-           COALESCE(SUM(COALESCE(pad.proposed_amount, pad.approved_amount, 0)), 0)::numeric AS total_amount
-         FROM public.purchase_approval_detail pad
-         WHERE pad.purchase_approval_id = $1
-       ) detail_summary
-       WHERE pa.id = $1`,
-      [approvalId]
-    );
-  }
-}
-
-async function invalidateUsagePlanCascadeCaches() {
-  try {
-    await Promise.all([
-      cacheDelByPattern('erp:usage_plans:list:*'),
-      cacheDelByPattern('erp:purchase:plans:list:*'),
-      cacheDelByPattern('erp:purchase:plans:filters*'),
-      cacheDelByPattern('erp:purchase:approvals:list:*'),
-      cacheDelByPattern('erp:purchase:approvals:filters*'),
-    ]);
-  } catch (error) {
-    console.error('Cache invalidation after usage-plan update failed:', error);
-  }
-}
 
 export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const access = await requireUsagePlanActor();
+  if ('response' in access) return access.response;
+
+  const { id } = await params;
+  const parsedId = idParamSchema.safeParse({ id });
+  if (!parsedId.success) {
+    return NextResponse.json({ error: 'Invalid ID format' }, { status: 400 });
+  }
+  const numericId = parsedId.data.id;
+
   const client = await pgPool.connect();
+  const query = (text: string, values?: unknown[]) => client.query(text, values);
 
   try {
     await client.query('BEGIN');
 
-    const { id } = await params;
-    const parsedId = idParamSchema.safeParse({ id });
-    if (!parsedId.success) {
-      await client.query('ROLLBACK');
-      return NextResponse.json({ error: 'Invalid ID format' }, { status: 400 });
-    }
-
-    const numericId = parsedId.data.id;
     const body = await request.json();
 
     const validation = await validateRequest(update_usage_plan_schema, body);
@@ -172,7 +58,6 @@ export async function PUT(
         approved_quota,
         budget_year,
         sequence_no,
-        purchase_plan_id,
         created_at,
         updated_at
       FROM public.usage_plan
@@ -199,8 +84,18 @@ export async function PUT(
       ...validatedPayload,
     };
 
+    const forbidden = forbidOtherDepartment(
+      access.actor,
+      currentUsagePlan.requesting_dept_code,
+      nextData.requesting_dept_code
+    );
+    if (forbidden) {
+      await client.query('ROLLBACK');
+      return forbidden;
+    }
+
     if (nextData.budget_year === null || nextData.budget_year === undefined) {
-      nextData.budget_year = currentUsagePlan.budget_year ?? 2569;
+      nextData.budget_year = currentUsagePlan.budget_year ?? (await getConfiguredBudgetYear(query));
     }
 
     if (nextData.sequence_no === null || nextData.sequence_no === undefined) {
@@ -214,27 +109,19 @@ export async function PUT(
     const sequenceChanged = nextData.sequence_no !== currentUsagePlan.sequence_no;
 
     if (identityChanged || sequenceChanged) {
-      const existingRecordsResult = await client.query<{ id: number; sequence_no: number }>(
-        `SELECT id, sequence_no
-         FROM public.usage_plan
-         WHERE budget_year = $1
-           AND requesting_dept_code IS NOT DISTINCT FROM $2
-           AND product_code IS NOT DISTINCT FROM $3`,
-        [nextData.budget_year, nextData.requesting_dept_code || null, nextData.product_code || null]
+      const claimedSequenceNo = await claimUsagePlanSequence(
+        query,
+        {
+          budgetYear: nextData.budget_year,
+          requestingDeptCode: nextData.requesting_dept_code || null,
+          productCode: nextData.product_code || null,
+        },
+        nextData.sequence_no,
+        numericId
       );
-      const recordsExcludingCurrent = existingRecordsResult.rows.filter((usagePlan) => usagePlan.id !== numericId);
-
-      if (sequenceChanged && nextData.sequence_no !== null && nextData.sequence_no !== undefined) {
-        const duplicatedSequence = recordsExcludingCurrent.some((usagePlan) => usagePlan.sequence_no === nextData.sequence_no);
-        if (duplicatedSequence) {
-          await client.query('ROLLBACK');
-          return buildUsagePlanConstraintError();
-        }
-      }
-
-      if (identityChanged && recordsExcludingCurrent.length >= 2) {
+      if (claimedSequenceNo === null) {
         await client.query('ROLLBACK');
-        return buildUsagePlanConstraintError();
+        return NextResponse.json({ error: USAGE_PLAN_LIMIT_MESSAGE }, { status: 400 });
       }
     }
 
@@ -277,10 +164,6 @@ export async function PUT(
       values
     );
 
-    if (currentUsagePlan.purchase_plan_id) {
-      await syncLinkedPurchasePlanArtifacts(client, currentUsagePlan.purchase_plan_id);
-    }
-
     const usagePlan = await client.query(
       `SELECT
         up.id,
@@ -300,16 +183,7 @@ export async function PUT(
         up.sequence_no,
         up.created_at,
         up.updated_at,
-        CASE WHEN EXISTS (
-          SELECT 1
-          FROM public.purchase_approval_detail pad
-          INNER JOIN public.purchase_approval pa ON pa.id = pad.purchase_approval_id
-          LEFT JOIN public.product p_plan ON p_plan.code = up.product_code
-          WHERE COALESCE(pad.product_code, '') = COALESCE(up.product_code, '')
-            AND COALESCE(pad.purchase_department_id, 0) = COALESCE(p_plan.purchase_department_id, 0)
-            AND pa.budget_year = up.budget_year
-            AND CASE WHEN COALESCE(pad.usage_plan_flag, 'ในแผน') = 'นอกแผน' THEN 'นอกแผน' ELSE 'ในแผน' END = CASE WHEN COALESCE(up.plan_flag, 'ในแผน') = 'นอกแผน' THEN 'นอกแผน' ELSE 'ในแผน' END
-        ) THEN true ELSE false END AS has_purchase_approval
+        ${usagePlanHasPurchaseApprovalSql('up')} AS has_purchase_approval
       FROM public.usage_plan up
       LEFT JOIN public.product p ON p.code = up.product_code
       LEFT JOIN public.department d ON d.department_code = up.requesting_dept_code
@@ -320,7 +194,7 @@ export async function PUT(
     );
 
     await client.query('COMMIT');
-    await invalidateUsagePlanCascadeCaches();
+    await invalidateUsagePlanCaches();
 
     return NextResponse.json(usagePlan.rows[0] || currentUsagePlan);
   } catch (error) {
@@ -339,6 +213,9 @@ export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const access = await requireUsagePlanActor();
+  if ('response' in access) return access.response;
+
   try {
     const { id } = await params;
 
@@ -352,23 +229,19 @@ export async function DELETE(
 
     const numericId = parsedId.data.id;
 
-    const approvalCheckResult = await pgQuery<UsagePlanApprovalCheck>(
-      `SELECT EXISTS (
-         SELECT 1
-         FROM public.usage_plan up
-         INNER JOIN public.purchase_approval_detail pad ON COALESCE(pad.product_code, '') = COALESCE(up.product_code, '')
-         INNER JOIN public.purchase_approval pa ON pa.id = pad.purchase_approval_id
-         LEFT JOIN public.product p_plan ON p_plan.code = up.product_code
-         WHERE up.id = $1
-           AND COALESCE(pad.purchase_department_id, 0) = COALESCE(p_plan.purchase_department_id, 0)
-           AND pa.budget_year = up.budget_year
-           AND CASE WHEN COALESCE(pad.usage_plan_flag, 'ในแผน') = 'นอกแผน' THEN 'นอกแผน' ELSE 'ในแผน' END
-             = CASE WHEN COALESCE(up.plan_flag, 'ในแผน') = 'นอกแผน' THEN 'นอกแผน' ELSE 'ในแผน' END
-       ) AS has_purchase_approval`,
+    const existingResult = await pgQuery<{ requesting_dept_code: string | null }>(
+      'SELECT requesting_dept_code FROM public.usage_plan WHERE id = $1',
       [numericId]
     );
+    const existing = existingResult.rows[0];
+    if (!existing) {
+      return NextResponse.json({ error: 'Usage plan not found' }, { status: 404 });
+    }
 
-    if (approvalCheckResult.rows[0]?.has_purchase_approval) {
+    const forbidden = forbidOtherDepartment(access.actor, existing.requesting_dept_code);
+    if (forbidden) return forbidden;
+
+    if (await usagePlanHasPurchaseApproval(pgQuery, numericId)) {
       return NextResponse.json(
         { error: 'รายการนี้ถูกใช้ในเอกสารอนุมัติแล้ว จึงไม่สามารถลบได้' },
         { status: 400 }
@@ -377,13 +250,7 @@ export async function DELETE(
 
     await pgQuery('DELETE FROM public.usage_plan WHERE id = $1', [numericId]);
 
-    await Promise.all([
-      cacheDelByPattern('erp:usage_plans:list:*'),
-      cacheDelByPattern('erp:purchase:plans:list:*'),
-      cacheDelByPattern('erp:purchase:plans:filters*'),
-      cacheDelByPattern('erp:purchase:approvals:list:*'),
-      cacheDelByPattern('erp:purchase:approvals:filters*'),
-    ]);
+    await invalidateUsagePlanCaches();
 
     return NextResponse.json({ message: 'Usage plan deleted successfully' });
   } catch (error) {

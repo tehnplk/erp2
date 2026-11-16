@@ -1,23 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { pgQuery } from '@/lib/pg';
-import { cacheDelByPattern } from '@/lib/redis';
+import { pgPool, pgQuery } from '@/lib/pg';
+import { usagePlanHasPurchaseApprovalSql } from '@/lib/purchase-plan';
+import { USAGE_PLAN_LIMIT_MESSAGE, claimUsagePlanSequence } from '@/lib/usage-plan';
+import { forbidOtherDepartment, invalidateUsagePlanCaches, requireUsagePlanActor } from '@/lib/usage-plan-server';
 
 type BulkUsagePlanItem = {
   product_code: string;
   requested_amount: number;
 };
 
-const buildConstraintError = (product_code?: string) =>
-  NextResponse.json(
-    {
-      error: product_code
-        ? `สินค้า ${product_code} ของหน่วยงานนี้ในปีงบนี้ ถูกขอครบ 2 ครั้งแล้ว`
-        : 'หน่วยงานเดียวกัน ในปีงบเดียวกัน ขอสินค้ารหัสเดียวกันได้ไม่เกิน 2 ครั้ง',
-    },
-    { status: 400 }
-  );
-
 export async function POST(request: NextRequest) {
+  const access = await requireUsagePlanActor();
+  if ('response' in access) return access.response;
+
   try {
     const body = (await request.json().catch(() => null)) as {
       requesting_dept_code?: string;
@@ -38,6 +33,9 @@ export async function POST(request: NextRequest) {
     if (!requesting_dept_code) {
       return NextResponse.json({ error: 'กรุณาเลือกหน่วยงานที่ต้องการใช้' }, { status: 400 });
     }
+
+    const forbidden = forbidOtherDepartment(access.actor, requesting_dept_code);
+    if (forbidden) return forbidden;
 
     if (!Number.isFinite(budget_year) || budget_year <= 0) {
       return NextResponse.json({ error: 'ปีงบไม่ถูกต้อง' }, { status: 400 });
@@ -73,47 +71,55 @@ export async function POST(request: NextRequest) {
     }
 
     const created_ids: number[] = [];
+    const client = await pgPool.connect();
+    const query = (text: string, values?: unknown[]) => client.query(text, values);
 
-    for (const item of items) {
-      const existing_count_result = await pgQuery<{ count: number }>(
-        `SELECT COUNT(*)::int AS count
-         FROM public.usage_plan
-         WHERE budget_year = $1
-           AND requesting_dept_code IS NOT DISTINCT FROM $2
-           AND product_code IS NOT DISTINCT FROM $3`,
-        [budget_year, requesting_dept_code, item.product_code]
-      );
+    try {
+      await client.query('BEGIN');
 
-      const existing_count = Number(existing_count_result.rows[0]?.count || 0);
-      if (existing_count >= 2) {
-        return buildConstraintError(item.product_code);
+      // A fixed lock order keeps two overlapping bulk requests from deadlocking on the advisory locks.
+      for (const item of [...items].sort((a, b) => (a.product_code < b.product_code ? -1 : 1))) {
+        const sequence_no = await claimUsagePlanSequence(
+          query,
+          { budgetYear: budget_year, requestingDeptCode: requesting_dept_code, productCode: item.product_code },
+          null
+        );
+        if (sequence_no === null) {
+          await client.query('ROLLBACK');
+          return NextResponse.json({ error: `${USAGE_PLAN_LIMIT_MESSAGE} (${item.product_code})` }, { status: 400 });
+        }
+
+        const insert_result = await client.query<{ id: number }>(
+          `INSERT INTO public.usage_plan (
+            product_code,
+            requested_amount,
+            requesting_dept_code,
+            plan_flag,
+            approved_quota,
+            budget_year,
+            sequence_no
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7)
+          RETURNING id`,
+          [
+            item.product_code,
+            item.requested_amount,
+            requesting_dept_code,
+            'ในแผน',
+            item.requested_amount,
+            budget_year,
+            sequence_no,
+          ]
+        );
+
+        created_ids.push(insert_result.rows[0].id);
       }
 
-      const sequence_no = existing_count + 1;
-
-      const insert_result = await pgQuery<{ id: number }>(
-        `INSERT INTO public.usage_plan (
-          product_code,
-          requested_amount,
-          requesting_dept_code,
-          plan_flag,
-          approved_quota,
-          budget_year,
-          sequence_no
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7)
-        RETURNING id`,
-        [
-          item.product_code,
-          item.requested_amount,
-          requesting_dept_code,
-          'ในแผน',
-          item.requested_amount,
-          budget_year,
-          sequence_no,
-        ]
-      );
-
-      created_ids.push(insert_result.rows[0].id);
+      await client.query('COMMIT');
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
     }
 
     const created_rows_result = await pgQuery(
@@ -135,7 +141,7 @@ export async function POST(request: NextRequest) {
         up.sequence_no,
         up.created_at,
         up.updated_at,
-        false AS has_purchase_approval
+        ${usagePlanHasPurchaseApprovalSql('up')} AS has_purchase_approval
       FROM public.usage_plan up
       LEFT JOIN public.product p ON p.code = up.product_code
       LEFT JOIN public.department d ON d.department_code = up.requesting_dept_code
@@ -152,7 +158,7 @@ export async function POST(request: NextRequest) {
       [created_ids]
     );
 
-    await cacheDelByPattern('erp:usage_plans:list:*');
+    await invalidateUsagePlanCaches();
 
     return NextResponse.json(
       {

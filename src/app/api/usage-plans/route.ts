@@ -1,14 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { pgQuery } from '@/lib/pg';
-import { cacheDelByPattern } from '@/lib/redis';
+import type { QueryResult } from 'pg';
+import { pgPool, pgQuery } from '@/lib/pg';
 import { validateQuery, validateRequest } from '@/lib/validation/validate';
 import { usage_plan_query_schema, create_usage_plan_schema } from '@/lib/validation/schemas';
-
-const buildUsagePlanConstraintError = () =>
-  NextResponse.json(
-    { error: 'ในปีงบประมาณนี้ แผนกนี้ ขอใช้สินค้านี้ ครบ 2 ครั้งแล้ว' },
-    { status: 400 }
-  );
+import { getConfiguredBudgetYear } from '@/lib/budget-year';
+import { normalizePurchasePlanFlag, usagePlanHasPurchaseApprovalSql } from '@/lib/purchase-plan';
+import { USAGE_PLAN_LIMIT_MESSAGE, claimUsagePlanSequence } from '@/lib/usage-plan';
+import { forbidOtherDepartment, invalidateUsagePlanCaches, requireUsagePlanActor } from '@/lib/usage-plan-server';
 
 export async function GET(request: NextRequest) {
   try {
@@ -116,16 +114,7 @@ export async function GET(request: NextRequest) {
         up.sequence_no,
         up.created_at,
         up.updated_at,
-        EXISTS (
-          SELECT 1
-          FROM public.purchase_approval_detail pad
-          INNER JOIN public.purchase_approval pa ON pa.id = pad.purchase_approval_id
-          LEFT JOIN public.product p_plan ON p_plan.code = up.product_code
-          WHERE COALESCE(pad.product_code, '') = COALESCE(up.product_code, '')
-            AND COALESCE(pad.purchase_department_id, 0) = COALESCE(p_plan.purchase_department_id, 0)
-            AND pa.budget_year = up.budget_year
-            AND CASE WHEN COALESCE(pad.usage_plan_flag, 'ในแผน') = 'นอกแผน' THEN 'นอกแผน' ELSE 'ในแผน' END = CASE WHEN COALESCE(up.plan_flag, 'ในแผน') = 'นอกแผน' THEN 'นอกแผน' ELSE 'ในแผน' END
-        ) AS has_purchase_approval
+        ${usagePlanHasPurchaseApprovalSql('up')} AS has_purchase_approval
       ${usagePlanFromSql}
     `;
 
@@ -187,6 +176,9 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  const access = await requireUsagePlanActor();
+  if ('response' in access) return access.response;
+
   try {
     const body = await request.json();
 
@@ -204,56 +196,50 @@ export async function POST(request: NextRequest) {
       budget_year?: number | null;
       sequence_no?: number | null;
     };
+    const productCode = usagePlanData.product_code || null;
+    const requestingDeptCode = usagePlanData.requesting_dept_code || null;
 
-    if (usagePlanData.budget_year === null || usagePlanData.budget_year === undefined) {
-      usagePlanData.budget_year = 2569;
-    }
+    const forbidden = forbidOtherDepartment(access.actor, requestingDeptCode);
+    if (forbidden) return forbidden;
 
-    if (usagePlanData.budget_year !== null && usagePlanData.budget_year !== undefined && usagePlanData.sequence_no !== null && usagePlanData.sequence_no !== undefined) {
-      const existing = await pgQuery(
-        `SELECT id FROM public.usage_plan WHERE budget_year = $1 AND requesting_dept_code IS NOT DISTINCT FROM $2 AND product_code IS NOT DISTINCT FROM $3 AND sequence_no = $4 LIMIT 1`,
-        [usagePlanData.budget_year, usagePlanData.requesting_dept_code || null, usagePlanData.product_code || null, usagePlanData.sequence_no]
+    const client = await pgPool.connect();
+    let usagePlan: QueryResult;
+    try {
+      await client.query('BEGIN');
+      const query = (text: string, params?: unknown[]) => client.query(text, params);
+
+      const budgetYear = usagePlanData.budget_year ?? (await getConfiguredBudgetYear(query));
+      const sequenceNo = await claimUsagePlanSequence(
+        query,
+        { budgetYear, requestingDeptCode, productCode },
+        usagePlanData.sequence_no ?? null
       );
-
-      if (existing.rows.length > 0) {
-        return buildUsagePlanConstraintError();
+      if (sequenceNo === null) {
+        await client.query('ROLLBACK');
+        return NextResponse.json({ error: USAGE_PLAN_LIMIT_MESSAGE }, { status: 400 });
       }
-    }
 
-    if (usagePlanData.budget_year !== null && usagePlanData.budget_year !== undefined) {
-      const existingCountResult = await pgQuery(
-        `SELECT COUNT(*)::int AS count FROM public.usage_plan WHERE budget_year = $1 AND requesting_dept_code IS NOT DISTINCT FROM $2 AND product_code IS NOT DISTINCT FROM $3`,
-        [usagePlanData.budget_year, usagePlanData.requesting_dept_code || null, usagePlanData.product_code || null]
+      usagePlan = await client.query(
+        `INSERT INTO public.usage_plan (product_code, requested_amount, requesting_dept_code, plan_flag, approved_quota, budget_year, sequence_no)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)
+         RETURNING id, product_code, requested_amount, requesting_dept_code, plan_flag, approved_quota, budget_year, sequence_no, created_at, updated_at`,
+        [
+          productCode,
+          usagePlanData.requested_amount ?? null,
+          requestingDeptCode,
+          normalizePurchasePlanFlag(usagePlanData.plan_flag),
+          usagePlanData.approved_quota ?? null,
+          budgetYear,
+          sequenceNo,
+        ]
       );
-      const existingCount = existingCountResult.rows[0]?.count || 0;
-
-      if (existingCount >= 2) {
-        return buildUsagePlanConstraintError();
-      }
-
-      if (usagePlanData.sequence_no === null || usagePlanData.sequence_no === undefined) {
-        usagePlanData.sequence_no = existingCount + 1;
-      }
+      await client.query('COMMIT');
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
     }
-
-    if (usagePlanData.sequence_no === null || usagePlanData.sequence_no === undefined) {
-      usagePlanData.sequence_no = 1;
-    }
-
-    const usagePlan = await pgQuery(
-      `INSERT INTO public.usage_plan (product_code, requested_amount, requesting_dept_code, plan_flag, approved_quota, budget_year, sequence_no)
-       VALUES ($1, $2, $3, $4, $5, $6, $7)
-       RETURNING id, product_code, requested_amount, requesting_dept_code, plan_flag, approved_quota, budget_year, sequence_no, created_at, updated_at`,
-      [
-        usagePlanData.product_code || null,
-        usagePlanData.requested_amount ?? null,
-        usagePlanData.requesting_dept_code || null,
-        usagePlanData.plan_flag || 'ในแผน',
-        usagePlanData.approved_quota ?? null,
-        usagePlanData.budget_year ?? null,
-        usagePlanData.sequence_no ?? null,
-      ]
-    );
 
     const createdUsagePlanResult = await pgQuery(
       `SELECT
@@ -274,7 +260,7 @@ export async function POST(request: NextRequest) {
         up.sequence_no,
         up.created_at,
         up.updated_at,
-        false AS has_purchase_approval
+        ${usagePlanHasPurchaseApprovalSql('up')} AS has_purchase_approval
       FROM public.usage_plan up
       LEFT JOIN public.product p ON p.code = up.product_code
       LEFT JOIN public.department d ON d.department_code = up.requesting_dept_code
@@ -290,9 +276,9 @@ export async function POST(request: NextRequest) {
       LIMIT 1`,
       [usagePlan.rows[0].id]
     );
-    
-    await cacheDelByPattern('erp:usage_plans:list:*');
-    
+
+    await invalidateUsagePlanCaches();
+
     return NextResponse.json(createdUsagePlanResult.rows[0] || usagePlan.rows[0], { status: 201 });
   } catch (error) {
     console.error('Error creating usage plan:', error);

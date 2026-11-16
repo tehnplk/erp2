@@ -7,13 +7,7 @@ import Swal from 'sweetalert2';
 import { ArrowUpDown } from 'lucide-react';
 import { useSysSetting } from '@/hooks/use-sys-setting';
 import { useAllowedActions } from '@/hooks/use-allowed-actions';
-
-const get_current_budget_year = () => {
-  const now = new Date();
-  const year = now.getFullYear();
-  const month = now.getMonth();
-  return month >= 9 ? year + 544 : year + 543;
-};
+import { canActOnAnyDepartment } from '@/lib/access-control';
 
 type UsagePlanRow = {
   id: number;
@@ -83,7 +77,6 @@ const default_form_state = (budgetYear = ''): FormState => ({
 function UsagePlansPageContent() {
   const { canCreate, canEdit, canDelete } = useAllowedActions('/usage-plans');
   const { data: session } = useSession();
-  const is_admin = session?.user?.role === 'Admin';
   const session_department_id = session?.user?.departmentId ?? null;
   const router = useRouter();
   const pathname = usePathname();
@@ -185,7 +178,7 @@ function UsagePlansPageContent() {
     return departments.find((department) => department.id === session_department_id) ?? null;
   }, [departments, session_department_id]);
 
-  const lock_department_to_session = !is_admin;
+  const lock_department_to_session = !canActOnAnyDepartment(session?.user?.role);
 
   const form_department_options = useMemo(() => {
     if (lock_department_to_session) {

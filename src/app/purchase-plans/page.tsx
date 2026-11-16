@@ -6,6 +6,7 @@ import Swal from 'sweetalert2';
 import { ArrowUpDown } from 'lucide-react';
 import { useSysSetting } from '@/hooks/use-sys-setting';
 import { useAllowedActions } from '@/hooks/use-allowed-actions';
+import { currentBudgetYear } from '@/lib/budget-year';
 
 type PurchasePlanRow = {
   id: number;
@@ -267,7 +268,7 @@ function DepartmentCombobox({
 }
 
 function PurchasePlansPageContent() {
-  const { canCreate: canCreatePurchasePlan, canEdit: canEditPurchasePlan } = useAllowedActions('/purchase-plans');
+  const { canCreate: canCreatePurchasePlan } = useAllowedActions('/purchase-plans');
   const { canCreate: canCreatePurchaseApproval } = useAllowedActions('/purchase-approvals');
   const router = useRouter();
   const pathname = usePathname();
@@ -299,12 +300,6 @@ function PurchasePlansPageContent() {
   const [totalCount, setTotalCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [filtersLoading, setFiltersLoading] = useState(true);
-  const [savingRowId, setSavingRowId] = useState<number | null>(null);
-  const [editingRowId, setEditingRowId] = useState<number | null>(null);
-  const [editingPurchaseQty, setEditingPurchaseQty] = useState<string>('');
-  const [editingUnitPrice, setEditingUnitPrice] = useState<string>('');
-  const purchaseQtyInputRefs = useRef<Record<number, HTMLInputElement | null>>({});
-  const unitPriceInputRefs = useRef<Record<number, HTMLInputElement | null>>({});
   const dataRequestIdRef = useRef(0);
   const lastPushedUrlRef = useRef('');
   const prevFilterKeyRef = useRef('');
@@ -562,20 +557,6 @@ function PurchasePlansPageContent() {
     }
   }, [pathname, router, searchParams, productNameFilter, categoryFilter, typeFilter, subtypeFilter, usagePlanFlagFilter, purchaseDepartmentFilter, requestingDeptFilter, budgetYearFilter, sortBy, sortOrder, page, pageSize, effectiveBudgetYear]);
 
-  useEffect(() => {
-    if (editingRowId === null) {
-      return;
-    }
-
-    const input = purchaseQtyInputRefs.current[editingRowId];
-    if (!input) {
-      return;
-    }
-
-    input.focus();
-    input.select();
-  }, [editingRowId]);
-
   const fetchFilters = async () => {
     try {
       setFiltersLoading(true);
@@ -739,147 +720,11 @@ function PurchasePlansPageContent() {
     return 'bg-emerald-100 text-emerald-700';
   };
 
-  const handleRowFocus = async (row: PurchasePlanRow, focus: 'qty' | 'price') => {
-    if (!canEditPurchasePlan) return;
-    if ((row.purchased_qty ?? 0) > 0) {
-      return;
-    }
-
-    if (editingRowId !== null && editingRowId !== row.id) {
-      const previousRow = items.find((item) => item.id === editingRowId);
-      if (previousRow) {
-        const saved = await savePurchasePlan(previousRow, editingPurchaseQty, editingUnitPrice);
-        if (!saved) {
-          return;
-        }
-      }
-    }
-
-    startInlineEdit(row);
-    if (focus === 'price') {
-      setTimeout(() => {
-        unitPriceInputRefs.current[row.id]?.focus();
-        unitPriceInputRefs.current[row.id]?.select();
-      }, 0);
-    }
-  };
-
-  const startInlineEdit = (row: PurchasePlanRow) => {
-    if (!canEditPurchasePlan) return;
-    setEditingRowId(row.id);
-    setEditingPurchaseQty(String(row.purchase_qty ?? 0));
-    setEditingUnitPrice(String(row.unit_price ?? row.price_per_unit ?? 0));
-  };
-
-  const stopInlineEdit = () => {
-    setEditingRowId(null);
-    setEditingPurchaseQty('');
-    setEditingUnitPrice('');
-  };
-
   const getRemainingQuota = (row: PurchasePlanRow) => {
     const approvedQuota = Number(row.approved_quota ?? 0);
     const inventoryQty = Number(row.inventory_qty ?? 0);
     const purchasedQty = Number(row.purchased_qty ?? 0);
     return Math.max(approvedQuota - inventoryQty - purchasedQty, 0);
-  };
-
-  const savePurchasePlan = async (row: PurchasePlanRow, purchaseQtyText: string, unitPriceText: string) => {
-    if (!canEditPurchasePlan) return false;
-    const nextPurchaseQty = Number(purchaseQtyText);
-    const nextUnitPrice = Number(unitPriceText);
-
-    if (purchaseQtyText.trim() === '') {
-      await Swal.fire({ icon: 'error', title: 'ข้อมูลไม่ถูกต้อง', text: 'กรุณากรอกจำนวนซื้อครั้งนี้' });
-      return false;
-    }
-
-    if (unitPriceText.trim() === '') {
-      await Swal.fire({ icon: 'error', title: 'ข้อมูลไม่ถูกต้อง', text: 'กรุณากรอกราคาต่อหน่วย' });
-      return false;
-    }
-
-    if (!Number.isFinite(nextPurchaseQty) || nextPurchaseQty < 0) {
-      await Swal.fire({ icon: 'error', title: 'ข้อมูลไม่ถูกต้อง', text: 'purchase_qty ต้องเป็นตัวเลขตั้งแต่ 0 ขึ้นไป' });
-      return false;
-    }
-
-    if (!Number.isFinite(nextUnitPrice) || nextUnitPrice < 0) {
-      await Swal.fire({ icon: 'error', title: 'ข้อมูลไม่ถูกต้อง', text: 'unit_price ต้องเป็นตัวเลขตั้งแต่ 0 ขึ้นไป' });
-      return false;
-    }
-
-    const approvedQuota = Number(row.approved_quota ?? 0);
-    const inventoryQty = Number(row.inventory_qty ?? 0);
-    const purchasedQty = Number(row.purchased_qty ?? 0);
-    if (nextPurchaseQty < purchasedQty) {
-      await Swal.fire({
-        icon: 'error',
-        title: 'ข้อมูลไม่ถูกต้อง',
-        text: `แผนซื้อห้ามน้อยกว่ายอดซื้อแล้ว (${nextPurchaseQty} < ${purchasedQty})`,
-      });
-      return false;
-    }
-
-    if (inventoryQty + purchasedQty + nextPurchaseQty > approvedQuota) {
-      await Swal.fire({
-        icon: 'error',
-        title: 'ข้อมูลไม่ถูกต้อง',
-        text: `คงคลัง + ซื้อแล้ว + แผนซื้อ ต้องไม่เกินโควต้า (${inventoryQty} + ${purchasedQty} + ${nextPurchaseQty} > ${approvedQuota})`,
-      });
-      return false;
-    }
-
-    try {
-      setSavingRowId(row.id);
-      const purchaseValue = Number((nextPurchaseQty * nextUnitPrice).toFixed(2));
-      const response = await fetch(`/api/purchase-plans/${row.id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          usage_plan_id: row.usage_plan_id,
-          inventory_qty: row.inventory_qty ?? 0,
-          inventory_value: row.inventory_value ?? 0,
-          purchase_qty: nextPurchaseQty,
-          unit_price: nextUnitPrice,
-          purchase_value: purchaseValue,
-        }),
-      });
-
-      const result = await response.json().catch(() => null);
-      if (!response.ok || !result?.success) {
-        throw new Error(result?.error || 'บันทึกไม่สำเร็จ');
-      }
-
-      setItems((prev) => prev.map((item) => (item.id === row.id ? result.data : item)));
-      setSummaryItems((prev) => prev.map((item) => (item.id === row.id ? result.data : item)));
-      return true;
-    } catch (error) {
-      console.error(error);
-      await Swal.fire({ icon: 'error', title: 'บันทึกไม่สำเร็จ', text: error instanceof Error ? error.message : 'ไม่สามารถบันทึกข้อมูลได้' });
-      return false;
-    } finally {
-      setSavingRowId(null);
-    }
-  };
-
-  const moveToAdjacentRow = (rowId: number, direction: 'up' | 'down') => {
-    const currentIndex = items.findIndex((item) => item.id === rowId);
-    if (currentIndex === -1) {
-      stopInlineEdit();
-      return;
-    }
-
-    const nextIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
-    if (nextIndex < 0 || nextIndex >= items.length) {
-      stopInlineEdit();
-      return;
-    }
-
-    const nextRow = items[nextIndex];
-    setEditingRowId(nextRow.id);
-    setEditingPurchaseQty(String(nextRow.purchase_qty ?? 0));
-    setEditingUnitPrice(String(nextRow.unit_price ?? nextRow.price_per_unit ?? 0));
   };
 
   const selectedPlanItems = useMemo(() => {
@@ -1072,48 +917,6 @@ function PurchasePlansPageContent() {
   const isAllSelected = selectableRowIds.length > 0 && selectableRowIds.every((id) => selectedRows.has(id));
   const isIndeterminate = selectableRowIds.some((id) => selectedRows.has(id)) && !isAllSelected;
 
-  const handlePurchaseQtyKeyDown = async (event: React.KeyboardEvent<HTMLInputElement>, row: PurchasePlanRow) => {
-    if (event.key === 'ArrowUp' || event.key === 'ArrowDown') {
-      event.preventDefault();
-      const direction = event.key === 'ArrowUp' ? 'up' : 'down';
-      const saved = await savePurchasePlan(row, event.currentTarget.value, editingUnitPrice);
-      if (saved) {
-        moveToAdjacentRow(row.id, direction);
-      }
-      return;
-    }
-
-    if (event.key === 'Enter') {
-      event.preventDefault();
-      const saved = await savePurchasePlan(row, event.currentTarget.value, editingUnitPrice);
-      if (saved) {
-        stopInlineEdit();
-      }
-      return;
-    }
-
-    if (event.key === 'Escape') {
-      event.preventDefault();
-      stopInlineEdit();
-    }
-  };
-
-  const handleUnitPriceKeyDown = async (event: React.KeyboardEvent<HTMLInputElement>, row: PurchasePlanRow) => {
-    if (event.key === 'Enter') {
-      event.preventDefault();
-      const saved = await savePurchasePlan(row, editingPurchaseQty, event.currentTarget.value);
-      if (saved) {
-        stopInlineEdit();
-      }
-      return;
-    }
-
-    if (event.key === 'Escape') {
-      event.preventDefault();
-      stopInlineEdit();
-    }
-  };
-
   const handleBulkPurchaseApproval = async () => {
     if (!canCreatePurchaseApproval) return;
     if (selectedRows.size === 0) {
@@ -1234,7 +1037,7 @@ function PurchasePlansPageContent() {
 
       try {
       // Create payload for new purchase_approval table structure
-      const fallbackBudgetYear = selectedItems[0]?.budget_year ?? effectiveBudgetYear ?? (new Date().getFullYear() + 543);
+      const fallbackBudgetYear = selectedItems[0]?.budget_year ?? effectiveBudgetYear ?? currentBudgetYear();
       const details = selectedItems.map((item, index) => ({
         product_code: item.product_code ?? '',
         product_name: item.product_name ?? '',
@@ -1288,59 +1091,6 @@ function PurchasePlansPageContent() {
         icon: 'error', 
         title: 'ทำรายการอนุมัติจัดซื้อไม่สำเร็จ', 
         text: error instanceof Error ? error.message : 'ไม่สามารถทำรายการได้' 
-      });
-    }
-  };
-
-  const handleBulkRemoveFromPlan = async () => {
-    if (selectedRows.size === 0) {
-      await Swal.fire({ icon: 'warning', title: 'ไม่ได้เลือกรายการ', text: 'กรุณาเลือกรายการที่ต้องการนำออกจากแผนจัดซื้อ' });
-      return;
-    }
-
-    const result = await Swal.fire({
-      title: 'ยืนยันการนำออกจากแผนจัดซื้อ?',
-      html: `จะนำออก <strong>${selectedRows.size}</strong> รายการจากแผนจัดซื้อ<br/>รายการเหล่านี้จะถูกลบออกจากระบบถาวร`,
-      icon: 'warning',
-      showCancelButton: true,
-      confirmButtonText: 'นำออก',
-      cancelButtonText: 'ยกเลิก',
-      confirmButtonColor: '#dc2626',
-    });
-
-    if (!result.isConfirmed) {
-      return;
-    }
-
-    try {
-      const response = await fetch('/api/purchase-plans/bulk', {
-        method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ids: Array.from(selectedRows) }),
-      });
-
-      const payload = await response.json().catch(() => null);
-      if (!response.ok || !payload?.success) {
-        throw new Error(payload?.error || 'นำออกจากแผนจัดซื้อไม่สำเร็จ');
-      }
-
-      await Swal.fire({ 
-        icon: 'success', 
-        title: 'นำออกจากแผนจัดซื้อสำเร็จ', 
-        text: `ลบ ${payload.data?.deleted || selectedRows.size} รายการเรียบร้อยแล้ว` 
-      });
-
-      // Clear selection and refresh data
-      setSelectedRows(new Set());
-      setApprovalDraftByPlanId({});
-      setSelectedItemByPlanId({});
-      await Promise.all([fetchData(), fetchSummaryData()]);
-    } catch (error) {
-      console.error(error);
-      await Swal.fire({ 
-        icon: 'error', 
-        title: 'นำออกจากแผนจัดซื้อไม่สำเร็จ', 
-        text: error instanceof Error ? error.message : 'ไม่สามารถลบข้อมูลได้' 
       });
     }
   };
