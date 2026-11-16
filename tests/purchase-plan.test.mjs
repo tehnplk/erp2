@@ -6,6 +6,7 @@ import {
   purchasePlanFlagSql,
   usagePlanHasPurchaseApproval,
   usagePlanHasPurchaseApprovalSql,
+  usagePlanQuotaSql,
 } from '../src/lib/purchase-plan.ts';
 
 test('normalizePurchasePlanFlag treats everything except นอกแผน as ในแผน', () => {
@@ -20,6 +21,13 @@ test('purchasePlanFlagSql maps NULL to ในแผน like the purchase_plan vi
   assert.equal(
     purchasePlanFlagSql('up.plan_flag'),
     "(CASE WHEN COALESCE(up.plan_flag, 'ในแผน') = 'นอกแผน' THEN 'นอกแผน' ELSE 'ในแผน' END)"
+  );
+});
+
+test('usage plan quota falls back to the requested amount like the purchase_plan view', () => {
+  assert.equal(
+    usagePlanQuotaSql('up'),
+    'GREATEST(COALESCE(up.approved_quota, up.requested_amount, 0), 0)'
   );
 });
 

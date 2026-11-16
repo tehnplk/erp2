@@ -11,6 +11,10 @@ export const normalizePurchasePlanFlag = (value: string | null | undefined): Pur
 export const purchasePlanFlagSql = (column: string) =>
   `(CASE WHEN COALESCE(${column}, 'ในแผน') = 'นอกแผน' THEN 'นอกแผน' ELSE 'ในแผน' END)`;
 
+// Same rule as the purchase_plan view: a usage plan without an approved quota counts its requested amount.
+export const usagePlanQuotaSql = (usagePlanAlias: string) =>
+  `GREATEST(COALESCE(${usagePlanAlias}.approved_quota, ${usagePlanAlias}.requested_amount, 0), 0)`;
+
 // Same key as the purchase_plan view's purchased_summary join: purchase_plan_id is never populated.
 export const usagePlanHasPurchaseApprovalSql = (usagePlanAlias: string) => `EXISTS (
   SELECT 1

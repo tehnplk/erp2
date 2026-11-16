@@ -1,4 +1,5 @@
 import { budgetYearOfDateString, budgetYearSql } from './budget-year.ts';
+import { usagePlanQuotaSql } from './purchase-plan.ts';
 
 export type InventoryQuery = (
   text: string,
@@ -22,7 +23,7 @@ export function quotaUsageColumnsSql(refs: {
 }) {
   return `
     COALESCE((
-      SELECT SUM(COALESCE(up.approved_quota, 0))::int
+      SELECT SUM(${usagePlanQuotaSql('up')})::int
       FROM public.department d_quota
       INNER JOIN public.usage_plan up
         ON up.requesting_dept_code = d_quota.department_code
@@ -124,7 +125,7 @@ export async function validateIssueQuota(
 
   const approvedQuotaResult = await query(
     `
-      SELECT up.product_code, COALESCE(SUM(COALESCE(up.approved_quota, 0)), 0)::int AS approved_quota
+      SELECT up.product_code, COALESCE(SUM(${usagePlanQuotaSql('up')}), 0)::int AS approved_quota
       FROM public.usage_plan up
       WHERE up.requesting_dept_code = $1
         AND up.budget_year = $2
