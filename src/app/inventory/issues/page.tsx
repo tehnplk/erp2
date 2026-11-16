@@ -5,6 +5,7 @@ import { Eye, Plus, Trash2, X, XCircle } from 'lucide-react';
 import { InventoryBreadcrumbs } from '../_components/inventory-breadcrumbs';
 import { SortableHeader } from '../_components/sortable-header';
 import { formatBaht } from '@/lib/format-baht';
+import { currentBudgetYear } from '@/lib/budget-year';
 
 type DepartmentOption = { id: number; name: string; department_code: string; is_active: boolean };
 type IssueListRow = { id: number; issue_no: string; issue_date: string; requesting_department_id: number; department_name: string; department_code: string; note: string | null; total_items: number; total_qty: number; total_value: number; created_at: string };
@@ -56,12 +57,7 @@ function toggleSort(currentKey: string, currentOrder: SortOrder, nextKey: string
 }
 
 export default function InventoryIssuesPage() {
-  const getCurrentBudgetYearFallback = () => {
-    const now = new Date();
-    const year = now.getFullYear();
-    const month = now.getMonth();
-    return String(month >= 9 ? year + 544 : year + 543);
-  };
+  const getCurrentBudgetYearFallback = () => String(currentBudgetYear());
 
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState('');
