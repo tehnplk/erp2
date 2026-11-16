@@ -1,5 +1,7 @@
 import { NextRequest } from 'next/server';
 import { apiError, apiSuccess } from '@/lib/api-response';
+import { getConfiguredBudgetYear } from '@/lib/budget-year';
+import { quotaUsageColumnsSql } from '@/lib/inventory-issue';
 import { pgQuery } from '@/lib/pg';
 import { validateQuery } from '@/lib/validation/validate';
 import { inventoryStockLotQuerySchema } from '@/lib/validation/schemas';
@@ -33,29 +35,6 @@ type InventoryStockLotRow = {
   issued_qty_current_budget_year: string | number;
 };
 
-function getCurrentBudgetYearFallback() {
-  const now = new Date();
-  const year = now.getFullYear();
-  const month = now.getMonth();
-  return month >= 9 ? year + 544 : year + 543;
-}
-
-async function getConfiguredBudgetYear() {
-  const settingResult = await pgQuery<{ sys_value: string | null }>(
-    `
-      SELECT NULLIF(TRIM(sys_value), '') AS sys_value
-      FROM public.sys_setting
-      WHERE sys_name = 'budget_year'
-      LIMIT 1
-    `
-  );
-  const settingValue = Number(settingResult.rows[0]?.sys_value ?? '');
-  if (Number.isFinite(settingValue) && settingValue > 0) {
-    return settingValue;
-  }
-  return getCurrentBudgetYearFallback();
-}
-
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
@@ -81,7 +60,7 @@ export async function GET(request: NextRequest) {
       return apiError('กรุณาเลือกหน่วยงานก่อนค้นหาเฉพาะรายการตามแผนการใช้', 400);
     }
 
-    const currentBudgetYear = await getConfiguredBudgetYear();
+    const currentBudgetYear = await getConfiguredBudgetYear(pgQuery);
     const whereClauses: string[] = [];
     const params: Array<string | number | null> = [];
 
@@ -192,30 +171,12 @@ export async function GET(request: NextRequest) {
             v.total_value::float8 AS total_value,
             v.avg_unit_price::float8 AS avg_unit_price,
             v.last_received_at,
-            COALESCE((
-              SELECT SUM(COALESCE(up.approved_quota, 0))::int
-              FROM public.department d
-              INNER JOIN public.usage_plan up
-                ON up.requesting_dept_code = d.department_code
-              WHERE d.id = ${departmentParam}
-                AND up.product_code = v.product_code
-                AND up.budget_year = ${budgetYearParam}
-            ), 0)::int AS current_budget_quota,
-            COALESCE((
-              SELECT SUM(iit2.issued_qty)::int
-              FROM public.inventory_issue_item iit2
-              INNER JOIN public.inventory_issue ii2 ON ii2.id = iit2.issue_id
-              INNER JOIN public.inventory_stock_lot isl2 ON isl2.id = iit2.stock_lot_id
-              WHERE ii2.requesting_department_id = ${departmentParam}
-                AND isl2.product_id = v.product_id
-                AND (
-                  CASE
-                    WHEN EXTRACT(MONTH FROM ii2.issue_date) >= 10
-                      THEN EXTRACT(YEAR FROM ii2.issue_date)::int + 544
-                    ELSE EXTRACT(YEAR FROM ii2.issue_date)::int + 543
-                  END
-                ) = ${budgetYearParam}
-            ), 0)::int AS issued_qty_current_budget_year,
+            ${quotaUsageColumnsSql({
+              departmentId: departmentParam,
+              productCode: 'v.product_code',
+              productId: 'v.product_id',
+              budgetYear: budgetYearParam,
+            })},
             COALESCE((
               SELECT COUNT(*)::int
               FROM public.inventory_issue_item iit
