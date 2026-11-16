@@ -6,6 +6,9 @@ import Swal from 'sweetalert2';
 import { Check, X, Pencil, Trash2, ChevronUp, ChevronDown, FilePenLine, ArrowUpDown } from 'lucide-react';
 import { formatBaht } from '@/lib/format-baht';
 import { useAllowedActions } from '@/hooks/use-allowed-actions';
+import { useGridState, writeGridParams } from '@/hooks/use-grid-state';
+
+const GRID_DEFAULTS = { sortBy: 'code', sortOrder: 'asc' } as const;
 
 type Product = {
   id: number;
@@ -74,10 +77,6 @@ function ProductsPageContent() {
   const initialCategoryFilter = searchParams.get('category') || '';
   const initialTypeFilter = searchParams.get('type') || '';
   const initialSubtypeFilter = searchParams.get('subtype') || '';
-  const initialSortBy = searchParams.get('order_by') || 'code';
-  const initialSortOrder = (searchParams.get('sort_order') === 'desc' ? 'desc' : 'asc') as 'asc' | 'desc';
-  const initialPage = Math.max(1, parseInt(searchParams.get('page') || '1', 10) || 1);
-  const initialPageSize = Math.max(1, parseInt(searchParams.get('page_size') || '20', 10) || 20);
   const [products, setProducts] = useState<Product[]>([]);
   const [totalCount, setTotalCount] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -110,12 +109,22 @@ function ProductsPageContent() {
   const [categoryFilter, setCategoryFilter] = useState(initialCategoryFilter);
   const [typeFilter, setTypeFilter] = useState(initialTypeFilter);
   const [subtypeFilter, setSubtypeFilter] = useState(initialSubtypeFilter);
-  
-  // Sorting states
-  const [sortBy, setSortBy] = useState(initialSortBy);
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>(initialSortOrder);
-  const [page, setPage] = useState(initialPage);
-  const [pageSize, setPageSize] = useState(initialPageSize);
+
+  const {
+    sortBy,
+    sortOrder,
+    page,
+    pageSize,
+    setSortBy,
+    setSortOrder,
+    setPage,
+    setPageSize,
+    totalPages,
+    handleSort,
+    goToPage,
+    handlePageSizeChange,
+    applySearchParams,
+  } = useGridState(searchParams, totalCount, GRID_DEFAULTS);
 
   // Toast state for notifications
   const [toast, setToast] = useState<{
@@ -181,20 +190,13 @@ function ProductsPageContent() {
     const nextCategory = searchParams.get('category') || '';
     const nextType = searchParams.get('type') || '';
     const nextSubtype = searchParams.get('subtype') || '';
-    const nextSortBy = searchParams.get('order_by') || 'code';
-    const nextSortOrder = (searchParams.get('sort_order') === 'desc' ? 'desc' : 'asc') as 'asc' | 'desc';
-    const nextPage = Math.max(1, parseInt(searchParams.get('page') || '1', 10) || 1);
-    const nextPageSize = Math.max(1, parseInt(searchParams.get('page_size') || '20', 10) || 20);
 
     setCodeFilter((prev) => (prev === nextCode ? prev : nextCode));
     setNameFilter((prev) => (prev === nextName ? prev : nextName));
     setCategoryFilter((prev) => (prev === nextCategory ? prev : nextCategory));
     setTypeFilter((prev) => (prev === nextType ? prev : nextType));
     setSubtypeFilter((prev) => (prev === nextSubtype ? prev : nextSubtype));
-    setSortBy((prev) => (prev === nextSortBy ? prev : nextSortBy));
-    setSortOrder((prev) => (prev === nextSortOrder ? prev : nextSortOrder));
-    setPage((prev) => (prev === nextPage ? prev : nextPage));
-    setPageSize((prev) => (prev === nextPageSize ? prev : nextPageSize));
+    applySearchParams(searchParams);
   }, [searchParams]);
 
   useEffect(() => {
@@ -205,10 +207,7 @@ function ProductsPageContent() {
     if (categoryFilter) params.set('category', categoryFilter);
     if (typeFilter) params.set('type', typeFilter);
     if (subtypeFilter) params.set('subtype', subtypeFilter);
-    if (sortBy !== 'code') params.set('order_by', sortBy);
-    if (sortOrder !== 'asc') params.set('sort_order', sortOrder);
-    if (page > 1) params.set('page', page.toString());
-    if (pageSize !== 20) params.set('page_size', pageSize.toString());
+    writeGridParams(params, { sortBy, sortOrder, page, pageSize }, GRID_DEFAULTS);
 
     const nextUrl = params.toString() ? `${pathname}?${params.toString()}` : pathname;
     const currentUrl = searchParams.toString() ? `${pathname}?${searchParams.toString()}` : pathname;
@@ -409,40 +408,9 @@ function ProductsPageContent() {
     }
   };
 
-  const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
   const pageStart = totalCount === 0 ? 0 : (page - 1) * pageSize + 1;
   const pageEnd = totalCount === 0 ? 0 : Math.min(totalCount, pageStart + (products.length || 0) - 1);
 
-  const goToPage = (newPage: number) => {
-    if (newPage < 1 || newPage > totalPages) return;
-    setPage(newPage);
-  };
-
-  const handlePageSizeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    setPageSize(parseInt(e.target.value, 10));
-    setPage(1);
-  };
-
-  // Sorting function
-  const handleSort = (column: string) => {
-    if (sortBy === column) {
-      // Toggle sort order if clicking the same column
-      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
-    } else {
-      // Set new column and default to ascending order
-      setSortBy(column);
-      setSortOrder('asc');
-    }
-  };
-  
-  // Function to get sort indicator
-  const getSortIndicator = (column: string) => {
-    if (sortBy === column) {
-      return sortOrder === 'asc' ? ' ↑' : ' ↓';
-    }
-    return '';
-  };
-  
   // Function to get sort icon
   const getSortIcon = (column: string) => {
     if (sortBy === column) {

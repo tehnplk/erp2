@@ -8,7 +8,9 @@ import Swal from 'sweetalert2';
 import { ArrowUpDown, ChevronDown, ChevronRight, Save, X, Trash2, Edit, FileText, CheckCircle, XCircle, Printer, FileDown, Clock, RotateCcw } from 'lucide-react';
 import { useSysSetting } from '@/hooks/use-sys-setting';
 import { useAllowedActions } from '@/hooks/use-allowed-actions';
+import { useGridState, writeGridParams } from '@/hooks/use-grid-state';
 
+const GRID_DEFAULTS = { sortBy: 'created_at', sortOrder: 'desc' } as const;
 const DEFAULT_DOC_NO = 'พล. 0733.301/พิเศษ';
 const DOCX_FONT_FAMILY = 'TH Sarabun';
 
@@ -139,13 +141,19 @@ function PurchaseApprovalsPageContent() {
   const [budgetYearFilter, setBudgetYearFilter] = useState(searchParams.get('budget_year') || '');
   const [statusFilter, setStatusFilter] = useState(searchParams.get('status') || '');
 
-  // sort
-  const [sortBy, setSortBy] = useState(searchParams.get('order_by') || 'created_at');
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>(
-    (searchParams.get('sort_order') === 'asc' ? 'asc' : 'desc') as 'asc' | 'desc'
-  );
-  const [page, setPage] = useState(Math.max(1, parseInt(searchParams.get('page') || '1', 10) || 1));
-  const [pageSize, setPageSize] = useState(Math.max(1, parseInt(searchParams.get('page_size') || '20', 10) || 20));
+  const {
+    sortBy,
+    sortOrder,
+    page,
+    pageSize,
+    setPage,
+    setPageSize,
+    totalPages,
+    handleSort: toggleSort,
+    goToPage,
+    handlePageSizeChange,
+    applySearchParams,
+  } = useGridState(searchParams, totalCount, GRID_DEFAULTS);
 
   // dynamic options
   const [categories, setCategories] = useState<string[]>([]);
@@ -244,10 +252,6 @@ function PurchaseApprovalsPageContent() {
     const nextDepartment = searchParams.get('purchase_department') || searchParams.get('department') || '';
     const nextBudgetYear = searchParams.get('budget_year') || (effectiveBudgetYear ? String(effectiveBudgetYear) : '');
     const nextStatus = searchParams.get('status') || '';
-    const nextSortBy = searchParams.get('order_by') || 'created_at';
-    const nextSortOrder = (searchParams.get('sort_order') === 'asc' ? 'asc' : 'desc') as 'asc' | 'desc';
-    const nextPage = Math.max(1, parseInt(searchParams.get('page') || '1', 10) || 1);
-    const nextPageSize = Math.max(1, parseInt(searchParams.get('page_size') || '20', 10) || 20);
 
     setNameFilter((prev) => (prev === nextName ? prev : nextName));
     setCategoryFilter((prev) => (prev === nextCategory ? prev : nextCategory));
@@ -255,10 +259,7 @@ function PurchaseApprovalsPageContent() {
     setPurchaseDepartmentFilter((prev) => (prev === nextDepartment ? prev : nextDepartment));
     setBudgetYearFilter((prev) => (prev === nextBudgetYear ? prev : nextBudgetYear));
     setStatusFilter((prev) => (prev === nextStatus ? prev : nextStatus));
-    setSortBy((prev) => (prev === nextSortBy ? prev : nextSortBy));
-    setSortOrder((prev) => (prev === nextSortOrder ? prev : nextSortOrder));
-    setPage((prev) => (prev === nextPage ? prev : nextPage));
-    setPageSize((prev) => (prev === nextPageSize ? prev : nextPageSize));
+    applySearchParams(searchParams);
     hasSyncedSearchParamsRef.current = true;
   }, [searchParams, effectiveBudgetYear]);
 
@@ -277,12 +278,7 @@ function PurchaseApprovalsPageContent() {
       params.set('budget_year', budgetYearFilter);
     }
     if (statusFilter) params.set('status', statusFilter);
-    if (sortBy && sortBy !== 'created_at') params.set('order_by', sortBy);
-    else params.delete('order_by');
-    if (sortOrder !== 'desc') params.set('sort_order', sortOrder);
-    else params.delete('sort_order');
-    if (page > 1) params.set('page', page.toString());
-    if (pageSize !== 20) params.set('page_size', pageSize.toString());
+    writeGridParams(params, { sortBy, sortOrder, page, pageSize }, GRID_DEFAULTS);
 
     const nextUrl = params.toString() ? `${pathname}?${params.toString()}` : pathname;
     const currentUrl = searchParams.toString() ? `${pathname}?${searchParams.toString()}` : pathname;
@@ -291,8 +287,6 @@ function PurchaseApprovalsPageContent() {
       router.replace(nextUrl, { scroll: false });
     }
   }, [pathname, router, searchParams, nameFilter, categoryFilter, typeFilter, purchaseDepartmentFilter, budgetYearFilter, statusFilter, sortBy, sortOrder, page, pageSize, effectiveBudgetYear]);
-
-  const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
 
   const summarySetCount = useMemo(() => new Set(summaryItems.map((group) => group.id)).size, [summaryItems]);
 
@@ -307,19 +301,8 @@ function PurchaseApprovalsPageContent() {
     );
   }, [summaryItems]);
 
-  const goToPage = (newPage: number) => {
-    if (newPage < 1 || newPage > totalPages) return;
-    setPage(newPage);
-  };
-
   const documentPreviewDepartmentLabel = getApprovalDepartmentLabel(documentPreview);
   const documentPreviewCategoryLabel = getApprovalCategoryLabel(documentPreview);
-
-  const handlePageSizeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const newSize = parseInt(e.target.value, 10);
-    setPageSize(newSize);
-    setPage(1);
-  };
 
   const fetchData = async () => {
     try {
@@ -393,12 +376,7 @@ function PurchaseApprovalsPageContent() {
   };
 
   const handleSort = (column: string) => {
-    if (sortBy === column) {
-      setSortOrder((prev) => (prev === 'asc' ? 'desc' : 'asc'));
-    } else {
-      setSortBy(column);
-      setSortOrder('asc');
-    }
+    toggleSort(column);
     setPage(1);
   };
 

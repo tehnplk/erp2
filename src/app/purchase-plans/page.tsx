@@ -6,7 +6,10 @@ import Swal from 'sweetalert2';
 import { ArrowUpDown } from 'lucide-react';
 import { useSysSetting } from '@/hooks/use-sys-setting';
 import { useAllowedActions } from '@/hooks/use-allowed-actions';
+import { useGridState, writeGridParams } from '@/hooks/use-grid-state';
 import { currentBudgetYear } from '@/lib/budget-year';
+
+const GRID_DEFAULTS = { sortBy: 'id', sortOrder: 'desc', pageSizes: [20, 50, 100] } as const;
 
 type PurchasePlanRow = {
   id: number;
@@ -287,11 +290,6 @@ function PurchasePlansPageContent() {
   const initialRequestingDeptFilter = searchParams.get('requesting_dept') || '';
   const initialBudgetYearFilter = searchParams.get('budget_year') || '';
   const initialPurchaseDepartmentFilter = searchParams.get('purchase_department') || '';
-  const initialSortBy = searchParams.get('order_by') || 'id';
-  const initialSortOrder = (searchParams.get('sort_order') === 'asc' ? 'asc' : 'desc') as 'asc' | 'desc';
-  const initialPage = Math.max(1, parseInt(searchParams.get('page') || '1', 10) || 1);
-  const initialPageSizeRaw = parseInt(searchParams.get('page_size') || '20', 10) || 20;
-  const initialPageSize = [20, 50, 100].includes(initialPageSizeRaw) ? initialPageSizeRaw : 20;
 
   const [items, setItems] = useState<PurchasePlanRow[]>([]);
   const [summaryItems, setSummaryItems] = useState<PurchasePlanRow[]>([]);
@@ -311,10 +309,19 @@ function PurchasePlansPageContent() {
   const [requestingDeptFilter, setRequestingDeptFilter] = useState(initialRequestingDeptFilter);
   const [budgetYearFilter, setBudgetYearFilter] = useState(initialBudgetYearFilter);
 
-  const [sortBy, setSortBy] = useState(initialSortBy);
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>(initialSortOrder);
-  const [page, setPage] = useState(initialPage);
-  const [pageSize, setPageSize] = useState(initialPageSize);
+  const {
+    sortBy,
+    sortOrder,
+    page,
+    pageSize,
+    setPage,
+    setPageSize,
+    totalPages,
+    handleSort,
+    goToPage,
+    handlePageSizeChange,
+    applySearchParams,
+  } = useGridState(searchParams, totalCount, GRID_DEFAULTS);
 
   const [categories, setCategories] = useState<string[]>([]);
   const [types, setTypes] = useState<string[]>([]);
@@ -504,11 +511,6 @@ function PurchasePlansPageContent() {
     const nextPurchaseDepartment = searchParams.get('purchase_department') || '';
     const nextRequestingDept = searchParams.get('requesting_dept') || '';
     const nextBudgetYear = searchParams.get('budget_year') || (effectiveBudgetYear ? String(effectiveBudgetYear) : '');
-      const nextSortBy = searchParams.get('order_by') || 'id';
-    const nextSortOrder = (searchParams.get('sort_order') === 'asc' ? 'asc' : 'desc') as 'asc' | 'desc';
-    const nextPage = Math.max(1, parseInt(searchParams.get('page') || '1', 10) || 1);
-    const nextPageSizeRaw = parseInt(searchParams.get('page_size') || '20', 10) || 20;
-    const nextPageSize = [20, 50, 100].includes(nextPageSizeRaw) ? nextPageSizeRaw : 20;
 
     setProductNameFilter((prev) => (prev === nextProductName ? prev : nextProductName));
     setCategoryFilter((prev) => (prev === nextCategory ? prev : nextCategory));
@@ -518,10 +520,7 @@ function PurchasePlansPageContent() {
     setPurchaseDepartmentFilter((prev) => (prev === nextPurchaseDepartment ? prev : nextPurchaseDepartment));
     setRequestingDeptFilter((prev) => (prev === nextRequestingDept ? prev : nextRequestingDept));
     setBudgetYearFilter((prev) => (prev === nextBudgetYear ? prev : nextBudgetYear));
-    setSortBy((prev) => (prev === nextSortBy ? prev : nextSortBy));
-    setSortOrder((prev) => (prev === nextSortOrder ? prev : nextSortOrder));
-    setPage((prev) => (prev === nextPage ? prev : nextPage));
-    setPageSize((prev) => (prev === nextPageSize ? prev : nextPageSize));
+    applySearchParams(searchParams);
     lastPushedUrlRef.current = searchParams.toString() ? `${pathname}?${searchParams.toString()}` : pathname;
     hasSyncedSearchParamsRef.current = true;
   }, [pathname, searchParams, effectiveBudgetYear]);
@@ -543,10 +542,7 @@ function PurchasePlansPageContent() {
     if (budgetYearFilter && budgetYearFilter !== defaultBudgetYear) {
       params.set('budget_year', budgetYearFilter);
     }
-    if (sortBy && sortBy !== 'id') params.set('order_by', sortBy);
-    if (sortOrder !== 'desc') params.set('sort_order', sortOrder);
-    if (page > 1) params.set('page', page.toString());
-    if (pageSize !== 20) params.set('page_size', pageSize.toString());
+    writeGridParams(params, { sortBy, sortOrder, page, pageSize }, GRID_DEFAULTS);
 
     const nextUrl = params.toString() ? `${pathname}?${params.toString()}` : pathname;
     const currentUrl = searchParams.toString() ? `${pathname}?${searchParams.toString()}` : pathname;
@@ -661,7 +657,6 @@ function PurchasePlansPageContent() {
     }
   };
 
-  const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
   const pageStart = totalCount > 0 ? ((page - 1) * pageSize) + 1 : 0;
   const pageEnd = Math.min(page * pageSize, totalCount);
 
@@ -673,32 +668,6 @@ function PurchasePlansPageContent() {
 
   const totalInventoryValue = summaryItems.reduce((sum, item) => sum + (item.inventory_value ?? 0), 0);
   const totalPurchaseValue = summaryItems.reduce((sum, item) => sum + (item.purchase_value ?? 0), 0);
-  const goToPage = (newPage: number) => {
-    if (newPage < 1 || newPage > totalPages) {
-      return;
-    }
-
-    setPage(newPage);
-  };
-
-  const handlePageSizeChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
-    const newSize = parseInt(event.target.value, 10);
-    if (![20, 50, 100].includes(newSize)) {
-      return;
-    }
-    setPageSize(newSize);
-    setPage(1);
-  };
-
-  const handleSort = (column: string) => {
-    if (sortBy === column) {
-      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
-      return;
-    }
-
-    setSortBy(column);
-    setSortOrder('asc');
-  };
 
   const getHeaderClass = (column: string) => `px-2 py-2.5 text-left text-[10px] font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 ${column === sortBy ? 'bg-gray-100' : ''}`;
   const renderSortIcon = (column: string) => {
