@@ -1,5 +1,4 @@
 import { z } from 'zod';
-import { get_approval_doc_status_code } from '@/lib/approval-doc-status';
 
 // Common validation patterns
 const positiveNumber = z.union([z.string(), z.number()]).transform((val) => Number(val)).pipe(z.number().min(0));
@@ -8,6 +7,8 @@ const numberInput = z.union([z.string(), z.number()]).transform((val) => val ===
 const nullableIntInput = z.union([z.string(), z.number(), z.null(), z.undefined()]).transform((val) => val === null || val === undefined || val === '' ? null : parseInt(String(val), 10)).pipe(z.number().int().min(0).nullable());
 const nonEmptyString = z.string().min(1, 'This field is required');
 const booleanField = z.coerce.boolean();
+// z.coerce.boolean() turns the query string "false" into true.
+const queryBoolean = z.string().transform((value) => value === 'true' || value === '1');
 const paginationFields = {
   page: z.coerce.number().int().min(1).optional(),
   page_size: z.coerce.number().int().min(1).max(200).optional()
@@ -43,7 +44,7 @@ export const productQuerySchema = z.object({
   category: z.string().optional(),
   type: z.string().optional(),
   subtype: z.string().optional(),
-  include_inactive: z.coerce.boolean().optional(),
+  include_inactive: queryBoolean.optional(),
   order_by: z.enum(['id', 'code', 'name', 'category', 'type', 'subtype', 'cost_price', 'sell_price']).optional(),
   sort_order: z.enum(['asc', 'desc']).optional(),
   ...paginationFields
@@ -279,7 +280,7 @@ export const updateSellerSchema = createSellerSchema.partial();
 
 export const sellerQuerySchema = z.object({
   name: z.string().optional(),
-  include_inactive: z.coerce.boolean().optional(),
+  include_inactive: queryBoolean.optional(),
   ...paginationFields
 });
 
@@ -297,7 +298,7 @@ export const updateDepartmentSchema = createDepartmentSchema;
 export const departmentQuerySchema = z.object({
   name: z.string().optional(),
   department_code: z.string().optional(),
-  include_inactive: z.coerce.boolean().optional(),
+  include_inactive: queryBoolean.optional(),
   ...paginationFields
 });
 
@@ -335,7 +336,7 @@ export const categoryQuerySchema = z.object({
   category: z.string().optional(),
   type: z.string().optional(),
   subtype: z.string().optional(),
-  include_inactive: z.coerce.boolean().optional(),
+  include_inactive: queryBoolean.optional(),
   ...paginationFields
 });
 
@@ -356,15 +357,6 @@ export const sysSettingQuerySchema = z.object({
   ...paginationFields
 });
 
-// Purchase Plan schemas
-export const createPurchasePlanSchema = z.object({
-  usage_plan_ids: z.array(z.coerce.number().int().positive()).optional(),
-  inventory_qty: nullableIntInput.optional(),
-  qouta_qty: nullableIntInput.optional(),
-  purchase_qty: nullableIntInput.optional(),
-});
-
-export const updatePurchasePlanSchema = createPurchasePlanSchema.partial();
 
 export const purchasePlanQuerySchema = z.object({
   product_name: z.string().optional(),
@@ -401,7 +393,7 @@ export const createPurchaseApprovalSchema = z.object({
   doc_date: z.string().optional(),
   seller_id: z.coerce.number().int().positive().optional(),
   is_inspection: z.boolean().optional(),
-  status: z.string().refine((value) => get_approval_doc_status_code(value) !== null, 'Invalid approval status').optional(),
+  status: z.string().optional(),
   total_amount: z.number().optional(),
   total_items: z.number().optional(),
   prepared_by: z.string().optional(),
@@ -459,7 +451,7 @@ export const purchaseApprovalQuerySchema = z.object({
   department: z.string().optional(),
   purchase_department: z.string().optional(),
   budget_year: z.string().optional(),
-  status: z.string().refine((value) => get_approval_doc_status_code(value) !== null, 'Invalid approval status').optional(),
+  status: z.string().optional(),
   order_by: z.enum([
     'id', 'approve_code', 'doc_no', 'doc_date', 'status', 'total_amount', 'total_items', 'item_count',
     'prepared_by', 'approved_by', 'approved_at', 'notes', 'created_at', 'updated_at', 'version',

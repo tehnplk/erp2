@@ -1,31 +1,18 @@
 ﻿import { NextRequest } from 'next/server';
-import { pgQuery } from '@/lib/pg';
+import { auth } from '@/auth';
+import { pgPool, pgQuery } from '@/lib/pg';
 import { apiSuccess, apiError } from '@/lib/api-response';
 import { cacheGet, cacheSet, cacheDelByPattern } from '@/lib/redis';
 import { validateQuery, validateRequest } from '@/lib/validation/validate';
 import { purchaseApprovalQuerySchema, createPurchaseApprovalSchema } from '@/lib/validation/schemas';
-import { get_approval_doc_status_code, get_approval_doc_status_value } from '@/lib/approval-doc-status';
-
-const DEFAULT_DOC_NO = 'พล. 0733.301/พิเศษ';
-
-const getCurrentDateString = () => {
-  const now = new Date();
-  const year = now.getFullYear();
-  const month = String(now.getMonth() + 1).padStart(2, '0');
-  const day = String(now.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
-};
-
-const getBudgetYearFromDate = (dateValue: string) => {
-  const parsedDate = new Date(`${dateValue}T00:00:00`);
-  if (Number.isNaN(parsedDate.getTime())) {
-    throw new Error('Invalid doc_date');
-  }
-
-  const year = parsedDate.getFullYear();
-  const month = parsedDate.getMonth();
-  return month >= 9 ? year + 544 : year + 543;
-};
+import { get_approval_doc_status_code, get_approval_doc_status_items } from '@/lib/approval-doc-status';
+import { budgetYearOfDateString } from '@/lib/budget-year';
+import {
+  PurchaseApprovalError,
+  createApprovalDocument,
+  localDateString,
+  sessionActor,
+} from '@/lib/purchase-approval';
 
 export async function GET(request: NextRequest) {
   try {
@@ -344,43 +331,40 @@ export async function POST(request: NextRequest) {
       return validation.error;
     }
 
-    const docSeqResult = await pgQuery<{ next_doc_seq: number }>(
-      `SELECT COALESCE(MAX(doc_seq), 0) + 1 AS next_doc_seq FROM public.purchase_approval`
-    );
-    const docSeq = docSeqResult.rows[0]?.next_doc_seq || 1;
+    const now = new Date();
+    const docDate = validation.data.doc_date || localDateString(now);
+    const budgetYear = budgetYearOfDateString(docDate);
+    const [session, statuses] = await Promise.all([auth(), get_approval_doc_status_items()]);
 
-    const docDate = validation.data.doc_date || getCurrentDateString();
-    const budgetYear = getBudgetYearFromDate(docDate);
-
-    const normalizedStatusCode = await get_approval_doc_status_code(validation.data.status);
-    if (validation.data.status && !normalizedStatusCode) {
-      return apiError('Invalid approval status');
-    }
-
-    const item = await pgQuery(
-      `INSERT INTO public.purchase_approval (doc_seq, approve_code, doc_no, doc_date, budget_year, status, prepared_by, notes, created_by, updated_by)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-       RETURNING id, doc_seq, approve_code, doc_no, doc_date, budget_year, status AS status_code, total_amount, total_items, prepared_by, approved_by, approved_at, notes, created_at, updated_at, version`,
-      [
-        docSeq,
-        validation.data.approve_code || null,
-        validation.data.doc_no || DEFAULT_DOC_NO,
+    const client = await pgPool.connect();
+    let created;
+    try {
+      await client.query('BEGIN');
+      created = await createApprovalDocument(client.query.bind(client), {
+        header: validation.data,
+        details: [],
         docDate,
         budgetYear,
-        normalizedStatusCode || '001',
-        validation.data.prepared_by || validation.data.created_by || 'SYSTEM',
-        validation.data.notes || null,
-        validation.data.created_by || 'SYSTEM',
-        validation.data.updated_by || validation.data.created_by || 'SYSTEM',
-      ]
-    );
-    item.rows[0].status = await get_approval_doc_status_value(item.rows[0].status_code);
+        statuses,
+        actor: sessionActor(session?.user),
+        now,
+      });
+      await client.query('COMMIT');
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
+    }
 
     await cacheDelByPattern('erp:purchase:approvals:list:*');
     await cacheDelByPattern('erp:purchase:approvals:filters*');
 
-    return apiSuccess(item.rows[0], 'Purchase approval created successfully', undefined, 201);
+    return apiSuccess(created.header, 'Purchase approval created successfully', undefined, 201);
   } catch (error) {
+    if (error instanceof PurchaseApprovalError) {
+      return apiError(error.message, error.status);
+    }
     console.error('Error creating purchase approval:', error);
     return apiError('Failed to create purchase approval');
   }

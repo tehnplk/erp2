@@ -4,7 +4,7 @@ import { cacheGet, cacheSet } from '@/lib/redis';
 
 export async function GET() {
   try {
-    const cacheKey = 'erp:purchase:approvals:filters:v4';
+    const cacheKey = 'erp:purchase:approvals:filters:v5';
     const cached = await cacheGet<any>(cacheKey);
     if (cached) return NextResponse.json(cached);
 
@@ -16,10 +16,10 @@ export async function GET() {
          ORDER BY category ASC, type ASC, subtype ASC`
       ),
       pgQuery(`
-        SELECT DISTINCT COALESCE(pad.requesting_dept_text, '') AS department
-        FROM public.purchase_approval pa
-        INNER JOIN public.purchase_approval_detail pad ON pad.purchase_approval_id = pa.id
-        WHERE COALESCE(pad.requesting_dept_text, '') <> ''
+        SELECT DISTINCT COALESCE(d.name, d.department_code) AS department
+        FROM public.purchase_approval_detail pad
+        INNER JOIN public.product p ON p.code = pad.product_code
+        INNER JOIN public.department d ON d.id = p.purchase_department_id
         ORDER BY department ASC
       `),
       pgQuery(`

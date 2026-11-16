@@ -1,20 +1,16 @@
 import { pgQuery } from '@/lib/pg';
 import { cacheGet, cacheSet } from '@/lib/redis';
-
-type approval_doc_status_row = {
-  code: string;
-  status: string;
-};
+import { findApprovalDocStatus, type ApprovalDocStatusRow } from '@/lib/purchase-approval';
 
 const approval_doc_status_cache_key = 'erp:approval_doc_status:items';
 
-const get_approval_doc_status_items = async (): Promise<approval_doc_status_row[]> => {
-  const cached = await cacheGet<approval_doc_status_row[]>(approval_doc_status_cache_key);
+export const get_approval_doc_status_items = async (): Promise<ApprovalDocStatusRow[]> => {
+  const cached = await cacheGet<ApprovalDocStatusRow[]>(approval_doc_status_cache_key);
   if (cached) {
     return cached;
   }
 
-  const result = await pgQuery<approval_doc_status_row>(
+  const result = await pgQuery<ApprovalDocStatusRow>(
     `SELECT code, status
      FROM public.approval_doc_status
      WHERE is_active = true
@@ -25,40 +21,8 @@ const get_approval_doc_status_items = async (): Promise<approval_doc_status_row[
   return result.rows;
 };
 
-export const get_approval_doc_status_code = async (value?: string | null) => {
-  if (!value) {
-    return null;
-  }
+export const get_approval_doc_status_code = async (value?: string | null) =>
+  value ? findApprovalDocStatus(await get_approval_doc_status_items(), value)?.code ?? null : null;
 
-  const rows = await get_approval_doc_status_items();
-  const matchedByStatus = rows.find((item) => item.status === value);
-  if (matchedByStatus) {
-    return matchedByStatus.code;
-  }
-
-  const matchedByCode = rows.find((item) => item.code === value);
-  if (matchedByCode) {
-    return matchedByCode.code;
-  }
-
-  return null;
-};
-
-export const get_approval_doc_status_value = async (value?: string | null) => {
-  if (!value) {
-    return null;
-  }
-
-  const rows = await get_approval_doc_status_items();
-  const matchedByCode = rows.find((item) => item.code === value);
-  if (matchedByCode) {
-    return matchedByCode.status;
-  }
-
-  const matchedByStatus = rows.find((item) => item.status === value);
-  if (matchedByStatus) {
-    return matchedByStatus.status;
-  }
-
-  return null;
-};
+export const get_approval_doc_status_value = async (value?: string | null) =>
+  value ? findApprovalDocStatus(await get_approval_doc_status_items(), value)?.status ?? null : null;

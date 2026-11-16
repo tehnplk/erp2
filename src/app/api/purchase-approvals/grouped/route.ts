@@ -23,7 +23,6 @@ export async function GET(request: NextRequest) {
     const whereClauses: string[] = [];
     const params: unknown[] = [];
 
-    // Filter on main approval records from source tables (usage_plan + product + department)
     if (product_name) {
       params.push(`%${product_name}%`);
       whereClauses.push(`(
@@ -81,8 +80,7 @@ export async function GET(request: NextRequest) {
         EXISTS (
           SELECT 1
           FROM public.purchase_approval_detail pad_filter
-          INNER JOIN public.usage_plan up_filter ON up_filter.purchase_plan_id = pad_filter.purchase_plan_id
-          LEFT JOIN public.product p_filter ON p_filter.code = up_filter.product_code
+          LEFT JOIN public.product p_filter ON p_filter.code = pad_filter.product_code
           LEFT JOIN public.department d_filter ON d_filter.id = p_filter.purchase_department_id
           WHERE pad_filter.purchase_approval_id = pa.id
             AND COALESCE(d_filter.name, d_filter.department_code) = $${params.length}
@@ -184,12 +182,12 @@ export async function GET(request: NextRequest) {
         pad.created_at as detail_created_at,
         pad.updated_at as detail_updated_at,
         pad.version as detail_version,
-        COALESCE(pad.product_name, plan_summary.product_name, p.name) AS product_name,
-        COALESCE(pad.product_code, plan_summary.product_code, p.code) AS product_code,
+        COALESCE(pad.product_name, pp.product_name, p.name) AS product_name,
+        COALESCE(pad.product_code, pp.product_code, p.code) AS product_code,
         category_master.category_code AS category_code,
-        COALESCE(category_master.category, plan_summary.category, p.category) AS category,
-        plan_summary.product_type AS product_type,
-        plan_summary.product_subtype AS product_subtype,
+        COALESCE(category_master.category, pp.category, p.category) AS category,
+        COALESCE(pp.product_type, p.type) AS product_type,
+        COALESCE(pp.product_subtype, p.subtype) AS product_subtype,
         COALESCE(pad.approved_quantity, pad.proposed_quantity, pp.purchase_qty, 0)::int AS requested_quantity,
         p.unit AS unit,
         COALESCE(
@@ -206,7 +204,7 @@ export async function GET(request: NextRequest) {
         )::float8 AS price_per_unit,
         COALESCE(pad.proposed_amount, pad.approved_amount, 0)::float8 as total_value,
         pa.budget_year as plan_budget_year,
-        plan_summary.requesting_dept as usage_plan_dept,
+        pp.requesting_dept as usage_plan_dept,
         pp.purchase_qty,
         ROUND(
           COALESCE(pp.purchase_qty, 0) * COALESCE(
@@ -225,27 +223,15 @@ export async function GET(request: NextRequest) {
         )::float8 AS purchase_value
       FROM public.purchase_approval pa
       LEFT JOIN public.purchase_approval_detail pad ON pad.purchase_approval_id = pa.id
-      LEFT JOIN public.purchase_plan pp ON pad.purchase_plan_id = pp.id
-      LEFT JOIN (
-        SELECT
-          up.purchase_plan_id,
-          MIN(up.product_code) AS product_code,
-          STRING_AGG(DISTINCT COALESCE(d.name, up.requesting_dept_code), ', ') AS requesting_dept,
-          MIN(p.name) AS product_name,
-          MIN(p.category) AS category,
-          MIN(p.type) AS product_type,
-          MIN(p.subtype) AS product_subtype
-        FROM public.usage_plan up
-        LEFT JOIN public.product p ON p.code = up.product_code
-        LEFT JOIN public.department d ON d.department_code = up.requesting_dept_code
-        WHERE up.purchase_plan_id IS NOT NULL
-        GROUP BY up.purchase_plan_id
-      ) plan_summary ON plan_summary.purchase_plan_id = pp.id
-      LEFT JOIN public.product p ON p.code = COALESCE(pad.product_code, plan_summary.product_code)
+      LEFT JOIN public.purchase_plan pp
+        ON pp.product_code = pad.product_code
+       AND pp.budget_year = COALESCE(pad.budget_year, pa.budget_year)
+       AND pp.usage_plan_flag = CASE WHEN COALESCE(pad.usage_plan_flag, 'ในแผน') = 'นอกแผน' THEN 'นอกแผน' ELSE 'ในแผน' END
+      LEFT JOIN public.product p ON p.code = pad.product_code
       LEFT JOIN LATERAL (
         SELECT c.category_code, c.category
         FROM public.category c
-        WHERE c.category = COALESCE(plan_summary.category, p.category)
+        WHERE c.category = COALESCE(pp.category, p.category)
           AND COALESCE(c.category_code, '') <> ''
         ORDER BY c.category_code ASC
         LIMIT 1

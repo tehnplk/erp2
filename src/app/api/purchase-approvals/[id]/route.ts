@@ -1,20 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { auth } from '@/auth';
 import { pgQuery } from '@/lib/pg';
 import { cacheDelByPattern } from '@/lib/redis';
 import { validateRequest } from '@/lib/validation/validate';
 import { createPurchaseApprovalSchema, idParamSchema } from '@/lib/validation/schemas';
-import { get_approval_doc_status_code, get_approval_doc_status_value } from '@/lib/approval-doc-status';
-
-const getBudgetYearFromDate = (dateValue: string) => {
-  const parsedDate = new Date(`${dateValue}T00:00:00`);
-  if (Number.isNaN(parsedDate.getTime())) {
-    throw new Error('Invalid doc_date');
-  }
-
-  const year = parsedDate.getFullYear();
-  const month = parsedDate.getMonth();
-  return month >= 9 ? year + 544 : year + 543;
-};
+import { get_approval_doc_status_items, get_approval_doc_status_value } from '@/lib/approval-doc-status';
+import { budgetYearOfDateString } from '@/lib/budget-year';
+import {
+  approvalStatusFields,
+  findApprovalDocStatus,
+  sessionActor,
+  type ApprovalStatusFields,
+} from '@/lib/purchase-approval';
 
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -36,39 +33,42 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       return NextResponse.json({ error: 'No supported fields to update' }, { status: 400 });
     }
 
-    const normalizedStatusCode = hasStatusUpdate
-      ? await get_approval_doc_status_code(status)
-      : null;
-
-    if (hasStatusUpdate && !normalizedStatusCode) {
+    const statuses = hasStatusUpdate ? await get_approval_doc_status_items() : [];
+    if (hasStatusUpdate && !findApprovalDocStatus(statuses, status)) {
       return NextResponse.json({ error: 'Invalid status. Must be DRAFT, PENDING, APPROVED, REJECTED, or CANCELLED' }, { status: 400 });
     }
 
-    const existingResult = await pgQuery('SELECT id FROM public.purchase_approval WHERE id = $1 LIMIT 1', [numericId]);
+    const existingResult = await pgQuery('SELECT id, status FROM public.purchase_approval WHERE id = $1 LIMIT 1', [numericId]);
     if (existingResult.rows.length === 0) {
       return NextResponse.json({ error: 'Purchase approval not found' }, { status: 404 });
     }
 
-    const updateFields: string[] = ['updated_at = CURRENT_TIMESTAMP'];
-    const queryParams: any[] = [];
-
+    const fields: Partial<ApprovalStatusFields> & { is_inspection?: boolean } = {};
     if (hasStatusUpdate) {
-      queryParams.push(normalizedStatusCode);
-      updateFields.push(`status = $${queryParams.length}`);
-    }
-
-    if (hasStatusUpdate && normalizedStatusCode === '002' && pending_note !== undefined) {
-      queryParams.push(pending_note);
-      updateFields.push(`pending_note = $${queryParams.length}`);
+      const session = await auth();
+      Object.assign(
+        fields,
+        approvalStatusFields(statuses, status, {
+          currentCode: existingResult.rows[0].status,
+          actor: sessionActor(session?.user),
+          now: new Date(),
+          pendingNote: pending_note,
+        })
+      );
     }
 
     if (hasInspectionUpdate) {
-      queryParams.push(Boolean(is_inspection));
-      updateFields.push(`is_inspection = $${queryParams.length}`);
+      fields.is_inspection = Boolean(is_inspection);
     }
 
+    const queryParams = Object.values(fields);
+    const updateFields = [
+      'updated_at = CURRENT_TIMESTAMP',
+      ...Object.keys(fields).map((column, index) => `${column} = $${index + 1}`),
+    ];
+
     const updated = await pgQuery(
-      `UPDATE public.purchase_approval 
+      `UPDATE public.purchase_approval
        SET ${updateFields.join(', ')}
        WHERE id = $${queryParams.length + 1}
        RETURNING id, doc_seq, approve_code, doc_no, doc_date, budget_year, seller_id, COALESCE(is_inspection, false) AS is_inspection, status AS status_code, total_amount, total_items, prepared_by, approved_by, approved_at, notes, pending_note, created_at, updated_at, version`,
@@ -100,13 +100,19 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
       return validation.error;
     }
 
-    const existingResult = await pgQuery('SELECT id FROM public.purchase_approval WHERE id = $1 LIMIT 1', [numericId]);
+    const existingResult = await pgQuery('SELECT id, status FROM public.purchase_approval WHERE id = $1 LIMIT 1', [numericId]);
     if (existingResult.rows.length === 0) {
       return NextResponse.json({ error: 'Purchase approval not found' }, { status: 404 });
     }
 
-    const normalizedPutStatusCode = await get_approval_doc_status_code(validation.data.status);
-    if (validation.data.status && !normalizedPutStatusCode) {
+    const statusFields: Partial<ApprovalStatusFields> | null = validation.data.status
+      ? approvalStatusFields(await get_approval_doc_status_items(), validation.data.status, {
+          currentCode: existingResult.rows[0].status,
+          actor: sessionActor((await auth())?.user),
+          now: new Date(),
+        })
+      : {};
+    if (!statusFields) {
       return NextResponse.json({ error: 'Invalid status. Must exist in approval_doc_status master data' }, { status: 400 });
     }
 
@@ -116,19 +122,21 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
       doc_date: validation.data.doc_date ?? null,
       seller_id: validation.data.seller_id ?? null,
       is_inspection: validation.data.is_inspection ?? null,
-      status: normalizedPutStatusCode ?? null,
+      status: statusFields.status ?? null,
       total_amount: validation.data.total_amount ?? null,
       total_items: validation.data.total_items ?? null,
       prepared_by: validation.data.prepared_by ?? null,
-      approved_by: validation.data.approved_by ?? null,
-      approved_at: validation.data.approved_by ? (validation.data.approved_at || new Date().toISOString()) : null,
+      approved_by: validation.data.approved_by ?? statusFields.approved_by ?? null,
+      approved_at: validation.data.approved_by
+        ? (validation.data.approved_at || new Date().toISOString())
+        : (statusFields.approved_at ?? null),
       notes: validation.data.notes ?? null,
       pending_note: validation.data.pending_note ?? null,
       updated_by: validation.data.updated_by ?? 'SYSTEM'
     };
 
     if (typeof validation.data.doc_date === 'string' && validation.data.doc_date) {
-      data.budget_year = getBudgetYearFromDate(validation.data.doc_date);
+      data.budget_year = budgetYearOfDateString(validation.data.doc_date);
     }
 
     const columnMap: Record<string, string> = {
