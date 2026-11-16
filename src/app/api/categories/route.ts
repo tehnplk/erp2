@@ -4,6 +4,7 @@ import { apiSuccess, apiError } from '@/lib/api-response';
 import { cacheGet, cacheSet, cacheDelByPattern } from '@/lib/redis';
 import { validateRequest, validateQuery } from '@/lib/validation/validate';
 import { createCategorySchema, categoryQuerySchema } from '@/lib/validation/schemas';
+import { runListQuery } from '@/lib/list-query';
 
 // GET /api/categories - Get categories with optional filters and pagination
 export async function GET(request: NextRequest) {
@@ -36,40 +37,20 @@ export async function GET(request: NextRequest) {
     if (!includeInactive) {
       whereClauses.unshift('is_active = true');
     }
-    const whereSql = whereClauses.length ? `WHERE ${whereClauses.join(' AND ')}` : '';
-    const baseSelect = 'SELECT id, category_code, category, type, subtype, is_active FROM public.category';
-    const cacheKeyAll = `erp:categories:list:all:${JSON.stringify(params)}`;
-    if (!page || !pageSize) {
-      const cachedAll = await cacheGet<any>(cacheKeyAll);
-      if (cachedAll) return apiSuccess(cachedAll.rows, undefined, cachedAll.rows.length);
-
-      const categoriesResult = await pgQuery(`${baseSelect} ${whereSql} ORDER BY category ASC, type ASC, subtype ASC`, params);
-      await cacheSet(cacheKeyAll, { rows: categoriesResult.rows }, 3600);
-      return apiSuccess(categoriesResult.rows, undefined, categoriesResult.rows.length);
-    }
-
-    const skip = (page - 1) * pageSize;
-
-    // --- Redis Caching Logic ---
-    const cacheKey = `erp:categories:list:${JSON.stringify({ ...queryValidation.data, page, page_size: pageSize })}`;
-    const cached = await cacheGet<any>(cacheKey);
-    if (cached) {
-      return apiSuccess(cached.items, undefined, cached.totalCount, 200, { page, page_size: pageSize });
-    }
-
-    const [totalCountResult, categoriesResult] = await Promise.all([
-      pgQuery(`SELECT COUNT(*)::int AS count FROM public.category ${whereSql}`, params),
-      pgQuery(`${baseSelect} ${whereSql} ORDER BY category ASC, type ASC, subtype ASC LIMIT $${params.length + 1} OFFSET $${params.length + 2}`, [...params, pageSize, skip]),
-    ]);
-
-    const result = {
-      items: categoriesResult.rows,
-      totalCount: totalCountResult.rows[0]?.count || 0
-    };
-
-    await cacheSet(cacheKey, result, 3600); // 1 hour
-
-    return apiSuccess(result.items, undefined, result.totalCount, 200, { page, page_size: pageSize });
+    const list = await runListQuery(
+      {
+        columns: 'id, category_code, category, type, subtype, is_active',
+        from: 'public.category',
+        where: whereClauses,
+        params,
+        orderBy: 'category ASC, type ASC, subtype ASC',
+        page,
+        pageSize,
+        cache: { namespace: 'erp:categories:list', ttlSeconds: 3600, get: cacheGet, set: cacheSet },
+      },
+      pgQuery
+    );
+    return apiSuccess(list.rows, undefined, list.totalCount, 200, list.meta);
   } catch (error) {
     console.error('Error fetching categories:', error);
     return apiError('Failed to fetch categories');

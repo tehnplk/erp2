@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { pgQuery } from '@/lib/pg';
 import { cacheDel, cacheGet, cacheSet, cacheDelByPattern } from '@/lib/redis';
+import { idParamSchema } from '@/lib/validation/schemas';
 
 // GET /api/categories/[id] - Get category by ID
 export async function GET(
@@ -8,15 +9,14 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = await params;
-    const numericId = parseInt(id, 10);
-    
-    if (isNaN(numericId)) {
+    const idResult = idParamSchema.safeParse(await params);
+    if (!idResult.success) {
       return NextResponse.json(
         { success: false, error: 'Invalid category ID' },
         { status: 400 }
       );
     }
+    const numericId = idResult.data.id;
 
     const cacheKey = `erp:categories:detail:${numericId}`;
     const cached = await cacheGet<any>(cacheKey);
@@ -61,17 +61,17 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = await params;
-    const numericId = parseInt(id, 10);
+    const idResult = idParamSchema.safeParse(await params);
     const body = await request.json();
     const { category_code, category, type, subtype, is_active } = body;
 
-    if (isNaN(numericId)) {
+    if (!idResult.success) {
       return NextResponse.json(
         { success: false, error: 'Invalid category ID' },
         { status: 400 }
       );
     }
+    const numericId = idResult.data.id;
 
     if (!category_code || !category || !type || !subtype) {
       return NextResponse.json(
@@ -119,15 +119,14 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = await params;
-    const numericId = parseInt(id, 10);
-
-    if (isNaN(numericId)) {
+    const idResult = idParamSchema.safeParse(await params);
+    if (!idResult.success) {
       return NextResponse.json(
         { success: false, error: 'Invalid category ID' },
         { status: 400 }
       );
     }
+    const numericId = idResult.data.id;
 
     const existingResult = await pgQuery('SELECT id FROM public.category WHERE id = $1 LIMIT 1', [numericId]);
     if (existingResult.rows.length === 0) {

@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { pgQuery } from '@/lib/pg';
 import { cacheDel, cacheGet, cacheSet, cacheDelByPattern } from '@/lib/redis';
 import { validateRequest } from '@/lib/validation/validate';
-import { updateDepartmentSchema } from '@/lib/validation/schemas';
+import { idParamSchema, updateDepartmentSchema } from '@/lib/validation/schemas';
+import { isUniqueViolation } from '@/lib/db-errors';
 
 // GET /api/departments/[id] - Get a specific department
 export async function GET(
@@ -10,15 +11,14 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = await params;
-    const numericId = parseInt(id, 10);
-    
-    if (isNaN(numericId)) {
+    const idResult = idParamSchema.safeParse(await params);
+    if (!idResult.success) {
       return NextResponse.json(
         { error: 'Invalid department ID' },
         { status: 400 }
       );
     }
+    const numericId = idResult.data.id;
 
     const cacheKey = `erp:departments:detail:${numericId}`;
     const cached = await cacheGet<any>(cacheKey);
@@ -54,15 +54,14 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = await params;
-    const numericId = parseInt(id, 10);
-    
-    if (isNaN(numericId)) {
+    const idResult = idParamSchema.safeParse(await params);
+    if (!idResult.success) {
       return NextResponse.json(
         { error: 'Invalid department ID' },
         { status: 400 }
       );
     }
+    const numericId = idResult.data.id;
 
     const body = await request.json();
     const validation = await validateRequest(updateDepartmentSchema, body);
@@ -89,8 +88,8 @@ export async function PUT(
       await cacheDelByPattern('erp:departments:list:*');
       await cacheDel(`erp:departments:detail:${numericId}`);
       return NextResponse.json(updatedResult.rows[0]);
-    } catch (error: any) {
-      if (error?.code === '23505') {
+    } catch (error) {
+      if (isUniqueViolation(error)) {
         return NextResponse.json({ error: 'รหัสแผนกนี้ถูกใช้งานแล้ว' }, { status: 409 });
       }
       throw error;
@@ -110,15 +109,14 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = await params;
-    const numericId = parseInt(id, 10);
-    
-    if (isNaN(numericId)) {
+    const idResult = idParamSchema.safeParse(await params);
+    if (!idResult.success) {
       return NextResponse.json(
         { error: 'Invalid department ID' },
         { status: 400 }
       );
     }
+    const numericId = idResult.data.id;
 
     const existingResult = await pgQuery('SELECT id FROM public.department WHERE id = $1 LIMIT 1', [numericId]);
 

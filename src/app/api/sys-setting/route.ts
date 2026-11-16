@@ -4,11 +4,7 @@ import { apiSuccess, apiError, apiConflict } from '@/lib/api-response';
 import { validateQuery, validateRequest } from '@/lib/validation/validate';
 import { createSysSettingSchema, sysSettingQuerySchema } from '@/lib/validation/schemas';
 import { isUniqueViolation } from '@/lib/db-errors';
-
-const sysSettingSelect = `
-  SELECT id, sys_name, sys_value, sys_value_detail, note
-  FROM public.sys_setting
-`;
+import { runListQuery } from '@/lib/list-query';
 
 export async function GET(request: NextRequest) {
   try {
@@ -41,33 +37,24 @@ export async function GET(request: NextRequest) {
       )`);
     }
 
-    const allowedOrderFields: Record<string, string> = {
-      id: 'id',
-      sys_name: 'sys_name',
-      sys_value: 'sys_value',
-      sys_value_detail: 'sys_value_detail',
-      note: 'note',
-    };
-    const safeOrderField = allowedOrderFields[orderBy] || 'id';
-    const safeSortOrder = sortOrder === 'desc' ? 'DESC' : 'ASC';
-    const whereSql = whereClauses.length ? `WHERE ${whereClauses.join(' AND ')}` : '';
-    const skip = (page - 1) * pageSize;
-
-    const [countResult, settingsResult] = await Promise.all([
-      pgQuery(`SELECT COUNT(*)::int AS count FROM public.sys_setting ${whereSql}`, params),
-      pgQuery(
-        `${sysSettingSelect} ${whereSql} ORDER BY ${safeOrderField} ${safeSortOrder} LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,
-        [...params, pageSize, skip]
-      ),
-    ]);
-
-    return apiSuccess(
-      settingsResult.rows,
-      undefined,
-      countResult.rows[0]?.count ?? 0,
-      200,
-      { page, page_size: pageSize }
+    const list = await runListQuery(
+      {
+        columns: 'id, sys_name, sys_value, sys_value_detail, note',
+        from: 'public.sys_setting',
+        where: whereClauses,
+        params,
+        orderBy: {
+          key: orderBy,
+          allowed: ['id', 'sys_name', 'sys_value', 'sys_value_detail', 'note'],
+          fallback: 'id',
+          direction: sortOrder === 'desc' ? 'DESC' : 'ASC',
+        },
+        page,
+        pageSize,
+      },
+      pgQuery
     );
+    return apiSuccess(list.rows, undefined, list.totalCount, 200, list.meta);
   } catch (error) {
     console.error('Error fetching system settings:', error);
     return apiError('Failed to fetch system settings');

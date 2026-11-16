@@ -4,6 +4,7 @@ import { apiSuccess, apiError, apiConflict } from '@/lib/api-response';
 import { cacheGet, cacheSet, cacheDelByPattern } from '@/lib/redis';
 import { validateRequest, validateQuery } from '@/lib/validation/validate';
 import { createSellerSchema, sellerQuerySchema } from '@/lib/validation/schemas';
+import { runListQuery } from '@/lib/list-query';
 
 // GET /api/sellers - Get sellers with optional pagination
 export async function GET(request: NextRequest) {
@@ -27,41 +28,20 @@ export async function GET(request: NextRequest) {
     if (!includeInactive) {
       whereClauses.unshift('is_active = true');
     }
-    const whereSql = whereClauses.length ? `WHERE ${whereClauses.join(' AND ')}` : '';
-    const baseSelect = 'SELECT id, code, prefix, name, business, address, phone, fax, mobile, COALESCE(category_code_sale, ARRAY[]::text[]) AS category_code_sale, is_active FROM public.seller';
-
-    const cacheKeyAll = `erp:sellers:list:v2:all:${JSON.stringify(params)}`;
-    if (!page || !pageSize) {
-      const cachedAll = await cacheGet<any>(cacheKeyAll);
-      if (cachedAll) return apiSuccess(cachedAll.rows, undefined, cachedAll.rows.length);
-
-      const result = await pgQuery(`${baseSelect} ${whereSql} ORDER BY id ASC`, params);
-      await cacheSet(cacheKeyAll, { rows: result.rows }, 3600);
-      return apiSuccess(result.rows, undefined, result.rows.length);
-    }
-
-    const skip = (page - 1) * pageSize;
-
-    // --- Redis Caching Logic (Paginated) ---
-    const cacheKey = `erp:sellers:list:v2:${JSON.stringify({ ...queryValidation.data, page, page_size: pageSize })}`;
-    const cached = await cacheGet<any>(cacheKey);
-    if (cached) {
-      return apiSuccess(cached.items, undefined, cached.totalCount, 200, { page, page_size: pageSize });
-    }
-
-    const [countResult, result] = await Promise.all([
-      pgQuery(`SELECT COUNT(*)::int AS count FROM public.seller ${whereSql}`, params),
-      pgQuery(`${baseSelect} ${whereSql} ORDER BY id ASC LIMIT $${params.length + 1} OFFSET $${params.length + 2}`, [...params, pageSize, skip]),
-    ]);
-
-    const finalResult = {
-      items: result.rows,
-      totalCount: countResult.rows[0]?.count || 0
-    };
-
-    await cacheSet(cacheKey, finalResult, 3600);
-    
-    return apiSuccess(finalResult.items, undefined, finalResult.totalCount, 200, { page, page_size: pageSize });
+    const list = await runListQuery(
+      {
+        columns: 'id, code, prefix, name, business, address, phone, fax, mobile, COALESCE(category_code_sale, ARRAY[]::text[]) AS category_code_sale, is_active',
+        from: 'public.seller',
+        where: whereClauses,
+        params,
+        orderBy: 'id ASC',
+        page,
+        pageSize,
+        cache: { namespace: 'erp:sellers:list', ttlSeconds: 3600, get: cacheGet, set: cacheSet },
+      },
+      pgQuery
+    );
+    return apiSuccess(list.rows, undefined, list.totalCount, 200, list.meta);
   } catch (error) {
     console.error('Error fetching sellers:', error);
     return apiError('Failed to fetch sellers');

@@ -5,21 +5,16 @@ import { validateRequest } from '@/lib/validation/validate';
 import { idParamSchema, updateSysSettingSchema } from '@/lib/validation/schemas';
 import { isUniqueViolation } from '@/lib/db-errors';
 
-function parseSettingId(rawId: string) {
-  const validation = idParamSchema.safeParse({ id: rawId });
-  return validation.success ? validation.data.id : null;
-}
-
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = await params;
-    const numericId = parseSettingId(id);
-    if (!numericId) {
+    const idResult = idParamSchema.safeParse(await params);
+    if (!idResult.success) {
       return apiError('Invalid setting ID', 400);
     }
+    const numericId = idResult.data.id;
 
     const result = await pgQuery(
       'SELECT id, sys_name, sys_value, sys_value_detail, note FROM public.sys_setting WHERE id = $1 LIMIT 1',
@@ -42,11 +37,11 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = await params;
-    const numericId = parseSettingId(id);
-    if (!numericId) {
+    const idResult = idParamSchema.safeParse(await params);
+    if (!idResult.success) {
       return apiError('Invalid setting ID', 400);
     }
+    const numericId = idResult.data.id;
 
     const body = await request.json();
     const validation = await validateRequest(updateSysSettingSchema, body);
@@ -102,11 +97,11 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = await params;
-    const numericId = parseSettingId(id);
-    if (!numericId) {
+    const idResult = idParamSchema.safeParse(await params);
+    if (!idResult.success) {
       return apiError('Invalid setting ID', 400);
     }
+    const numericId = idResult.data.id;
 
     const existing = await pgQuery('SELECT id FROM public.sys_setting WHERE id = $1 LIMIT 1', [numericId]);
     if (existing.rows.length === 0) {

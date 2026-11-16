@@ -48,10 +48,14 @@ export async function cacheDel(key: string): Promise<void> {
  */
 export async function cacheDelByPattern(pattern: string): Promise<void> {
   try {
-    const keys = await redis.keys(pattern);
-    if (keys.length > 0) {
-      await redis.del(...keys);
-    }
+    let cursor = '0';
+    do {
+      const [nextCursor, keys] = await redis.scan(cursor, 'MATCH', pattern, 'COUNT', 500);
+      if (keys.length > 0) {
+        await redis.del(...keys);
+      }
+      cursor = nextCursor;
+    } while (cursor !== '0');
   } catch (error) {
     console.error(`Redis DelPattern Error (Pattern: ${pattern}):`, error);
   }
