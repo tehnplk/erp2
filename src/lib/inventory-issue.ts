@@ -1,4 +1,4 @@
-import { budgetYearSql } from './budget-year.ts';
+import { budgetYearOfDateString, budgetYearSql } from './budget-year.ts';
 
 export type InventoryQuery = (
   text: string,
@@ -41,16 +41,47 @@ export function quotaUsageColumnsSql(refs: {
     ), 0)::int AS issued_qty_current_budget_year`;
 }
 
+export function buildIssueNo(now: Date, id: number) {
+  return `ISS-${now.toISOString().replace(/[-:.TZ]/g, '').slice(0, 14)}-${id}`;
+}
+
+export async function insertIssueHeader(
+  query: InventoryQuery,
+  header: { issueDate: string; requestingDepartmentId: number; note: string | null },
+  now: Date = new Date()
+) {
+  const nextIdResult = await query(
+    `SELECT nextval(pg_get_serial_sequence('public.inventory_issue', 'id'))::int AS id`
+  );
+  const id: number = nextIdResult.rows[0].id;
+  const issueNo = buildIssueNo(now, id);
+  await query(
+    `
+      INSERT INTO public.inventory_issue (id, issue_no, issue_date, requesting_department_id, note)
+      OVERRIDING SYSTEM VALUE
+      VALUES ($1, $2, $3, $4, $5)
+    `,
+    [id, issueNo, header.issueDate, header.requestingDepartmentId, header.note]
+  );
+  return { id, issue_no: issueNo };
+}
+
 export async function validateIssueQuota(
   query: InventoryQuery,
   params: {
     requestingDepartmentId: number;
-    budgetYear: number;
+    issueDate: string;
     items: IssueLineInput[];
     excludeIssueId?: number;
   }
 ) {
-  const { requestingDepartmentId, budgetYear, items, excludeIssueId } = params;
+  const { requestingDepartmentId, issueDate, items, excludeIssueId } = params;
+  let budgetYear: number;
+  try {
+    budgetYear = budgetYearOfDateString(issueDate);
+  } catch {
+    throw new InventoryIssueRuleError(`วันที่เบิกไม่ถูกต้อง: ${issueDate}`);
+  }
   if (items.length === 0) return;
 
   const departmentResult = await query(

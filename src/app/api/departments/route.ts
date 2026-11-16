@@ -74,6 +74,7 @@ export async function POST(request: NextRequest) {
       );
 
       await cacheDelByPattern('erp:departments:list:*');
+      await cacheDelByPattern('erp:usage_plans:filters*');
 
       return apiSuccess(result.rows[0], 'Department created successfully', undefined, 201);
     } catch (error) {

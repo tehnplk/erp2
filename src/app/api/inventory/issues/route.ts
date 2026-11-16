@@ -1,16 +1,9 @@
 ﻿import { NextRequest } from 'next/server';
 import { apiError, apiSuccess } from '@/lib/api-response';
-import { getConfiguredBudgetYear } from '@/lib/budget-year';
-import { InventoryIssueRuleError, reduceStockLot, validateIssueQuota } from '@/lib/inventory-issue';
+import { InventoryIssueRuleError, insertIssueHeader, reduceStockLot, validateIssueQuota } from '@/lib/inventory-issue';
 import { pgPool, pgQuery } from '@/lib/pg';
 import { validateQuery, validateRequest } from '@/lib/validation/validate';
 import { createInventoryIssueSchema, inventoryIssueQuerySchema } from '@/lib/validation/schemas';
-
-const ISSUE_PREFIX = 'ISS';
-
-function buildIssueNo() {
-  return `${ISSUE_PREFIX}-${new Date().toISOString().replace(/[-:.TZ]/g, '').slice(0, 14)}`;
-}
 
 export async function GET(request: NextRequest) {
   try {
@@ -126,6 +119,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   const client = await pgPool.connect();
   const query = (text: string, params?: unknown[]) => client.query(text, params);
+  let inTransaction = false;
 
   try {
     const body = await request.json();
@@ -135,23 +129,18 @@ export async function POST(request: NextRequest) {
     const { issue_date, requesting_department_id, note, items } = validation.data;
 
     await client.query('BEGIN');
-    const budgetYear = await getConfiguredBudgetYear(query);
+    inTransaction = true;
     await validateIssueQuota(query, {
       requestingDepartmentId: Number(requesting_department_id),
-      budgetYear,
+      issueDate: issue_date,
       items: items.map((item) => ({ stock_lot_id: Number(item.stock_lot_id), issued_qty: Number(item.issued_qty) })),
     });
 
-    const issueInsert = await client.query<{ id: number; issue_no: string }>(
-      `
-        INSERT INTO public.inventory_issue (issue_no, issue_date, requesting_department_id, note)
-        VALUES ($1, $2, $3, $4)
-        RETURNING id, issue_no
-      `,
-      [buildIssueNo(), issue_date, requesting_department_id, note?.trim() || null]
-    );
-
-    const issue = issueInsert.rows[0];
+    const issue = await insertIssueHeader(query, {
+      issueDate: issue_date,
+      requestingDepartmentId: Number(requesting_department_id),
+      note: note?.trim() || null,
+    });
     for (const item of items) {
       const qty = Number(item.issued_qty);
       const reduced = await reduceStockLot(query, Number(item.stock_lot_id), qty);
@@ -184,7 +173,7 @@ export async function POST(request: NextRequest) {
       201
     );
   } catch (error) {
-    await client.query('ROLLBACK');
+    if (inTransaction) await client.query('ROLLBACK');
     console.error('Error creating inventory issue:', error);
     return apiError(
       error instanceof Error ? error.message : 'Failed to create inventory issue',

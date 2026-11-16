@@ -37,4 +37,5 @@ export const invalidateUsagePlanCaches = () =>
     cacheDelByPattern('erp:purchase:plans:filters*'),
     cacheDelByPattern('erp:purchase:approvals:list:*'),
     cacheDelByPattern('erp:purchase:approvals:filters*'),
+    cacheDelByPattern('erp:usage_plans:filters*'),
   ]);

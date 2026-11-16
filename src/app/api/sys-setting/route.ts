@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server';
-import { pgQuery } from '@/lib/pg';
+import { pgPool, pgQuery } from '@/lib/pg';
 import { apiSuccess, apiError, apiConflict } from '@/lib/api-response';
 import { validateQuery, validateRequest } from '@/lib/validation/validate';
 import { createSysSettingSchema, sysSettingQuerySchema } from '@/lib/validation/schemas';
@@ -79,23 +79,28 @@ export async function POST(request: NextRequest) {
       return apiConflict('sys_name นี้มีอยู่แล้ว');
     }
 
-    const nextIdResult = await pgQuery('SELECT COALESCE(MAX(id), 0) + 1 AS next_id FROM public.sys_setting');
-    const nextId = Number(nextIdResult.rows[0]?.next_id ?? 1);
-
+    const client = await pgPool.connect();
     try {
-      const result = await pgQuery(
+      await client.query('BEGIN');
+      // sys_setting.id has no default; the lock serialises MAX(id)+1 across concurrent inserts.
+      await client.query(`SELECT pg_advisory_xact_lock(hashtext('public.sys_setting.id'))`);
+      const result = await client.query(
         `INSERT INTO public.sys_setting (id, sys_name, sys_value, sys_value_detail, note)
-         VALUES ($1, $2, $3, $4, $5)
+         SELECT COALESCE(MAX(id), 0) + 1, $1, $2, $3, $4 FROM public.sys_setting
          RETURNING id, sys_name, sys_value, sys_value_detail, note`,
-        [nextId, sysName, sysValue, sysValueDetail, note]
+        [sysName, sysValue, sysValueDetail, note]
       );
+      await client.query('COMMIT');
 
       return apiSuccess(result.rows[0], 'System setting created successfully', undefined, 201);
     } catch (error) {
-      if (isUniqueViolation(error)) {
+      await client.query('ROLLBACK');
+      if (isUniqueViolation(error) && (error as { constraint?: string }).constraint === 'sys_setting_sys_name_key') {
         return apiConflict('sys_name นี้มีอยู่แล้ว');
       }
       throw error;
+    } finally {
+      client.release();
     }
   } catch (error) {
     console.error('Error creating system setting:', error);

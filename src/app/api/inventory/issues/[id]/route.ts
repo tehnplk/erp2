@@ -123,6 +123,7 @@ export async function GET(_request: NextRequest, context: { params: Promise<{ id
 export async function PUT(request: NextRequest, context: { params: Promise<{ id: string }> }) {
   const client = await pgPool.connect();
   const query = (text: string, params?: unknown[]) => client.query(text, params);
+  let inTransaction = false;
 
   try {
     const params = await context.params;
@@ -140,6 +141,7 @@ export async function PUT(request: NextRequest, context: { params: Promise<{ id:
     const { issue_date, note, items } = validation.data;
 
     await client.query('BEGIN');
+    inTransaction = true;
 
     const issueResult = await client.query<{
       id: number;
@@ -162,10 +164,9 @@ export async function PUT(request: NextRequest, context: { params: Promise<{ id:
     }
 
     const lockedRequestingDepartmentId = issue.requesting_department_id;
-    const budgetYear = await getConfiguredBudgetYear(pgQuery);
     await validateIssueQuota(query, {
       requestingDepartmentId: lockedRequestingDepartmentId,
-      budgetYear,
+      issueDate: issue_date,
       items: items.map((item) => ({ stock_lot_id: Number(item.stock_lot_id), issued_qty: Number(item.issued_qty) })),
       excludeIssueId: id,
     });
@@ -278,7 +279,7 @@ export async function PUT(request: NextRequest, context: { params: Promise<{ id:
         : 'บันทึกการแก้ไขใบเบิกจ่ายสำเร็จ',
     );
   } catch (error) {
-    await client.query('ROLLBACK');
+    if (inTransaction) await client.query('ROLLBACK');
     console.error('Error updating inventory issue:', error);
     return apiError(
       error instanceof Error ? error.message : 'Failed to update inventory issue',

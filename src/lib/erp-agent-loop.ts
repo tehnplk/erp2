@@ -237,7 +237,12 @@ ${schema}`,
         throw new Error('DeepSeek requested an unsupported tool.');
       }
 
-      const args = JSON.parse(toolCall.function.arguments) as Record<string, unknown>;
+      let args: Record<string, unknown>;
+      try {
+        args = JSON.parse(toolCall.function.arguments);
+      } catch {
+        throw new Error('DeepSeek sent tool arguments that are not valid JSON.');
+      }
       if (toolCall.function.name === 'present_erp_answer') {
         if (probeQueryCount > 0 && databaseResults.length === 0) {
           messages.push({

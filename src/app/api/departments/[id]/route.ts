@@ -86,6 +86,7 @@ export async function PUT(
       );
 
       await cacheDelByPattern('erp:departments:list:*');
+      await cacheDelByPattern('erp:usage_plans:filters*');
       await cacheDel(`erp:departments:detail:${numericId}`);
       return NextResponse.json(updatedResult.rows[0]);
     } catch (error) {
@@ -129,6 +130,7 @@ export async function DELETE(
 
     await pgQuery('DELETE FROM public.department WHERE id = $1', [numericId]);
     await cacheDelByPattern('erp:departments:list:*');
+    await cacheDelByPattern('erp:usage_plans:filters*');
     await cacheDel(`erp:departments:detail:${numericId}`);
 
     return NextResponse.json(

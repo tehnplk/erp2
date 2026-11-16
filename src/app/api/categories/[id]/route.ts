@@ -62,9 +62,6 @@ export async function PUT(
 ) {
   try {
     const idResult = idParamSchema.safeParse(await params);
-    const body = await request.json();
-    const { category_code, category, type, subtype, is_active } = body;
-
     if (!idResult.success) {
       return NextResponse.json(
         { success: false, error: 'Invalid category ID' },
@@ -72,6 +69,15 @@ export async function PUT(
       );
     }
     const numericId = idResult.data.id;
+
+    const body = await request.json().catch(() => null);
+    if (!body || typeof body !== 'object') {
+      return NextResponse.json(
+        { success: false, error: 'Invalid request body' },
+        { status: 400 }
+      );
+    }
+    const { category_code, category, type, subtype, is_active } = body;
 
     if (!category_code || !category || !type || !subtype) {
       return NextResponse.json(
@@ -97,6 +103,8 @@ export async function PUT(
     );
 
     await cacheDelByPattern('erp:categories:list:*');
+    await cacheDelByPattern('erp:categories:filters');
+    await cacheDelByPattern('erp:usage_plans:filters*');
     await cacheDel(`erp:categories:detail:${numericId}`);
 
     return NextResponse.json({
@@ -139,6 +147,8 @@ export async function DELETE(
     await pgQuery('DELETE FROM public.category WHERE id = $1', [numericId]);
 
     await cacheDelByPattern('erp:categories:list:*');
+    await cacheDelByPattern('erp:categories:filters');
+    await cacheDelByPattern('erp:usage_plans:filters*');
     await cacheDel(`erp:categories:detail:${numericId}`);
 
     return NextResponse.json({

@@ -75,6 +75,8 @@ export async function POST(request: NextRequest) {
     );
 
     await cacheDelByPattern('erp:categories:list:*');
+    await cacheDelByPattern('erp:categories:filters');
+    await cacheDelByPattern('erp:usage_plans:filters*');
 
     return apiSuccess(result.rows[0], 'Category created successfully', undefined, 201);
   } catch (error) {

@@ -94,7 +94,7 @@ export async function PUT(
     });
 
     if (assignments.length === 0) {
-      const unchangedResult = await pgQuery(`${productSelect} WHERE is_active = true AND id = $1 LIMIT 1`, [id]);
+      const unchangedResult = await pgQuery(`${productSelect} WHERE id = $1 LIMIT 1`, [id]);
       return apiSuccess(unchangedResult.rows[0], 'Product updated successfully');
     }
 

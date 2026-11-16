@@ -1,7 +1,8 @@
 ﻿import { NextRequest, NextResponse } from 'next/server';
-import { pgQuery } from '@/lib/pg';
+import { pgPool, pgQuery } from '@/lib/pg';
 import { apiError, apiSuccess } from '@/lib/api-response';
-import { invalidateUsagePlanCaches } from '@/lib/usage-plan-server';
+import { USAGE_PLAN_LIMIT_MESSAGE, claimUsagePlanSequence } from '@/lib/usage-plan';
+import { forbidOtherDepartment, invalidateUsagePlanCaches, requireUsagePlanActor } from '@/lib/usage-plan-server';
 
 const MAX_PRODUCTS = 30;
 
@@ -74,6 +75,9 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  const access = await requireUsagePlanActor();
+  if ('response' in access) return access.response;
+
   try {
     const body = await request.json();
     const productCode = (body?.product_code || '').trim();
@@ -88,6 +92,8 @@ export async function POST(request: NextRequest) {
     if (!requestingDeptCode) {
       return apiError('กรุณาเลือกหน่วยงาน', 400);
     }
+    const forbidden = forbidOtherDepartment(access.actor, requestingDeptCode);
+    if (forbidden) return forbidden;
     if (!category) {
       return apiError('กรุณาเลือกหมวดสินค้า', 400);
     }
@@ -124,15 +130,36 @@ export async function POST(request: NextRequest) {
       return apiError('หน่วยงานที่เลือกไม่ตรงกับหน่วยงานจัดซื้อของสินค้า', 400);
     }
 
-    const usageInsert = await pgQuery<{ id: number }>(
-      `INSERT INTO public.usage_plan
-         (product_code, requested_amount, requesting_dept_code, plan_flag, approved_quota, budget_year, sequence_no)
-       VALUES ($1, $2, $3, 'นอกแผน', $2, $4, 1)
-       RETURNING id`,
-      [productCode, Math.trunc(qty), requestingDeptCode, Math.trunc(budgetYear)],
-    );
+    const client = await pgPool.connect();
+    let usagePlanId: number | undefined;
+    try {
+      await client.query('BEGIN');
+      const query = (text: string, params?: unknown[]) => client.query(text, params);
+      const sequenceNo = await claimUsagePlanSequence(
+        query,
+        { budgetYear: Math.trunc(budgetYear), requestingDeptCode, productCode },
+        null,
+      );
+      if (sequenceNo === null) {
+        await client.query('ROLLBACK');
+        return apiError(USAGE_PLAN_LIMIT_MESSAGE, 400);
+      }
 
-    const usagePlanId = usageInsert.rows[0]?.id;
+      const usageInsert = await client.query<{ id: number }>(
+        `INSERT INTO public.usage_plan
+           (product_code, requested_amount, requesting_dept_code, plan_flag, approved_quota, budget_year, sequence_no)
+         VALUES ($1, $2, $3, 'นอกแผน', $2, $4, $5)
+         RETURNING id`,
+        [productCode, Math.trunc(qty), requestingDeptCode, Math.trunc(budgetYear), sequenceNo],
+      );
+      await client.query('COMMIT');
+      usagePlanId = usageInsert.rows[0]?.id;
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
+    }
     if (!usagePlanId) {
       return apiError('ไม่สามารถสร้าง usage plan นอกแผนได้', 500);
     }

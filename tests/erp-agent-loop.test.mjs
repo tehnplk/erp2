@@ -226,10 +226,18 @@ test('a query without a phase fails the request with a 400 naming the problem', 
   });
 });
 
-test('malformed tool arguments map to the invalid JSON response', async () => {
+test('malformed tool arguments from the model fail the request with a 500', async () => {
   const { model } = scriptedModel([step(call('inspect_erp_table', '{not json'))]);
 
   const error = await run(model, fakeDatabase()).catch((caught) => caught);
+
+  assert.deepEqual(getErpAgentErrorResponse(error), { status: 500, message: 'ERP agent request failed.' });
+});
+
+test('a malformed client request body maps to the invalid JSON response', async () => {
+  const error = await new Request('http://localhost/api/agent/chat', { method: 'POST', body: '{not json' })
+    .json()
+    .catch((caught) => caught);
 
   assert.deepEqual(getErpAgentErrorResponse(error), { status: 400, message: 'Invalid JSON request.' });
 });
